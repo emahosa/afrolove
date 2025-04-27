@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Music, Disc, MusicNote, Wand2, Award } from "lucide-react";
+import { Music, Disc, Music2, Wand2, Award } from "lucide-react";
 
 const Index = () => {
   return (
@@ -48,7 +48,7 @@ const Index = () => {
             <div className="grid md:grid-cols-3 gap-8">
               <div className="flex flex-col items-center text-center p-6 rounded-lg bg-card">
                 <div className="h-16 w-16 rounded-full bg-melody-secondary/20 flex items-center justify-center mb-4">
-                  <MusicNote className="h-8 w-8 text-melody-secondary" />
+                  <Music2 className="h-8 w-8 text-melody-secondary" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">1. Choose Your Style</h3>
                 <p className="text-muted-foreground">Select from popular music genres like Afrobeats, R&B, or Pop.</p>
