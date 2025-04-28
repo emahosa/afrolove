@@ -122,6 +122,16 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
                 <span>User Management</span>
               </NavLink>
 
+              <NavLink to="/admin/admins" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Shield className="h-5 w-5" />
+                <span>Admin Management</span>
+              </NavLink>
+
               <NavLink to="/admin/custom-songs" className={({ isActive }) => cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
                 isActive 
@@ -140,6 +150,16 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
               )}>
                 <Key className="h-5 w-5" />
                 <span>API Keys</span>
+              </NavLink>
+
+              <NavLink to="/admin/content" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Music className="h-5 w-5" />
+                <span>Content Management</span>
               </NavLink>
               
               <NavLink to="/admin/contest" className={({ isActive }) => cn(

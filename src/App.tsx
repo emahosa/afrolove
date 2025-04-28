@@ -60,14 +60,16 @@ const App = () => (
                 
                 {/* Admin routes */}
                 <Route path="/admin" element={<Admin />} />
-                <Route path="/admin/users" element={<Admin />} />
+                <Route path="/admin/users" element={<Admin tab="users" />} />
+                <Route path="/admin/admins" element={<Admin tab="admins" />} />
                 <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
-                <Route path="/admin/api-keys" element={<Admin />} />
-                <Route path="/admin/contest" element={<Admin />} />
-                <Route path="/admin/payments" element={<Admin />} />
-                <Route path="/admin/support" element={<Admin />} />
-                <Route path="/admin/reports" element={<Admin />} />
-                <Route path="/admin/settings" element={<Admin />} />
+                <Route path="/admin/api-keys" element={<Admin tab="apis" />} />
+                <Route path="/admin/contest" element={<Admin tab="contest" />} />
+                <Route path="/admin/content" element={<Admin tab="content" />} />
+                <Route path="/admin/payments" element={<Admin tab="payments" />} />
+                <Route path="/admin/support" element={<Admin tab="support" />} />
+                <Route path="/admin/reports" element={<Admin tab="reports" />} />
+                <Route path="/admin/settings" element={<Admin tab="settings" />} />
               </Route>
             </Route>
             

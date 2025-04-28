@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
   Users,
@@ -23,15 +23,34 @@ import {
   FileText
 } from "lucide-react";
 
-const Admin = () => {
+interface AdminProps {
+  tab?: string;
+}
+
+const Admin = ({ tab = "dashboard" }: AdminProps) => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(tab);
   const { toast } = useToast();
   const [sunoApiKey, setSunoApiKey] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
   const [adminEmails, setAdminEmails] = useState("");
   const [contestPoints, setContestPoints] = useState("100");
   const [contestRules, setContestRules] = useState("1. Submissions must be original\n2. Maximum song length: 3 minutes\n3. No explicit content");
+  const location = useLocation();
+
+  // Set active tab based on prop or URL
+  useEffect(() => {
+    if (tab) {
+      setActiveTab(tab);
+    } else {
+      // Extract tab from URL if not provided as prop
+      const pathname = location.pathname;
+      const urlTab = pathname.split('/').pop();
+      if (urlTab && urlTab !== 'admin') {
+        setActiveTab(urlTab);
+      }
+    }
+  }, [tab, location.pathname]);
 
   // Redirect non-admin users
   if (!isAdmin()) {
@@ -80,7 +99,7 @@ const Admin = () => {
         </Button>
       </div>
 
-      <Tabs defaultValue="dashboard" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-5 lg:grid-cols-10 w-full mb-6">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
