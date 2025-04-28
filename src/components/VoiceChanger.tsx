@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { Music, Loader2, Speaker, Play, Pause } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";

@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 // Components
 import { UserManagement } from '@/components/admin/UserManagement';
@@ -103,13 +102,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
 
-  // Update the active tab when the URL changes
   useEffect(() => {
-    // Extract the tab from the URL path
     const pathSegments = location.pathname.split('/');
     const lastSegment = pathSegments[pathSegments.length - 1];
     
-    // Map URL segments to tab values
     const tabMapping: Record<string, string> = {
       'admin': 'users',
       'users': 'users',
@@ -130,11 +126,9 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     }
   }, [location.pathname, activeTab]);
 
-  // Handle tab change and navigation
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     
-    // Map tab values to URL paths
     const tabToUrlMapping: Record<string, string> = {
       'users': '/admin/users',
       'admins': '/admin/admins',
@@ -148,7 +142,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'settings': '/admin/settings',
     };
     
-    // Navigate to the corresponding URL
     const targetUrl = tabToUrlMapping[value];
     if (targetUrl) {
       navigate(targetUrl);

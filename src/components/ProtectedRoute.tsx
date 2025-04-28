@@ -1,8 +1,7 @@
-
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/hooks/use-toast';
 
 const ProtectedRoute = () => {
   const { user, loading, isAdmin, session } = useAuth();
@@ -11,9 +10,7 @@ const ProtectedRoute = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   
   useEffect(() => {
-    // If auth is no longer loading, we can finish our check
     if (!loading) {
-      // Add a small delay to ensure any auth state updates have propagated
       const timer = setTimeout(() => {
         setIsChecking(false);
       }, 100);
@@ -23,14 +20,12 @@ const ProtectedRoute = () => {
   }, [loading]);
   
   useEffect(() => {
-    // Only show the toast if we're not loading and not checking (i.e., we've completed our checks)
     if (!loading && !user && !isChecking) {
       toast.error("Access denied", {
         description: "You need to log in to access this page"
       });
     }
     
-    // Show toast if user is logged in but trying to access admin route without admin privileges
     if (!loading && user && isAdminRoute && !isAdmin() && !isChecking) {
       toast.error("Access denied", {
         description: "You don't have admin privileges to access this page"
@@ -38,7 +33,6 @@ const ProtectedRoute = () => {
     }
   }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
 
-  // Check for authentication status
   if (loading || isChecking) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -48,28 +42,22 @@ const ProtectedRoute = () => {
     );
   }
 
-  // Check for admin routes
   if (isAdminRoute) {
-    // If not logged in, redirect to login
     if (!user) {
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
     
-    // Special admin access for ellaadahosa@gmail.com
     const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     
-    // If logged in but not admin (except for super admin), redirect to dashboard
     if (!isAdmin() && !isSuperAdmin) {
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
   } else {
-    // For non-admin routes, just check if user is logged in
     if (!user) {
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }
 
-  // All checks passed, render the protected route
   return <Outlet />;
 };
 
