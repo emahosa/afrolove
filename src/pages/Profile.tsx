@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Star, Music, Trophy, Clock, Settings, Mic } from "lucide-react";
 import VoiceProfileManager from "@/components/VoiceProfileManager";
 
-// Mock data
 const activities = [
   { type: "generated", title: "Created a new song", details: "Afrobeats genre", time: "2 hours ago" },
   { type: "vote", title: "Voted for a contest entry", details: "Summer Beats Challenge", time: "Yesterday" },
@@ -37,7 +36,7 @@ const Profile = () => {
             <p className="text-muted-foreground">{user?.email}</p>
             {isAdmin() && (
               <Badge variant="outline" className="mt-1">
-                {user.isAdmin ? "Super Admin" : "Admin"}
+                Admin
               </Badge>
             )}
           </div>
@@ -84,7 +83,7 @@ const Profile = () => {
                 {isAdmin() && (
                   <div>
                     <div className="text-sm text-muted-foreground mb-1">Admin Type</div>
-                    <div className="font-medium">{user.isAdmin ? "Super Admin" : "Ordinary Admin"}</div>
+                    <div className="font-medium">Administrator</div>
                   </div>
                 )}
               </div>

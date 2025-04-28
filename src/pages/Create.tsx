@@ -26,7 +26,7 @@ const Create = () => {
   const [theme, setTheme] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTrack, setGeneratedTrack] = useState<null | { name: string }>(null);
-  const { user, updateUserCredits } = useAuth();
+  const { user, updateUserCredits, isAdmin } = useAuth();
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
   const handleGenerate = () => {
@@ -371,7 +371,7 @@ const Create = () => {
         </TabsContent>
       </Tabs>
       
-      {user?.isAdmin && (
+      {isAdmin() && (
         <div className="mt-8 border-t pt-6">
           <h2 className="text-xl font-bold mb-4">Admin Settings</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
