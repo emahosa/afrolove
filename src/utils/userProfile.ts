@@ -22,10 +22,10 @@ export const enhanceUserWithProfileData = async (user: User): Promise<UserProfil
     // Create an enhanced user object with profile data if available
     const enhancedUser: UserProfile = {
       ...user,
-      name: profile?.name || user.user_metadata?.name || user.user_metadata?.full_name || "User",
+      name: profile?.full_name || user.user_metadata?.name || user.user_metadata?.full_name || "User",
       avatar: profile?.avatar_url || user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata?.name || "User")}&background=random`,
       credits: profile?.credits || 0,
-      subscription: profile?.subscription || "free"
+      subscription: "free" // Default to free since subscription isn't in the profile table
     };
     
     console.log("Enhanced user data:", enhancedUser);
