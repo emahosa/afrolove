@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Music, Loader2, Speaker, Play, Pause } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,20 +36,12 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
 
   const handleVoiceChange = () => {
     if (!songUrl) {
-      toast({
-        title: "Error",
-        description: "No audio file available to process",
-        variant: "destructive",
-      });
+      toast.error("No audio file available to process");
       return;
     }
 
-    if (!voiceId && (!user?.voiceProfiles || user.voiceProfiles.length === 0)) {
-      toast({
-        title: "No voice profile",
-        description: "Please clone your voice first",
-        variant: "destructive",
-      });
+    if (!voiceId && !user?.id) {
+      toast.error("No voice profile available. Please clone your voice first");
       return;
     }
 
@@ -57,23 +50,20 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
     const progressInterval = simulateProgress();
     
     setTimeout(() => {
-      toast({
-        title: "Processing",
-        description: "Splitting vocals and instrumentals...",
+      toast("Processing", {
+        description: "Splitting vocals and instrumentals..."
       });
     }, 1000);
     
     setTimeout(() => {
-      toast({
-        title: "Processing",
-        description: "Applying voice clone to vocals...",
+      toast("Processing", {
+        description: "Applying voice clone to vocals..."
       });
     }, 3000);
     
     setTimeout(() => {
-      toast({
-        title: "Processing",
-        description: "Remastering final track...",
+      toast("Processing", {
+        description: "Remastering final track..."
       });
     }, 5000);
     
@@ -83,9 +73,8 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
       setIsProcessing(false);
       setIsComplete(true);
       
-      toast({
-        title: "Voice changing complete!",
-        description: `"${songName}" has been recreated with your voice`,
+      toast.success("Voice changing complete!", {
+        description: `"${songName}" has been recreated with your voice`
       });
       
       if (onComplete) {
@@ -98,36 +87,31 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
     setIsPlaying(!isPlaying);
     
     if (!isPlaying) {
-      toast({
-        title: "Playing remastered version",
-        description: `Now playing: ${songName} with your voice`,
+      toast("Playing remastered version", {
+        description: `Now playing: ${songName} with your voice`
       });
       
       setTimeout(() => {
         setIsPlaying(false);
-        toast({
-          title: "Playback complete",
-          description: "The remastered song preview has ended",
+        toast("Playback complete", {
+          description: "The remastered song preview has ended"
         });
       }, 30000);
     } else {
-      toast({
-        title: "Playback stopped",
-        description: "Remastered song preview stopped",
+      toast("Playback stopped", {
+        description: "Remastered song preview stopped"
       });
     }
   };
 
   const handleDownload = () => {
-    toast({
-      title: "Download started",
-      description: "Your voice-changed song is being downloaded",
+    toast("Download started", {
+      description: "Your voice-changed song is being downloaded"
     });
     
     setTimeout(() => {
-      toast({
-        title: "Download complete",
-        description: `${songName}-voice-changed.mp3 has been saved to your downloads folder`,
+      toast.success("Download complete", {
+        description: `${songName}-voice-changed.mp3 has been saved to your downloads folder`
       });
     }, 2000);
   };

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { Edit, MessageSquare, Plus, Upload } from "lucide-react";
 import { SongRequest } from "@/hooks/use-song-requests";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type SongRequestCardProps = {
   request: SongRequest;
@@ -22,8 +22,6 @@ export const SongRequestCard = ({
   onWriteLyrics,
   onUploadAudio,
 }: SongRequestCardProps) => {
-  const { toast } = useToast();
-
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">

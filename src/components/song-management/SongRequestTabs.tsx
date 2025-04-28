@@ -3,7 +3,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SongRequest } from "@/hooks/use-song-requests";
 import { SongRequestCard } from "./SongRequestCard";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { RefreshCcw, Check } from "lucide-react";
 
 interface SongRequestTabsProps {
@@ -23,7 +22,6 @@ export const SongRequestTabs = ({
   onUploadAudio,
   onRecreateLyrics,
 }: SongRequestTabsProps) => {
-  const { toast } = useToast();
   
   // Filter requests for each tab
   const pendingRequests = songRequests.filter(r => r.status === "pending");

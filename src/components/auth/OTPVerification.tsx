@@ -8,7 +8,6 @@ import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
-  InputOTPSeparator
 } from "@/components/ui/input-otp";
 import { Loader2 } from "lucide-react";
 
@@ -45,7 +44,7 @@ export function OTPVerification({
 
       if (error) throw error;
 
-      if (data.challenge_verified) {
+      if (data) {
         toast.success("Verification successful!");
         onVerified();
       } else {
@@ -81,8 +80,8 @@ export function OTPVerification({
             onChange={setOtpCode}
             render={({ slots }) => (
               <InputOTPGroup>
-                {slots.map((slot, index) => (
-                  <InputOTPSlot key={index} {...slot} />
+                {slots.map((slot, i) => (
+                  <InputOTPSlot key={i} {...slot} index={i} />
                 ))}
               </InputOTPGroup>
             )}

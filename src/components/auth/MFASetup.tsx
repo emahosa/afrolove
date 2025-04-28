@@ -8,7 +8,6 @@ import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
-  InputOTPSeparator
 } from "@/components/ui/input-otp";
 import { Loader2 } from "lucide-react";
 
@@ -25,6 +24,7 @@ export function MFASetup({ onComplete }: MFASetupProps) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [verifyCode, setVerifyCode] = useState('');
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   
   // Start MFA enrollment process
   const startEnrollment = async () => {
@@ -68,25 +68,25 @@ export function MFASetup({ onComplete }: MFASetupProps) {
     setIsVerifying(true);
     
     try {
-      const { error } = await supabase.auth.mfa.challenge({
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId,
       });
       
-      if (error) throw error;
+      if (challengeError) throw challengeError;
+      
+      setChallengeId(challengeData.id);
       
       const { data, error: verifyError } = await supabase.auth.mfa.verify({
         factorId,
+        challengeId: challengeData.id,
         code: verifyCode,
       });
       
       if (verifyError) throw verifyError;
       
-      if (data.challenge_verified) {
-        toast.success("MFA successfully set up!");
-        if (onComplete) onComplete();
-      } else {
-        toast.error("Code verification failed. Please try again.");
-      }
+      toast.success("MFA successfully set up!");
+      if (onComplete) onComplete();
+      
     } catch (error: any) {
       console.error("MFA verification error:", error);
       toast.error(`Verification failed: ${error.message}`);
@@ -135,8 +135,8 @@ export function MFASetup({ onComplete }: MFASetupProps) {
               onChange={setVerifyCode}
               render={({ slots }) => (
                 <InputOTPGroup>
-                  {slots.map((slot, index) => (
-                    <InputOTPSlot key={index} {...slot} />
+                  {slots.map((slot, i) => (
+                    <InputOTPSlot key={i} {...slot} index={i} />
                   ))}
                 </InputOTPGroup>
               )}
