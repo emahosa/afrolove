@@ -11,43 +11,48 @@ type ToastType = (typeof TOAST_TYPES)[number];
 
 // Define the toast props that include our custom options
 export type ToastProps = {
-  title?: string;
   description?: React.ReactNode;
   type?: ToastType;
   action?: React.ReactNode;
 } & SonnerToastOptions;
 
 // Create a type for the toast function
-type ToastFunction = (props: ToastProps) => void;
+type ToastFunction = (props: ToastProps | string) => void;
 
 // Create types for different toast methods
 type ToastWithType = {
-  [key in ToastType]: ToastFunction;
+  [key in ToastType]: (props: ToastProps | string) => void;
 } & ToastFunction;
 
 // The return type of our useToast hook
 type UseToastReturn = {
   toast: ToastWithType;
   dismiss: (toastId?: string) => void;
-  toasts: any[];
 };
 
 // Create our useToast hook
 export const useToast = (): UseToastReturn => {
-  const [toasts, setToasts] = React.useState<any[]>([]);
-
   // Create the toast function
   const toast = React.useMemo(() => {
-    const toastFunction = ({ title, description, type, ...props }: ToastProps) => {
-      sonnerToast(description as string, {
-        ...props,
-      });
+    const toastFunction = (props: ToastProps | string) => {
+      if (typeof props === 'string') {
+        sonnerToast(props);
+        return;
+      }
+      const { description, type, ...options } = props;
+      sonnerToast(description as string, options);
     };
 
     // Add methods for different toast types
     for (const type of TOAST_TYPES) {
-      (toastFunction as any)[type] = (props: Omit<ToastProps, "type">) =>
-        toastFunction({ ...props, type });
+      (toastFunction as any)[type] = (props: ToastProps | string) => {
+        if (typeof props === 'string') {
+          sonnerToast[type](props);
+          return;
+        }
+        const { description, ...options } = props;
+        sonnerToast[type](description as string, options);
+      };
     }
 
     return toastFunction as ToastWithType;
@@ -62,7 +67,6 @@ export const useToast = (): UseToastReturn => {
         sonnerToast.dismiss();
       }
     },
-    toasts,
   };
 };
 

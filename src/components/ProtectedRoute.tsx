@@ -1,7 +1,8 @@
+
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 const ProtectedRoute = () => {
   const { user, loading, isAdmin, session } = useAuth();
@@ -21,15 +22,11 @@ const ProtectedRoute = () => {
   
   useEffect(() => {
     if (!loading && !user && !isChecking) {
-      toast.error("Access denied", {
-        description: "You need to log in to access this page"
-      });
+      toast.error("You need to log in to access this page");
     }
     
     if (!loading && user && isAdminRoute && !isAdmin() && !isChecking) {
-      toast.error("Access denied", {
-        description: "You don't have admin privileges to access this page"
-      });
+      toast.error("You don't have admin privileges to access this page");
     }
   }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
 

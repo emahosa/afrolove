@@ -1,9 +1,10 @@
+
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Mic, Upload, Loader2, Speaker } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -31,21 +32,13 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
     
     // Check file size (max 10MB for demo)
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please upload an audio file smaller than 10MB",
-        variant: "destructive",
-      });
+      toast.error("Please upload an audio file smaller than 10MB");
       return;
     }
 
     // Check if audio file
     if (!file.type.startsWith("audio/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an audio file",
-        variant: "destructive",
-      });
+      toast.error("Please upload an audio file");
       return;
     }
 
@@ -68,20 +61,12 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
 
   const handleCloneVoice = async () => {
     if (!uploadedFile) {
-      toast({
-        title: "No file selected",
-        description: "Please upload a voice sample first",
-        variant: "destructive",
-      });
+      toast.error("Please upload a voice sample first");
       return;
     }
 
     if ((user?.credits || 0) < 300) {
-      toast({
-        title: "Insufficient credits",
-        description: "You need 300 credits to clone a voice",
-        variant: "destructive",
-      });
+      toast.error("You need 300 credits to clone a voice");
       return;
     }
 
@@ -149,21 +134,14 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
       
       setVoiceId(voiceClone.id);
       
-      toast({
-        title: "Voice cloned successfully",
-        description: "Your voice has been cloned and added to your profile",
-      });
+      toast.success("Your voice has been cloned and added to your profile");
       
       if (onVoiceCloned) {
         onVoiceCloned(voiceClone.id);
       }
     } catch (error) {
       console.error('Error cloning voice:', error);
-      toast({
-        title: "Voice cloning failed",
-        description: "There was a problem processing your request",
-        variant: "destructive",
-      });
+      toast.error("There was a problem processing your request");
     } finally {
       clearInterval(progressInterval);
       setProgress(100);
@@ -173,11 +151,7 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
 
   const handleAPIKeySave = async () => {
     if (!apiKey.trim()) {
-      toast({
-        title: "API Key Required",
-        description: "Please enter a valid ElevenLabs API key",
-        variant: "destructive",
-      });
+      toast.error("Please enter a valid ElevenLabs API key");
       return;
     }
     
@@ -189,17 +163,10 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
         
       if (error) throw error;
       
-      toast({
-        title: "API Key Saved",
-        description: "ElevenLabs API key has been saved successfully",
-      });
+      toast.success("ElevenLabs API key has been saved successfully");
     } catch (error) {
       console.error('Error saving API key:', error);
-      toast({
-        title: "Failed to save API key",
-        description: "Could not save the API key at this time",
-        variant: "destructive",
-      });
+      toast.error("Could not save the API key at this time");
     }
   };
 

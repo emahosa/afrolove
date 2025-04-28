@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Download, MusicIcon, Settings, SplitSquareVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,11 +22,7 @@ const SplitAudioControl = ({ songName, songUrl, isAdmin = false }: SplitAudioCon
 
   const handleSplitAudio = () => {
     if (!songUrl) {
-      toast({
-        title: "Error",
-        description: "No audio file available to split",
-        variant: "destructive",
-      });
+      toast.error("No audio file available to split");
       return;
     }
 
@@ -37,25 +33,16 @@ const SplitAudioControl = ({ songName, songUrl, isAdmin = false }: SplitAudioCon
       setIsSplitting(false);
       setSplitComplete(true);
       
-      toast({
-        title: "Split complete!",
-        description: "Vocals and instrumental have been successfully separated",
-      });
+      toast.success("Vocals and instrumental have been successfully separated");
     }, 3000);
   };
 
   const handleDownloadZip = () => {
-    toast({
-      title: "Download started",
-      description: "Your vocals and instrumental files are being downloaded",
-    });
+    toast("Your vocals and instrumental files are being downloaded");
     
     // Simulated download
     setTimeout(() => {
-      toast({
-        title: "Download complete",
-        description: `${songName}-split.zip has been saved to your downloads folder`,
-      });
+      toast.success(`${songName}-split.zip has been saved to your downloads folder`);
     }, 2000);
   };
 
@@ -95,18 +82,11 @@ const SplitAudioControl = ({ songName, songUrl, isAdmin = false }: SplitAudioCon
                 className="w-full mt-4" 
                 onClick={() => {
                   if (!apiKey.trim()) {
-                    toast({
-                      title: "API Key Required",
-                      description: "Please enter a valid API key",
-                      variant: "destructive",
-                    });
+                    toast.error("Please enter a valid API key");
                     return;
                   }
                   
-                  toast({
-                    title: "Settings Saved",
-                    description: "Audio separation API key has been saved",
-                  });
+                  toast.success("Audio separation API key has been saved");
                 }}
               >
                 Save Settings

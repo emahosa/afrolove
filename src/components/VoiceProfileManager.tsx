@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, Speaker, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import VoiceCloning from "./VoiceCloning";
@@ -39,11 +39,7 @@ const VoiceProfileManager = () => {
       
     } catch (error) {
       console.error('Error fetching voice profiles:', error);
-      toast({
-        title: "Failed to load voices",
-        description: "Could not retrieve your voice profiles",
-        variant: "destructive",
-      });
+      toast.error("Could not retrieve your voice profiles");
       setLoading(false);
     }
   };
@@ -54,10 +50,7 @@ const VoiceProfileManager = () => {
     // Simulate playing a sample
     setTimeout(() => {
       setIsPlaying(null);
-      toast({
-        title: "Sample played",
-        description: "Voice sample playback complete",
-      });
+      toast.success("Voice sample playback complete");
     }, 3000);
   };
 
@@ -76,17 +69,10 @@ const VoiceProfileManager = () => {
       // For demo, just filter out the deleted profile
       setVoiceProfiles(voiceProfiles.filter(profile => profile.id !== voiceId));
       
-      toast({
-        title: "Voice profile deleted",
-        description: "Your voice profile has been removed",
-      });
+      toast.success("Your voice profile has been removed");
     } catch (error) {
       console.error('Error deleting voice profile:', error);
-      toast({
-        title: "Failed to delete",
-        description: "Could not delete the voice profile at this time",
-        variant: "destructive",
-      });
+      toast.error("Could not delete the voice profile at this time");
     } finally {
       setLoading(false);
     }

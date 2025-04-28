@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, Speaker, Trash2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 type VoiceClone = {
@@ -35,11 +35,7 @@ const VoiceCloneList = () => {
         setVoiceClones(data || []);
       } catch (error) {
         console.error('Error fetching voice clones:', error);
-        toast({
-          title: "Failed to load voice profiles",
-          description: "Could not load your voice profiles at this time",
-          variant: "destructive",
-        });
+        toast.error("Could not load your voice profiles at this time");
       } finally {
         setIsLoading(false);
       }
@@ -54,10 +50,7 @@ const VoiceCloneList = () => {
     // Simulate playing a sample
     setTimeout(() => {
       setIsPlaying(null);
-      toast({
-        title: "Sample played",
-        description: "Voice sample playback complete",
-      });
+      toast.success("Voice sample playback complete");
     }, 3000);
   };
 
@@ -72,17 +65,10 @@ const VoiceCloneList = () => {
       
       setVoiceClones(voiceClones.filter(clone => clone.id !== cloneId));
       
-      toast({
-        title: "Voice profile deleted",
-        description: "Your voice profile has been removed",
-      });
+      toast.success("Your voice profile has been removed");
     } catch (error) {
       console.error('Error deleting voice profile:', error);
-      toast({
-        title: "Failed to delete voice profile",
-        description: "Could not delete your voice profile at this time",
-        variant: "destructive",
-      });
+      toast.error("Could not delete your voice profile at this time");
     }
   };
 

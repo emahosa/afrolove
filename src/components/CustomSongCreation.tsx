@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Music, FileMusic, Pencil } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -84,29 +85,17 @@ const CustomSongCreation = () => {
 
   const handleInitialSubmit = () => {
     if (!selectedGenre) {
-      toast({
-        title: "Please select a genre",
-        description: "Select a music genre to continue",
-        variant: "destructive",
-      });
+      toast.error("Select a music genre to continue");
       return;
     }
 
     if (!description) {
-      toast({
-        title: "Please enter a description",
-        description: "Describe your song in detail to help our team create it",
-        variant: "destructive",
-      });
+      toast.error("Describe your song in detail to help our team create it");
       return;
     }
 
     if ((user?.credits || 0) < 100) {
-      toast({
-        title: "Insufficient credits",
-        description: "You need 100 credits to request a custom song",
-        variant: "destructive",
-      });
+      toast.error("You need 100 credits to request a custom song");
       return;
     }
 
@@ -118,10 +107,7 @@ const CustomSongCreation = () => {
       setIsGenerating(false);
       setStep('waiting');
       
-      toast({
-        title: "Request submitted!",
-        description: "Our team is now working on your custom song lyrics",
-      });
+      toast.success("Our team is now working on your custom song lyrics");
       
       setTimeout(() => {
         setStep('lyrics');
@@ -141,19 +127,12 @@ const CustomSongCreation = () => {
 
   const handleSaveLyrics = () => {
     setIsEditing(false);
-    toast({
-      title: "Lyrics saved",
-      description: "Your edits have been saved successfully",
-    });
+    toast.success("Your edits have been saved successfully");
   };
 
   const handleLyricSubmit = () => {
     if (!selectedLyric) {
-      toast({
-        title: "Please select a lyric option",
-        description: "Choose one of the lyric options to continue",
-        variant: "destructive",
-      });
+      toast.error("Choose one of the lyric options to continue");
       return;
     }
 
@@ -163,10 +142,7 @@ const CustomSongCreation = () => {
       setIsGenerating(false);
       setStep('rhythm');
       
-      toast({
-        title: "Lyrics approved!",
-        description: "Our team is now working on your instrumental options",
-      });
+      toast.success("Our team is now working on your instrumental options");
     }, 2000);
   };
 
@@ -176,11 +152,7 @@ const CustomSongCreation = () => {
 
   const handleInstrumentalSubmit = () => {
     if (!selectedVersion) {
-      toast({
-        title: "Please select a version",
-        description: "Choose one of the instrumental options to continue",
-        variant: "destructive",
-      });
+      toast.error("Choose one of the instrumental options to continue");
       return;
     }
 
@@ -188,11 +160,7 @@ const CustomSongCreation = () => {
     const additionalCreditsNeeded = Math.floor(additionalVersions / 2) * 20;
     
     if ((user?.credits || 0) < additionalCreditsNeeded) {
-      toast({
-        title: "Insufficient credits",
-        description: `You need ${additionalCreditsNeeded} more credits for ${versionCount} versions`,
-        variant: "destructive",
-      });
+      toast.error(`You need ${additionalCreditsNeeded} more credits for ${versionCount} versions`);
       return;
     }
 
@@ -206,33 +174,21 @@ const CustomSongCreation = () => {
       setIsGenerating(false);
       setStep('final');
       
-      toast({
-        title: "Custom song created!",
-        description: "Your custom song has been successfully created",
-      });
+      toast.success("Your custom song has been successfully created");
     }, 3000);
   };
 
   const handleSaveToLibrary = () => {
-    toast({
-      title: "Song saved!",
-      description: "Your custom song has been saved to your library",
-    });
+    toast.success("Your custom song has been saved to your library");
     navigate("/library");
   };
 
   const handleDownload = () => {
-    toast({
-      title: "Download started",
-      description: "Your custom song is being downloaded",
-    });
+    toast("Your custom song is being downloaded");
   };
 
   const handleShare = () => {
-    toast({
-      title: "Sharing options",
-      description: "Share link copied to clipboard",
-    });
+    toast.success("Share link copied to clipboard");
   };
 
   const renderStepContent = () => {
@@ -437,10 +393,7 @@ const CustomSongCreation = () => {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    toast({
-                      title: "Request sent",
-                      description: "We've sent your feedback to our team. They'll provide new options shortly.",
-                    });
+                    toast.success("We've sent your feedback to our team. They'll provide new options shortly.");
                   }}
                   className="w-full"
                 >

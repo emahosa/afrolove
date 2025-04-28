@@ -6,7 +6,7 @@ import { ArrowLeft, Disc, Download, MoreHorizontal, Music, Pause, Play, Share2 }
 import SplitAudioControl from "@/components/SplitAudioControl";
 import VoiceCloning from "@/components/VoiceCloning";
 import VoiceChanger from "@/components/VoiceChanger";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Track {
   id: string;
@@ -34,16 +34,10 @@ const SingleTrackView = ({
   selectedVoiceId,
 }: SingleTrackViewProps) => {
   const handleDownload = (trackTitle: string) => {
-    toast({
-      title: "Download started",
-      description: "Your song is being downloaded",
-    });
+    toast("Your song is being downloaded");
     
     setTimeout(() => {
-      toast({
-        title: "Download complete",
-        description: `${trackTitle}.mp3 has been saved to your downloads folder`,
-      });
+      toast.success(`${trackTitle}.mp3 has been saved to your downloads folder`);
     }, 2000);
   };
 
