@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +16,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [rolesLoading, setRolesLoading] = useState<boolean>(true);
   const [initializationComplete, setInitializationComplete] = useState<boolean>(false);
+  const [mfaEnabled, setMfaEnabled] = useState<boolean>(false);
 
   const fetchUserRoles = useCallback(async (userId: string) => {
     if (!userId) {
@@ -51,9 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Modified to ensure ellaadahosa@gmail.com ALWAYS gets admin access
   const isAdmin = useCallback(() => {
-    // Check if user exists and email is ellaadahosa@gmail.com
     if (user?.email === "ellaadahosa@gmail.com") {
       console.log("AuthContext: Super admin access granted to ellaadahosa@gmail.com");
       return true;
@@ -90,6 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
           setUser(enhancedUser);
+          
+          // Check MFA status for the user
+          const { data: factorData } = await supabase.auth.mfa.listFactors();
+          setMfaEnabled(factorData?.totp && factorData.totp.length > 0);
+          
         } catch (error) {
           console.error("AuthContext: Error fetching profile data:", error);
           // User is already set with basic info, so no action needed
@@ -100,6 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setUserRoles([]);
         setRolesLoading(false);
+        setMfaEnabled(false);
       }
     } catch (error) {
       console.error("AuthContext: Error updating auth user:", error);
@@ -195,6 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logout,
     isAdmin,
     updateUserCredits,
+    mfaEnabled,
   };
   
   console.log("AuthContext: Auth context state:", { 
@@ -202,6 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoggedIn: !!user,
     userEmail: user?.email,
     isAdmin: isAdmin(),
+    mfaEnabled,
     loading: !authIsReady,
     userRoles
   });

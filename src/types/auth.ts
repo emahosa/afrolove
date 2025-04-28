@@ -2,11 +2,10 @@
 import { User, Session } from "@supabase/supabase-js";
 
 export interface UserProfile extends User {
-  name?: string;
-  avatar?: string;
-  credits?: number;
-  subscription?: string;
-  voiceProfiles?: any[];
+  name: string;
+  avatar: string;
+  credits: number;
+  subscription: 'free' | 'premium' | 'enterprise';
 }
 
 export interface AuthContextType {
@@ -17,15 +16,6 @@ export interface AuthContextType {
   register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
-  updateUserCredits: (amount: number) => void;
+  updateUserCredits: (amount: number) => Promise<void>;
+  mfaEnabled: boolean;
 }
-
-export interface ProfileData {
-  name?: string;
-  avatar_url?: string;
-  full_name?: string;
-  credits?: number;
-  subscription?: string;
-  voiceProfiles?: any[];
-}
-

@@ -9,7 +9,9 @@ import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
+import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Admin credentials constants - update to use the correct admin email
 const ADMIN_EMAIL = "ellaadahosa@gmail.com";
@@ -20,6 +22,11 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState("user");
+  // MFA verification state
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [showMFAVerification, setShowMFAVerification] = useState(false);
+  
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,6 +68,51 @@ const Login = () => {
     try {
       console.log("Login: Attempting login with:", { email, userType });
       const isAdminLogin = userType === "admin";
+      
+      // First attempt to authenticate with email/password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Check if MFA is required
+      if (data.session === null && data.user !== null) {
+        // This means MFA is required - check for enrolled factors
+        const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        
+        if (factorError) throw factorError;
+        
+        if (factorData.currentLevel === 'aal1' && factorData.nextLevel === 'aal2') {
+          // User has MFA enabled, get all enrolled factors
+          const { data: enrolledFactors, error: enrolledError } = await supabase.auth.mfa.listFactors();
+          
+          if (enrolledError) throw enrolledError;
+          
+          if (enrolledFactors.totp && enrolledFactors.totp.length > 0) {
+            // TOTP factor exists, create a challenge
+            const factor = enrolledFactors.totp[0];
+            
+            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+              factorId: factor.id
+            });
+            
+            if (challengeError) throw challengeError;
+            
+            // Store factor and challenge IDs and show MFA verification
+            setFactorId(factor.id);
+            setChallengeId(challengeData.id);
+            setShowMFAVerification(true);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+      
+      // If we reach here, MFA was not required or has been completed
       const success = await login(email, password, isAdminLogin);
       
       if (success) {
@@ -74,12 +126,53 @@ const Login = () => {
       } else {
         setLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login: Error in component:", error);
-      toast.error("An unexpected error occurred during login");
+      toast.error(error.message || "An unexpected error occurred during login");
       setLoading(false);
     }
   };
+
+  const handleMFAVerified = async () => {
+    setShowMFAVerification(false);
+    
+    // After MFA is verified, complete the login process
+    const isAdminLogin = userType === "admin";
+    const success = await login(email, password, isAdminLogin);
+    
+    if (success) {
+      let destination = isAdminLogin ? "/admin" : "/dashboard";
+      if (location.state?.from?.pathname) {
+        destination = location.state.from.pathname;
+      }
+      navigate(destination, { replace: true });
+    }
+  };
+
+  const handleCancelMFA = () => {
+    setShowMFAVerification(false);
+    // Sign out the incomplete session
+    supabase.auth.signOut();
+  };
+
+  // Show MFA verification screen if needed
+  if (showMFAVerification && factorId && challengeId) {
+    return (
+      <div className="w-full max-w-md p-4 md:p-8 mx-auto">
+        <div className="flex items-center justify-center mb-6">
+          <Music className="h-10 w-10 text-melody-secondary" />
+          <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
+        </div>
+        
+        <OTPVerification 
+          factorId={factorId}
+          challengeId={challengeId}
+          onVerified={handleMFAVerified}
+          onCancel={handleCancelMFA}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-3xl p-4 md:p-0">
