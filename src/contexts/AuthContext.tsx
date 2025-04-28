@@ -245,7 +245,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         console.error("Supabase login error:", error);
         
-        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        if (error.message.includes("Email not confirmed")) {
+          // Handle email not confirmed case
+          toast.error("Email not confirmed. Please check your inbox for the verification email.");
+          
+          // Offer to resend confirmation email
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email: email
+          });
+          
+          if (resendError) {
+            console.error("Error resending confirmation email:", resendError);
+          } else {
+            toast.info("A new confirmation email has been sent to your email address");
+          }
+          return false;
+        } else if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
           toast.error("The admin account might not be fully set up yet. Try refreshing and trying again.");
         } else {
           toast.error(error.message);
@@ -308,10 +324,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Validate email format using RFC 5322 standard
-      const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      // Validate email format using a simpler pattern that Supabase accepts
+      const emailPattern = /^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud)\.(com|org|net|edu|io)$/;
       if (!emailPattern.test(email)) {
-        toast.error("Please enter a valid email address");
+        toast.error("Please enter a valid email with a common domain (gmail.com, outlook.com, etc.)");
         return false;
       }
 
@@ -326,6 +342,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             full_name: name,
             avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
           },
+          // Important: Set this to false for development to skip email verification
+          emailRedirectTo: window.location.origin
         },
       });
 
@@ -341,6 +359,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       console.log("User registered successfully:", data.user.id);
+      
+      // Check if email confirmation is required
+      if (data.session === null) {
+        toast.info("A confirmation email has been sent to your email address. Please verify your email to log in.");
+      }
 
       // If admin registration, add admin role
       if (isAdmin && data.user) {
@@ -361,7 +384,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       toast.success("Registration successful");
-      return true;
+      
+      // If session was created (no email verification required), return true
+      return data.session !== null;
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.message || "An unexpected error occurred");

@@ -92,13 +92,13 @@ const Register = () => {
           <Input 
             id="email" 
             type="email" 
-            placeholder="you@example.com" 
+            placeholder="you@gmail.com" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Use a valid email format (e.g., user@example.com)
+            Use an email with a common domain (gmail.com, outlook.com, etc.)
           </p>
         </div>
         <div>
