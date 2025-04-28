@@ -1,10 +1,16 @@
 import { useState, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Check, Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, Star } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { NavigateFunction, Navigate, useNavigate } from 'react-router-dom';
-import { Check, Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, Star } from 'lucide-react';
+import { Navigate, useNavigate } from 'react-router-dom';
+
+// Components
+import { UserManagement } from '@/components/admin/UserManagement';
+import { AdminManagement } from '@/components/admin/AdminManagement';
+import { ApiKeyManagement } from '@/components/admin/ApiKeyManagement';
+import { ContestManagement } from '@/components/admin/ContestManagement';
+import { PaymentManagement } from '@/components/admin/PaymentManagement';
 
 // Mock data
 const users = [
@@ -75,7 +81,6 @@ const pricingPlans = [
   },
 ];
 
-// Add fixed prices for credit packages
 const creditPackages = [
   { id: 'small', name: 'Small Pack', credits: 20, price: 9.99, status: 'active' },
   { id: 'medium', name: 'Medium Pack', credits: 50, price: 19.99, status: 'active' },
@@ -88,10 +93,9 @@ interface AdminProps {
 
 const Admin = ({ tab = 'users' }: AdminProps) => {
   const { user, isAdmin } = useAuth();
-  const navigate: NavigateFunction = useNavigate();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(tab);
 
-  // Redirect if not admin
   if (!isAdmin()) {
     return <Navigate to="/dashboard" />;
   }
@@ -242,266 +246,30 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         </div>
         
         <div className="mt-6">
-          <TabsContent value="users" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">User Management</h2>
-              <Button>Add New User</Button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Name</th>
-                    <th className="text-left py-3 px-4">Email</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                    <th className="text-left py-3 px-4">Role</th>
-                    <th className="text-left py-3 px-4">Credits</th>
-                    <th className="text-left py-3 px-4">Joined</th>
-                    <th className="text-right py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-b">
-                      <td className="py-3 px-4">{user.name}</td>
-                      <td className="py-3 px-4">{user.email}</td>
-                      <td className="py-3 px-4">{renderStatusLabel(user.status)}</td>
-                      <td className="py-3 px-4">{user.role}</td>
-                      <td className="py-3 px-4">{user.credits}</td>
-                      <td className="py-3 px-4">{user.joinDate}</td>
-                      <td className="py-3 px-4 text-right">
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          Ban
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <TabsContent value="users">
+            <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
           </TabsContent>
 
-          <TabsContent value="admins" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Admin Management</h2>
-              <Button>Add New Admin</Button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">Name</th>
-                    <th className="text-left py-3 px-4">Email</th>
-                    <th className="text-left py-3 px-4">Role</th>
-                    <th className="text-left py-3 px-4">Permissions</th>
-                    <th className="text-left py-3 px-4">Last Active</th>
-                    <th className="text-right py-3 px-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {admins.map((admin) => (
-                    <tr key={admin.id} className="border-b">
-                      <td className="py-3 px-4">{admin.name}</td>
-                      <td className="py-3 px-4">{admin.email}</td>
-                      <td className="py-3 px-4">{admin.role}</td>
-                      <td className="py-3 px-4">{admin.permissions}</td>
-                      <td className="py-3 px-4">{admin.lastActive}</td>
-                      <td className="py-3 px-4 text-right">
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          Remove
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <TabsContent value="admins">
+            <AdminManagement admins={admins} />
           </TabsContent>
 
-          <TabsContent value="apis" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">API Key Management</h2>
-              <Button>Add New API</Button>
-            </div>
-            <div className="grid gap-4">
-              {apiKeys.map((api) => (
-                <Card key={api.id}>
-                  <CardHeader className="pb-2">
-                    <CardTitle>{api.name}</CardTitle>
-                    <CardDescription>API Integration</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">API Key</div>
-                        <div className="font-mono text-sm">{api.key}</div>
-                      </div>
-                      <div className="flex flex-col md:flex-row gap-2">
-                        <Button variant="outline" size="sm">
-                          Reveal Key
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className={api.status === "active" ? "text-green-500" : "text-muted-foreground"}
-                        >
-                          {getButtonContent(api.status)}
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          Regenerate
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <TabsContent value="apis">
+            <ApiKeyManagement apiKeys={apiKeys} getButtonContent={getButtonContent} />
           </TabsContent>
 
-          <TabsContent value="contest" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Contest Management</h2>
-              <Button>Create New Contest</Button>
-            </div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Contest: Summer Hits 2025</CardTitle>
-                <CardDescription>Active until June 30, 2025</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Contest Entries</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4">User</th>
-                          <th className="text-left py-3 px-4">Title</th>
-                          <th className="text-left py-3 px-4">Votes</th>
-                          <th className="text-left py-3 px-4">Status</th>
-                          <th className="text-right py-3 px-4">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {contestEntries.map((entry) => (
-                          <tr key={entry.id} className="border-b">
-                            <td className="py-3 px-4">{entry.user}</td>
-                            <td className="py-3 px-4">{entry.title}</td>
-                            <td className="py-3 px-4">{entry.votes}</td>
-                            <td className="py-3 px-4">{renderStatusLabel(entry.status)}</td>
-                            <td className="py-3 px-4 text-right">
-                              <Button variant="ghost" size="sm" className="h-8 px-2">
-                                View
-                              </Button>
-                              {entry.status === 'pending' ? (
-                                <Button variant="ghost" size="sm" className="h-8 px-2 text-green-500">
-                                  Approve
-                                </Button>
-                              ) : (
-                                <Button variant="ghost" size="sm" className="h-8 px-2 text-amber-500">
-                                  Revoke
-                                </Button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <Button variant="outline">End Contest</Button>
-                  <Button>Choose Winner</Button>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="contest">
+            <ContestManagement contestEntries={contestEntries} renderStatusLabel={renderStatusLabel} />
           </TabsContent>
-          
-          <TabsContent value="payments" className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Pricing Plans</h2>
-                <Button>Add New Plan</Button>
-              </div>
-              
-              <div className="grid gap-6 md:grid-cols-3">
-                {pricingPlans.map((plan) => (
-                  <Card key={plan.id} className={plan.popular ? "border-melody-secondary" : ""}>
-                    {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <div className="bg-melody-secondary text-white text-xs px-3 py-1 rounded-full">
-                          Popular
-                        </div>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle>{plan.name}</CardTitle>
-                      <CardDescription>Subscription Plan</CardDescription>
-                      <div className="mt-4 text-3xl font-bold">${plan.price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                      <div className="mb-4 flex items-center gap-2">
-                        <Star className="h-5 w-5 text-melody-secondary" />
-                        <span className="font-medium">{plan.credits} monthly credits</span>
-                      </div>
-                      <div className="space-y-2">
-                        {renderPlanFeatures(plan.features)}
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button className="w-full">Edit Plan</Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Credit Packages</h2>
-                <Button>Add New Package</Button>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4">Package Name</th>
-                      <th className="text-left py-3 px-4">Credits</th>
-                      <th className="text-left py-3 px-4">Price</th>
-                      <th className="text-left py-3 px-4">Status</th>
-                      <th className="text-right py-3 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {creditPackages.map((pkg) => (
-                      <tr key={pkg.id} className="border-b">
-                        <td className="py-3 px-4">{pkg.name}</td>
-                        <td className="py-3 px-4">{pkg.credits}</td>
-                        <td className="py-3 px-4">${pkg.price.toFixed(2)}</td>
-                        <td className="py-3 px-4">{renderStatusLabel(pkg.status)}</td>
-                        <td className="py-3 px-4 text-right">
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
-                            Edit
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2 text-red-500">
-                            Disable
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+
+          <TabsContent value="payments">
+            <PaymentManagement 
+              pricingPlans={pricingPlans}
+              creditPackages={creditPackages}
+              renderPlanFeatures={renderPlanFeatures}
+              renderStatusLabel={renderStatusLabel}
+            />
           </TabsContent>
-          
         </div>
       </Tabs>
     </div>
