@@ -51,15 +51,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Modified to ensure ellaadahosa@gmail.com ALWAYS gets admin access
   const isAdmin = useCallback(() => {
-    // Always grant admin access to ellaadahosa@gmail.com
+    // Check if user exists and email is ellaadahosa@gmail.com
     if (user?.email === "ellaadahosa@gmail.com") {
-      console.log("AuthContext: Admin access granted to ellaadahosa@gmail.com");
+      console.log("AuthContext: Super admin access granted to ellaadahosa@gmail.com");
       return true;
     }
     
     const hasAdminRole = userRoles.includes('admin');
-    console.log("AuthContext: Admin check, roles:", userRoles, "isAdmin:", hasAdminRole);
+    console.log("AuthContext: Admin check for regular user, roles:", userRoles, "isAdmin:", hasAdminRole);
     return hasAdminRole;
   }, [userRoles, user?.email]);
 
@@ -199,6 +200,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   console.log("AuthContext: Auth context state:", { 
     user: user?.id, 
     isLoggedIn: !!user,
+    userEmail: user?.email,
     isAdmin: isAdmin(),
     loading: !authIsReady,
     userRoles

@@ -26,19 +26,25 @@ export const initializeAdminAccount = async () => {
     if (roleData) {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
       
-      // Ensure ellaadahosa@gmail.com has admin role
-      // Instead of using getUserByEmail which doesn't exist, let's find the user by querying profiles
-      const { data: userCheck } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', ADMIN_EMAIL)
-        .maybeSingle();
+      // Check if ellaadahosa@gmail.com exists and has admin role
+      // First find the user by email in auth system
+      const { data: signInCheck } = await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+      }).catch(() => ({ data: null }));
       
-      if (userCheck?.id) {
+      // If user exists, check for admin role
+      if (signInCheck?.user) {
+        console.log("AuthOperations: Found existing admin email account:", signInCheck.user.id);
+        
+        // Sign out immediately after checking
+        await supabase.auth.signOut();
+        
+        // Check if user has admin role
         const { data: adminRoleCheck } = await supabase
           .from('user_roles')
           .select('*')
-          .eq('user_id', userCheck.id)
+          .eq('user_id', signInCheck.user.id)
           .eq('role', 'admin')
           .maybeSingle();
           
@@ -47,7 +53,7 @@ export const initializeAdminAccount = async () => {
           const { error: insertRoleError } = await supabase
             .from('user_roles')
             .insert({
-              user_id: userCheck.id,
+              user_id: signInCheck.user.id,
               role: 'admin'
             });
             
@@ -166,7 +172,14 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       return false;
     }
 
-    // If admin login, verify admin role
+    // Special case for ellaadahosa@gmail.com - always grant admin access
+    if (email === ADMIN_EMAIL) {
+      console.log("AuthOperations: Super admin login successful");
+      toast.success("Admin login successful");
+      return true;
+    }
+
+    // If admin login (but not the special admin), verify admin role
     if (isAdmin) {
       console.log("AuthOperations: Checking if user is admin:", data.user.id);
       const { data: roleData, error: roleError } = await supabase

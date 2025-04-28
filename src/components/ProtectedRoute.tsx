@@ -39,7 +39,8 @@ const ProtectedRoute = () => {
     isAdmin: isAdmin(),
     session: !!session,
     pathname: location.pathname,
-    email: user?.email
+    email: user?.email,
+    isSuperAdmin: user?.email === "ellaadahosa@gmail.com"
   });
 
   // Show loading state if we're still checking auth status
@@ -52,15 +53,15 @@ const ProtectedRoute = () => {
     );
   }
 
-  // Special admin access for ellaadahosa@gmail.com
-  const isSuperAdmin = user?.email === "ellaadahosa@gmail.com";
-  
   // Check for admin routes
   if (isAdminRoute) {
     // If not logged in, redirect to login
     if (!user) {
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
+    
+    // Special admin access for ellaadahosa@gmail.com
+    const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     
     // If logged in but not admin (except for super admin), redirect to dashboard
     if (!isAdmin() && !isSuperAdmin) {
