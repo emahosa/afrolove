@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -148,9 +147,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string, isAdmin: boolean): Promise<boolean> => {
     try {
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      // Basic email check - just make sure it has @ and .
+      if (!email.includes('@') || !email.includes('.')) {
         toast.error("Invalid email format");
         return false;
       }
@@ -221,9 +219,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      // Basic email check - just make sure it has @ and .
+      if (!email.includes('@') || !email.includes('.')) {
         toast.error("Registration failed", {
           description: "Please enter a valid email address"
         });

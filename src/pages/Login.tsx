@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,6 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const validateEmail = (email: string): boolean => {
-    // Regular expression for basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -34,7 +27,8 @@ const Login = () => {
       return;
     }
 
-    if (!validateEmail(email)) {
+    // Simple format check (contains @ and .)
+    if (!email.includes('@') || !email.includes('.')) {
       toast.error("Please enter a valid email address");
       return;
     }
