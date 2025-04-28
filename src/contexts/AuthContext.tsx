@@ -147,9 +147,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string, isAdmin: boolean): Promise<boolean> => {
     try {
-      // Basic email check - just make sure it has @ and .
-      if (!email.includes('@') || !email.includes('.')) {
-        toast.error("Invalid email format");
+      console.log("Login attempt:", { email, isAdmin });
+      
+      // Simple validation - don't use regex to avoid potential issues
+      if (!email.trim()) {
+        toast.error("Email cannot be empty");
         return false;
       }
 
@@ -179,7 +181,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      // Verify if user has the requested role if trying to log in as admin
+      console.log("Login successful, user:", data.user.id);
+
+      // If trying to log in as admin, verify admin role
       if (isAdmin) {
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
@@ -187,7 +191,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('user_id', data.user.id)
           .eq('role', 'admin');
 
-        if (roleError || !roleData || roleData.length === 0) {
+        console.log("Admin role check:", { roleData, roleError });
+
+        if (roleError) {
+          console.error("Role check error:", roleError);
+          toast.error("Role verification failed", {
+            description: roleError.message
+          });
+          await supabase.auth.signOut();
+          return false;
+        }
+
+        if (!roleData || roleData.length === 0) {
+          console.log("Not an admin user");
           toast.error("Access denied", {
             description: "You don't have admin permissions"
           });
@@ -203,7 +219,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Login error:", error);
       toast.error("Login error", {
-        description: error.message
+        description: error.message || "An unexpected error occurred"
       });
       return false;
     }

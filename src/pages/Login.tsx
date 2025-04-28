@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -27,12 +28,6 @@ const Login = () => {
       return;
     }
 
-    // Simple format check (contains @ and .)
-    if (!email.includes('@') || !email.includes('.')) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-
     if (!password.trim()) {
       toast.error("Password cannot be empty");
       return;
@@ -40,9 +35,13 @@ const Login = () => {
     
     setLoading(true);
     try {
+      console.log("Submitting login form:", { email, userType });
       const success = await login(email, password, userType === "admin");
       if (success) {
+        console.log("Login successful, navigating to dashboard");
         navigate("/dashboard");
+      } else {
+        console.log("Login failed");
       }
     } catch (error) {
       console.error("Login error:", error);
