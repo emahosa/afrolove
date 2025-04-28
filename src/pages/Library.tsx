@@ -1,13 +1,15 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Disc, Search, MoreHorizontal, Music, Download, Share2 } from "lucide-react";
+import { Disc, Search, MoreHorizontal, Music, Download, Share2, Play, Pause } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import SplitAudioControl from "@/components/SplitAudioControl";
+import VoiceCloning from "@/components/VoiceCloning";
+import VoiceChanger from "@/components/VoiceChanger";
+import { toast } from "@/hooks/use-toast";
 
-// Mock data
 const mockTracks = [
   {
     id: "1",
@@ -56,8 +58,9 @@ const mockTracks = [
 const Library = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [playingTrack, setPlayingTrack] = useState<string | null>(null);
 
-  // Filter tracks based on search query and active tab
   const filteredTracks = mockTracks.filter((track) => {
     const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           track.genre.toLowerCase().includes(searchQuery.toLowerCase());
@@ -68,6 +71,44 @@ const Library = () => {
     
     return matchesSearch;
   });
+
+  const handlePlay = (trackId: string, trackTitle: string) => {
+    if (playingTrack === trackId) {
+      setPlayingTrack(null);
+      toast({
+        title: "Playback stopped",
+        description: "Song preview stopped",
+      });
+    } else {
+      setPlayingTrack(trackId);
+      toast({
+        title: "Playing preview",
+        description: `Now playing: ${trackTitle}`,
+      });
+      
+      setTimeout(() => {
+        setPlayingTrack(null);
+        toast({
+          title: "Playback complete",
+          description: "The song preview has ended",
+        });
+      }, 30000);
+    }
+  };
+
+  const handleDownload = (trackTitle: string) => {
+    toast({
+      title: "Download started",
+      description: "Your song is being downloaded",
+    });
+    
+    setTimeout(() => {
+      toast({
+        title: "Download complete",
+        description: `${trackTitle}.mp3 has been saved to your downloads folder`,
+      });
+    }, 2000);
+  };
 
   const renderTracksList = (tracks: typeof mockTracks) => {
     if (tracks.length === 0) {
@@ -102,11 +143,26 @@ const Library = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="flex items-center">
-                    <Music className="mr-2 h-4 w-4" />
-                    <span>Play</span>
+                  <DropdownMenuItem 
+                    className="flex items-center"
+                    onClick={() => handlePlay(track.id, track.title)}
+                  >
+                    {playingTrack === track.id ? (
+                      <>
+                        <Pause className="mr-2 h-4 w-4" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-4 w-4" />
+                        <span>Play</span>
+                      </>
+                    )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center">
+                  <DropdownMenuItem 
+                    className="flex items-center"
+                    onClick={() => handleDownload(track.title)}
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     <span>Download</span>
                   </DropdownMenuItem>
@@ -130,6 +186,22 @@ const Library = () => {
               <div className="audio-wave-bar h-6"></div>
               <div className="audio-wave-bar h-3"></div>
               <div className="audio-wave-bar h-7"></div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2">
+              <SplitAudioControl songName={track.title} songUrl="mock-url" />
+              <div className="flex items-center gap-2">
+                <VoiceCloning 
+                  onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)} 
+                />
+                {selectedVoiceId && (
+                  <VoiceChanger 
+                    songName={track.title} 
+                    songUrl="mock-url"
+                    voiceId={selectedVoiceId}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
