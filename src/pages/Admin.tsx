@@ -1,9 +1,11 @@
-import { useState, ReactNode } from 'react';
+
+import { useState, ReactNode, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Check, Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, Star } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 
 // Components
 import { UserManagement } from '@/components/admin/UserManagement';
@@ -94,9 +96,61 @@ interface AdminProps {
 const Admin = ({ tab = 'users' }: AdminProps) => {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
 
+  // Update the active tab when the URL changes
+  useEffect(() => {
+    // Extract the tab from the URL path
+    const pathSegments = location.pathname.split('/');
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    
+    // Map URL segments to tab values
+    const tabMapping: Record<string, string> = {
+      'admin': 'users',
+      'users': 'users',
+      'admins': 'admins',
+      'api-keys': 'apis',
+      'contest': 'contest',
+      'content': 'content',
+      'payments': 'payments',
+      'support': 'support',
+      'reports': 'reports',
+      'settings': 'settings'
+    };
+    
+    const newTab = tabMapping[lastSegment] || 'users';
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+    }
+  }, [location.pathname, activeTab]);
+
+  // Handle tab change and navigation
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Map tab values to URL paths
+    const tabToUrlMapping: Record<string, string> = {
+      'users': '/admin/users',
+      'admins': '/admin/admins',
+      'apis': '/admin/api-keys',
+      'contest': '/admin/contest',
+      'content': '/admin/content',
+      'payments': '/admin/payments',
+      'support': '/admin/support',
+      'reports': '/admin/reports',
+      'settings': '/admin/settings',
+    };
+    
+    // Navigate to the corresponding URL
+    const targetUrl = tabToUrlMapping[value];
+    if (targetUrl) {
+      navigate(targetUrl);
+    }
+  };
+
   if (!isAdmin()) {
+    toast.error("You don't have admin permissions");
     return <Navigate to="/dashboard" />;
   }
 
@@ -144,16 +198,20 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   };
 
   const renderStatusLabel = (status: string): ReactNode => {
-    const statusClasses = {
+    const statusClasses: Record<string, string> = {
       active: "text-green-500",
       suspended: "text-amber-500",
       pending: "text-blue-500",
       approved: "text-green-500",
     };
     
-    const statusClass = statusClasses[status as keyof typeof statusClasses] || "text-gray-500";
+    const statusClass = statusClasses[status] || "text-gray-500";
     
     return <span className={statusClass}>{status}</span>;
+  };
+
+  const handleNotImplemented = () => {
+    toast.info("This feature is not yet implemented");
   };
 
   return (
@@ -165,79 +223,44 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         </div>
       </div>
 
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="border-b">
           <div className="flex overflow-x-auto py-2 px-4">
             <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-              <TabsTrigger
-                value="users"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/users')}
-              >
+              <TabsTrigger value="users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Users className="mr-2 h-4 w-4" />
                 Users
               </TabsTrigger>
-              <TabsTrigger
-                value="admins"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/admins')}
-              >
+              <TabsTrigger value="admins" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Admins
               </TabsTrigger>
-              <TabsTrigger
-                value="custom-songs"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/custom-songs')}
-              >
+              <TabsTrigger value="custom-songs" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium"
+                onClick={() => navigate('/admin/custom-songs')}>
                 <Music className="mr-2 h-4 w-4" />
                 Custom Songs
               </TabsTrigger>
-              <TabsTrigger
-                value="contest"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/contest')}
-              >
+              <TabsTrigger value="contest" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Trophy className="mr-2 h-4 w-4" />
                 Contest
               </TabsTrigger>
-              <TabsTrigger
-                value="content"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/content')}
-              >
+              <TabsTrigger value="content" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <FileText className="mr-2 h-4 w-4" />
                 Content
               </TabsTrigger>
-              <TabsTrigger
-                value="apis"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/api-keys')}
-              >
+              <TabsTrigger value="apis" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Headphones className="mr-2 h-4 w-4" />
                 API Keys
               </TabsTrigger>
-              <TabsTrigger
-                value="payments"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/payments')}
-              >
+              <TabsTrigger value="payments" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <DollarSign className="mr-2 h-4 w-4" />
                 Payments
               </TabsTrigger>
-              <TabsTrigger
-                value="reports"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/reports')}
-              >
+              <TabsTrigger value="reports" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <BarChart className="mr-2 h-4 w-4" />
                 Reports
               </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
-                onClick={() => navigate('/admin/settings')}
-              >
+              <TabsTrigger value="settings" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Settings className="mr-2 h-4 w-4" />
                 Settings
               </TabsTrigger>
@@ -246,29 +269,61 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         </div>
         
         <div className="mt-6">
-          <TabsContent value="users">
+          <TabsContent value="users" className="mt-0">
             <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
           </TabsContent>
 
-          <TabsContent value="admins">
+          <TabsContent value="admins" className="mt-0">
             <AdminManagement admins={admins} />
           </TabsContent>
 
-          <TabsContent value="apis">
+          <TabsContent value="apis" className="mt-0">
             <ApiKeyManagement apiKeys={apiKeys} getButtonContent={getButtonContent} />
           </TabsContent>
 
-          <TabsContent value="contest">
+          <TabsContent value="contest" className="mt-0">
             <ContestManagement contestEntries={contestEntries} renderStatusLabel={renderStatusLabel} />
           </TabsContent>
 
-          <TabsContent value="payments">
+          <TabsContent value="content" className="mt-0">
+            <div className="p-6 text-center bg-muted rounded-lg">
+              <h3 className="text-xl font-medium mb-2">Content Management</h3>
+              <p className="text-muted-foreground mb-4">Manage your platform's content and media assets</p>
+              <Button onClick={handleNotImplemented}>Initialize Content Manager</Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="payments" className="mt-0">
             <PaymentManagement 
               pricingPlans={pricingPlans}
               creditPackages={creditPackages}
               renderPlanFeatures={renderPlanFeatures}
               renderStatusLabel={renderStatusLabel}
             />
+          </TabsContent>
+
+          <TabsContent value="support" className="mt-0">
+            <div className="p-6 text-center bg-muted rounded-lg">
+              <h3 className="text-xl font-medium mb-2">Customer Support</h3>
+              <p className="text-muted-foreground mb-4">Manage support tickets and user inquiries</p>
+              <Button onClick={handleNotImplemented}>Open Support Dashboard</Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reports" className="mt-0">
+            <div className="p-6 text-center bg-muted rounded-lg">
+              <h3 className="text-xl font-medium mb-2">Reports & Analytics</h3>
+              <p className="text-muted-foreground mb-4">View platform analytics and generate reports</p>
+              <Button onClick={handleNotImplemented}>Generate Report</Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-0">
+            <div className="p-6 text-center bg-muted rounded-lg">
+              <h3 className="text-xl font-medium mb-2">System Settings</h3>
+              <p className="text-muted-foreground mb-4">Configure platform settings and preferences</p>
+              <Button onClick={handleNotImplemented}>Update Settings</Button>
+            </div>
           </TabsContent>
         </div>
       </Tabs>

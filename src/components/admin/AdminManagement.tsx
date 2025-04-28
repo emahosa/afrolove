@@ -1,5 +1,7 @@
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface Admin {
   id: number;
@@ -15,11 +17,28 @@ interface AdminManagementProps {
 }
 
 export const AdminManagement = ({ admins }: AdminManagementProps) => {
+  const [adminsList, setAdminsList] = useState<Admin[]>(admins);
+
+  const handleEdit = (adminId: number) => {
+    toast.info(`Editing admin with ID: ${adminId}`);
+    // In a real app, this would open an edit form or modal
+  };
+
+  const handleRemove = (adminId: number) => {
+    toast.success(`Admin with ID: ${adminId} has been removed`);
+    setAdminsList(adminsList.filter(admin => admin.id !== adminId));
+  };
+
+  const handleAddAdmin = () => {
+    toast.info("Adding new admin - this would open a form in a real application");
+    // In a real app, this would open a form to add a new admin
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Admin Management</h2>
-        <Button>Add New Admin</Button>
+        <Button onClick={handleAddAdmin}>Add New Admin</Button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
@@ -34,7 +53,7 @@ export const AdminManagement = ({ admins }: AdminManagementProps) => {
             </tr>
           </thead>
           <tbody>
-            {admins.map((admin) => (
+            {adminsList.map((admin) => (
               <tr key={admin.id} className="border-b">
                 <td className="py-3 px-4">{admin.name}</td>
                 <td className="py-3 px-4">{admin.email}</td>
@@ -42,10 +61,20 @@ export const AdminManagement = ({ admins }: AdminManagementProps) => {
                 <td className="py-3 px-4">{admin.permissions}</td>
                 <td className="py-3 px-4">{admin.lastActive}</td>
                 <td className="py-3 px-4 text-right">
-                  <Button variant="ghost" size="sm" className="h-8 px-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2"
+                    onClick={() => handleEdit(admin.id)}
+                  >
                     Edit
                   </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 px-2"
+                    onClick={() => handleRemove(admin.id)}
+                  >
                     Remove
                   </Button>
                 </td>
