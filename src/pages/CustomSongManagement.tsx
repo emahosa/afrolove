@@ -20,6 +20,19 @@ import {
   Plus
 } from "lucide-react";
 
+// Define a type for our song request objects to fix the TypeScript errors
+type SongRequest = {
+  id: string;
+  title: string;
+  user: string;
+  description: string;
+  genre: string;
+  status: string;
+  created_at: string;
+  lyrics?: string;
+  audio_url?: string;
+};
+
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
   const { toast } = useToast();
@@ -29,8 +42,8 @@ const CustomSongManagement = () => {
   const [lyricsDraft, setLyricsDraft] = useState("");
   const [uploadingAudio, setUploadingAudio] = useState(false);
 
-  // Mock data for song requests
-  const [songRequests, setSongRequests] = useState([
+  // Mock data for song requests with proper typing
+  const [songRequests, setSongRequests] = useState<SongRequest[]>([
     { 
       id: "1", 
       title: "Summer Love Song", 
@@ -172,9 +185,15 @@ const CustomSongManagement = () => {
     
     // Simulate file upload with timeout
     setTimeout(() => {
+      // Fixed: Adding a default empty string for lyrics to satisfy TypeScript
       setSongRequests(songRequests.map(request => 
         request.id === id 
-          ? {...request, status: "completed", audio_url: `https://example.com/audio/song${id}.mp3`} 
+          ? {
+              ...request, 
+              status: "completed", 
+              audio_url: `https://example.com/audio/song${id}.mp3`,
+              lyrics: request.lyrics || ""  // Ensure lyrics is always defined
+            } 
           : request
       ));
       
@@ -185,6 +204,11 @@ const CustomSongManagement = () => {
         description: "Custom song has been completed and is ready for delivery.",
       });
     }, 1500);
+  };
+
+  // Helper function to render status labels correctly
+  const renderStatusLabel = (status: string) => {
+    return getStatusLabel(status);
   };
 
   return (
@@ -299,7 +323,7 @@ const CustomSongManagement = () => {
                 </p>
               </div>
               <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(request.status)}`}>
-                {getStatusLabel(request.status)}
+                {renderStatusLabel(request.status)}
               </span>
             </div>
             

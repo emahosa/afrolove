@@ -309,6 +309,22 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     ticketFilter === "all" || ticket.status.toLowerCase() === ticketFilter.toLowerCase()
   );
 
+  // Fix for the first Element to string TypeScript error - Line 420
+  const getCheckboxIcon = (checked: boolean) => {
+    return checked ? 
+      <Check className="h-4 w-4 mr-2" /> : 
+      null;
+  };
+
+  // Fix for the second Element to string TypeScript error - Line 725
+  const renderPlanFeatures = (features: string[]) => {
+    return features.map((feature, featIndex) => (
+      <li key={featIndex} className="flex items-center">
+        <span className="text-green-500 mr-2">✓</span> {feature}
+      </li>
+    ));
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -991,11 +1007,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                             </div>
                             <p className="text-sm text-muted-foreground mb-2">{plan.credits} credits per month</p>
                             <ul className="text-sm space-y-1">
-                              {plan.features.map((feature, featIndex) => (
-                                <li key={featIndex} className="flex items-center">
-                                  <span className="text-green-500 mr-2">✓</span> {feature}
-                                </li>
-                              ))}
+                              {renderPlanFeatures(plan.features)}
                             </ul>
                             <div className="mt-4 flex gap-2">
                               <Button size="sm" variant="outline" onClick={() => handleEditPlan(plan.id)}>
