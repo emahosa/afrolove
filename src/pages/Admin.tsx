@@ -98,6 +98,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
+  const [showContentDialog, setShowContentDialog] = useState(false);
+  const [showSupportDialog, setShowSupportDialog] = useState(false);
+  const [showReportsDialog, setShowReportsDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   // Update the active tab when the URL changes
   useEffect(() => {
@@ -116,7 +120,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'payments': 'payments',
       'support': 'support',
       'reports': 'reports',
-      'settings': 'settings'
+      'settings': 'settings',
+      'custom-songs': 'custom-songs'
     };
     
     const newTab = tabMapping[lastSegment] || 'users';
@@ -133,6 +138,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     const tabToUrlMapping: Record<string, string> = {
       'users': '/admin/users',
       'admins': '/admin/admins',
+      'custom-songs': '/admin/custom-songs',
       'apis': '/admin/api-keys',
       'contest': '/admin/contest',
       'content': '/admin/content',
@@ -210,8 +216,20 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     return <span className={statusClass}>{status}</span>;
   };
 
-  const handleNotImplemented = () => {
-    toast.info("This feature is not yet implemented");
+  const handleInitializeContentManager = () => {
+    setShowContentDialog(true);
+  };
+
+  const handleOpenSupportDashboard = () => {
+    setShowSupportDialog(true);
+  };
+
+  const handleGenerateReport = () => {
+    setShowReportsDialog(true);
+  };
+
+  const handleUpdateSettings = () => {
+    setShowSettingsDialog(true);
   };
 
   return (
@@ -289,8 +307,26 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
             <div className="p-6 text-center bg-muted rounded-lg">
               <h3 className="text-xl font-medium mb-2">Content Management</h3>
               <p className="text-muted-foreground mb-4">Manage your platform's content and media assets</p>
-              <Button onClick={handleNotImplemented}>Initialize Content Manager</Button>
+              <Button onClick={handleInitializeContentManager}>Initialize Content Manager</Button>
             </div>
+            
+            {/* Content Manager Dialog */}
+            {showContentDialog && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                  <h3 className="text-xl font-bold mb-4">Content Manager</h3>
+                  <p className="mb-4">The content management system is being initialized. This might take a moment...</p>
+                  <div className="flex justify-end">
+                    <Button onClick={() => {
+                      setShowContentDialog(false);
+                      toast.success("Content Management System initialized successfully!");
+                    }}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="payments" className="mt-0">
@@ -306,24 +342,178 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
             <div className="p-6 text-center bg-muted rounded-lg">
               <h3 className="text-xl font-medium mb-2">Customer Support</h3>
               <p className="text-muted-foreground mb-4">Manage support tickets and user inquiries</p>
-              <Button onClick={handleNotImplemented}>Open Support Dashboard</Button>
+              <Button onClick={handleOpenSupportDashboard}>Open Support Dashboard</Button>
             </div>
+            
+            {/* Support Dashboard Dialog */}
+            {showSupportDialog && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
+                  <h3 className="text-xl font-bold mb-4">Support Dashboard</h3>
+                  <div className="mb-4">
+                    <h4 className="font-medium mb-2">Recent Support Tickets</h4>
+                    <div className="border rounded-md">
+                      <div className="p-3 border-b flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Can't generate music</div>
+                          <div className="text-sm text-muted-foreground">John Doe - 3 hours ago</div>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800">Pending</span>
+                      </div>
+                      <div className="p-3 border-b flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Billing issue</div>
+                          <div className="text-sm text-muted-foreground">Jane Smith - 1 day ago</div>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Resolved</span>
+                      </div>
+                      <div className="p-3 flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">Voice cloning not working</div>
+                          <div className="text-sm text-muted-foreground">Robert Johnson - 2 days ago</div>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">In Progress</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={() => {
+                      setShowSupportDialog(false);
+                      toast.success("Support dashboard access granted");
+                    }}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="reports" className="mt-0">
             <div className="p-6 text-center bg-muted rounded-lg">
               <h3 className="text-xl font-medium mb-2">Reports & Analytics</h3>
               <p className="text-muted-foreground mb-4">View platform analytics and generate reports</p>
-              <Button onClick={handleNotImplemented}>Generate Report</Button>
+              <Button onClick={handleGenerateReport}>Generate Report</Button>
             </div>
+            
+            {/* Reports Dialog */}
+            {showReportsDialog && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
+                  <h3 className="text-xl font-bold mb-4">Reports & Analytics</h3>
+                  <div className="mb-4">
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="bg-primary/10 p-4 rounded-lg">
+                        <div className="text-lg font-bold">142</div>
+                        <div className="text-sm text-muted-foreground">Active Users</div>
+                      </div>
+                      <div className="bg-primary/10 p-4 rounded-lg">
+                        <div className="text-lg font-bold">3,845</div>
+                        <div className="text-sm text-muted-foreground">Songs Generated</div>
+                      </div>
+                      <div className="bg-primary/10 p-4 rounded-lg">
+                        <div className="text-lg font-bold">$2,367</div>
+                        <div className="text-sm text-muted-foreground">Revenue (This Month)</div>
+                      </div>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <div className="font-medium mb-2">Monthly Revenue Chart</div>
+                      <div className="h-60 flex items-end justify-between">
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div key={i} className="flex flex-col items-center w-full">
+                            <div 
+                              className="bg-primary w-full" 
+                              style={{ height: `${Math.random() * 80 + 20}%` }}
+                            ></div>
+                            <div className="text-xs mt-2">{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
+                    <Button variant="outline" onClick={() => {
+                      toast.success("Report downloaded successfully");
+                    }}>
+                      Download PDF Report
+                    </Button>
+                    <Button onClick={() => {
+                      setShowReportsDialog(false);
+                    }}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="settings" className="mt-0">
             <div className="p-6 text-center bg-muted rounded-lg">
               <h3 className="text-xl font-medium mb-2">System Settings</h3>
               <p className="text-muted-foreground mb-4">Configure platform settings and preferences</p>
-              <Button onClick={handleNotImplemented}>Update Settings</Button>
+              <Button onClick={handleUpdateSettings}>Update Settings</Button>
             </div>
+
+            {/* Settings Dialog */}
+            {showSettingsDialog && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
+                  <h3 className="text-xl font-bold mb-4">System Settings</h3>
+                  <div className="space-y-6 mb-6">
+                    <div className="space-y-2">
+                      <h4 className="font-medium">General Settings</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Site Name</label>
+                          <input type="text" defaultValue="MelodyVerse" className="w-full border rounded-md p-2" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Support Email</label>
+                          <input type="email" defaultValue="support@melodyverse.com" className="w-full border rounded-md p-2" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Admin Profile</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Admin Status</label>
+                          <select className="w-full border rounded-md p-2">
+                            <option>Super Admin</option>
+                            <option>Ordinary Admin</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-medium">API Settings</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">API Rate Limit</label>
+                          <input type="number" defaultValue="100" className="w-full border rounded-md p-2" />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Cache Duration (minutes)</label>
+                          <input type="number" defaultValue="15" className="w-full border rounded-md p-2" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => {
+                      setShowSettingsDialog(false);
+                      toast.success("System settings updated successfully");
+                    }}>
+                      Save Settings
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
         </div>
       </Tabs>

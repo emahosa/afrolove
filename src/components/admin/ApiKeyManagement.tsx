@@ -3,6 +3,26 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 interface ApiKey {
   id: number;
@@ -16,9 +36,21 @@ interface ApiKeyManagementProps {
   getButtonContent: (status: string) => React.ReactNode;
 }
 
+const apiKeyFormSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+});
+
 export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagementProps) => {
   const [keys, setKeys] = useState<ApiKey[]>(apiKeys);
   const [revealedKeys, setRevealedKeys] = useState<Record<number, boolean>>({});
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof apiKeyFormSchema>>({
+    resolver: zodResolver(apiKeyFormSchema),
+    defaultValues: {
+      name: "",
+    },
+  });
 
   const handleRevealKey = (apiId: number) => {
     setRevealedKeys(prev => ({
@@ -45,8 +77,24 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
   };
 
   const handleAddNewApi = () => {
-    toast.info("Adding new API key - this would open a form in a real application");
-    // In a real app, this would open a form to add a new API key
+    form.reset({ name: "" });
+    setIsAddDialogOpen(true);
+  };
+
+  const onSubmitAdd = (values: z.infer<typeof apiKeyFormSchema>) => {
+    // Generate a random key for demo purposes
+    const randomKey = "sk_live_" + Math.random().toString(36).substring(2, 10);
+    
+    const newApiKey: ApiKey = {
+      id: Math.max(0, ...keys.map(k => k.id)) + 1,
+      name: values.name,
+      key: "******************************" + randomKey.substring(randomKey.length - 4),
+      status: "active"
+    };
+    
+    setKeys([...keys, newApiKey]);
+    toast.success("New API key added successfully");
+    setIsAddDialogOpen(false);
   };
 
   return (
@@ -101,6 +149,41 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
           </Card>
         ))}
       </div>
+
+      {/* Add New API Key Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New API Key</DialogTitle>
+            <DialogDescription>
+              Create a new API key for service integration.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitAdd)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Service Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g. AI Music Generation" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Generate Key</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
