@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+const ADMIN_EMAIL = "ellaadahosa@gmail.com";
 const ADMIN_PASSWORD = "Admin123!";
 const DEFAULT_ADMIN_NAME = "Admin User";
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
 import { toast } from "sonner";
 
-// Admin credentials constants - using gmail domain for better compatibility
-const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+// Admin credentials constants - updated email
+const ADMIN_EMAIL = "ellaadahosa@gmail.com";
 const ADMIN_PASSWORD = "Admin123!";
 
 const Login = () => {
