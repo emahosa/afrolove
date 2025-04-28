@@ -8,9 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Music, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
-// Admin email domain that should pass Supabase validation
-const ADMIN_EMAIL = "melody.admin@melodyverse.app";
-const ADMIN_PASSWORD = "Admin123";
+// Admin email that should pass Supabase validation - using gmail.com domain
+const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+const ADMIN_PASSWORD = "Admin123!";
 const ADMIN_CODE = "ADMIN123";
 
 const AdminRegister = () => {

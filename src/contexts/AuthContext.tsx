@@ -36,9 +36,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Admin account constants - placed at the top level for easier management
-const ADMIN_EMAIL = "melody.admin@melodyverse.app";
-const ADMIN_PASSWORD = "Admin123";
+// Admin account constants - using gmail domain for better compatibility
+const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+const ADMIN_PASSWORD = "Admin123!";
 const ADMIN_NAME = "Admin User";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -119,8 +119,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (signUpError) {
           console.error("Error creating admin account:", signUpError);
+          toast.error("Failed to initialize admin account: " + signUpError.message);
         } else if (signUpData.user) {
           console.log("Admin user created:", signUpData.user.id);
+          toast.success("Admin account initialized successfully");
           
           // Add admin role
           const { error: roleError } = await supabase

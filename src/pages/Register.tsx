@@ -17,10 +17,10 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  // Email validation function for RFC 5322 compliance
+  // Email validation function using simpler regex that works with Supabase
   const isValidEmail = (email: string) => {
-    const pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return pattern.test(email);
+    // Simple regex to validate emails with popular domains
+    return /^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud)\.(com|org|net|edu|io)$/.test(email);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +38,7 @@ const Register = () => {
     }
 
     if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address (e.g., user@example.com)");
+      toast.error("Please enter a valid email address (e.g., user@gmail.com)");
       return;
     }
 

@@ -11,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
 import { toast } from "sonner";
 
-// Admin credentials constants - should match AuthContext
-const ADMIN_EMAIL = "melody.admin@melodyverse.app";
-const ADMIN_PASSWORD = "Admin123";
+// Admin credentials constants - using gmail domain for better compatibility
+const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+const ADMIN_PASSWORD = "Admin123!";
 
 const Login = () => {
   const [email, setEmail] = useState("");
