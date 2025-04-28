@@ -7,18 +7,20 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [userType, setUserType] = useState("user");
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const success = await login(email, password);
+    const success = await login(email, password, userType === "admin");
     if (success) {
       navigate("/dashboard");
     }
@@ -32,10 +34,17 @@ const Login = () => {
         <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
       </div>
       
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         <h2 className="text-3xl font-bold mb-2">Welcome Back</h2>
         <p className="text-muted-foreground">Sign in to continue to MelodyVerse</p>
       </div>
+
+      <Tabs value={userType} onValueChange={setUserType} className="mb-6">
+        <TabsList className="grid grid-cols-2 w-full">
+          <TabsTrigger value="user">User Login</TabsTrigger>
+          <TabsTrigger value="admin">Admin Login</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -70,35 +79,45 @@ const Login = () => {
           className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
           disabled={loading}
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in..." : userType === "admin" ? "Sign In as Admin" : "Sign In"}
         </Button>
       </form>
 
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-background text-muted-foreground">
-            OR CONTINUE WITH
-          </span>
-        </div>
-      </div>
+      {userType === "user" && (
+        <>
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-background text-muted-foreground">
+                OR CONTINUE WITH
+              </span>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="w-full">
-          <FaGoogle className="mr-2" /> Google
-        </Button>
-        <Button variant="outline" className="w-full">
-          <FaApple className="mr-2" /> Apple
-        </Button>
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Button variant="outline" className="w-full">
+              <FaGoogle className="mr-2" /> Google
+            </Button>
+            <Button variant="outline" className="w-full">
+              <FaApple className="mr-2" /> Apple
+            </Button>
+          </div>
+        </>
+      )}
 
       <p className="text-center mt-8 text-sm">
         Don't have an account?{" "}
-        <Link to="/register" className="text-melody-secondary hover:underline font-medium">
-          Sign up
-        </Link>
+        {userType === "admin" ? (
+          <Link to="/register/admin" className="text-melody-secondary hover:underline font-medium">
+            Create Admin Account
+          </Link>
+        ) : (
+          <Link to="/register" className="text-melody-secondary hover:underline font-medium">
+            Sign up
+          </Link>
+        )}
       </p>
     </div>
   );

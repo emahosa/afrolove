@@ -23,8 +23,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, isAdminLogin?: boolean) => Promise<boolean>;
+  register: (name: string, email: string, password: string, isAdmin?: boolean) => Promise<boolean>;
   logout: () => void;
   updateUserCredits: (amount: number) => void;
   updateUserVoiceProfile: (profileId: string, profileName: string) => void;
@@ -53,6 +53,18 @@ const MOCK_USER = {
   voiceProfiles: []
 };
 
+// Mock admin user
+const MOCK_ADMIN = {
+  id: "admin-123",
+  name: "Admin User",
+  email: "admin@example.com",
+  credits: 100,
+  subscription: "premium",
+  avatar: "/placeholder.svg",
+  isAdmin: true,
+  voiceProfiles: []
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,17 +83,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, isAdminLogin = false) => {
     try {
       setIsLoading(true);
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       if (email && password) { // Basic validation
-        setUser(MOCK_USER);
-        localStorage.setItem("melody-user", JSON.stringify(MOCK_USER));
-        toast({ title: "Login successful", description: "Welcome back!" });
-        return true;
+        if (isAdminLogin) {
+          // For admin login, we'll use a different mock user
+          if (email === "admin@example.com" && password === "adminpassword") {
+            setUser(MOCK_ADMIN);
+            localStorage.setItem("melody-user", JSON.stringify(MOCK_ADMIN));
+            toast({ title: "Admin login successful", description: "Welcome back, Administrator!" });
+            return true;
+          } else {
+            toast({ 
+              title: "Admin login failed", 
+              description: "Invalid admin credentials", 
+              variant: "destructive"
+            });
+            return false;
+          }
+        } else {
+          // Regular user login
+          setUser(MOCK_USER);
+          localStorage.setItem("melody-user", JSON.stringify(MOCK_USER));
+          toast({ title: "Login successful", description: "Welcome back!" });
+          return true;
+        }
       }
       toast({ 
         title: "Login failed", 
@@ -101,17 +131,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (name: string, email: string, password: string, isAdmin = false) => {
     try {
       setIsLoading(true);
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
       if (name && email && password) { // Basic validation
-        const newUser = { ...MOCK_USER, name, email };
-        setUser(newUser);
-        localStorage.setItem("melody-user", JSON.stringify(newUser));
-        toast({ title: "Registration successful", description: "Welcome to MelodyVerse!" });
+        if (isAdmin) {
+          // Admin registration
+          const newAdmin = { ...MOCK_ADMIN, name, email };
+          setUser(newAdmin);
+          localStorage.setItem("melody-user", JSON.stringify(newAdmin));
+          toast({ title: "Admin registration successful", description: "Welcome to MelodyVerse Admin!" });
+        } else {
+          // Regular user registration
+          const newUser = { ...MOCK_USER, name, email, isAdmin: false };
+          setUser(newUser);
+          localStorage.setItem("melody-user", JSON.stringify(newUser));
+          toast({ title: "Registration successful", description: "Welcome to MelodyVerse!" });
+        }
         return true;
       }
       toast({ 

@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AdminRegister from "./pages/AdminRegister";
 import Dashboard from "./pages/Dashboard";
 import Create from "./pages/Create";
 import Library from "./pages/Library";
@@ -43,6 +44,7 @@ const App = () => (
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/register/admin" element={<AdminRegister />} />
             </Route>
             
             {/* Protected routes */}
