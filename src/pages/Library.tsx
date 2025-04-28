@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Disc, Search, MoreHorizontal, Music, Download, Share2, Play, Pause } from "lucide-react";
+import { Disc, Search, MoreHorizontal, Music, Download, Share2, Play, Pause, ArrowLeft } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SplitAudioControl from "@/components/SplitAudioControl";
 import VoiceCloning from "@/components/VoiceCloning";
@@ -60,6 +60,7 @@ const Library = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
 
   const filteredTracks = mockTracks.filter((track) => {
     const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -110,41 +111,51 @@ const Library = () => {
     }, 2000);
   };
 
-  const renderTracksList = (tracks: typeof mockTracks) => {
-    if (tracks.length === 0) {
-      return (
-        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-          <Disc className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No tracks found</h3>
-          <p className="text-muted-foreground mb-6">
-            {searchQuery ? "Try a different search term" : "Create your first track to get started"}
-          </p>
-        </div>
-      );
-    }
+  const handleTrackSelect = (trackId: string) => {
+    setSelectedTrack(trackId);
+  };
 
-    return tracks.map((track) => (
-      <Card key={track.id} className="music-card">
-        <CardContent className="p-0">
-          <div className="aspect-square bg-melody-primary/30 flex items-center justify-center">
-            {track.type === "song" ? (
-              <Music className="h-12 w-12 text-melody-secondary/70" />
-            ) : (
-              <Disc className="h-12 w-12 text-melody-secondary/70" />
-            )}
-          </div>
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-bold truncate">{track.title}</h3>
+  const handleBackToList = () => {
+    setSelectedTrack(null);
+  };
+
+  const renderSingleTrack = (track: typeof mockTracks[0]) => {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <Button 
+          variant="ghost" 
+          className="mb-4" 
+          onClick={handleBackToList}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Library
+        </Button>
+        
+        <Card key={track.id} className="w-full">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 bg-melody-primary/30 flex items-center justify-center rounded-md">
+                  {track.type === "song" ? (
+                    <Music className="h-8 w-8 text-melody-secondary/70" />
+                  ) : (
+                    <Disc className="h-8 w-8 text-melody-secondary/70" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{track.title}</h2>
+                  <p className="text-muted-foreground">{track.genre} • {track.type}</p>
+                </div>
+              </div>
+              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="h-4 w-4" />
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem 
-                    className="flex items-center"
                     onClick={() => handlePlay(track.id, track.title)}
                   >
                     {playingTrack === track.id ? (
@@ -159,14 +170,11 @@ const Library = () => {
                       </>
                     )}
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="flex items-center"
-                    onClick={() => handleDownload(track.title)}
-                  >
+                  <DropdownMenuItem onClick={() => handleDownload(track.title)}>
                     <Download className="mr-2 h-4 w-4" />
                     <span>Download</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center">
+                  <DropdownMenuItem>
                     <Share2 className="mr-2 h-4 w-4" />
                     <span>Share</span>
                   </DropdownMenuItem>
@@ -174,21 +182,16 @@ const Library = () => {
               </DropdownMenu>
             </div>
 
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{track.genre} • {track.type}</span>
-              <span>{track.date}</span>
-            </div>
-
-            <div className="mt-4 audio-wave">
-              <div className="audio-wave-bar h-5"></div>
+            <div className="audio-wave h-24 mb-6">
+              <div className="audio-wave-bar h-16"></div>
+              <div className="audio-wave-bar h-24"></div>
+              <div className="audio-wave-bar h-12"></div>
+              <div className="audio-wave-bar h-20"></div>
               <div className="audio-wave-bar h-8"></div>
-              <div className="audio-wave-bar h-4"></div>
-              <div className="audio-wave-bar h-6"></div>
-              <div className="audio-wave-bar h-3"></div>
-              <div className="audio-wave-bar h-7"></div>
+              <div className="audio-wave-bar h-22"></div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2">
+            <div className="space-y-4">
               <SplitAudioControl songName={track.title} songUrl="mock-url" />
               <div className="flex items-center gap-2">
                 <VoiceCloning 
@@ -203,6 +206,45 @@ const Library = () => {
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  const renderTracksList = (tracks: typeof mockTracks) => {
+    if (tracks.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Disc className="h-16 w-16 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No tracks found</h3>
+          <p className="text-muted-foreground mb-6">
+            {searchQuery ? "Try a different search term" : "Create your first track to get started"}
+          </p>
+        </div>
+      );
+    }
+
+    return tracks.map((track) => (
+      <Card 
+        key={track.id} 
+        className="cursor-pointer hover:bg-accent/50 transition-colors"
+        onClick={() => handleTrackSelect(track.id)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 bg-melody-primary/30 flex items-center justify-center rounded-md">
+              {track.type === "song" ? (
+                <Music className="h-6 w-6 text-melody-secondary/70" />
+              ) : (
+                <Disc className="h-6 w-6 text-melody-secondary/70" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold truncate">{track.title}</h3>
+              <p className="text-sm text-muted-foreground">{track.genre} • {track.type}</p>
+            </div>
+            <span className="text-sm text-muted-foreground">{track.date}</span>
           </div>
         </CardContent>
       </Card>
@@ -211,46 +253,42 @@ const Library = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold mb-2">My Library</h1>
-      <p className="text-muted-foreground">All your saved songs and instrumentals</p>
-
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search your library..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">My Library</h1>
+          <p className="text-muted-foreground">All your saved songs and instrumentals</p>
         </div>
-
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-3 w-full md:w-auto">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="songs">Songs</TabsTrigger>
-            <TabsTrigger value="instrumentals">Instrumentals</TabsTrigger>
-          </TabsList>
-        
-          <TabsContent value="all" className="mt-0 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {renderTracksList(filteredTracks)}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="songs" className="mt-0 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {renderTracksList(filteredTracks.filter(track => track.type === "song"))}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="instrumentals" className="mt-0 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {renderTracksList(filteredTracks.filter(track => track.type === "instrumental"))}
-            </div>
-          </TabsContent>
-        </Tabs>
       </div>
+
+      {!selectedTrack ? (
+        <>
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full md:max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search your library..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-3 w-full md:w-auto">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="songs">Songs</TabsTrigger>
+                <TabsTrigger value="instrumentals">Instrumentals</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className="space-y-2">
+            {renderTracksList(filteredTracks)}
+          </div>
+        </>
+      ) : (
+        renderSingleTrack(mockTracks.find(track => track.id === selectedTrack)!)
+      )}
     </div>
   );
 };
