@@ -1,7 +1,8 @@
+
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { X, Home, Music, Library, Trophy, User, Plus, Star, ShieldAlert } from "lucide-react";
+import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
@@ -33,95 +34,114 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
       
       <div className="flex flex-col h-[calc(100%-4rem)] p-4 justify-between">
         <div className="space-y-1">
-          <NavLink to="/dashboard" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <Home className="h-5 w-5" />
-            <span>Dashboard</span>
-          </NavLink>
-          
-          <NavLink to="/create" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <Plus className="h-5 w-5" />
-            <span>Create</span>
-          </NavLink>
-          
-          <NavLink to="/library" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <Library className="h-5 w-5" />
-            <span>Library</span>
-          </NavLink>
-          
-          <NavLink to="/contest" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <Trophy className="h-5 w-5" />
-            <span>Contest</span>
-          </NavLink>
-          
-          <NavLink to="/profile" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <User className="h-5 w-5" />
-            <span>Profile</span>
-          </NavLink>
-
-          <NavLink to="/credits" className={({ isActive }) => cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-            isActive 
-              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}>
-            <Star className="h-5 w-5" />
-            <span>Get Credits</span>
-          </NavLink>
-
-          <div className="mt-4 border-t border-border/30 pt-4">
-            <NavLink to="/admin" className={({ isActive }) => cn(
-              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-              user?.isAdmin 
-                ? isActive 
+          {/* Regular user navigation */}
+          {!isAdmin() && (
+            <>
+              <NavLink to="/dashboard" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
                   ? "bg-melody-primary/20 text-melody-secondary font-medium" 
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                : "text-muted-foreground opacity-70 pointer-events-none"
-            )}>
-              <ShieldAlert className="h-5 w-5" />
-              <span>{user?.isAdmin ? "Admin" : "Admin (No Access)"}</span>
-            </NavLink>
-          </div>
+              )}>
+                <Home className="h-5 w-5" />
+                <span>Dashboard</span>
+              </NavLink>
+              
+              <NavLink to="/create" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Plus className="h-5 w-5" />
+                <span>Create</span>
+              </NavLink>
+              
+              <NavLink to="/library" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Library className="h-5 w-5" />
+                <span>Library</span>
+              </NavLink>
+              
+              <NavLink to="/contest" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Trophy className="h-5 w-5" />
+                <span>Contest</span>
+              </NavLink>
+              
+              <NavLink to="/profile" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <User className="h-5 w-5" />
+                <span>Profile</span>
+              </NavLink>
+
+              <NavLink to="/credits" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Star className="h-5 w-5" />
+                <span>Get Credits</span>
+              </NavLink>
+            </>
+          )}
+          
+          {/* Admin navigation - only show if user is admin */}
+          {isAdmin() && (
+            <>
+              <NavLink to="/admin" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Shield className="h-5 w-5" />
+                <span>Admin Dashboard</span>
+              </NavLink>
+
+              <NavLink to="/profile" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <User className="h-5 w-5" />
+                <span>Profile</span>
+              </NavLink>
+            </>
+          )}
         </div>
         
-        <div>
-          <NavLink to="/credits" className="block">
-            <div className="bg-card border border-border/50 rounded-lg p-4">
-              <div className="text-sm font-medium mb-2">Available Credits</div>
-              <div className="flex items-center mb-3">
-                <Star className="h-5 w-5 text-melody-secondary mr-2 fill-melody-secondary" />
-                <span className="text-xl font-bold">{user?.credits}</span>
+        {/* Credits display - only show for regular users */}
+        {!isAdmin() && (
+          <div>
+            <NavLink to="/credits" className="block">
+              <div className="bg-card border border-border/50 rounded-lg p-4">
+                <div className="text-sm font-medium mb-2">Available Credits</div>
+                <div className="flex items-center mb-3">
+                  <Star className="h-5 w-5 text-melody-secondary mr-2 fill-melody-secondary" />
+                  <span className="text-xl font-bold">{user?.credits}</span>
+                </div>
+                <Button size="sm" className="w-full bg-melody-secondary hover:bg-melody-secondary/90">
+                  Get More Credits
+                </Button>
               </div>
-              <Button size="sm" className="w-full bg-melody-secondary hover:bg-melody-secondary/90">
-                Get More Credits
-              </Button>
-            </div>
-          </NavLink>
-        </div>
+            </NavLink>
+          </div>
+        )}
       </div>
     </div>
   );
