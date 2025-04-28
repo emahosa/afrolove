@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Users,
+  Users as UsersIcon,
   Settings,
   Database,
   Shield,
@@ -19,8 +19,13 @@ import {
   Star,
   Key,
   MessageSquare,
-  Bell,
-  FileText
+  FileText,
+  Search,
+  Check,
+  X,
+  Edit,
+  Trash2,
+  Plus
 } from "lucide-react";
 
 interface AdminProps {
@@ -31,12 +36,76 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(tab);
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Form states
   const [sunoApiKey, setSunoApiKey] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
   const [adminEmails, setAdminEmails] = useState("");
   const [contestPoints, setContestPoints] = useState("100");
   const [contestRules, setContestRules] = useState("1. Submissions must be original\n2. Maximum song length: 3 minutes\n3. No explicit content");
-  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [ticketFilter, setTicketFilter] = useState("open");
+
+  // Mock data for user management
+  const [users, setUsers] = useState([
+    { id: "1", name: "John Doe", email: "john@example.com", credits: 25, plan: "Premium", status: "Active" },
+    { id: "2", name: "Sarah Smith", email: "sarah@example.com", credits: 10, plan: "Basic", status: "Active" },
+    { id: "3", name: "Michael Brown", email: "mike@example.com", credits: 50, plan: "Premium", status: "Active" },
+    { id: "4", name: "Emma Wilson", email: "emma@example.com", credits: 0, plan: "Free", status: "Suspended" },
+    { id: "5", name: "David Johnson", email: "david@example.com", credits: 15, plan: "Basic", status: "Active" },
+  ]);
+
+  // Mock data for admin management
+  const [admins, setAdmins] = useState([
+    { id: "1", name: "Admin User", email: "admin@example.com", role: "Super Admin" },
+    { id: "2", name: "Jane Doe", email: "jane@example.com", role: "Admin" },
+    { id: "3", name: "Robert Smith", email: "robert@example.com", role: "Admin" },
+  ]);
+
+  // Mock data for content management
+  const [content, setContent] = useState([
+    { id: "1", title: "Summer Vibes", type: "Song", user: "john@example.com", created: "2023-04-15" },
+    { id: "2", title: "Electronic Beat 03", type: "Instrumental", user: "admin@example.com", created: "2023-04-12" },
+    { id: "3", title: "Sarah's Voice", type: "Voice Clone", user: "sarah@example.com", created: "2023-04-10" },
+    { id: "4", title: "Rock Anthem", type: "Song", user: "mike@example.com", created: "2023-04-08" },
+    { id: "5", title: "Lo-Fi Background", type: "Instrumental", user: "admin@example.com", created: "2023-04-05" },
+  ]);
+
+  // Mock data for contest entries
+  const [contests, setContests] = useState([
+    { id: "1", name: "Summer Hit 2023", entries: 32, ends: "2023-05-15" },
+    { id: "2", name: "Best Rock Song", entries: 18, ends: "2023-05-20" },
+    { id: "3", name: "Electronic Challenge", entries: 24, ends: "2023-05-25" },
+  ]);
+
+  // Mock data for payment plans
+  const [plans, setPlans] = useState([
+    { id: "1", name: "Basic", price: "$4.99", credits: 50, features: ["50 credits/month", "Voice cloning (2 voices)", "Standard support"] },
+    { id: "2", name: "Premium", price: "$9.99", credits: 120, features: ["120 credits/month", "Voice cloning (5 voices)", "Priority support", "Contest entry"] },
+    { id: "3", name: "Pro", price: "$19.99", credits: 300, features: ["300 credits/month", "Unlimited voice cloning", "24/7 support", "Contest entry", "Commercial usage"] },
+  ]);
+
+  // Mock data for payment history
+  const [payments, setPayments] = useState([
+    { id: "1", user: "john@example.com", plan: "Premium", amount: "$9.99", date: "2023-04-15" },
+    { id: "2", user: "sarah@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-14" },
+    { id: "3", user: "mike@example.com", plan: "Pro", amount: "$19.99", date: "2023-04-12" },
+    { id: "4", user: "emma@example.com", plan: "Premium", amount: "$9.99", date: "2023-04-10" },
+    { id: "5", user: "david@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-08" },
+  ]);
+
+  // Mock data for support tickets
+  const [tickets, setTickets] = useState([
+    { id: "T-1234", user: "john@example.com", subject: "Payment issue", status: "Open", date: "Apr 15" },
+    { id: "T-1233", user: "sarah@example.com", subject: "Can't generate song", status: "Open", date: "Apr 14" },
+    { id: "T-1232", user: "mike@example.com", subject: "Voice clone failed", status: "Open", date: "Apr 14" },
+    { id: "T-1231", user: "emma@example.com", subject: "Credits not added", status: "Open", date: "Apr 13" },
+    { id: "T-1230", user: "david@example.com", subject: "Login problem", status: "In Progress", date: "Apr 12" },
+  ]);
 
   // Set active tab based on prop or URL
   useEffect(() => {
@@ -52,11 +121,18 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     }
   }, [tab, location.pathname]);
 
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    navigate(`/admin/${value === 'dashboard' ? '' : value}`);
+  };
+
   // Redirect non-admin users
   if (!isAdmin()) {
     return <Navigate to="/dashboard" />;
   }
 
+  // Handler functions
   const handleSaveApiKeys = () => {
     toast({
       title: "API Keys Saved",
@@ -68,6 +144,16 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     const emails = adminEmails.split("\n").filter(email => email.trim() !== "");
     
     if (emails.length > 0) {
+      // Add new admins to the list
+      const newAdmins = emails.map((email, index) => ({
+        id: `new-${index}`,
+        name: email.split('@')[0],
+        email: email,
+        role: "Admin"
+      }));
+      
+      setAdmins([...admins, ...newAdmins]);
+      
       toast({
         title: "Admin Access Granted",
         description: `Admin access granted to ${emails.length} user(s).`,
@@ -82,6 +168,14 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     }
   };
 
+  const handleRemoveAdmin = (id: string) => {
+    setAdmins(admins.filter(admin => admin.id !== id));
+    toast({
+      title: "Admin Removed",
+      description: "The admin has been removed successfully.",
+    });
+  };
+
   const handleSaveContestSettings = () => {
     toast({
       title: "Contest Settings Saved",
@@ -89,17 +183,143 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     });
   };
 
+  const handleEditUser = (id: string) => {
+    setEditingUser(id);
+  };
+
+  const handleSaveUser = (id: string) => {
+    setEditingUser(null);
+    toast({
+      title: "User Updated",
+      description: "User information has been updated successfully.",
+    });
+  };
+
+  const handleSuspendUser = (id: string) => {
+    setUsers(users.map(user => 
+      user.id === id ? {...user, status: user.status === "Active" ? "Suspended" : "Active"} : user
+    ));
+    
+    toast({
+      title: "User Status Updated",
+      description: `User has been ${users.find(u => u.id === id)?.status === "Active" ? "suspended" : "activated"}.`,
+    });
+  };
+
+  const handleRemoveContent = (id: string) => {
+    setContent(content.filter(item => item.id !== id));
+    toast({
+      title: "Content Removed",
+      description: "The content has been removed successfully.",
+    });
+  };
+
+  const handleCreateContest = () => {
+    const newContest = {
+      id: `${contests.length + 1}`,
+      name: "New Contest",
+      entries: 0,
+      ends: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    };
+    
+    setContests([...contests, newContest]);
+    
+    toast({
+      title: "Contest Created",
+      description: "New contest has been created successfully.",
+    });
+  };
+
+  const handleAddPlan = () => {
+    const newPlan = {
+      id: `${plans.length + 1}`,
+      name: "New Plan",
+      price: "$0.00",
+      credits: 0,
+      features: ["Basic features"]
+    };
+    
+    setPlans([...plans, newPlan]);
+    setSelectedPlan(`${plans.length + 1}`);
+    
+    toast({
+      title: "Plan Added",
+      description: "New plan has been added. Please edit the details.",
+    });
+  };
+
+  const handleEditPlan = (id: string) => {
+    setSelectedPlan(id);
+  };
+
+  const handleRemovePlan = (id: string) => {
+    setPlans(plans.filter(plan => plan.id !== id));
+    
+    toast({
+      title: "Plan Removed",
+      description: "The plan has been removed successfully.",
+    });
+  };
+
+  const handleRespondToTicket = (id: string) => {
+    // In a real app, this would open a response modal or page
+    toast({
+      title: "Responding to Ticket",
+      description: `Opening response form for ticket ${id}.`,
+    });
+  };
+
+  const handleFilterTickets = (filter: string) => {
+    setTicketFilter(filter);
+  };
+
+  const handleGenerateReport = (reportName: string) => {
+    toast({
+      title: "Generating Report",
+      description: `${reportName} is being generated. It will be available shortly.`,
+    });
+  };
+
+  const handleSaveSettings = () => {
+    toast({
+      title: "Settings Saved",
+      description: "Your settings have been saved successfully.",
+    });
+  };
+
+  const handleToggleSetting = (setting: string) => {
+    toast({
+      title: "Setting Updated",
+      description: `${setting} has been updated.`,
+    });
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredContent = content.filter(item => 
+    item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.user.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredTickets = tickets.filter(ticket => 
+    ticketFilter === "all" || ticket.status.toLowerCase() === ticketFilter.toLowerCase()
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Admin Control Panel</h1>
-        <Button variant="outline">
+        <Button variant="outline" onClick={() => navigate('/admin/settings')}>
           <Settings className="h-4 w-4 mr-2" />
           Admin Settings
         </Button>
       </div>
 
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="grid grid-cols-5 lg:grid-cols-10 w-full mb-6">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
@@ -125,7 +345,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="text-center">
-                      <Users className="h-8 w-8 mx-auto text-melody-secondary mb-2" />
+                      <UsersIcon className="h-8 w-8 mx-auto text-melody-secondary mb-2" />
                       <div className="text-2xl font-bold">234</div>
                       <p className="text-sm text-muted-foreground">Total Users</p>
                     </div>
@@ -192,10 +412,19 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
             </CardHeader>
             <CardContent>
               <div className="flex justify-between mb-4">
-                <Input className="max-w-sm" placeholder="Search users..." />
+                <Input 
+                  className="max-w-sm" 
+                  placeholder="Search users..." 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  prefix={<Search className="h-4 w-4 text-muted-foreground" />}
+                />
                 <div className="space-x-2">
-                  <Button variant="outline">Export</Button>
-                  <Button>Add User</Button>
+                  <Button variant="outline" onClick={() => toast({ title: "Users Exported", description: "User data has been exported successfully." })}>Export</Button>
+                  <Button onClick={() => toast({ title: "Add User", description: "User creation form will open." })}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
                 </div>
               </div>
               
@@ -208,20 +437,47 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                   <div>Actions</div>
                 </div>
                 
-                {[
-                  { name: "John Doe", email: "john@example.com", credits: 25, plan: "Premium", status: "Active" },
-                  { name: "Sarah Smith", email: "sarah@example.com", credits: 10, plan: "Basic", status: "Active" },
-                  { name: "Michael Brown", email: "mike@example.com", credits: 50, plan: "Premium", status: "Active" },
-                  { name: "Emma Wilson", email: "emma@example.com", credits: 0, plan: "Free", status: "Suspended" },
-                  { name: "David Johnson", email: "david@example.com", credits: 15, plan: "Basic", status: "Active" },
-                ].map((user, index) => (
+                {filteredUsers.map((user, index) => (
                   <div key={index} className="grid grid-cols-5 p-4 border-b items-center">
                     <div>
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                     </div>
-                    <div>{user.credits}</div>
-                    <div>{user.plan}</div>
+                    <div>
+                      {editingUser === user.id ? (
+                        <Input
+                          type="number"
+                          value={user.credits}
+                          className="w-24"
+                          onChange={(e) => {
+                            const updatedUsers = [...users];
+                            updatedUsers[index].credits = parseInt(e.target.value);
+                            setUsers(updatedUsers);
+                          }}
+                        />
+                      ) : (
+                        user.credits
+                      )}
+                    </div>
+                    <div>
+                      {editingUser === user.id ? (
+                        <select
+                          className="border rounded-md p-1 w-32"
+                          value={user.plan}
+                          onChange={(e) => {
+                            const updatedUsers = [...users];
+                            updatedUsers[index].plan = e.target.value;
+                            setUsers(updatedUsers);
+                          }}
+                        >
+                          <option value="Free">Free</option>
+                          <option value="Basic">Basic</option>
+                          <option value="Premium">Premium</option>
+                        </select>
+                      ) : (
+                        user.plan
+                      )}
+                    </div>
                     <div>
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         user.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
@@ -230,15 +486,50 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                       </span>
                     </div>
                     <div className="space-x-2">
-                      <Button size="sm" variant="outline">Edit</Button>
-                      <Button size="sm" variant="outline" className="text-red-500">Suspend</Button>
+                      {editingUser === user.id ? (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => handleSaveUser(user.id)}>
+                            <Check className="h-4 w-4 mr-1" />
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingUser(null)}>
+                            <X className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => handleEditUser(user.id)}>
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className={user.status === "Active" ? "text-red-500" : "text-green-500"}
+                            onClick={() => handleSuspendUser(user.id)}
+                          >
+                            {user.status === "Active" ? (
+                              <>
+                                <X className="h-4 w-4 mr-1" />
+                                Suspend
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-1" />
+                                Activate
+                              </>
+                            )}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
               
               <div className="flex justify-between mt-4">
-                <div>Showing 5 of 234 users</div>
+                <div>Showing {filteredUsers.length} of {users.length} users</div>
                 <div className="flex space-x-1">
                   <Button size="sm" variant="outline">Previous</Button>
                   <Button size="sm" variant="outline">Next</Button>
@@ -280,11 +571,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                 <div>
                   <h3 className="text-lg font-medium mb-4">Current Admins</h3>
                   <div className="space-y-2">
-                    {[
-                      { name: "Admin User", email: "admin@example.com", role: "Super Admin" },
-                      { name: "Jane Doe", email: "jane@example.com", role: "Admin" },
-                      { name: "Robert Smith", email: "robert@example.com", role: "Admin" },
-                    ].map((admin, index) => (
+                    {admins.map((admin, index) => (
                       <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
                         <div>
                           <p className="font-medium">{admin.name}</p>
@@ -293,7 +580,13 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{admin.role}</span>
                           {admin.role !== "Super Admin" && (
-                            <Button size="sm" variant="outline" className="h-8 text-red-500">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8 text-red-500"
+                              onClick={() => handleRemoveAdmin(admin.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
                               Remove
                             </Button>
                           )}
@@ -330,7 +623,18 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                           value={sunoApiKey}
                           onChange={(e) => setSunoApiKey(e.target.value)}
                         />
-                        <Button variant="outline">Test</Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            toast({
+                              title: "API Key Tested",
+                              description: sunoApiKey ? "Suno API key is valid." : "Please enter an API key.",
+                              variant: sunoApiKey ? "default" : "destructive",
+                            });
+                          }}
+                        >
+                          Test
+                        </Button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Used for AI music generation</p>
                     </div>
@@ -346,7 +650,18 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                           value={elevenLabsApiKey}
                           onChange={(e) => setElevenLabsApiKey(e.target.value)}
                         />
-                        <Button variant="outline">Test</Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            toast({
+                              title: "API Key Tested",
+                              description: elevenLabsApiKey ? "ElevenLabs API key is valid." : "Please enter an API key.",
+                              variant: elevenLabsApiKey ? "default" : "destructive",
+                            });
+                          }}
+                        >
+                          Test
+                        </Button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Used for voice cloning and text-to-speech</p>
                     </div>
@@ -359,8 +674,24 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                     <div>
                       <Label htmlFor="stripe-api-key">Stripe API Key</Label>
                       <div className="flex gap-2">
-                        <Input id="stripe-api-key" type="password" placeholder="Enter Stripe API key" className="flex-1" />
-                        <Button variant="outline">Test</Button>
+                        <Input 
+                          id="stripe-api-key" 
+                          type="password" 
+                          placeholder="Enter Stripe API key" 
+                          className="flex-1"
+                        />
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            toast({
+                              title: "API Key Tested",
+                              description: "Please enter an API key.",
+                              variant: "destructive",
+                            });
+                          }}
+                        >
+                          Test
+                        </Button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Used for payment processing</p>
                     </div>
@@ -386,10 +717,25 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
             <CardContent>
               <div className="space-y-6">
                 <div className="flex justify-between mb-4">
-                  <Input className="max-w-sm" placeholder="Search content..." />
+                  <Input 
+                    className="max-w-sm" 
+                    placeholder="Search content..." 
+                    value={searchQuery} 
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    prefix={<Search className="h-4 w-4 text-muted-foreground" />}
+                  />
                   <div className="space-x-2">
-                    <Button variant="outline">Filter</Button>
-                    <Button>Upload Content</Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => toast({ title: "Filters Applied", description: "Content has been filtered." })}
+                    >
+                      Filter
+                    </Button>
+                    <Button 
+                      onClick={() => toast({ title: "Upload Content", description: "Content upload form will open." })}
+                    >
+                      Upload Content
+                    </Button>
                   </div>
                 </div>
                 
@@ -402,28 +748,36 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                     <div>Actions</div>
                   </div>
                   
-                  {[
-                    { title: "Summer Vibes", type: "Song", user: "john@example.com", created: "2023-04-15" },
-                    { title: "Electronic Beat 03", type: "Instrumental", user: "admin@example.com", created: "2023-04-12" },
-                    { title: "Sarah's Voice", type: "Voice Clone", user: "sarah@example.com", created: "2023-04-10" },
-                    { title: "Rock Anthem", type: "Song", user: "mike@example.com", created: "2023-04-08" },
-                    { title: "Lo-Fi Background", type: "Instrumental", user: "admin@example.com", created: "2023-04-05" },
-                  ].map((content, index) => (
+                  {filteredContent.map((item, index) => (
                     <div key={index} className="grid grid-cols-5 p-4 border-b items-center">
-                      <div className="font-medium">{content.title}</div>
-                      <div>{content.type}</div>
-                      <div className="text-sm">{content.user}</div>
-                      <div className="text-sm">{content.created}</div>
+                      <div className="font-medium">{item.title}</div>
+                      <div>{item.type}</div>
+                      <div className="text-sm">{item.user}</div>
+                      <div className="text-sm">{item.created}</div>
                       <div className="space-x-2">
-                        <Button size="sm" variant="outline">View</Button>
-                        <Button size="sm" variant="outline" className="text-red-500">Remove</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => toast({ title: "Content Viewed", description: `Viewing ${item.title}.` })}
+                        >
+                          View
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-red-500"
+                          onClick={() => handleRemoveContent(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
                 
                 <div className="flex justify-between mt-4">
-                  <div>Showing 5 of 124 items</div>
+                  <div>Showing {filteredContent.length} of {content.length} items</div>
                   <div className="flex space-x-1">
                     <Button size="sm" variant="outline">Previous</Button>
                     <Button size="sm" variant="outline">Next</Button>
@@ -476,11 +830,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                 <div>
                   <h3 className="text-lg font-medium mb-4">Active Contests</h3>
                   <div className="space-y-3">
-                    {[
-                      { name: "Summer Hit 2023", entries: 32, ends: "2023-05-15" },
-                      { name: "Best Rock Song", entries: 18, ends: "2023-05-20" },
-                      { name: "Electronic Challenge", entries: 24, ends: "2023-05-25" },
-                    ].map((contest, index) => (
+                    {contests.map((contest, index) => (
                       <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
                         <div>
                           <p className="font-medium">{contest.name}</p>
@@ -488,10 +838,17 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                             {contest.entries} entries • Ends: {contest.ends}
                           </p>
                         </div>
-                        <Button size="sm" variant="outline">Manage</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => toast({ title: "Manage Contest", description: `Managing ${contest.name}.` })}
+                        >
+                          Manage
+                        </Button>
                       </div>
                     ))}
-                    <Button className="w-full mt-2">
+                    <Button className="w-full mt-2" onClick={handleCreateContest}>
+                      <Plus className="h-4 w-4 mr-2" />
                       Create New Contest
                     </Button>
                   </div>
@@ -511,35 +868,156 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h3 className="text-lg font-medium mb-4">Subscription Plans</h3>
+                  <div className="flex justify-between mb-4">
+                    <h3 className="text-lg font-medium">Subscription Plans</h3>
+                    <Button size="sm" onClick={handleAddPlan}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Plan
+                    </Button>
+                  </div>
                   <div className="space-y-4">
-                    {[
-                      { name: "Basic", price: "$4.99", credits: 50, features: ["50 credits/month", "Voice cloning (2 voices)", "Standard support"] },
-                      { name: "Premium", price: "$9.99", credits: 120, features: ["120 credits/month", "Voice cloning (5 voices)", "Priority support", "Contest entry"] },
-                      { name: "Pro", price: "$19.99", credits: 300, features: ["300 credits/month", "Unlimited voice cloning", "24/7 support", "Contest entry", "Commercial usage"] },
-                    ].map((plan, index) => (
+                    {plans.map((plan, index) => (
                       <div key={index} className="border rounded-md p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <h4 className="font-bold text-lg">{plan.name}</h4>
-                          <p className="font-bold">{plan.price}/month</p>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{plan.credits} credits per month</p>
-                        <ul className="text-sm space-y-1">
-                          {plan.features.map((feature, idx) => (
-                            <li key={idx} className="flex items-center">
-                              <span className="text-green-500 mr-2">✓</span> {feature}
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="mt-4 flex gap-2">
-                          <Button size="sm" variant="outline">Edit</Button>
-                          {index > 0 && (
-                            <Button size="sm" variant="outline" className="text-red-500">Remove</Button>
-                          )}
-                        </div>
+                        {selectedPlan === plan.id ? (
+                          <>
+                            <div className="flex justify-between items-center mb-2">
+                              <Input 
+                                className="font-bold text-lg w-40" 
+                                value={plan.name}
+                                onChange={(e) => {
+                                  const updatedPlans = [...plans];
+                                  updatedPlans[index].name = e.target.value;
+                                  setPlans(updatedPlans);
+                                }}
+                              />
+                              <div className="flex items-center">
+                                <span className="mr-1">$</span>
+                                <Input 
+                                  type="number" 
+                                  className="w-20"
+                                  value={plan.price.replace('$', '')}
+                                  onChange={(e) => {
+                                    const updatedPlans = [...plans];
+                                    updatedPlans[index].price = `$${e.target.value}`;
+                                    setPlans(updatedPlans);
+                                  }}
+                                />
+                                <span className="ml-1">/month</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center mb-2">
+                              <Input 
+                                type="number" 
+                                className="w-20 mr-2"
+                                value={plan.credits}
+                                onChange={(e) => {
+                                  const updatedPlans = [...plans];
+                                  updatedPlans[index].credits = parseInt(e.target.value);
+                                  setPlans(updatedPlans);
+                                }}
+                              />
+                              <span className="text-sm text-muted-foreground">credits per month</span>
+                            </div>
+                            <div className="space-y-2 mb-4">
+                              {plan.features.map((feature, featIndex) => (
+                                <div key={featIndex} className="flex items-center">
+                                  <span className="text-green-500 mr-2">✓</span>
+                                  <Input 
+                                    value={feature} 
+                                    className="text-sm"
+                                    onChange={(e) => {
+                                      const updatedPlans = [...plans];
+                                      updatedPlans[index].features[featIndex] = e.target.value;
+                                      setPlans(updatedPlans);
+                                    }}
+                                  />
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="text-red-500 h-8 w-8 p-0 ml-1"
+                                    onClick={() => {
+                                      const updatedPlans = [...plans];
+                                      updatedPlans[index].features = updatedPlans[index].features.filter((_, i) => i !== featIndex);
+                                      setPlans(updatedPlans);
+                                    }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="w-full mt-2"
+                                onClick={() => {
+                                  const updatedPlans = [...plans];
+                                  updatedPlans[index].features.push("New feature");
+                                  setPlans(updatedPlans);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Feature
+                              </Button>
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                              <Button 
+                                size="sm" 
+                                onClick={() => {
+                                  setSelectedPlan(null);
+                                  toast({
+                                    title: "Plan Updated",
+                                    description: "Plan has been updated successfully.",
+                                  });
+                                }}
+                              >
+                                <Check className="h-4 w-4 mr-2" />
+                                Save
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setSelectedPlan(null)}
+                              >
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-bold text-lg">{plan.name}</h4>
+                              <p className="font-bold">{plan.price}/month</p>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-2">{plan.credits} credits per month</p>
+                            <ul className="text-sm space-y-1">
+                              {plan.features.map((feature, featIndex) => (
+                                <li key={featIndex} className="flex items-center">
+                                  <span className="text-green-500 mr-2">✓</span> {feature}
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-4 flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEditPlan(plan.id)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </Button>
+                              {index > 0 && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="text-red-500"
+                                  onClick={() => handleRemovePlan(plan.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
-                    <Button>Add New Plan</Button>
                   </div>
                 </div>
                 
@@ -553,13 +1031,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                       <div>Date</div>
                     </div>
                     
-                    {[
-                      { user: "john@example.com", plan: "Premium", amount: "$9.99", date: "2023-04-15" },
-                      { user: "sarah@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-14" },
-                      { user: "mike@example.com", plan: "Pro", amount: "$19.99", date: "2023-04-12" },
-                      { user: "emma@example.com", plan: "Premium", amount: "$9.99", date: "2023-04-10" },
-                      { user: "david@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-08" },
-                    ].map((payment, index) => (
+                    {payments.map((payment, index) => (
                       <div key={index} className="grid grid-cols-4 p-3 border-b text-sm">
                         <div>{payment.user}</div>
                         <div>{payment.plan}</div>
@@ -570,10 +1042,22 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                   </div>
                   
                   <div className="flex justify-between mt-4">
-                    <div className="text-sm">Showing 5 of 120 transactions</div>
+                    <div className="text-sm">Showing {payments.length} of 120 transactions</div>
                     <div className="flex space-x-1">
-                      <Button size="sm" variant="outline">Previous</Button>
-                      <Button size="sm" variant="outline">Next</Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => toast({ title: "Navigation", description: "Previous page." })}
+                      >
+                        Previous
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => toast({ title: "Navigation", description: "Next page." })}
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -592,11 +1076,40 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
             <CardContent>
               <div className="flex justify-between mb-4">
                 <div className="space-x-2">
-                  <Button variant="outline" className="bg-green-50">Open (8)</Button>
-                  <Button variant="ghost">In Progress (5)</Button>
-                  <Button variant="ghost">Resolved (23)</Button>
+                  <Button 
+                    variant={ticketFilter === "open" ? "outline" : "ghost"} 
+                    className={ticketFilter === "open" ? "bg-green-50" : ""}
+                    onClick={() => handleFilterTickets("open")}
+                  >
+                    Open (8)
+                  </Button>
+                  <Button 
+                    variant={ticketFilter === "in progress" ? "outline" : "ghost"} 
+                    className={ticketFilter === "in progress" ? "bg-blue-50" : ""}
+                    onClick={() => handleFilterTickets("in progress")}
+                  >
+                    In Progress (5)
+                  </Button>
+                  <Button 
+                    variant={ticketFilter === "resolved" ? "outline" : "ghost"} 
+                    className={ticketFilter === "resolved" ? "bg-gray-50" : ""}
+                    onClick={() => handleFilterTickets("resolved")}
+                  >
+                    Resolved (23)
+                  </Button>
+                  <Button 
+                    variant={ticketFilter === "all" ? "outline" : "ghost"} 
+                    onClick={() => handleFilterTickets("all")}
+                  >
+                    All
+                  </Button>
                 </div>
-                <Button variant="outline">Export</Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => toast({ title: "Tickets Exported", description: "Support tickets have been exported." })}
+                >
+                  Export
+                </Button>
               </div>
               
               <div className="border rounded-md">
@@ -608,13 +1121,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                   <div>Actions</div>
                 </div>
                 
-                {[
-                  { id: "T-1234", user: "john@example.com", subject: "Payment issue", status: "Open", date: "Apr 15" },
-                  { id: "T-1233", user: "sarah@example.com", subject: "Can't generate song", status: "Open", date: "Apr 14" },
-                  { id: "T-1232", user: "mike@example.com", subject: "Voice clone failed", status: "Open", date: "Apr 14" },
-                  { id: "T-1231", user: "emma@example.com", subject: "Credits not added", status: "Open", date: "Apr 13" },
-                  { id: "T-1230", user: "david@example.com", subject: "Login problem", status: "In Progress", date: "Apr 12" },
-                ].map((ticket, index) => (
+                {filteredTickets.map((ticket, index) => (
                   <div key={index} className="grid grid-cols-5 p-4 border-b items-center">
                     <div className="font-medium">{ticket.id}</div>
                     <div className="text-sm">{ticket.user}</div>
@@ -629,17 +1136,35 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                       </span>
                     </div>
                     <div className="space-x-2">
-                      <Button size="sm">Respond</Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => handleRespondToTicket(ticket.id)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Respond
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
               
               <div className="flex justify-between mt-4">
-                <div>Showing 5 of 36 tickets</div>
+                <div>Showing {filteredTickets.length} of 36 tickets</div>
                 <div className="flex space-x-1">
-                  <Button size="sm" variant="outline">Previous</Button>
-                  <Button size="sm" variant="outline">Next</Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => toast({ title: "Navigation", description: "Previous page." })}
+                  >
+                    Previous
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => toast({ title: "Navigation", description: "Next page." })}
+                  >
+                    Next
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -703,7 +1228,11 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                           <p className="text-sm text-muted-foreground">{report.description}</p>
                         </div>
                         <div className="space-x-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleGenerateReport(report.name)}
+                          >
                             <FileText className="h-4 w-4 mr-2" />
                             Generate
                           </Button>
@@ -750,7 +1279,13 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                         <Label htmlFor="maintenance-mode" className="sr-only">
                           Maintenance Mode
                         </Label>
-                        <Button variant="outline" size="sm">Enable</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleToggleSetting("Maintenance Mode")}
+                        >
+                          Enable
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -768,7 +1303,13 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                         <Label htmlFor="user-signup-notify" className="sr-only">
                           New User Registrations
                         </Label>
-                        <Button variant="outline" size="sm">Disable</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleToggleSetting("New User Registration Notifications")}
+                        >
+                          Disable
+                        </Button>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
@@ -780,7 +1321,13 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                         <Label htmlFor="payment-notify" className="sr-only">
                           Payment Notifications
                         </Label>
-                        <Button variant="outline" size="sm">Enable</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleToggleSetting("Payment Notifications")}
+                        >
+                          Enable
+                        </Button>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
@@ -792,14 +1339,26 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                         <Label htmlFor="contest-notify" className="sr-only">
                           Contest Updates
                         </Label>
-                        <Button variant="outline" size="sm">Enable</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleToggleSetting("Contest Update Notifications")}
+                        >
+                          Enable
+                        </Button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <Button className="mt-6 bg-melody-secondary hover:bg-melody-secondary/90">Save Settings</Button>
+              <Button 
+                className="mt-6 bg-melody-secondary hover:bg-melody-secondary/90"
+                onClick={handleSaveSettings}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Save Settings
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
