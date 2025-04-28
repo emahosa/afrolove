@@ -29,32 +29,27 @@ const AdminRegister = () => {
     // Basic validation
     if (!name.trim()) {
       toast.error("Name cannot be empty");
-      setLoading(false);
       return;
     }
 
     if (!email.trim()) {
       toast.error("Email cannot be empty");
-      setLoading(false);
       return;
     }
 
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email address");
-      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters long");
-      setLoading(false);
       return;
     }
     
     // In a real app, you would validate the admin code on the server
     if (adminCode !== "ADMIN123") { // Simple admin code validation
       toast.error("Invalid admin code");
-      setLoading(false);
       return;
     }
     

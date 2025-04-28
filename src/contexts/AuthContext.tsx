@@ -4,7 +4,17 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Extended User type with additional profile properties
+// Separate interface for profile data
+interface ProfileData {
+  name?: string;
+  avatar_url?: string;
+  full_name?: string;
+  credits?: number;
+  subscription?: string;
+  voiceProfiles?: any[];
+}
+
+// Interface for our extended user
 interface UserProfile extends User {
   name?: string;
   avatar?: string;
@@ -33,9 +43,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
   useEffect(() => {
-    // Set up auth state listener first
+    // First set up auth state listener to avoid missing events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, currentSession) => {
+      async (event, currentSession) => {
         setSession(currentSession);
         if (currentSession?.user) {
           // Enhance the user object with profile data
@@ -157,22 +167,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        console.error("Login error:", error);
         toast.error("Login failed", {
           description: error.message
         });
         return false;
       }
 
+      if (!data.session || !data.user) {
+        toast.error("Login failed", {
+          description: "No session or user data returned"
+        });
+        return false;
+      }
+
       // Verify if user has the requested role if trying to log in as admin
       if (isAdmin) {
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('*')
           .eq('user_id', data.user.id)
-          .eq('role', 'admin')
-          .single();
+          .eq('role', 'admin');
 
-        if (!roleData) {
+        if (roleError || !roleData || roleData.length === 0) {
           toast.error("Access denied", {
             description: "You don't have admin permissions"
           });
@@ -186,6 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       return true;
     } catch (error: any) {
+      console.error("Login error:", error);
       toast.error("Login error", {
         description: error.message
       });
@@ -225,8 +243,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        console.error("Registration error:", error);
         toast.error("Registration failed", {
           description: error.message
+        });
+        return false;
+      }
+
+      if (!data.user) {
+        toast.error("Registration failed", {
+          description: "No user data returned"
         });
         return false;
       }
@@ -241,6 +267,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           });
 
         if (roleError) {
+          console.error("Admin role assignment error:", roleError);
           toast.error("Failed to set admin role", {
             description: roleError.message
           });
@@ -253,6 +280,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       return true;
     } catch (error: any) {
+      console.error("Registration error:", error);
       toast.error("Registration error", {
         description: error.message
       });
@@ -261,11 +289,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async (): Promise<void> => {
-    await supabase.auth.signOut();
-    toast.info("You've been logged out");
+    try {
+      await supabase.auth.signOut();
+      toast.info("You've been logged out");
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      toast.error("Logout failed", {
+        description: error.message
+      });
+    }
   };
 
   const isAdmin = (): boolean => {
+    // Check for admin role in the userRoles array
     return userRoles.includes('admin');
   };
 
