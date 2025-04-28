@@ -1,7 +1,7 @@
 
-import { useState, ReactNode, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, Star } from 'lucide-react';
+import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -13,6 +13,10 @@ import { AdminManagement } from '@/components/admin/AdminManagement';
 import { ApiKeyManagement } from '@/components/admin/ApiKeyManagement';
 import { ContestManagement } from '@/components/admin/ContestManagement';
 import { PaymentManagement } from '@/components/admin/PaymentManagement';
+import { ContentManagement } from '@/components/admin/ContentManagement';
+import { SupportManagement } from '@/components/admin/SupportManagement';
+import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
+import { SettingsManagement } from '@/components/admin/SettingsManagement';
 
 // Mock data
 const users = [
@@ -98,10 +102,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
-  const [showContentDialog, setShowContentDialog] = useState(false);
-  const [showSupportDialog, setShowSupportDialog] = useState(false);
-  const [showReportsDialog, setShowReportsDialog] = useState(false);
-  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   // Update the active tab when the URL changes
   useEffect(() => {
@@ -160,32 +160,39 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     return <Navigate to="/dashboard" />;
   }
 
-  const getCheckboxIcon = (included: boolean): ReactNode => {
-    return included ? (
-      <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
-        <Check className="h-3 w-3 text-white" />
-      </div>
-    ) : (
-      <div className="h-5 w-5 rounded-full border border-muted-foreground" />
-    );
+  const renderStatusLabel = (status: string): React.ReactNode => {
+    const statusClasses: Record<string, string> = {
+      active: "text-green-500",
+      suspended: "text-amber-500",
+      pending: "text-blue-500",
+      approved: "text-green-500",
+    };
+    
+    const statusClass = statusClasses[status] || "text-gray-500";
+    
+    return <span className={statusClass}>{status}</span>;
   };
 
-  const renderPlanFeatures = (features: { label: string; included: boolean }[]): ReactNode => {
-    return features.map((feature, index) => renderCheckbox(feature, index));
-  };
-
-  const renderCheckbox = (feature: { label: string; included: boolean }, index: number): ReactNode => {
-    return (
+  const renderPlanFeatures = (features: { label: string; included: boolean }[]): React.ReactNode => {
+    return features.map((feature, index) => (
       <div key={index} className="flex items-center gap-2 py-1">
-        {getCheckboxIcon(feature.included)}
+        {feature.included ? (
+          <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
+            <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        ) : (
+          <div className="h-5 w-5 rounded-full border border-muted-foreground" />
+        )}
         <span className={feature.included ? 'text-foreground' : 'text-muted-foreground'}>
           {feature.label}
         </span>
       </div>
-    );
+    ));
   };
 
-  const getButtonContent = (status: string): ReactNode => {
+  const getButtonContent = (status: string): React.ReactNode => {
     if (status === 'active') {
       return (
         <>
@@ -201,35 +208,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         </>
       );
     }
-  };
-
-  const renderStatusLabel = (status: string): ReactNode => {
-    const statusClasses: Record<string, string> = {
-      active: "text-green-500",
-      suspended: "text-amber-500",
-      pending: "text-blue-500",
-      approved: "text-green-500",
-    };
-    
-    const statusClass = statusClasses[status] || "text-gray-500";
-    
-    return <span className={statusClass}>{status}</span>;
-  };
-
-  const handleInitializeContentManager = () => {
-    setShowContentDialog(true);
-  };
-
-  const handleOpenSupportDashboard = () => {
-    setShowSupportDialog(true);
-  };
-
-  const handleGenerateReport = () => {
-    setShowReportsDialog(true);
-  };
-
-  const handleUpdateSettings = () => {
-    setShowSettingsDialog(true);
   };
 
   return (
@@ -274,6 +252,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <DollarSign className="mr-2 h-4 w-4" />
                 Payments
               </TabsTrigger>
+              <TabsTrigger value="support" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
+                <Users className="mr-2 h-4 w-4" />
+                Support
+              </TabsTrigger>
               <TabsTrigger value="reports" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <BarChart className="mr-2 h-4 w-4" />
                 Reports
@@ -304,29 +286,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="mt-0">
-            <div className="p-6 text-center bg-muted rounded-lg">
-              <h3 className="text-xl font-medium mb-2">Content Management</h3>
-              <p className="text-muted-foreground mb-4">Manage your platform's content and media assets</p>
-              <Button onClick={handleInitializeContentManager}>Initialize Content Manager</Button>
-            </div>
-            
-            {/* Content Manager Dialog */}
-            {showContentDialog && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg max-w-md w-full p-6">
-                  <h3 className="text-xl font-bold mb-4">Content Manager</h3>
-                  <p className="mb-4">The content management system is being initialized. This might take a moment...</p>
-                  <div className="flex justify-end">
-                    <Button onClick={() => {
-                      setShowContentDialog(false);
-                      toast.success("Content Management System initialized successfully!");
-                    }}>
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <ContentManagement />
           </TabsContent>
 
           <TabsContent value="payments" className="mt-0">
@@ -339,181 +299,15 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="support" className="mt-0">
-            <div className="p-6 text-center bg-muted rounded-lg">
-              <h3 className="text-xl font-medium mb-2">Customer Support</h3>
-              <p className="text-muted-foreground mb-4">Manage support tickets and user inquiries</p>
-              <Button onClick={handleOpenSupportDashboard}>Open Support Dashboard</Button>
-            </div>
-            
-            {/* Support Dashboard Dialog */}
-            {showSupportDialog && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
-                  <h3 className="text-xl font-bold mb-4">Support Dashboard</h3>
-                  <div className="mb-4">
-                    <h4 className="font-medium mb-2">Recent Support Tickets</h4>
-                    <div className="border rounded-md">
-                      <div className="p-3 border-b flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Can't generate music</div>
-                          <div className="text-sm text-muted-foreground">John Doe - 3 hours ago</div>
-                        </div>
-                        <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800">Pending</span>
-                      </div>
-                      <div className="p-3 border-b flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Billing issue</div>
-                          <div className="text-sm text-muted-foreground">Jane Smith - 1 day ago</div>
-                        </div>
-                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Resolved</span>
-                      </div>
-                      <div className="p-3 flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Voice cloning not working</div>
-                          <div className="text-sm text-muted-foreground">Robert Johnson - 2 days ago</div>
-                        </div>
-                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">In Progress</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={() => {
-                      setShowSupportDialog(false);
-                      toast.success("Support dashboard access granted");
-                    }}>
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <SupportManagement />
           </TabsContent>
 
           <TabsContent value="reports" className="mt-0">
-            <div className="p-6 text-center bg-muted rounded-lg">
-              <h3 className="text-xl font-medium mb-2">Reports & Analytics</h3>
-              <p className="text-muted-foreground mb-4">View platform analytics and generate reports</p>
-              <Button onClick={handleGenerateReport}>Generate Report</Button>
-            </div>
-            
-            {/* Reports Dialog */}
-            {showReportsDialog && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
-                  <h3 className="text-xl font-bold mb-4">Reports & Analytics</h3>
-                  <div className="mb-4">
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="bg-primary/10 p-4 rounded-lg">
-                        <div className="text-lg font-bold">142</div>
-                        <div className="text-sm text-muted-foreground">Active Users</div>
-                      </div>
-                      <div className="bg-primary/10 p-4 rounded-lg">
-                        <div className="text-lg font-bold">3,845</div>
-                        <div className="text-sm text-muted-foreground">Songs Generated</div>
-                      </div>
-                      <div className="bg-primary/10 p-4 rounded-lg">
-                        <div className="text-lg font-bold">$2,367</div>
-                        <div className="text-sm text-muted-foreground">Revenue (This Month)</div>
-                      </div>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <div className="font-medium mb-2">Monthly Revenue Chart</div>
-                      <div className="h-60 flex items-end justify-between">
-                        {Array.from({ length: 12 }).map((_, i) => (
-                          <div key={i} className="flex flex-col items-center w-full">
-                            <div 
-                              className="bg-primary w-full" 
-                              style={{ height: `${Math.random() * 80 + 20}%` }}
-                            ></div>
-                            <div className="text-xs mt-2">{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][i]}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => {
-                      toast.success("Report downloaded successfully");
-                    }}>
-                      Download PDF Report
-                    </Button>
-                    <Button onClick={() => {
-                      setShowReportsDialog(false);
-                    }}>
-                      Close
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <ReportsAnalytics />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-0">
-            <div className="p-6 text-center bg-muted rounded-lg">
-              <h3 className="text-xl font-medium mb-2">System Settings</h3>
-              <p className="text-muted-foreground mb-4">Configure platform settings and preferences</p>
-              <Button onClick={handleUpdateSettings}>Update Settings</Button>
-            </div>
-
-            {/* Settings Dialog */}
-            {showSettingsDialog && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg max-w-3xl w-full p-6">
-                  <h3 className="text-xl font-bold mb-4">System Settings</h3>
-                  <div className="space-y-6 mb-6">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">General Settings</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">Site Name</label>
-                          <input type="text" defaultValue="MelodyVerse" className="w-full border rounded-md p-2" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Support Email</label>
-                          <input type="email" defaultValue="support@melodyverse.com" className="w-full border rounded-md p-2" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Admin Profile</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">Admin Status</label>
-                          <select className="w-full border rounded-md p-2">
-                            <option>Super Admin</option>
-                            <option>Ordinary Admin</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium">API Settings</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">API Rate Limit</label>
-                          <input type="number" defaultValue="100" className="w-full border rounded-md p-2" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Cache Duration (minutes)</label>
-                          <input type="number" defaultValue="15" className="w-full border rounded-md p-2" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => {
-                      setShowSettingsDialog(false);
-                      toast.success("System settings updated successfully");
-                    }}>
-                      Save Settings
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <SettingsManagement />
           </TabsContent>
         </div>
       </Tabs>

@@ -66,10 +66,19 @@ export const useSongRequests = () => {
       user: "david@example.com", 
       description: "A gentle acoustic song about childhood memories", 
       genre: "Folk", 
-      status: "completed",
+      status: "lyrics_accepted",
       created_at: "2023-04-10",
-      lyrics: "Childhood days under the sun\nRunning through fields having fun\nMemories etched in my mind\nThose simple days were so kind",
-      audio_url: "https://example.com/audio/song5.mp3"
+      lyrics: "Childhood days under the sun\nRunning through fields having fun\nMemories etched in my mind\nThose simple days were so kind"
+    },
+    { 
+      id: "6", 
+      title: "Jazz Improv", 
+      user: "lisa@example.com", 
+      description: "A smooth jazz improvisation with piano and saxophone", 
+      genre: "Jazz", 
+      status: "lyrics_rejected",
+      created_at: "2023-04-08",
+      lyrics: "Smooth notes floating through the air\nSax and piano make a perfect pair\nImprovised melodies take me away\nTo a place where music has its say"
     },
   ]);
 
@@ -107,6 +116,19 @@ export const useSongRequests = () => {
     });
   };
 
+  const handleRecreateLyrics = (id: string) => {
+    const request = songRequests.find(r => r.id === id);
+    if (request) {
+      setSelectedRequest(id);
+      setLyricsDraft(request.lyrics || "");
+      
+      toast({
+        title: "Recreating Lyrics",
+        description: "You can now edit the lyrics for this song request.",
+      });
+    }
+  };
+
   const handleUploadAudio = (id: string) => {
     setUploadingAudio(true);
     
@@ -141,6 +163,7 @@ export const useSongRequests = () => {
     handleWriteLyrics,
     handleSaveLyrics,
     handleUploadAudio,
+    handleRecreateLyrics,
     setSelectedRequest
   };
 };

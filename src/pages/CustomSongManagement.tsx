@@ -1,18 +1,16 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { useSongRequests } from "@/hooks/use-song-requests";
-import { SongRequestCard } from "@/components/song-management/SongRequestCard";
 import { LyricsEditor } from "@/components/song-management/LyricsEditor";
+import { SongRequestTabs } from "@/components/song-management/SongRequestTabs";
 
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   
   const {
@@ -25,6 +23,7 @@ const CustomSongManagement = () => {
     handleWriteLyrics,
     handleSaveLyrics,
     handleUploadAudio,
+    handleRecreateLyrics,
     setSelectedRequest
   } = useSongRequests();
 
@@ -38,35 +37,8 @@ const CustomSongManagement = () => {
       request.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.genre.toLowerCase().includes(searchQuery.toLowerCase());
       
-    const matchesStatus = 
-      activeTab === "all" || 
-      (activeTab === "pending" && request.status === "pending") ||
-      (activeTab === "in_progress" && (request.status === "in_progress" || request.status === "lyrics_review")) ||
-      (activeTab === "completed" && request.status === "completed");
-      
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
-
-  const renderRequestsList = () => {
-    if (filteredRequests.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No song requests found matching your criteria.
-        </div>
-      );
-    }
-    
-    return filteredRequests.map((request) => (
-      <SongRequestCard
-        key={request.id}
-        request={request}
-        uploadingAudio={uploadingAudio}
-        onStartWork={handleStartWork}
-        onWriteLyrics={handleWriteLyrics}
-        onUploadAudio={handleUploadAudio}
-      />
-    ));
-  };
 
   return (
     <div className="space-y-8">
@@ -80,41 +52,26 @@ const CustomSongManagement = () => {
           <CardDescription>Manage and fulfill custom song requests from users</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-            <div className="flex justify-between mb-6">
-              <TabsList>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="in_progress">In Progress</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                <TabsTrigger value="all">All Requests</TabsTrigger>
-              </TabsList>
-              
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Search requests..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="max-w-xs"
-                />
-              </div>
+          <div className="flex justify-end mb-6">
+            <div className="flex items-center gap-2">
+              <Input 
+                placeholder="Search requests..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="max-w-xs"
+              />
+              <Search className="text-muted-foreground" />
             </div>
-
-            <TabsContent value="pending" className="space-y-4">
-              {renderRequestsList()}
-            </TabsContent>
-            
-            <TabsContent value="in_progress" className="space-y-4">
-              {renderRequestsList()}
-            </TabsContent>
-            
-            <TabsContent value="completed" className="space-y-4">
-              {renderRequestsList()}
-            </TabsContent>
-            
-            <TabsContent value="all" className="space-y-4">
-              {renderRequestsList()}
-            </TabsContent>
-          </Tabs>
+          </div>
+          
+          <SongRequestTabs
+            songRequests={filteredRequests}
+            uploadingAudio={uploadingAudio}
+            onStartWork={handleStartWork}
+            onWriteLyrics={handleWriteLyrics}
+            onUploadAudio={handleUploadAudio}
+            onRecreateLyrics={handleRecreateLyrics}
+          />
           
           <LyricsEditor
             selectedRequest={songRequests.find(r => r.id === selectedRequest)}

@@ -13,6 +13,10 @@ export function getStatusLabel(status: string): ReactNode {
       return <span className="text-blue-500">In Progress</span>;
     case "lyrics_review":
       return <span className="text-purple-500">Lyrics Review</span>;
+    case "lyrics_accepted":
+      return <span className="text-emerald-500">Lyrics Accepted</span>;
+    case "lyrics_rejected":
+      return <span className="text-red-500">Lyrics Rejected</span>;
     case "completed":
       return <span className="text-green-500">Completed</span>;
     case "rejected":
