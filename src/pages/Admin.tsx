@@ -337,6 +337,10 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     </>
   );
 
+  const renderStatusLabel = (status: string): ReactNode => {
+    return status;
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">

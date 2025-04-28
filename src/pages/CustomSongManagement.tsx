@@ -205,7 +205,7 @@ const CustomSongManagement = () => {
     }, 1500);
   };
 
-  // Helper function to render status labels correctly
+  // Helper function to render status labels correctly with proper typing
   const renderStatusLabel = (status: string): ReactNode => {
     return getStatusLabel(status);
   };
