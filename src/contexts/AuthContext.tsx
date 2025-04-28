@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthContextType, UserProfile } from "@/types/auth";
@@ -16,39 +16,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [initializationComplete, setInitializationComplete] = useState<boolean>(false);
-  const { userRoles, fetchUserRoles, isAdmin } = useUserRoles();
+  const { userRoles, fetchUserRoles, isAdmin, initialized: rolesInitialized } = useUserRoles();
+
+  const updateAuthUser = useCallback(async (currentSession: Session | null) => {
+    try {
+      if (currentSession?.user) {
+        console.log("AuthContext: User is logged in, fetching profile data");
+        const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+        setSession(currentSession);
+        setUser(enhancedUser);
+        
+        // Fetch roles after setting user data
+        await fetchUserRoles(currentSession.user.id);
+      } else {
+        console.log("AuthContext: No user in session");
+        setSession(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("AuthContext: Error enhancing user data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchUserRoles]);
 
   useEffect(() => {
     console.log("AuthContext: Setting up auth listener");
     
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         console.log("AuthContext: Auth state changed:", event, currentSession?.user?.id);
-        
-        if (currentSession?.user) {
-          console.log("AuthContext: User is logged in, fetching profile data");
-          const updateUserData = async () => {
-            try {
-              const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
-              setSession(currentSession);
-              setUser(enhancedUser);
-              
-              // Fetch roles after setting user data
-              fetchUserRoles(currentSession.user.id);
-            } catch (error) {
-              console.error("AuthContext: Error enhancing user data:", error);
-            }
-          };
-          
-          updateUserData();
-        } else {
-          console.log("AuthContext: No user in session");
-          setSession(null);
-          setUser(null);
-        }
-        
-        setLoading(false);
+        await updateAuthUser(currentSession);
       }
     );
 
@@ -58,21 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         console.log("AuthContext: Initial session check:", currentSession?.user?.id);
         
-        if (currentSession?.user) {
-          console.log("AuthContext: Found existing session, fetching profile data");
-          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
-          setSession(currentSession);
-          setUser(enhancedUser);
-          
-          // Fetch roles after setting user data
-          fetchUserRoles(currentSession.user.id);
-        } else {
-          console.log("AuthContext: No existing session found");
-          setUser(null);
-          setSession(null);
-        }
-        
-        setLoading(false);
+        await updateAuthUser(currentSession);
         
         if (!initializationComplete) {
           console.log("AuthContext: Initializing admin account");
@@ -91,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("AuthContext: Cleaning up auth listener");
       subscription.unsubscribe();
     };
-  }, [fetchUserRoles]);
+  }, [updateAuthUser, initializationComplete]);
 
   const login = handleLogin;
   const register = handleRegister;
@@ -129,23 +114,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const adminCheckResult = isAdmin();
+  console.log("AuthContext: Admin check result:", adminCheckResult, "userRoles:", userRoles);
+
   // For debugging purposes
   const contextValue = {
     user,
     session,
-    loading,
+    loading: loading || !rolesInitialized,
     login,
     register,
     logout,
-    isAdmin,
+    isAdmin: () => adminCheckResult,
     updateUserCredits,
   };
   
   console.log("AuthContext: Auth context state:", { 
     user: user?.id, 
     isLoggedIn: !!user,
-    isAdmin: isAdmin(),
-    loading,
+    isAdmin: adminCheckResult,
+    loading: loading || !rolesInitialized,
     userRoles
   });
 

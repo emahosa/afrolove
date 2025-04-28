@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText, Users as UsersIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   open: boolean;
@@ -13,10 +13,17 @@ interface SidebarProps {
 
 const Sidebar = ({ open, setOpen }: SidebarProps) => {
   const { user, isAdmin } = useAuth();
+  const [adminStatus, setAdminStatus] = useState(false);
   
   useEffect(() => {
-    console.log("Sidebar rendered, isAdmin:", isAdmin(), "user:", user);
-  }, [user, isAdmin]);
+    const adminCheck = isAdmin();
+    console.log("Sidebar: Admin check result:", adminCheck);
+    setAdminStatus(adminCheck);
+  }, [isAdmin, user]);
+  
+  useEffect(() => {
+    console.log("Sidebar rendered, isAdmin:", adminStatus, "user:", user);
+  }, [user, adminStatus]);
 
   return (
     <div
@@ -35,7 +42,7 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
       <div className="flex flex-col h-[calc(100%-4rem)] p-4 justify-between">
         <div className="space-y-1">
           {/* Regular user navigation */}
-          {!isAdmin() && (
+          {!adminStatus && (
             <>
               <NavLink to="/dashboard" className={({ isActive }) => cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
@@ -100,7 +107,7 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
           )}
           
           {/* Admin navigation - only show if user is admin */}
-          {isAdmin() && (
+          {adminStatus && (
             <>
               <NavLink to="/admin" className={({ isActive }) => cn(
                 "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
@@ -226,7 +233,7 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
         </div>
         
         {/* Credits display - only show for regular users */}
-        {!isAdmin() && (
+        {!adminStatus && user?.credits !== undefined && (
           <div>
             <NavLink to="/credits" className="block">
               <div className="bg-card border border-border/50 rounded-lg p-4">

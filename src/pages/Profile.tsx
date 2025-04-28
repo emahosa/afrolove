@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +18,11 @@ const activities = [
 const Profile = () => {
   const { user, logout, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
+  const adminStatus = isAdmin();
+  
+  useEffect(() => {
+    console.log("Profile: Admin status:", adminStatus);
+  }, [adminStatus]);
 
   if (!user) {
     return <div className="flex justify-center items-center h-64">Loading profile...</div>;
@@ -34,7 +39,7 @@ const Profile = () => {
           <div>
             <h1 className="text-3xl font-bold">{user?.name}</h1>
             <p className="text-muted-foreground">{user?.email}</p>
-            {isAdmin() && (
+            {adminStatus && (
               <Badge variant="outline" className="mt-1">
                 Admin
               </Badge>
@@ -56,7 +61,7 @@ const Profile = () => {
         <TabsList className="grid grid-cols-4 w-full max-w-md mb-6">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="library">Library</TabsTrigger>
-          {!isAdmin() && <TabsTrigger value="voice">Voice</TabsTrigger>}
+          {!adminStatus && <TabsTrigger value="voice">Voice</TabsTrigger>}
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
         
@@ -80,7 +85,7 @@ const Profile = () => {
                   <div className="text-sm text-muted-foreground mb-1">Member Since</div>
                   <div className="font-medium">April 2025</div>
                 </div>
-                {isAdmin() && (
+                {adminStatus && (
                   <div>
                     <div className="text-sm text-muted-foreground mb-1">Admin Type</div>
                     <div className="font-medium">Administrator</div>
@@ -90,7 +95,7 @@ const Profile = () => {
             </CardContent>
           </Card>
           
-          {!isAdmin() && (
+          {!adminStatus && (
             <Card>
               <CardHeader>
                 <CardTitle>Subscription</CardTitle>
@@ -165,7 +170,7 @@ const Profile = () => {
           </Card>
         </TabsContent>
         
-        {!isAdmin() && (
+        {!adminStatus && (
           <TabsContent value="voice" className="space-y-4">
             <VoiceProfileManager />
           </TabsContent>

@@ -5,11 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 export const useUserRoles = () => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchUserRoles = useCallback(async (userId: string) => {
     if (!userId) {
       console.error("useUserRoles: Cannot fetch roles: No user ID provided");
       setUserRoles([]);
+      setInitialized(true);
       return;
     }
     
@@ -34,6 +36,7 @@ export const useUserRoles = () => {
       setUserRoles([]);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, []);
 
@@ -46,6 +49,7 @@ export const useUserRoles = () => {
     userRoles, 
     fetchUserRoles, 
     isAdmin,
-    loading 
+    loading,
+    initialized
   };
 };

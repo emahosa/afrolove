@@ -9,11 +9,13 @@ export const useRoles = () => {
   const { user } = useAuth();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchRoles = useCallback(async () => {
     if (!user) {
       setRoles([]);
       setLoading(false);
+      setInitialized(true);
       return;
     }
 
@@ -37,6 +39,7 @@ export const useRoles = () => {
       setRoles([]);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, [user]);
 
@@ -46,20 +49,26 @@ export const useRoles = () => {
     } else {
       setRoles([]);
       setLoading(false);
+      setInitialized(true);
     }
   }, [user, fetchRoles]);
 
   const hasRole = useCallback((role: Role): boolean => {
+    console.log(`useRoles: Checking if user has role ${role}:`, roles.includes(role));
     return roles.includes(role);
   }, [roles]);
+
+  const isAdminValue = hasRole('admin');
+  console.log("useRoles: isAdmin value:", isAdminValue);
 
   return {
     roles,
     hasRole,
-    isAdmin: () => hasRole('admin'),
+    isAdmin: () => isAdminValue,
     isModerator: () => hasRole('moderator'),
     isUser: () => hasRole('user') || roles.length === 0, // Default to user role if no explicit roles
     loading,
+    initialized,
     refetchRoles: fetchRoles
   };
 };
