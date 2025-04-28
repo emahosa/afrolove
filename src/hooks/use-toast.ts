@@ -14,7 +14,7 @@ export type ToastProps = Partial<ToastT> & {
   description?: React.ReactNode;
   type?: ToastType;
   action?: React.ReactNode;
-  title?: string;  // Add title property to match our usage
+  title?: string;  // Title property to match our usage
 };
 
 // Create a type for the toast function
