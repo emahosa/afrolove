@@ -1,4 +1,3 @@
-
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,7 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
   
   useEffect(() => {
     console.log("Sidebar rendered, isAdmin:", isAdmin(), "user:", user);
-  }, [user]);
+  }, [user, isAdmin]);
 
   return (
     <div
@@ -94,23 +93,18 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
             <span>Get Credits</span>
           </NavLink>
 
-          {/* Make the Admin tab visible and add debug info */}
           <div className="mt-4 border-t border-border/30 pt-4">
-            {isAdmin() ? (
-              <NavLink to="/admin" className={({ isActive }) => cn(
-                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                isActive 
+            <NavLink to="/admin" className={({ isActive }) => cn(
+              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+              user?.isAdmin 
+                ? isActive 
                   ? "bg-melody-primary/20 text-melody-secondary font-medium" 
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}>
-                <ShieldAlert className="h-5 w-5" />
-                <span>Admin</span>
-              </NavLink>
-            ) : (
-              <div className="text-xs text-muted-foreground px-3 py-2">
-                Admin access not available
-              </div>
-            )}
+                : "text-muted-foreground opacity-70 pointer-events-none"
+            )}>
+              <ShieldAlert className="h-5 w-5" />
+              <span>{user?.isAdmin ? "Admin" : "Admin (No Access)"}</span>
+            </NavLink>
           </div>
         </div>
         

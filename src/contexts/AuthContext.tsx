@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,7 @@ interface User {
   credits: number;
   subscription?: string;
   avatar?: string;
-  isAdmin?: boolean;
+  isAdmin: boolean; // Make isAdmin required, not optional
   voiceProfiles?: VoiceProfile[];
 }
 
@@ -40,7 +41,7 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock user data for demo purposes
+// Mock user data with guaranteed isAdmin property set to true
 const MOCK_USER = {
   id: "user-123",
   name: "Demo User",
@@ -48,7 +49,7 @@ const MOCK_USER = {
   credits: 5,
   subscription: "free",
   avatar: "/placeholder.svg",
-  isAdmin: true,
+  isAdmin: true, // This is explicitly set to true
   voiceProfiles: []
 };
 
@@ -60,7 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for stored user in localStorage
     const storedUser = localStorage.getItem("melody-user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      // Ensure the isAdmin property is present
+      if (parsedUser && parsedUser.isAdmin === undefined) {
+        parsedUser.isAdmin = false; // Default to false if undefined
+      }
+      setUser(parsedUser);
     }
     setIsLoading(false);
   }, []);
@@ -159,8 +165,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
+    // Simplified check with proper logging
     console.log("isAdmin check, user:", user);
-    return !!user?.isAdmin;
+    // Explicit Boolean cast with !! to ensure proper boolean evaluation
+    return user?.isAdmin === true;
   };
 
   return (
