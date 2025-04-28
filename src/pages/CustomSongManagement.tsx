@@ -1,4 +1,3 @@
-
 import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +19,6 @@ import {
   Plus
 } from "lucide-react";
 
-// Define a type for our song request objects to fix the TypeScript errors
 type SongRequest = {
   id: string;
   title: string;
@@ -42,7 +40,6 @@ const CustomSongManagement = () => {
   const [lyricsDraft, setLyricsDraft] = useState("");
   const [uploadingAudio, setUploadingAudio] = useState(false);
 
-  // Mock data for song requests with proper typing
   const [songRequests, setSongRequests] = useState<SongRequest[]>([
     { 
       id: "1", 
@@ -96,7 +93,6 @@ const CustomSongManagement = () => {
     },
   ]);
 
-  // Redirect non-admin users
   if (!isAdmin()) {
     return <Navigate to="/dashboard" />;
   }
@@ -183,16 +179,14 @@ const CustomSongManagement = () => {
   const handleUploadAudio = (id: string) => {
     setUploadingAudio(true);
     
-    // Simulate file upload with timeout
     setTimeout(() => {
-      // Fixed: Adding a default empty string for lyrics to satisfy TypeScript
       setSongRequests(songRequests.map(request => 
         request.id === id 
           ? {
               ...request, 
               status: "completed", 
               audio_url: `https://example.com/audio/song${id}.mp3`,
-              lyrics: request.lyrics || ""  // Ensure lyrics is always defined
+              lyrics: request.lyrics || ""
             } 
           : request
       ));
@@ -206,7 +200,6 @@ const CustomSongManagement = () => {
     }, 1500);
   };
 
-  // Helper function to render status labels correctly with proper typing
   const renderStatusLabel = (status: string): ReactNode => {
     return getStatusLabel(status);
   };
