@@ -2,7 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield } from "lucide-react";
+import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
@@ -110,6 +110,86 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
               )}>
                 <Shield className="h-5 w-5" />
                 <span>Admin Dashboard</span>
+              </NavLink>
+              
+              <NavLink to="/admin/users" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Users className="h-5 w-5" />
+                <span>User Management</span>
+              </NavLink>
+
+              <NavLink to="/admin/custom-songs" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Music className="h-5 w-5" />
+                <span>Custom Song Requests</span>
+              </NavLink>
+              
+              <NavLink to="/admin/api-keys" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Key className="h-5 w-5" />
+                <span>API Keys</span>
+              </NavLink>
+              
+              <NavLink to="/admin/contest" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Trophy className="h-5 w-5" />
+                <span>Contest Management</span>
+              </NavLink>
+              
+              <NavLink to="/admin/payments" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Database className="h-5 w-5" />
+                <span>Payment Plans</span>
+              </NavLink>
+              
+              <NavLink to="/admin/support" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <MessageSquare className="h-5 w-5" />
+                <span>Customer Support</span>
+              </NavLink>
+              
+              <NavLink to="/admin/reports" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <FileText className="h-5 w-5" />
+                <span>Reports</span>
+              </NavLink>
+              
+              <NavLink to="/admin/settings" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Settings className="h-5 w-5" />
+                <span>Settings</span>
               </NavLink>
 
               <NavLink to="/profile" className={({ isActive }) => cn(

@@ -18,7 +18,7 @@ import {
   Trophy,
   Star,
   Key,
-  Support,
+  MessageSquare,
   Bell,
   FileText
 } from "lucide-react";

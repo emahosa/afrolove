@@ -19,6 +19,7 @@ import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
 import Credits from "./pages/Credits";
 import Admin from "./pages/Admin";
+import CustomSongManagement from "./pages/CustomSongManagement";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -56,7 +57,17 @@ const App = () => (
                 <Route path="/contest" element={<Contest />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/credits" element={<Credits />} />
+                
+                {/* Admin routes */}
                 <Route path="/admin" element={<Admin />} />
+                <Route path="/admin/users" element={<Admin />} />
+                <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+                <Route path="/admin/api-keys" element={<Admin />} />
+                <Route path="/admin/contest" element={<Admin />} />
+                <Route path="/admin/payments" element={<Admin />} />
+                <Route path="/admin/support" element={<Admin />} />
+                <Route path="/admin/reports" element={<Admin />} />
+                <Route path="/admin/settings" element={<Admin />} />
               </Route>
             </Route>
             
