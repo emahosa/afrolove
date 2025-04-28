@@ -309,14 +309,14 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     ticketFilter === "all" || ticket.status.toLowerCase() === ticketFilter.toLowerCase()
   );
 
-  // Fix for the first Element to string TypeScript error - Line 420
+  // Fix for the first Element to string TypeScript error - Line 436
   const getCheckboxIcon = (checked: boolean) => {
     return checked ? 
       <Check className="h-4 w-4 mr-2" /> : 
       null;
   };
 
-  // Fix for the second Element to string TypeScript error - Line 725
+  // Fix for the second Element to string TypeScript error - Line 741
   const renderPlanFeatures = (features: string[]) => {
     return features.map((feature, featIndex) => (
       <li key={featIndex} className="flex items-center">
@@ -324,6 +324,22 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
       </li>
     ));
   };
+
+  // Separated checkbox rendering function to fix type issues
+  const renderCheckbox = (checked: boolean) => {
+    if (checked) {
+      return <Check className="h-4 w-4 mr-2" />;
+    }
+    return null;
+  };
+
+  // This function ensures we return a React node instead of mixing types
+  const getButtonContent = (checked: boolean, text: string) => (
+    <>
+      {checked ? <Check className="h-4 w-4 mr-2" /> : null}
+      {text}
+    </>
+  );
 
   return (
     <div className="space-y-8">
@@ -986,8 +1002,7 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                                   });
                                 }}
                               >
-                                <Check className="h-4 w-4 mr-2" />
-                                Save
+                                {getButtonContent(true, "Save")}
                               </Button>
                               <Button 
                                 size="sm" 

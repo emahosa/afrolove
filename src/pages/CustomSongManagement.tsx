@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -131,7 +131,7 @@ const CustomSongManagement = () => {
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string): string => {
     switch(status) {
       case "pending":
         return "Pending";
@@ -207,7 +207,7 @@ const CustomSongManagement = () => {
   };
 
   // Helper function to render status labels correctly
-  const renderStatusLabel = (status: string) => {
+  const renderStatusLabel = (status: string): ReactNode => {
     return getStatusLabel(status);
   };
 
