@@ -1,44 +1,31 @@
 
 import { ReactNode } from "react";
 
-type StatusBadgeProps = {
-  status: string;
-};
+interface RequestStatusBadgeProps {
+  status: "pending" | "in_progress" | "lyrics_review" | "completed" | "rejected";
+}
 
-export const getStatusBadgeClass = (status: string) => {
-  switch(status) {
+export function getStatusLabel(status: string): ReactNode {
+  switch (status) {
     case "pending":
-      return "bg-yellow-100 text-yellow-800";
+      return <span className="text-yellow-500">Pending</span>;
     case "in_progress":
-      return "bg-blue-100 text-blue-800";
+      return <span className="text-blue-500">In Progress</span>;
     case "lyrics_review":
-      return "bg-purple-100 text-purple-800";
+      return <span className="text-purple-500">Lyrics Review</span>;
     case "completed":
-      return "bg-green-100 text-green-800";
+      return <span className="text-green-500">Completed</span>;
+    case "rejected":
+      return <span className="text-red-500">Rejected</span>;
     default:
-      return "bg-gray-100 text-gray-800";
+      return <span className="text-gray-500">Unknown</span>;
   }
-};
+}
 
-export const getStatusLabel = (status: string): ReactNode => {
-  switch(status) {
-    case "pending":
-      return "Pending";
-    case "in_progress":
-      return "In Progress";
-    case "lyrics_review":
-      return "Lyrics Review";
-    case "completed":
-      return "Completed";
-    default:
-      return status;
-  }
-};
-
-export const RequestStatusBadge = ({ status }: StatusBadgeProps) => {
+export const RequestStatusBadge = ({ status }: RequestStatusBadgeProps) => {
   return (
-    <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadgeClass(status)}`}>
+    <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-background border">
       {getStatusLabel(status)}
-    </span>
+    </div>
   );
 };
