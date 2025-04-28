@@ -27,6 +27,7 @@ interface AuthContextType {
   logout: () => void;
   updateUserCredits: (amount: number) => void;
   updateUserVoiceProfile: (profileId: string, profileName: string) => void;
+  isAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,7 +48,7 @@ const MOCK_USER = {
   credits: 5,
   subscription: "free",
   avatar: "/placeholder.svg",
-  isAdmin: false,
+  isAdmin: true,
   voiceProfiles: []
 };
 
@@ -157,6 +158,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isAdmin = () => {
+    return user?.isAdmin === true;
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -165,7 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register, 
       logout, 
       updateUserCredits, 
-      updateUserVoiceProfile 
+      updateUserVoiceProfile,
+      isAdmin
     }}>
       {children}
     </AuthContext.Provider>

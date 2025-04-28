@@ -2,7 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { X, Home, Music, Library, Trophy, User, Plus, Star } from "lucide-react";
+import { X, Home, Music, Library, Trophy, User, Plus, Star, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarProps {
@@ -11,7 +11,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ open, setOpen }: SidebarProps) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return (
     <div
@@ -88,6 +88,18 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
             <Star className="h-5 w-5" />
             <span>Get Credits</span>
           </NavLink>
+
+          {isAdmin() && (
+            <NavLink to="/admin" className={({ isActive }) => cn(
+              "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors mt-4 border-t border-border/30 pt-4",
+              isActive 
+                ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}>
+              <ShieldAlert className="h-5 w-5" />
+              <span>Admin</span>
+            </NavLink>
+          )}
         </div>
         
         <div>
