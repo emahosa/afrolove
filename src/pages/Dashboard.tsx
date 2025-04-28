@@ -21,9 +21,11 @@ const Dashboard = () => {
             <Star size={16} className="fill-melody-secondary" />
             <span>{user?.credits}</span>
           </div>
-          <Button size="sm" variant="outline" className="ml-2">
-            Get More
-          </Button>
+          <Link to="/credits">
+            <Button size="sm" variant="outline" className="ml-2">
+              Get More
+            </Button>
+          </Link>
         </div>
       </div>
 

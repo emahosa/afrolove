@@ -16,6 +16,7 @@ import Create from "./pages/Create";
 import Library from "./pages/Library";
 import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
+import Credits from "./pages/Credits";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/library" element={<Library />} />
                 <Route path="/contest" element={<Contest />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/credits" element={<Credits />} />
               </Route>
             </Route>
             

@@ -27,10 +27,10 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="flex items-center mr-2">
+          <Link to="/credits" className="flex items-center mr-2">
             <Star className="h-4 w-4 text-melody-secondary mr-1" />
             <span className="text-sm font-medium">{user?.credits}</span>
-          </div>
+          </Link>
           
           <Button variant="outline" size="icon" className="text-muted-foreground">
             <Bell className="h-[1.2rem] w-[1.2rem]" />

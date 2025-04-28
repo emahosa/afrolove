@@ -78,19 +78,31 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
             <User className="h-5 w-5" />
             <span>Profile</span>
           </NavLink>
+
+          <NavLink to="/credits" className={({ isActive }) => cn(
+            "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+            isActive 
+              ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}>
+            <Star className="h-5 w-5" />
+            <span>Get Credits</span>
+          </NavLink>
         </div>
         
         <div>
-          <div className="bg-card border border-border/50 rounded-lg p-4">
-            <div className="text-sm font-medium mb-2">Available Credits</div>
-            <div className="flex items-center mb-3">
-              <Star className="h-5 w-5 text-melody-secondary mr-2 fill-melody-secondary" />
-              <span className="text-xl font-bold">{user?.credits}</span>
+          <NavLink to="/credits" className="block">
+            <div className="bg-card border border-border/50 rounded-lg p-4">
+              <div className="text-sm font-medium mb-2">Available Credits</div>
+              <div className="flex items-center mb-3">
+                <Star className="h-5 w-5 text-melody-secondary mr-2 fill-melody-secondary" />
+                <span className="text-xl font-bold">{user?.credits}</span>
+              </div>
+              <Button size="sm" className="w-full bg-melody-secondary hover:bg-melody-secondary/90">
+                Get More Credits
+              </Button>
             </div>
-            <Button size="sm" className="w-full bg-melody-secondary hover:bg-melody-secondary/90">
-              Get More Credits
-            </Button>
-          </div>
+          </NavLink>
         </div>
       </div>
     </div>

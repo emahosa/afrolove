@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface User {
   id: string;
@@ -17,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  updateUserCredits: (amount: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,8 +120,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast({ title: "Logged out", description: "You have been successfully logged out" });
   };
 
+  const updateUserCredits = (amount: number) => {
+    if (user) {
+      const updatedUser = {
+        ...user,
+        credits: user.credits + amount
+      };
+      setUser(updatedUser);
+      localStorage.setItem("melody-user", JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUserCredits }}>
       {children}
     </AuthContext.Provider>
   );
