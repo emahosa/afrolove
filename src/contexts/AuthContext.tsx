@@ -227,20 +227,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Validate inputs before proceeding
       if (!name.trim() || !email.trim() || !password.trim()) {
-        toast.error("Registration failed", {
-          description: "All fields are required"
-        });
+        toast.error("All fields are required");
         return false;
       }
       
-      // Basic email check - just make sure it has @ and .
-      if (!email.includes('@') || !email.includes('.')) {
-        toast.error("Registration failed", {
-          description: "Please enter a valid email address"
-        });
+      // Validate email format using RFC 5322 standard
+      const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(email)) {
+        toast.error("Please enter a valid email address");
         return false;
       }
 
+      console.log("Attempting to register with email:", email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -255,18 +254,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error("Registration error:", error);
-        toast.error("Registration failed", {
-          description: error.message
-        });
+        toast.error(error.message);
         return false;
       }
 
       if (!data.user) {
-        toast.error("Registration failed", {
-          description: "No user data returned"
-        });
+        toast.error("No user data returned");
         return false;
       }
+
+      console.log("User registered successfully:", data.user.id);
 
       // If admin registration, add admin role
       if (isAdmin && data.user) {
@@ -279,22 +276,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (roleError) {
           console.error("Admin role assignment error:", roleError);
-          toast.error("Failed to set admin role", {
-            description: roleError.message
-          });
+          toast.error("Failed to set admin role: " + roleError.message);
           return false;
         }
+        
+        console.log("Admin role assigned successfully");
       }
 
-      toast.success("Registration successful", {
-        description: "Your account has been created"
-      });
+      toast.success("Registration successful");
       return true;
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error("Registration error", {
-        description: error.message
-      });
+      toast.error(error.message || "An unexpected error occurred");
       return false;
     }
   };
