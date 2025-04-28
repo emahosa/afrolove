@@ -1,11 +1,11 @@
-
 import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Mic, MusicIcon, Upload, Loader2, Speaker } from "lucide-react";
+import { Mic, Upload, Loader2, Speaker } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -23,7 +23,7 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
   const [isCloning, setIsCloning] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { user, updateUserCredits, updateUserVoiceProfile } = useAuth();
+  const { user, updateUserCredits } = useAuth();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,21 +86,68 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
     }
 
     setIsCloning(true);
-    
-    // Simulate API call to ElevenLabs
     const progressInterval = simulateProgress();
     
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      setProgress(100);
+    try {
+      // Upload file to Supabase Storage
+      const fileName = `voice-sample-${Date.now()}`;
+      const filePath = `${user?.id}/${fileName}`;
       
-      // Generate a mock voice ID
-      const mockVoiceId = `voice-${Math.random().toString(36).substring(2, 10)}`;
-      setVoiceId(mockVoiceId);
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('audio_files')
+        .upload(filePath, uploadedFile);
+        
+      if (uploadError) throw uploadError;
       
-      // Update user's credits and save the voice profile
-      updateUserCredits(-300);
-      updateUserVoiceProfile(mockVoiceId, uploadedFile.name);
+      // Get public URL for the uploaded file
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('audio_files')
+        .getPublicUrl(filePath);
+        
+      const sampleAudioUrl = publicUrlData.publicUrl;
+      
+      // Insert new voice clone record
+      const { data: voiceClone, error: insertError } = await supabase
+        .from('voice_clones')
+        .insert({
+          user_id: user?.id,
+          name: uploadedFile.name.split('.')[0] || 'My Voice',
+          sample_audio_url: sampleAudioUrl,
+          status: 'pending'
+        })
+        .select()
+        .single();
+      
+      if (insertError) throw insertError;
+      
+      // Deduct credits
+      const { error: creditError } = await supabase
+        .from('credit_transactions')
+        .insert({
+          user_id: user?.id,
+          amount: -300,
+          description: 'Voice cloning',
+          transaction_type: 'voice_cloning'
+        });
+        
+      if (creditError) throw creditError;
+      
+      // Update user's credits in profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ credits: (user?.credits || 0) - 300 })
+        .eq('id', user?.id);
+        
+      if (profileError) throw profileError;
+      
+      // Update local user state
+      if (updateUserCredits) {
+        updateUserCredits(-300);
+      }
+      
+      setVoiceId(voiceClone.id);
       
       toast({
         title: "Voice cloned successfully",
@@ -108,14 +155,23 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
       });
       
       if (onVoiceCloned) {
-        onVoiceCloned(mockVoiceId);
+        onVoiceCloned(voiceClone.id);
       }
-      
+    } catch (error) {
+      console.error('Error cloning voice:', error);
+      toast({
+        title: "Voice cloning failed",
+        description: "There was a problem processing your request",
+        variant: "destructive",
+      });
+    } finally {
+      clearInterval(progressInterval);
+      setProgress(100);
       setIsCloning(false);
-    }, 5000);
+    }
   };
 
-  const handleAPIKeySave = () => {
+  const handleAPIKeySave = async () => {
     if (!apiKey.trim()) {
       toast({
         title: "API Key Required",
@@ -125,10 +181,26 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
       return;
     }
     
-    toast({
-      title: "API Key Saved",
-      description: "ElevenLabs API key has been saved successfully",
-    });
+    try {
+      const { error } = await supabase
+        .from('api_configs')
+        .update({ api_key_encrypted: apiKey })
+        .eq('service', 'voice_cloning');
+        
+      if (error) throw error;
+      
+      toast({
+        title: "API Key Saved",
+        description: "ElevenLabs API key has been saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving API key:', error);
+      toast({
+        title: "Failed to save API key",
+        description: "Could not save the API key at this time",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTriggerFileInput = () => {
@@ -208,23 +280,6 @@ const VoiceCloning = ({ onVoiceCloned, isAdmin = false }: VoiceCloningProps) => 
                     Upload a clear 2-minute recording of your voice for best results.
                   </p>
                 </div>
-                
-                {user?.voiceProfiles && user.voiceProfiles.length > 0 ? (
-                  <div className="space-y-3">
-                    <h3 className="text-base font-medium">Your Voice Profiles</h3>
-                    <div className="grid gap-2">
-                      {user.voiceProfiles.map((profile) => (
-                        <div key={profile.id} className="flex items-center justify-between p-3 border rounded-md">
-                          <div className="flex items-center">
-                            <Speaker className="h-4 w-4 mr-2" />
-                            <span>{profile.name}</span>
-                          </div>
-                          <Button size="sm" variant="ghost">Use</Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
                 
                 <div className="mt-4">
                   <Label htmlFor="voice-sample">Upload Voice Sample</Label>

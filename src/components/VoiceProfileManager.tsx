@@ -1,14 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Speaker, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import VoiceCloning from "./VoiceCloning";
+import VoiceCloneList from "./library/VoiceCloneList";
 
 const VoiceProfileManager = () => {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
 
   const handlePlaySample = (voiceId: string) => {
@@ -24,12 +27,31 @@ const VoiceProfileManager = () => {
     }, 3000);
   };
 
-  const handleDeleteProfile = (voiceId: string) => {
-    // This would connect to the API to delete the voice profile
-    toast({
-      title: "Voice profile deleted",
-      description: "Your voice profile has been removed",
-    });
+  const handleDeleteProfile = async (voiceId: string) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('voice_clones')
+        .delete()
+        .eq('id', voiceId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Voice profile deleted",
+        description: "Your voice profile has been removed",
+      });
+    } catch (error) {
+      console.error('Error deleting voice profile:', error);
+      toast({
+        title: "Failed to delete",
+        description: "Could not delete the voice profile at this time",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -41,51 +63,17 @@ const VoiceProfileManager = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {user?.voiceProfiles && user.voiceProfiles.length > 0 ? (
-          <div className="space-y-3">
-            {user.voiceProfiles.map((profile) => (
-              <div key={profile.id} className="flex items-center justify-between p-3 border rounded-md">
-                <div className="flex items-center">
-                  <Speaker className="h-4 w-4 mr-2" />
-                  <span>{profile.name}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => handlePlaySample(profile.id)}
-                    disabled={isPlaying === profile.id}
-                  >
-                    {isPlaying === profile.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Play Sample"
-                    )}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDeleteProfile(profile.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="text-center py-6">
-            <p className="text-muted-foreground mb-4">You haven't created any voice profiles yet</p>
-            <VoiceCloning />
-          </div>
+          <VoiceCloneList />
         )}
         
-        {user?.voiceProfiles && user.voiceProfiles.length > 0 && (
-          <div className="mt-4">
-            <VoiceCloning />
-          </div>
-        )}
+        <div className="mt-4">
+          <VoiceCloning />
+        </div>
       </CardContent>
     </Card>
   );

@@ -9,16 +9,669 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+          ip_address: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      api_configs: {
+        Row: {
+          api_key_encrypted: string | null
+          created_at: string
+          credit_cost: number
+          id: string
+          is_enabled: boolean | null
+          service: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          is_enabled?: boolean | null
+          service: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          credit_cost?: number
+          id?: string
+          is_enabled?: boolean | null
+          service?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      content_flags: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string | null
+          review_notes: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["flag_status"] | null
+          updated_at: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          reason: string
+          reporter_id?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["flag_status"] | null
+          updated_at?: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string | null
+          review_notes?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["flag_status"] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contest_entries: {
+        Row: {
+          contest_id: string
+          created_at: string
+          id: string
+          song_id: string | null
+          status: Database["public"]["Enums"]["song_status"] | null
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          contest_id: string
+          created_at?: string
+          id?: string
+          song_id?: string | null
+          status?: Database["public"]["Enums"]["song_status"] | null
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          contest_id?: string
+          created_at?: string
+          id?: string
+          song_id?: string | null
+          status?: Database["public"]["Enums"]["song_status"] | null
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_entries_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_entries_song_id_fkey"
+            columns: ["song_id"]
+            isOneToOne: false
+            referencedRelation: "songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          end_date: string
+          id: string
+          instrumental_url: string | null
+          prize: string
+          rules: string
+          start_date: string
+          status: Database["public"]["Enums"]["contest_status"] | null
+          terms_conditions: string
+          title: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          end_date: string
+          id?: string
+          instrumental_url?: string | null
+          prize: string
+          rules: string
+          start_date: string
+          status?: Database["public"]["Enums"]["contest_status"] | null
+          terms_conditions: string
+          title: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          end_date?: string
+          id?: string
+          instrumental_url?: string | null
+          prize?: string
+          rules?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["contest_status"] | null
+          terms_conditions?: string
+          title?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
+      credit_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_song_audio: {
+        Row: {
+          audio_url: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_selected: boolean | null
+          request_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_selected?: boolean | null
+          request_id: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_selected?: boolean | null
+          request_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_song_audio_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "custom_song_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_song_lyrics: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_selected: boolean | null
+          lyrics: string
+          request_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_selected?: boolean | null
+          lyrics: string
+          request_id: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_selected?: boolean | null
+          lyrics?: string
+          request_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_song_lyrics_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "custom_song_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_song_requests: {
+        Row: {
+          created_at: string
+          description: string
+          genre_id: string | null
+          id: string
+          status: Database["public"]["Enums"]["custom_song_status"] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          genre_id?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["custom_song_status"] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          genre_id?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["custom_song_status"] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_song_requests_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      genres: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          max_credits: number
+          min_credits: number
+          name: string
+          prompt_template: string
+          recommended_instruments: string[] | null
+          recommended_moods: string[] | null
+          recommended_styles: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_credits?: number
+          min_credits?: number
+          name: string
+          prompt_template: string
+          recommended_instruments?: string[] | null
+          recommended_moods?: string[] | null
+          recommended_styles?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          max_credits?: number
+          min_credits?: number
+          name?: string
+          prompt_template?: string
+          recommended_instruments?: string[] | null
+          recommended_moods?: string[] | null
+          recommended_styles?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          credits_purchased: number
+          currency: string
+          id: string
+          payment_id: string | null
+          payment_method: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credits_purchased: number
+          currency?: string
+          id?: string
+          payment_id?: string | null
+          payment_method: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credits_purchased?: number
+          currency?: string
+          id?: string
+          payment_id?: string | null
+          payment_method?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          credits: number
+          full_name: string | null
+          id: string
+          is_banned: boolean | null
+          is_suspended: boolean | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          full_name?: string | null
+          id: string
+          is_banned?: boolean | null
+          is_suspended?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          credits?: number
+          full_name?: string | null
+          id?: string
+          is_banned?: boolean | null
+          is_suspended?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      songs: {
+        Row: {
+          audio_url: string
+          created_at: string
+          credits_used: number
+          genre_id: string | null
+          id: string
+          instrumental_url: string | null
+          lyrics: string | null
+          prompt: string | null
+          status: Database["public"]["Enums"]["song_status"] | null
+          title: string
+          type: Database["public"]["Enums"]["song_type"]
+          updated_at: string
+          user_id: string
+          vocal_url: string | null
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          credits_used?: number
+          genre_id?: string | null
+          id?: string
+          instrumental_url?: string | null
+          lyrics?: string | null
+          prompt?: string | null
+          status?: Database["public"]["Enums"]["song_status"] | null
+          title: string
+          type: Database["public"]["Enums"]["song_type"]
+          updated_at?: string
+          user_id: string
+          vocal_url?: string | null
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          credits_used?: number
+          genre_id?: string | null
+          id?: string
+          instrumental_url?: string | null
+          lyrics?: string | null
+          prompt?: string | null
+          status?: Database["public"]["Enums"]["song_status"] | null
+          title?: string
+          type?: Database["public"]["Enums"]["song_type"]
+          updated_at?: string
+          user_id?: string
+          vocal_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "songs_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      voice_clones: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sample_audio_url: string
+          status: Database["public"]["Enums"]["voice_clone_status"] | null
+          updated_at: string
+          user_id: string
+          voice_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sample_audio_url: string
+          status?: Database["public"]["Enums"]["voice_clone_status"] | null
+          updated_at?: string
+          user_id: string
+          voice_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sample_audio_url?: string
+          status?: Database["public"]["Enums"]["voice_clone_status"] | null
+          updated_at?: string
+          user_id?: string
+          voice_id?: string | null
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          created_at: string
+          entry_id: string
+          id: string
+          voter_phone: string
+        }
+        Insert: {
+          created_at?: string
+          entry_id: string
+          id?: string
+          voter_phone: string
+        }
+        Update: {
+          created_at?: string
+          entry_id?: string
+          id?: string
+          voter_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: { _role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      contest_status: "draft" | "active" | "voting" | "completed"
+      custom_song_status:
+        | "pending"
+        | "lyrics_proposed"
+        | "lyrics_selected"
+        | "audio_uploaded"
+        | "completed"
+      flag_status: "pending" | "reviewed" | "dismissed"
+      song_status: "pending" | "approved" | "rejected"
+      song_type: "song" | "instrumental"
+      user_role: "admin" | "moderator" | "user"
+      voice_clone_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +786,20 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      contest_status: ["draft", "active", "voting", "completed"],
+      custom_song_status: [
+        "pending",
+        "lyrics_proposed",
+        "lyrics_selected",
+        "audio_uploaded",
+        "completed",
+      ],
+      flag_status: ["pending", "reviewed", "dismissed"],
+      song_status: ["pending", "approved", "rejected"],
+      song_type: ["song", "instrumental"],
+      user_role: ["admin", "moderator", "user"],
+      voice_clone_status: ["pending", "approved", "rejected"],
+    },
   },
 } as const
