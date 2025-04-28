@@ -1,10 +1,20 @@
+
 import { useState } from "react";
 import TracksList from "@/components/library/TracksList";
 import SingleTrackView from "@/components/library/SingleTrackView";
 import LibraryFilters from "@/components/library/LibraryFilters";
 import { toast } from "@/hooks/use-toast";
 
-const mockTracks = [
+// Import the Track interface from TracksList component
+interface Track {
+  id: string;
+  title: string;
+  type: "song" | "instrumental";
+  genre: string;
+  date: string;
+}
+
+const mockTracks: Track[] = [
   {
     id: "1",
     title: "Summer Vibes",
