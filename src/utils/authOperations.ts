@@ -27,13 +27,18 @@ export const initializeAdminAccount = async () => {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
       
       // Ensure ellaadahosa@gmail.com has admin role
-      const { data: userCheck } = await supabase.auth.admin.getUserByEmail(ADMIN_EMAIL);
+      // Instead of using getUserByEmail which doesn't exist, let's find the user by querying profiles
+      const { data: userCheck } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', ADMIN_EMAIL)
+        .maybeSingle();
       
-      if (userCheck?.user) {
+      if (userCheck?.id) {
         const { data: adminRoleCheck } = await supabase
           .from('user_roles')
           .select('*')
-          .eq('user_id', userCheck.user.id)
+          .eq('user_id', userCheck.id)
           .eq('role', 'admin')
           .maybeSingle();
           
@@ -42,7 +47,7 @@ export const initializeAdminAccount = async () => {
           const { error: insertRoleError } = await supabase
             .from('user_roles')
             .insert({
-              user_id: userCheck.user.id,
+              user_id: userCheck.id,
               role: 'admin'
             });
             
