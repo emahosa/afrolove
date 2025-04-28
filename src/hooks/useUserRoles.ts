@@ -28,8 +28,9 @@ export const useUserRoles = () => {
         console.error("useUserRoles: Error fetching user roles:", error);
         setUserRoles([]);
       } else {
-        console.log("useUserRoles: Fetched user roles:", data);
-        setUserRoles(data.map(item => item.role));
+        const roles = data.map(item => item.role);
+        console.log("useUserRoles: Fetched user roles:", roles);
+        setUserRoles(roles);
       }
     } catch (error) {
       console.error("useUserRoles: Error in fetchUserRoles:", error);
@@ -41,8 +42,9 @@ export const useUserRoles = () => {
   }, []);
 
   const isAdmin = useCallback(() => {
-    console.log("useUserRoles: Checking admin status, roles:", userRoles);
-    return userRoles.includes('admin');
+    const hasAdminRole = userRoles.includes('admin');
+    console.log("useUserRoles: Checking admin status, roles:", userRoles, "isAdmin:", hasAdminRole);
+    return hasAdminRole;
   }, [userRoles]);
 
   return { 

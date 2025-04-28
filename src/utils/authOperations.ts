@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -147,7 +146,7 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       console.log("AuthOperations: Checking if user is admin:", data.user.id);
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
-        .select('*')
+        .select('role')
         .eq('user_id', data.user.id)
         .eq('role', 'admin');
 

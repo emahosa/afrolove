@@ -22,7 +22,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (currentSession?.user) {
         console.log("AuthContext: User is logged in, fetching profile data");
-        const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+        
+        // First get user data
+        const enhancedUser = await enhanceUserWithProfileData(currentSession.user)
+          .catch(error => {
+            console.error("AuthContext: Error enhancing user data:", error);
+            // Return basic user data as fallback
+            return {
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: currentSession.user.user_metadata?.name || 'User',
+              avatar: currentSession.user.user_metadata?.avatar_url || '',
+              credits: 0,
+              subscription: 'free'
+            } as UserProfile;
+          });
+          
         setSession(currentSession);
         setUser(enhancedUser);
         
@@ -34,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
       }
     } catch (error) {
-      console.error("AuthContext: Error enhancing user data:", error);
+      console.error("AuthContext: Error updating auth user:", error);
     } finally {
       setLoading(false);
     }
@@ -114,10 +129,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const adminCheckResult = isAdmin();
-  console.log("AuthContext: Admin check result:", adminCheckResult, "userRoles:", userRoles);
+  // Important: Get the admin status ONCE per render to avoid constant rechecking
+  const isAdminValue = isAdmin();
+  console.log("AuthContext: Admin check result:", isAdminValue, "userRoles:", userRoles);
 
-  // For debugging purposes
   const contextValue = {
     user,
     session,
@@ -125,14 +140,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     register,
     logout,
-    isAdmin: () => adminCheckResult,
+    isAdmin: () => isAdminValue,
     updateUserCredits,
   };
   
   console.log("AuthContext: Auth context state:", { 
     user: user?.id, 
     isLoggedIn: !!user,
-    isAdmin: adminCheckResult,
+    isAdmin: isAdminValue,
     loading: loading || !rolesInitialized,
     userRoles
   });

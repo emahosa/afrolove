@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -60,14 +59,18 @@ const Login = () => {
     setLoading(true);
     try {
       console.log("Login: Attempting login with:", { email, userType });
-      const success = await login(email, password, userType === "admin");
+      const isAdminLogin = userType === "admin";
+      const success = await login(email, password, isAdminLogin);
       console.log("Login: Login result:", success);
       
       if (success) {
         // Get the intended destination or default to dashboard
-        const from = location.state?.from?.pathname || "/dashboard";
-        console.log("Login: Redirecting to:", from);
-        navigate(from, { replace: true });
+        let destination = isAdminLogin ? "/admin" : "/dashboard";
+        if (location.state?.from?.pathname) {
+          destination = location.state.from.pathname;
+        }
+        console.log("Login: Redirecting to:", destination);
+        navigate(destination, { replace: true });
       } else {
         setLoading(false);
       }

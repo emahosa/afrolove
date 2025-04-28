@@ -9,6 +9,7 @@ const ProtectedRoute = () => {
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const adminStatus = isAdmin();
 
   useEffect(() => {
     // Only show the toast if we're not in the process of loading and the user is not logged in
@@ -19,7 +20,7 @@ const ProtectedRoute = () => {
     }
     
     // Show toast if user is logged in but trying to access admin route without admin privileges
-    if (!loading && user && isAdminRoute && !isAdmin() && !isChecking) {
+    if (!loading && user && isAdminRoute && !adminStatus && !isChecking) {
       toast.error("Access denied", {
         description: "You don't have admin privileges to access this page"
       });
@@ -29,14 +30,14 @@ const ProtectedRoute = () => {
     if (!loading && isChecking) {
       setIsChecking(false);
     }
-  }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
+  }, [loading, user, location.pathname, isChecking, isAdminRoute, adminStatus]);
 
   console.log("ProtectedRoute: state:", { 
     user: user?.id, 
     loading, 
     isChecking,
     isAdminRoute,
-    isAdmin: isAdmin(),
+    isAdmin: adminStatus,
     pathname: location.pathname 
   });
 
@@ -57,7 +58,7 @@ const ProtectedRoute = () => {
     }
     
     // If logged in but not admin, redirect to dashboard
-    if (!isAdmin()) {
+    if (!adminStatus) {
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
   }
