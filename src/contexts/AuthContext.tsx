@@ -182,6 +182,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, password: string, isAdmin: boolean): Promise<boolean> => {
     try {
+      // Validate inputs before proceeding
+      if (!name.trim() || !email.trim() || !password.trim()) {
+        toast.error("Registration failed", {
+          description: "All fields are required"
+        });
+        return false;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

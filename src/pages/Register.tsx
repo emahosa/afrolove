@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
+import { toast } from "sonner";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -18,12 +19,35 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    const success = await register(name, email, password, false); // false = not admin
-    if (success) {
-      navigate("/dashboard");
+    
+    // Basic validation
+    if (!name.trim()) {
+      toast.error("Name cannot be empty");
+      return;
     }
-    setLoading(false);
+
+    if (!email.trim()) {
+      toast.error("Email cannot be empty");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const success = await register(name, email, password, false); // false = not admin
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("An unexpected error occurred during registration");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

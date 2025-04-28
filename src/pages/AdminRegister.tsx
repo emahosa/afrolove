@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { Music, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 
 const AdminRegister = () => {
   const [name, setName] = useState("");
@@ -20,18 +21,43 @@ const AdminRegister = () => {
     e.preventDefault();
     setLoading(true);
     
-    // In a real app, you would validate the admin code on the server
-    if (adminCode !== "ADMIN123") { // Simple admin code validation
-      alert("Invalid admin code");
+    // Basic validation
+    if (!name.trim()) {
+      toast.error("Name cannot be empty");
+      setLoading(false);
+      return;
+    }
+
+    if (!email.trim()) {
+      toast.error("Email cannot be empty");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
       setLoading(false);
       return;
     }
     
-    const success = await register(name, email, password, true); // true = admin
-    if (success) {
-      navigate("/dashboard");
+    // In a real app, you would validate the admin code on the server
+    if (adminCode !== "ADMIN123") { // Simple admin code validation
+      toast.error("Invalid admin code");
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    
+    try {
+      const success = await register(name, email, password, true); // true = admin
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Admin registration error:", error);
+      toast.error("An unexpected error occurred during registration");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
