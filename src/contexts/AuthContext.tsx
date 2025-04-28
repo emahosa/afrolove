@@ -16,7 +16,7 @@ interface User {
   credits: number;
   subscription?: string;
   avatar?: string;
-  isAdmin: boolean; // Make isAdmin required, not optional
+  roles: string[];
   voiceProfiles?: VoiceProfile[];
 }
 
@@ -28,7 +28,9 @@ interface AuthContextType {
   logout: () => void;
   updateUserCredits: (amount: number) => void;
   updateUserVoiceProfile: (profileId: string, profileName: string) => void;
+  hasRole: (role: string) => boolean;
   isAdmin: () => boolean;
+  isModerator: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,88 +43,130 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock user data with guaranteed isAdmin property set to true
-const MOCK_USER = {
-  id: "user-123",
-  name: "Demo User",
-  email: "demo@example.com",
-  credits: 5,
-  subscription: "free",
-  avatar: "/placeholder.svg",
-  isAdmin: true, // This is explicitly set to true
-  voiceProfiles: []
-};
-
-// Mock admin user
-const MOCK_ADMIN = {
-  id: "admin-123",
-  name: "Admin User",
-  email: "admin@example.com",
-  credits: 100,
-  subscription: "premium",
-  avatar: "/placeholder.svg",
-  isAdmin: true,
-  voiceProfiles: []
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for stored user in localStorage
-    const storedUser = localStorage.getItem("melody-user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      // Ensure the isAdmin property is present
-      if (parsedUser && parsedUser.isAdmin === undefined) {
-        parsedUser.isAdmin = false; // Default to false if undefined
-      }
-      setUser(parsedUser);
+  // Function to fetch user roles
+  const fetchUserRoles = async (userId: string) => {
+    const { data: roles, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user roles:', error);
+      return [];
     }
-    setIsLoading(false);
-  }, []);
+
+    return roles.map(r => r.role);
+  };
+
+  // Function to update user state with roles
+  const updateUserState = async (session: Session | null) => {
+    if (session?.user) {
+      const roles = await fetchUserRoles(session.user.id);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      setUser({
+        id: session.user.id,
+        email: session.user.email!,
+        name: profile?.full_name || session.user.email!.split('@')[0],
+        credits: profile?.credits || 0,
+        avatar: profile?.avatar_url,
+        roles: roles,
+        voiceProfiles: []
+      });
+    } else {
+      setUser(null);
+    }
+  };
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          await updateUserState(session);
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session) {
+        await updateUserState(session);
+      }
+      setIsLoading(false);
+    });
+
+    // Set up real-time subscription for user_roles changes
+    const rolesChannel = supabase.channel('user_roles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles',
+          filter: user ? `user_id=eq.${user.id}` : undefined
+        },
+        async (payload) => {
+          if (user) {
+            const roles = await fetchUserRoles(user.id);
+            setUser(prev => prev ? { ...prev, roles } : null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      rolesChannel.unsubscribe();
+    };
+  }, [user?.id]);
 
   const login = async (email: string, password: string, isAdminLogin = false) => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      if (email && password) { // Basic validation
-        if (isAdminLogin) {
-          // For admin login, we'll use a different mock user
-          if (email === "admin@example.com" && password === "adminpassword") {
-            setUser(MOCK_ADMIN);
-            localStorage.setItem("melody-user", JSON.stringify(MOCK_ADMIN));
-            toast({ title: "Admin login successful", description: "Welcome back, Administrator!" });
-            return true;
-          } else {
-            toast({ 
-              title: "Admin login failed", 
-              description: "Invalid admin credentials", 
-              variant: "destructive"
-            });
-            return false;
-          }
-        } else {
-          // Regular user login
-          setUser(MOCK_USER);
-          localStorage.setItem("melody-user", JSON.stringify(MOCK_USER));
-          toast({ title: "Login successful", description: "Welcome back!" });
-          return true;
-        }
-      }
-      toast({ 
-        title: "Login failed", 
-        description: "Invalid email or password", 
-        variant: "destructive"
+      const { data: { session }, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
+
+      if (error) throw error;
+
+      if (session) {
+        const roles = await fetchUserRoles(session.user.id);
+        
+        if (isAdminLogin && !roles.includes('admin')) {
+          await logout();
+          toast({ 
+            title: "Access denied", 
+            description: "You don't have admin privileges", 
+            variant: "destructive" 
+          });
+          return false;
+        }
+
+        await updateUserState(session);
+        toast({ title: "Login successful", description: "Welcome back!" });
+        return true;
+      }
+
       return false;
     } catch (error) {
+      console.error('Login error:', error);
       toast({ 
-        title: "Login error", 
-        description: "An unexpected error occurred", 
+        title: "Login failed", 
+        description: "Invalid credentials", 
         variant: "destructive" 
       });
       return false;
@@ -134,34 +178,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (name: string, email: string, password: string, isAdmin = false) => {
     try {
       setIsLoading(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      if (name && email && password) { // Basic validation
-        if (isAdmin) {
-          // Admin registration
-          const newAdmin = { ...MOCK_ADMIN, name, email };
-          setUser(newAdmin);
-          localStorage.setItem("melody-user", JSON.stringify(newAdmin));
-          toast({ title: "Admin registration successful", description: "Welcome to MelodyVerse Admin!" });
-        } else {
-          // Regular user registration
-          const newUser = { ...MOCK_USER, name, email, isAdmin: false };
-          setUser(newUser);
-          localStorage.setItem("melody-user", JSON.stringify(newUser));
-          toast({ title: "Registration successful", description: "Welcome to MelodyVerse!" });
+      const { data: { session }, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          }
         }
+      });
+
+      if (error) throw error;
+
+      if (session?.user) {
+        // Insert initial role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: session.user.id,
+            role: isAdmin ? 'admin' : 'user'
+          });
+
+        if (roleError) throw roleError;
+
+        await updateUserState(session);
+        toast({ 
+          title: "Registration successful", 
+          description: `Welcome to MelodyVerse${isAdmin ? ' Admin' : ''}!` 
+        });
         return true;
       }
-      toast({ 
-        title: "Registration failed", 
-        description: "Please fill in all required fields", 
-        variant: "destructive" 
-      });
+
       return false;
     } catch (error) {
+      console.error('Registration error:', error);
       toast({ 
-        title: "Registration error", 
+        title: "Registration failed", 
         description: "An unexpected error occurred", 
         variant: "destructive" 
       });
@@ -171,21 +224,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("melody-user");
     toast({ title: "Logged out", description: "You have been successfully logged out" });
   };
 
-  const updateUserCredits = (amount: number) => {
-    if (user) {
-      const updatedUser = {
-        ...user,
-        credits: user.credits + amount
-      };
-      setUser(updatedUser);
-      localStorage.setItem("melody-user", JSON.stringify(updatedUser));
+  const updateUserCredits = async (amount: number) => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ credits: user.credits + amount })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error updating credits",
+        description: "Failed to update credits",
+        variant: "destructive"
+      });
+      return;
     }
+
+    setUser(prev => prev ? { ...prev, credits: data.credits } : null);
   };
 
   const updateUserVoiceProfile = (profileId: string, profileName: string) => {
@@ -193,21 +257,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const voiceProfiles = user.voiceProfiles || [];
       const updatedProfiles = [...voiceProfiles, { id: profileId, name: profileName }];
       
-      const updatedUser = {
+      setUser({
         ...user,
         voiceProfiles: updatedProfiles
-      };
-      
-      setUser(updatedUser);
-      localStorage.setItem("melody-user", JSON.stringify(updatedUser));
+      });
     }
   };
 
+  const hasRole = (role: string) => {
+    return user?.roles.includes(role) || false;
+  };
+
   const isAdmin = () => {
-    // Simplified check with proper logging
-    console.log("isAdmin check, user:", user);
-    // Explicit Boolean cast with !! to ensure proper boolean evaluation
-    return user?.isAdmin === true;
+    return hasRole('admin');
+  };
+
+  const isModerator = () => {
+    return hasRole('moderator');
   };
 
   return (
@@ -219,7 +285,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout, 
       updateUserCredits, 
       updateUserVoiceProfile,
-      isAdmin
+      hasRole,
+      isAdmin,
+      isModerator
     }}>
       {children}
     </AuthContext.Provider>
