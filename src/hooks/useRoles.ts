@@ -29,7 +29,8 @@ export const useRoles = () => {
         setRoles([]);
       } else {
         console.log("Roles fetched:", data);
-        setRoles(data.map(item => item.role as Role));
+        const fetchedRoles = data.map(item => item.role as Role);
+        setRoles(fetchedRoles);
       }
     } catch (error) {
       console.error("Error in useRoles hook:", error);
@@ -40,8 +41,13 @@ export const useRoles = () => {
   }, [user]);
 
   useEffect(() => {
-    fetchRoles();
-  }, [fetchRoles]);
+    if (user) {
+      fetchRoles();
+    } else {
+      setRoles([]);
+      setLoading(false);
+    }
+  }, [user, fetchRoles]);
 
   const hasRole = useCallback((role: Role): boolean => {
     return roles.includes(role);

@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useUserRoles = () => {
@@ -38,6 +38,7 @@ export const useUserRoles = () => {
   }, []);
 
   const isAdmin = useCallback(() => {
+    console.log("Checking admin status, roles:", userRoles);
     return userRoles.includes('admin');
   }, [userRoles]);
 

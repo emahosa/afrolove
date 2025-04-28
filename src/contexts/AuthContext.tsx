@@ -25,15 +25,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
-        setSession(currentSession);
         
         if (currentSession?.user) {
           console.log("User is logged in, fetching profile data");
           const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+          setSession(currentSession);
           setUser(enhancedUser);
-          fetchUserRoles(currentSession.user.id);
+          // Fetch roles outside of the callback to avoid deadlocks
+          setTimeout(() => {
+            fetchUserRoles(currentSession.user.id);
+          }, 0);
         } else {
           console.log("No user in session");
+          setSession(null);
           setUser(null);
         }
         
@@ -47,16 +51,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         console.log("Initial session check:", currentSession?.user?.id);
         
-        setSession(currentSession);
-        
         if (currentSession?.user) {
           console.log("Found existing session, fetching profile data");
           const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+          setSession(currentSession);
           setUser(enhancedUser);
-          fetchUserRoles(currentSession.user.id);
+          // Fetch roles outside of the callback to avoid deadlocks
+          setTimeout(() => {
+            fetchUserRoles(currentSession.user.id);
+          }, 0);
         } else {
           console.log("No existing session found");
           setUser(null);
+          setSession(null);
         }
         
         setLoading(false);
@@ -78,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Cleaning up auth listener");
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchUserRoles]);
 
   const login = handleLogin;
   const register = handleRegister;
@@ -132,7 +139,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user: user?.id, 
     isLoggedIn: !!user,
     isAdmin: isAdmin(),
-    loading
+    loading,
+    userRoles
   });
 
   return (

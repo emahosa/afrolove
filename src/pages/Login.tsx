@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
 import { toast } from "sonner";
 
-// Admin credentials constants - updated email
+// Admin credentials constants
 const ADMIN_EMAIL = "ellaadahosa@gmail.com";
 const ADMIN_PASSWORD = "Admin123!";
 
@@ -39,9 +39,10 @@ const Login = () => {
   useEffect(() => {
     if (user) {
       console.log("User already logged in, redirecting to dashboard");
-      navigate("/dashboard");
+      const from = location.state?.from?.pathname || "/dashboard";
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,12 +64,12 @@ const Login = () => {
       console.log("Login result:", success);
       
       if (success) {
-        toast.success("Login successful");
-        
         // Get the intended destination or default to dashboard
         const from = location.state?.from?.pathname || "/dashboard";
         console.log("Redirecting to:", from);
-        navigate(from, { replace: true });
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 500);
       }
     } catch (error) {
       console.error("Login error in component:", error);

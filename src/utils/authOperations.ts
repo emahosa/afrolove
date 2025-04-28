@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -9,32 +10,58 @@ export const initializeAdminAccount = async () => {
   try {
     console.log("Checking if admin account exists...");
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data: userData, error: userError } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (userError) {
+      console.error("Error checking for admin users:", userError);
+      return false;
+    }
+
+    // If admin role exists, we're done
+    if (userData) {
+      console.log("Admin account already exists:", userData.user_id);
+      return true;
+    }
+    
+    console.log("No admin account found. Checking if we need to assign admin role to existing account.");
+    
+    // Check if user with ADMIN_EMAIL exists
+    const { data: userAuthData, error: authError } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
     });
     
-    if (error && error.message.includes("Invalid login credentials")) {
-      console.log("Admin account does not exist. Creating...");
-      
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-        options: {
-          data: {
-            name: DEFAULT_ADMIN_NAME,
-            full_name: DEFAULT_ADMIN_NAME,
-            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_ADMIN_NAME)}&background=random`,
-          },
+    if (authError) {
+      if (authError.message.includes("Invalid login credentials")) {
+        console.log("Admin account does not exist. Creating new admin account...");
+        
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: ADMIN_EMAIL,
+          password: ADMIN_PASSWORD,
+          options: {
+            data: {
+              name: DEFAULT_ADMIN_NAME,
+              full_name: DEFAULT_ADMIN_NAME,
+              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_ADMIN_NAME)}&background=random`,
+            },
+          }
+        });
+        
+        if (signUpError) {
+          console.error("Error creating admin account:", signUpError);
+          return false;
         }
-      });
-      
-      if (signUpError) {
-        console.error("Error creating admin account:", signUpError);
-        toast.error("Failed to initialize admin account: " + signUpError.message);
-      } else if (signUpData.user) {
-        console.log("Admin user created:", signUpData.user.id);
-        toast.success("Admin account initialized successfully");
+        
+        if (!signUpData.user) {
+          console.error("No user data returned when creating admin account");
+          return false;
+        }
+        
+        console.log("Admin user created, assigning admin role:", signUpData.user.id);
         
         const { error: roleError } = await supabase
           .from('user_roles')
@@ -45,12 +72,50 @@ export const initializeAdminAccount = async () => {
         
         if (roleError) {
           console.error("Error assigning admin role:", roleError);
-        } else {
-          console.log("Admin role assigned successfully");
+          return false;
         }
+        
+        console.log("Admin role assigned successfully");
+        
+        // Sign out after creating admin
+        await supabase.auth.signOut();
+      } else {
+        console.error("Error checking for admin account:", authError);
+        return false;
       }
-    } else if (data.user) {
-      console.log("Admin account already exists:", data.user.id);
+    } else if (userAuthData.user) {
+      console.log("Found existing user with admin email:", userAuthData.user.id);
+      
+      // Check if this user already has admin role
+      const { data: existingRole, error: roleCheckError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userAuthData.user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      if (roleCheckError) {
+        console.error("Error checking admin role:", roleCheckError);
+      } else if (!existingRole) {
+        console.log("Adding admin role to existing user");
+        
+        const { error: roleAddError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userAuthData.user.id,
+            role: 'admin'
+          });
+        
+        if (roleAddError) {
+          console.error("Error assigning admin role:", roleAddError);
+        } else {
+          console.log("Admin role assigned to existing user");
+        }
+      } else {
+        console.log("User already has admin role");
+      }
+      
+      // Sign out after checking
       await supabase.auth.signOut();
     }
     
@@ -151,7 +216,6 @@ export const handleRegister = async (name: string, email: string, password: stri
           full_name: name,
           avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
         },
-        emailRedirectTo: window.location.origin
       },
     });
 
@@ -165,6 +229,7 @@ export const handleRegister = async (name: string, email: string, password: stri
       return false;
     }
 
+    // Even if the session is null due to email confirmation, we still need to try to add the admin role if requested
     if (isAdmin && data.user) {
       const { error: roleError } = await supabase
         .from('user_roles')
@@ -185,8 +250,22 @@ export const handleRegister = async (name: string, email: string, password: stri
       return false;
     }
 
+    // Set a default user role for regular users
+    if (!isAdmin && data.user) {
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: data.user.id,
+          role: 'user'
+        });
+
+      if (roleError) {
+        console.error("User role assignment error:", roleError);
+      }
+    }
+
     toast.success("Registration successful!");
-    return true;
+    return !!data.session; // Return true only if we have a session
   } catch (error: any) {
     console.error("Registration error:", error);
     toast.error(error.message || "An unexpected error occurred");

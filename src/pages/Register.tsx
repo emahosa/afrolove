@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ const Register = () => {
   const navigate = useNavigate();
 
   const isValidEmail = (email: string) => {
-    return /^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud)\.(com|org|net|edu|io)$/.test(email);
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,7 +35,7 @@ const Register = () => {
     }
 
     if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address (e.g., user@gmail.com)");
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -47,9 +48,17 @@ const Register = () => {
     try {
       console.log("Registering user:", { email, name });
       const success = await register(name, email, password, false);
+      
       if (success) {
         toast.success("Registration successful");
         navigate("/dashboard");
+      } else {
+        // If registration was "successful" but needs email verification
+        toast.info("Please check your email to verify your account");
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -88,7 +97,7 @@ const Register = () => {
           <Input 
             id="email" 
             type="email" 
-            placeholder="you@gmail.com" 
+            placeholder="you@example.com" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
