@@ -138,6 +138,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string, isAdmin: boolean): Promise<boolean> => {
     try {
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error("Invalid email format");
+        return false;
+      }
+
+      // Check for empty password
+      if (!password.trim()) {
+        toast.error("Password cannot be empty");
+        return false;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -186,6 +199,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!name.trim() || !email.trim() || !password.trim()) {
         toast.error("Registration failed", {
           description: "All fields are required"
+        });
+        return false;
+      }
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error("Registration failed", {
+          description: "Please enter a valid email address"
         });
         return false;
       }

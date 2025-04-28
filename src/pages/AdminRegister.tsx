@@ -17,9 +17,14 @@ const AdminRegister = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const validateEmail = (email: string): boolean => {
+    // Regular expression for basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     
     // Basic validation
     if (!name.trim()) {
@@ -30,6 +35,12 @@ const AdminRegister = () => {
 
     if (!email.trim()) {
       toast.error("Email cannot be empty");
+      setLoading(false);
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      toast.error("Please enter a valid email address");
       setLoading(false);
       return;
     }
@@ -47,6 +58,7 @@ const AdminRegister = () => {
       return;
     }
     
+    setLoading(true);
     try {
       const success = await register(name, email, password, true); // true = admin
       if (success) {

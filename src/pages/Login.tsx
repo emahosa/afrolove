@@ -9,6 +9,7 @@ import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
+import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,14 +19,43 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const validateEmail = (email: string): boolean => {
+    // Regular expression for basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    const success = await login(email, password, userType === "admin");
-    if (success) {
-      navigate("/dashboard");
+    
+    // Basic validation
+    if (!email.trim()) {
+      toast.error("Email cannot be empty");
+      return;
     }
-    setLoading(false);
+
+    if (!validateEmail(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    if (!password.trim()) {
+      toast.error("Password cannot be empty");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const success = await login(email, password, userType === "admin");
+      if (success) {
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("An unexpected error occurred during login");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
