@@ -1,28 +1,29 @@
-
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from 'react';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const ProtectedRoute = () => {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!loading && !user && location.pathname !== '/login') {
+      toast.error("Access denied", {
+        description: "You need to log in to access this page"
+      });
+    }
+  }, [loading, user, location.pathname]);
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="audio-wave">
-          <div className="audio-wave-bar h-5 animate-wave1"></div>
-          <div className="audio-wave-bar h-8 animate-wave2"></div>
-          <div className="audio-wave-bar h-4 animate-wave3"></div>
-          <div className="audio-wave-bar h-6 animate-wave4"></div>
-        </div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+  return user ? <Outlet /> : <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 export default ProtectedRoute;
