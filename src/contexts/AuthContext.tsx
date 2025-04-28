@@ -1,5 +1,11 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
+
+interface VoiceProfile {
+  id: string;
+  name: string;
+}
 
 interface User {
   id: string;
@@ -9,6 +15,7 @@ interface User {
   subscription?: string;
   avatar?: string;
   isAdmin?: boolean;
+  voiceProfiles?: VoiceProfile[];
 }
 
 interface AuthContextType {
@@ -18,6 +25,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserCredits: (amount: number) => void;
+  updateUserVoiceProfile: (profileId: string, profileName: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +47,7 @@ const MOCK_USER = {
   subscription: "free",
   avatar: "/placeholder.svg",
   isAdmin: false,
+  voiceProfiles: []
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -132,8 +141,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserVoiceProfile = (profileId: string, profileName: string) => {
+    if (user) {
+      const voiceProfiles = user.voiceProfiles || [];
+      const updatedProfiles = [...voiceProfiles, { id: profileId, name: profileName }];
+      
+      const updatedUser = {
+        ...user,
+        voiceProfiles: updatedProfiles
+      };
+      
+      setUser(updatedUser);
+      localStorage.setItem("melody-user", JSON.stringify(updatedUser));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUserCredits }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading, 
+      login, 
+      register, 
+      logout, 
+      updateUserCredits, 
+      updateUserVoiceProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

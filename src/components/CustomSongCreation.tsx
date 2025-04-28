@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SplitAudioControl from "./SplitAudioControl";
+import VoiceCloning from "./VoiceCloning";
+import VoiceChanger from "./VoiceChanger";
 
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
@@ -38,6 +40,7 @@ const CustomSongCreation = () => {
   const navigate = useNavigate();
   const [editedLyrics, setEditedLyrics] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
   const lyricOptions: SongOption[] = [
     {
@@ -589,6 +592,18 @@ const CustomSongCreation = () => {
                         <Button size="sm" variant="outline">Play</Button>
                         <Button size="sm" variant="outline">Download</Button>
                         <SplitAudioControl songName={`${version.name}`} songUrl="mock-url" />
+                        <div className="flex items-center gap-2 mt-2">
+                          <VoiceCloning 
+                            onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)} 
+                          />
+                          {selectedVoiceId && (
+                            <VoiceChanger 
+                              songName={version.name} 
+                              songUrl="mock-url"
+                              voiceId={selectedVoiceId}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -615,6 +630,7 @@ const CustomSongCreation = () => {
                   setSelectedLyric(null);
                   setSelectedVersion(null);
                   setVersionCount(2);
+                  setSelectedVoiceId(null);
                 }}
               >
                 Create Another Custom Song
@@ -622,6 +638,9 @@ const CustomSongCreation = () => {
             </CardContent>
           </Card>
         );
+      
+      default:
+        return null;
     }
   };
 

@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomSongCreation from "@/components/CustomSongCreation";
 import SplitAudioControl from "@/components/SplitAudioControl";
+import VoiceCloning from "@/components/VoiceCloning";
+import VoiceChanger from "@/components/VoiceChanger";
 
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
@@ -25,6 +27,7 @@ const Create = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTrack, setGeneratedTrack] = useState<null | { name: string }>(null);
   const { user, updateUserCredits } = useAuth();
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
   const handleGenerate = () => {
     if (!selectedGenre) {
@@ -198,8 +201,20 @@ const Create = () => {
                       </Button>
                     </div>
                     
-                    <div className="mt-4 flex justify-center">
+                    <div className="mt-4 flex flex-col gap-3 items-center">
                       <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
+                      <div className="flex items-center gap-3">
+                        <VoiceCloning 
+                          onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)} 
+                        />
+                        {selectedVoiceId && (
+                          <VoiceChanger 
+                            songName={generatedTrack.name} 
+                            songUrl="mock-url"
+                            voiceId={selectedVoiceId}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
                   
@@ -210,6 +225,7 @@ const Create = () => {
                       setGeneratedTrack(null);
                       setSelectedGenre("");
                       setTheme("");
+                      setSelectedVoiceId(null);
                     }}
                   >
                     Create Another Song
@@ -328,7 +344,7 @@ const Create = () => {
                       </Button>
                     </div>
                     
-                    <div className="mt-4 flex justify-center">
+                    <div className="mt-4 flex flex-col gap-3 items-center">
                       <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
                     </div>
                   </div>
@@ -368,6 +384,18 @@ const Create = () => {
               </CardHeader>
               <CardContent>
                 <SplitAudioControl songName="Admin Configuration" isAdmin={true} />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Voice Cloning Configuration</CardTitle>
+                <CardDescription>
+                  Configure the ElevenLabs API for voice cloning functionality
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <VoiceCloning isAdmin={true} />
               </CardContent>
             </Card>
           </div>
