@@ -1,5 +1,5 @@
 
-import { useState, ReactNode } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -47,8 +47,7 @@ const CustomSongManagement = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Fix the return type explicitly to ReactNode
-  function renderRequestsList(): ReactNode {
+  const renderRequestsList = () => {
     if (filteredRequests.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
@@ -67,7 +66,7 @@ const CustomSongManagement = () => {
         onUploadAudio={handleUploadAudio}
       />
     ));
-  }
+  };
 
   return (
     <div className="space-y-8">

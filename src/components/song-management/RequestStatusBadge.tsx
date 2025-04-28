@@ -2,7 +2,7 @@
 import { ReactNode } from "react";
 
 interface RequestStatusBadgeProps {
-  status: "pending" | "in_progress" | "lyrics_review" | "completed" | "rejected";
+  status: string;
 }
 
 export function getStatusLabel(status: string): ReactNode {
