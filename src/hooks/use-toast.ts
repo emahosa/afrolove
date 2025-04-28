@@ -2,7 +2,7 @@
 import * as React from "react";
 import {
   toast as sonnerToast,
-  type ToastT,
+  type Toast,
 } from "sonner";
 
 // Define the toast types
@@ -10,11 +10,11 @@ const TOAST_TYPES = ["success", "error", "info", "warning"] as const;
 type ToastType = (typeof TOAST_TYPES)[number];
 
 // Define the toast props that include our custom options
-export type ToastProps = {
+export type ToastProps = Partial<Toast> & {
   description?: React.ReactNode;
   type?: ToastType;
   action?: React.ReactNode;
-} & Omit<ToastT, "description">;
+};
 
 // Create a type for the toast function
 type ToastFunction = (props: ToastProps | string) => void;
@@ -40,7 +40,7 @@ export const useToast = (): UseToastReturn => {
         return;
       }
       const { description, type, ...options } = props;
-      sonnerToast(description as string, options);
+      sonnerToast(props.message || "", { description, ...options });
     };
 
     // Add methods for different toast types
@@ -51,7 +51,7 @@ export const useToast = (): UseToastReturn => {
           return;
         }
         const { description, ...options } = props;
-        sonnerToast[type](description as string, options);
+        sonnerToast[type](props.message || "", { description, ...options });
       };
     }
 

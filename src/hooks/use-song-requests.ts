@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export type SongRequest = {
   id: string;
@@ -15,7 +14,6 @@ export type SongRequest = {
 };
 
 export const useSongRequests = () => {
-  const { toast } = useToast();
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<string | null>(null);
   const [lyricsDraft, setLyricsDraft] = useState("");
@@ -87,9 +85,8 @@ export const useSongRequests = () => {
       request.id === id ? {...request, status: "in_progress"} : request
     ));
     
-    toast({
-      title: "Request Updated",
-      description: "Song request marked as in progress.",
+    toast.success("Request Updated", {
+      description: "Song request marked as in progress."
     });
   };
 
@@ -110,9 +107,8 @@ export const useSongRequests = () => {
     
     setSelectedRequest(null);
     
-    toast({
-      title: "Lyrics Saved",
-      description: "Lyrics have been sent to user for review.",
+    toast.success("Lyrics Saved", {
+      description: "Lyrics have been sent to user for review."
     });
   };
 
@@ -122,9 +118,8 @@ export const useSongRequests = () => {
       setSelectedRequest(id);
       setLyricsDraft(request.lyrics || "");
       
-      toast({
-        title: "Recreating Lyrics",
-        description: "You can now edit the lyrics for this song request.",
+      toast.info("Recreating Lyrics", {
+        description: "You can now edit the lyrics for this song request."
       });
     }
   };
@@ -146,9 +141,8 @@ export const useSongRequests = () => {
       
       setUploadingAudio(false);
       
-      toast({
-        title: "Audio Uploaded",
-        description: "Custom song has been completed and is ready for delivery.",
+      toast.success("Audio Uploaded", {
+        description: "Custom song has been completed and is ready for delivery."
       });
     }, 1500);
   };

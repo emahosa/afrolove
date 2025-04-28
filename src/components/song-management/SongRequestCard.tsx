@@ -1,10 +1,11 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RequestStatusBadge } from "./RequestStatusBadge";
 import { Edit, MessageSquare, Plus, Upload } from "lucide-react";
 import { SongRequest } from "@/hooks/use-song-requests";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type SongRequestCardProps = {
   request: SongRequest;
@@ -83,7 +84,7 @@ export const SongRequestCard = ({
             {request.status === "completed" && (
               <Button 
                 variant="outline" 
-                onClick={() => toast("Message Sent", {
+                onClick={() => toast.success("Message Sent", {
                   description: "User has been notified about song completion."
                 })}
               >
