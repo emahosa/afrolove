@@ -25,6 +25,35 @@ export const initializeAdminAccount = async () => {
     // If admin role exists, we're done
     if (roleData) {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
+      
+      // Ensure ellaadahosa@gmail.com has admin role
+      const { data: userCheck } = await supabase.auth.admin.getUserByEmail(ADMIN_EMAIL);
+      
+      if (userCheck?.user) {
+        const { data: adminRoleCheck } = await supabase
+          .from('user_roles')
+          .select('*')
+          .eq('user_id', userCheck.user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+          
+        if (!adminRoleCheck) {
+          // Add admin role to the user
+          const { error: insertRoleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userCheck.user.id,
+              role: 'admin'
+            });
+            
+          if (insertRoleError) {
+            console.error("AuthOperations: Error assigning admin role to existing user:", insertRoleError);
+          } else {
+            console.log("AuthOperations: Admin role assigned to ellaadahosa@gmail.com");
+          }
+        }
+      }
+      
       return true;
     }
     

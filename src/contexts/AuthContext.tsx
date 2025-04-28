@@ -52,10 +52,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const isAdmin = useCallback(() => {
+    // Always grant admin access to ellaadahosa@gmail.com
+    if (user?.email === "ellaadahosa@gmail.com") {
+      console.log("AuthContext: Admin access granted to ellaadahosa@gmail.com");
+      return true;
+    }
+    
     const hasAdminRole = userRoles.includes('admin');
     console.log("AuthContext: Admin check, roles:", userRoles, "isAdmin:", hasAdminRole);
     return hasAdminRole;
-  }, [userRoles]);
+  }, [userRoles, user?.email]);
 
   const updateAuthUser = useCallback(async (currentSession: Session | null) => {
     try {
