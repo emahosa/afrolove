@@ -159,7 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    return user?.isAdmin === true;
+    console.log("isAdmin check, user:", user);
+    return !!user?.isAdmin;
   };
 
   return (
