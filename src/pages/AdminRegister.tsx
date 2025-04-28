@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,6 @@ const AdminRegister = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  // Email validation function for RFC 5322 compliance
-  const isValidEmail = (email: string) => {
-    const pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return pattern.test(email);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -34,11 +27,6 @@ const AdminRegister = () => {
 
     if (!email.trim()) {
       toast.error("Email cannot be empty");
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address (e.g., admin@example.com)");
       return;
     }
 

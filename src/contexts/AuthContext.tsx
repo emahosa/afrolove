@@ -276,7 +276,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (roleError) {
           console.error("Admin role assignment error:", roleError);
-          toast.error("Failed to set admin role: " + roleError.message);
+          toast.error("Failed to set admin role");
           return false;
         }
         
