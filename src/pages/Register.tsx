@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,16 +16,13 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  // Email validation function using simpler regex that works with Supabase
   const isValidEmail = (email: string) => {
-    // Simple regex to validate emails with popular domains
     return /^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud)\.(com|org|net|edu|io)$/.test(email);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
     if (!name.trim()) {
       toast.error("Name cannot be empty");
       return;
@@ -50,7 +46,7 @@ const Register = () => {
     setLoading(true);
     try {
       console.log("Registering user:", { email, name });
-      const success = await register(name, email, password, false); // false = not admin
+      const success = await register(name, email, password, false);
       if (success) {
         toast.success("Registration successful");
         navigate("/dashboard");
@@ -98,7 +94,7 @@ const Register = () => {
             required
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Use an email with a common domain (gmail.com, outlook.com, etc.)
+            Enter your email address to receive a verification link
           </p>
         </div>
         <div>

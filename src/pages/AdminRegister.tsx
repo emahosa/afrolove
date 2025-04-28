@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Music, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
-// Admin email that should pass Supabase validation - using gmail.com domain
 const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
 const ADMIN_PASSWORD = "Admin123!";
 const ADMIN_CODE = "ADMIN123";

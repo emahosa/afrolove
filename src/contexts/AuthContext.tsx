@@ -1,8 +1,11 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+// Admin credentials - using gmail domain for better compatibility
+const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
+const ADMIN_PASSWORD = "Admin123!";
 
 // Separate interface for profile data
 interface ProfileData {
@@ -35,11 +38,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Admin account constants - using gmail domain for better compatibility
-const ADMIN_EMAIL = "admin.melodyverse@gmail.com";
-const ADMIN_PASSWORD = "Admin123!";
-const ADMIN_NAME = "Admin User";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -247,7 +245,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (error.message.includes("Email not confirmed")) {
           // Handle email not confirmed case
-          toast.error("Email not confirmed. Please check your inbox for the verification email.");
+          toast.error("Please check your inbox and verify your email to log in");
           
           // Offer to resend confirmation email
           const { error: resendError } = await supabase.auth.resend({
@@ -261,11 +259,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast.info("A new confirmation email has been sent to your email address");
           }
           return false;
-        } else if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-          toast.error("The admin account might not be fully set up yet. Try refreshing and trying again.");
-        } else {
-          toast.error(error.message);
         }
+        
+        toast.error(error.message);
         return false;
       }
 
@@ -318,16 +314,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (name: string, email: string, password: string, isAdmin: boolean): Promise<boolean> => {
     try {
-      // Validate inputs before proceeding
+      // Validate inputs
       if (!name.trim() || !email.trim() || !password.trim()) {
         toast.error("All fields are required");
-        return false;
-      }
-      
-      // Validate email format using a simpler pattern that Supabase accepts
-      const emailPattern = /^[a-zA-Z0-9._%+-]+@(gmail|yahoo|outlook|hotmail|icloud)\.(com|org|net|edu|io)$/;
-      if (!emailPattern.test(email)) {
-        toast.error("Please enter a valid email with a common domain (gmail.com, outlook.com, etc.)");
         return false;
       }
 
@@ -342,7 +331,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             full_name: name,
             avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
           },
-          // Important: Set this to false for development to skip email verification
           emailRedirectTo: window.location.origin
         },
       });
@@ -362,7 +350,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Check if email confirmation is required
       if (data.session === null) {
-        toast.info("A confirmation email has been sent to your email address. Please verify your email to log in.");
+        toast.success("Registration successful! Please check your email to verify your account.");
+        return false;
       }
 
       // If admin registration, add admin role
@@ -383,9 +372,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("Admin role assigned successfully");
       }
 
-      toast.success("Registration successful");
-      
-      // If session was created (no email verification required), return true
+      toast.success("Registration successful!");
       return data.session !== null;
     } catch (error: any) {
       console.error("Registration error:", error);
