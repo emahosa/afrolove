@@ -11,7 +11,7 @@ const ProtectedRoute = () => {
 
   useEffect(() => {
     // Only show the toast if we're not in the process of loading and the user is not logged in
-    if (!loading && !isChecking && !user && location.pathname !== '/login') {
+    if (!loading && !user && !isChecking) {
       toast.error("Access denied", {
         description: "You need to log in to access this page"
       });
@@ -23,7 +23,12 @@ const ProtectedRoute = () => {
     }
   }, [loading, user, location.pathname, isChecking]);
 
-  console.log("ProtectedRoute state:", { user, loading, pathname: location.pathname });
+  console.log("ProtectedRoute: state:", { 
+    user: user?.id, 
+    loading, 
+    isChecking,
+    pathname: location.pathname 
+  });
 
   // Show loading state if we're still checking auth status
   if (loading || isChecking) {

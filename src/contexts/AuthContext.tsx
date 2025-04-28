@@ -19,24 +19,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { userRoles, fetchUserRoles, isAdmin } = useUserRoles();
 
   useEffect(() => {
-    console.log("Setting up auth listener");
+    console.log("AuthContext: Setting up auth listener");
     
     // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("Auth state changed:", event, currentSession?.user?.id);
+      (event, currentSession) => {
+        console.log("AuthContext: Auth state changed:", event, currentSession?.user?.id);
         
         if (currentSession?.user) {
-          console.log("User is logged in, fetching profile data");
-          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
-          setSession(currentSession);
-          setUser(enhancedUser);
-          // Fetch roles outside of the callback to avoid deadlocks
-          setTimeout(() => {
-            fetchUserRoles(currentSession.user.id);
-          }, 0);
+          console.log("AuthContext: User is logged in, fetching profile data");
+          const updateUserData = async () => {
+            try {
+              const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+              setSession(currentSession);
+              setUser(enhancedUser);
+              
+              // Fetch roles after setting user data
+              fetchUserRoles(currentSession.user.id);
+            } catch (error) {
+              console.error("AuthContext: Error enhancing user data:", error);
+            }
+          };
+          
+          updateUserData();
         } else {
-          console.log("No user in session");
+          console.log("AuthContext: No user in session");
           setSession(null);
           setUser(null);
         }
@@ -49,19 +56,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const checkSession = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log("Initial session check:", currentSession?.user?.id);
+        console.log("AuthContext: Initial session check:", currentSession?.user?.id);
         
         if (currentSession?.user) {
-          console.log("Found existing session, fetching profile data");
+          console.log("AuthContext: Found existing session, fetching profile data");
           const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
           setSession(currentSession);
           setUser(enhancedUser);
-          // Fetch roles outside of the callback to avoid deadlocks
-          setTimeout(() => {
-            fetchUserRoles(currentSession.user.id);
-          }, 0);
+          
+          // Fetch roles after setting user data
+          fetchUserRoles(currentSession.user.id);
         } else {
-          console.log("No existing session found");
+          console.log("AuthContext: No existing session found");
           setUser(null);
           setSession(null);
         }
@@ -69,12 +75,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
         
         if (!initializationComplete) {
-          console.log("Initializing admin account");
+          console.log("AuthContext: Initializing admin account");
           await initializeAdminAccount();
           setInitializationComplete(true);
         }
       } catch (error) {
-        console.error("Error checking session:", error);
+        console.error("AuthContext: Error checking session:", error);
         setLoading(false);
       }
     };
@@ -82,7 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkSession();
 
     return () => {
-      console.log("Cleaning up auth listener");
+      console.log("AuthContext: Cleaning up auth listener");
       subscription.unsubscribe();
     };
   }, [fetchUserRoles]);
@@ -92,13 +98,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const logout = async (): Promise<void> => {
     try {
-      console.log("Logging out user");
+      console.log("AuthContext: Logging out user");
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
       toast.info("You've been logged out");
     } catch (error: any) {
-      console.error("Logout error:", error);
+      console.error("AuthContext: Logout error:", error);
       toast.error("Logout failed", {
         description: error.message
       });
@@ -107,7 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUserCredits = async (amount: number): Promise<void> => {
     if (!user) {
-      console.error("Cannot update credits: No user logged in");
+      console.error("AuthContext: Cannot update credits: No user logged in");
       return;
     }
     
@@ -116,10 +122,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (newCredits !== null) {
         // Update the user state with the new credits value
         setUser(prevUser => prevUser ? { ...prevUser, credits: newCredits } : null);
-        console.log("Credits updated in AuthContext:", newCredits);
+        console.log("AuthContext: Credits updated in AuthContext:", newCredits);
       }
     } catch (error) {
-      console.error("Error updating credits in AuthContext:", error);
+      console.error("AuthContext: Error updating credits in AuthContext:", error);
     }
   };
 
@@ -135,7 +141,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserCredits,
   };
   
-  console.log("Auth context state:", { 
+  console.log("AuthContext: Auth context state:", { 
     user: user?.id, 
     isLoggedIn: !!user,
     isAdmin: isAdmin(),

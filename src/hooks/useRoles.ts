@@ -18,22 +18,22 @@ export const useRoles = () => {
     }
 
     try {
-      console.log("Fetching roles for user:", user.id);
+      console.log("useRoles: Fetching roles for user:", user.id);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id);
 
       if (error) {
-        console.error("Error fetching roles:", error);
+        console.error("useRoles: Error fetching roles:", error);
         setRoles([]);
       } else {
-        console.log("Roles fetched:", data);
+        console.log("useRoles: Roles fetched:", data);
         const fetchedRoles = data.map(item => item.role as Role);
         setRoles(fetchedRoles);
       }
     } catch (error) {
-      console.error("Error in useRoles hook:", error);
+      console.error("useRoles: Error in useRoles hook:", error);
       setRoles([]);
     } finally {
       setLoading(false);

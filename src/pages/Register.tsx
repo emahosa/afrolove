@@ -46,7 +46,7 @@ const Register = () => {
     
     setLoading(true);
     try {
-      console.log("Registering user:", { email, name });
+      console.log("Register: Registering user:", { email, name });
       const success = await register(name, email, password, false);
       
       if (success) {
@@ -57,13 +57,13 @@ const Register = () => {
         toast.info("Please check your email to verify your account");
         // Redirect to login after a short delay
         setTimeout(() => {
+          setLoading(false);
           navigate("/login");
         }, 2000);
       }
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("Register: Registration error:", error);
       toast.error("An unexpected error occurred during registration");
-    } finally {
       setLoading(false);
     }
   };

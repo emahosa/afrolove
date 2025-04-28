@@ -8,14 +8,14 @@ export const useUserRoles = () => {
 
   const fetchUserRoles = useCallback(async (userId: string) => {
     if (!userId) {
-      console.error("Cannot fetch roles: No user ID provided");
+      console.error("useUserRoles: Cannot fetch roles: No user ID provided");
       setUserRoles([]);
       return;
     }
     
     try {
       setLoading(true);
-      console.log("Fetching roles for user:", userId);
+      console.log("useUserRoles: Fetching roles for user:", userId);
       
       const { data, error } = await supabase
         .from('user_roles')
@@ -23,14 +23,14 @@ export const useUserRoles = () => {
         .eq('user_id', userId);
         
       if (error) {
-        console.error("Error fetching user roles:", error);
+        console.error("useUserRoles: Error fetching user roles:", error);
         setUserRoles([]);
       } else {
-        console.log("Fetched user roles:", data);
+        console.log("useUserRoles: Fetched user roles:", data);
         setUserRoles(data.map(item => item.role));
       }
     } catch (error) {
-      console.error("Error in fetchUserRoles:", error);
+      console.error("useUserRoles: Error in fetchUserRoles:", error);
       setUserRoles([]);
     } finally {
       setLoading(false);
@@ -38,7 +38,7 @@ export const useUserRoles = () => {
   }, []);
 
   const isAdmin = useCallback(() => {
-    console.log("Checking admin status, roles:", userRoles);
+    console.log("useUserRoles: Checking admin status, roles:", userRoles);
     return userRoles.includes('admin');
   }, [userRoles]);
 

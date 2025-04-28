@@ -8,37 +8,41 @@ const DEFAULT_ADMIN_NAME = "Admin User";
 
 export const initializeAdminAccount = async () => {
   try {
-    console.log("Checking if admin account exists...");
+    console.log("AuthOperations: Checking if admin account exists...");
     
-    const { data: userData, error: userError } = await supabase
+    // First check if the admin role exists for any user
+    const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
-      .select('user_id, role')
+      .select('user_id')
       .eq('role', 'admin')
       .maybeSingle();
 
-    if (userError) {
-      console.error("Error checking for admin users:", userError);
+    if (roleError) {
+      console.error("AuthOperations: Error checking for admin users:", roleError);
       return false;
     }
 
     // If admin role exists, we're done
-    if (userData) {
-      console.log("Admin account already exists:", userData.user_id);
+    if (roleData) {
+      console.log("AuthOperations: Admin account already exists:", roleData.user_id);
       return true;
     }
     
-    console.log("No admin account found. Checking if we need to assign admin role to existing account.");
+    console.log("AuthOperations: No admin account found. Creating admin account...");
     
-    // Check if user with ADMIN_EMAIL exists
-    const { data: userAuthData, error: authError } = await supabase.auth.signInWithPassword({
+    // Try to sign in with admin email to check if user exists
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
     });
     
-    if (authError) {
-      if (authError.message.includes("Invalid login credentials")) {
-        console.log("Admin account does not exist. Creating new admin account...");
+    let userId;
+    
+    if (signInError) {
+      if (signInError.message.includes("Invalid login credentials")) {
+        console.log("AuthOperations: Admin account does not exist. Creating new admin account...");
         
+        // Create new admin user
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: ADMIN_EMAIL,
           password: ADMIN_PASSWORD,
@@ -52,76 +56,50 @@ export const initializeAdminAccount = async () => {
         });
         
         if (signUpError) {
-          console.error("Error creating admin account:", signUpError);
+          console.error("AuthOperations: Error creating admin account:", signUpError);
           return false;
         }
         
         if (!signUpData.user) {
-          console.error("No user data returned when creating admin account");
+          console.error("AuthOperations: No user data returned when creating admin account");
           return false;
         }
         
-        console.log("Admin user created, assigning admin role:", signUpData.user.id);
-        
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: signUpData.user.id,
-            role: 'admin'
-          });
-        
-        if (roleError) {
-          console.error("Error assigning admin role:", roleError);
-          return false;
-        }
-        
-        console.log("Admin role assigned successfully");
-        
-        // Sign out after creating admin
-        await supabase.auth.signOut();
+        userId = signUpData.user.id;
+        console.log("AuthOperations: Admin user created with ID:", userId);
       } else {
-        console.error("Error checking for admin account:", authError);
+        console.error("AuthOperations: Error checking for admin account:", signInError);
         return false;
       }
-    } else if (userAuthData.user) {
-      console.log("Found existing user with admin email:", userAuthData.user.id);
-      
-      // Check if this user already has admin role
-      const { data: existingRole, error: roleCheckError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userAuthData.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-      
-      if (roleCheckError) {
-        console.error("Error checking admin role:", roleCheckError);
-      } else if (!existingRole) {
-        console.log("Adding admin role to existing user");
-        
-        const { error: roleAddError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userAuthData.user.id,
-            role: 'admin'
-          });
-        
-        if (roleAddError) {
-          console.error("Error assigning admin role:", roleAddError);
-        } else {
-          console.log("Admin role assigned to existing user");
-        }
-      } else {
-        console.log("User already has admin role");
-      }
+    } else if (signInData.user) {
+      // User exists, use this ID
+      userId = signInData.user.id;
+      console.log("AuthOperations: Found existing admin user with ID:", userId);
       
       // Sign out after checking
       await supabase.auth.signOut();
     }
     
+    if (userId) {
+      // Assign admin role
+      const { error: roleInsertError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: userId,
+          role: 'admin'
+        });
+      
+      if (roleInsertError) {
+        console.error("AuthOperations: Error assigning admin role:", roleInsertError);
+        return false;
+      }
+      
+      console.log("AuthOperations: Admin role assigned successfully to user:", userId);
+    }
+    
     return true;
   } catch (error) {
-    console.error("Error in admin initialization:", error);
+    console.error("AuthOperations: Error in admin initialization:", error);
     return false;
   }
 };
@@ -133,7 +111,7 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       return false;
     }
 
-    console.log(`Attempting to sign in user: ${email}, isAdmin: ${isAdmin}`);
+    console.log(`AuthOperations: Attempting to sign in user: ${email}, isAdmin: ${isAdmin}`);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -154,47 +132,48 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       } else {
         toast.error(error.message);
       }
-      console.error("Login error:", error);
+      console.error("AuthOperations: Login error:", error);
       return false;
     }
 
     if (!data.session || !data.user) {
       toast.error("Login failed - no session created");
-      console.error("No session or user data returned");
+      console.error("AuthOperations: No session or user data returned");
       return false;
     }
 
+    // If admin login, verify admin role
     if (isAdmin) {
-      console.log("Checking if user is admin:", data.user.id);
+      console.log("AuthOperations: Checking if user is admin:", data.user.id);
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('user_id', data.user.id)
         .eq('role', 'admin');
 
-      console.log("Admin role check result:", roleData, roleError);
+      console.log("AuthOperations: Admin role check result:", roleData, roleError);
 
       if (roleError) {
-        console.error("Error checking admin role:", roleError);
+        console.error("AuthOperations: Error checking admin role:", roleError);
         toast.error("Error verifying admin access");
         await supabase.auth.signOut();
         return false;
       }
 
       if (!roleData || roleData.length === 0) {
-        console.error("User is not an admin");
+        console.error("AuthOperations: User is not an admin");
         toast.error("Access denied - not an admin user");
         await supabase.auth.signOut();
         return false;
       }
 
-      console.log("Admin login successful");
+      console.log("AuthOperations: Admin login successful");
     }
 
     toast.success("Login successful");
     return true;
   } catch (error: any) {
-    console.error("Unexpected login error:", error);
+    console.error("AuthOperations: Unexpected login error:", error);
     toast.error(error.message || "An unexpected error occurred");
     return false;
   }
@@ -207,6 +186,8 @@ export const handleRegister = async (name: string, email: string, password: stri
       return false;
     }
 
+    console.log(`AuthOperations: Registering user: ${email}, name: ${name}, isAdmin: ${isAdmin}`);
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -216,58 +197,58 @@ export const handleRegister = async (name: string, email: string, password: stri
           full_name: name,
           avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
         },
+        // Don't redirect - we'll handle this ourselves
+        emailRedirectTo: window.location.origin + '/login',
       },
     });
 
     if (error) {
+      console.error("AuthOperations: Registration error:", error);
       toast.error(error.message);
       return false;
     }
 
     if (!data.user) {
-      toast.error("No user data returned");
+      console.error("AuthOperations: No user data returned");
+      toast.error("Registration failed - no user created");
       return false;
     }
 
-    // Even if the session is null due to email confirmation, we still need to try to add the admin role if requested
-    if (isAdmin && data.user) {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'admin'
-        });
+    console.log("AuthOperations: User registered successfully:", data.user.id);
 
-      if (roleError) {
-        console.error("Admin role assignment error:", roleError);
-        toast.error("Failed to set admin role");
-        return false;
+    // Handle role assignment
+    if (data.user) {
+      try {
+        // Set default role (admin or user)
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: data.user.id,
+            role: isAdmin ? 'admin' : 'user'
+          });
+
+        if (roleError) {
+          console.error("AuthOperations: Role assignment error:", roleError);
+          // Don't fail registration just because role assignment failed
+          // We'll just log the error
+        } else {
+          console.log(`AuthOperations: Assigned ${isAdmin ? 'admin' : 'user'} role to new user`);
+        }
+      } catch (roleError) {
+        console.error("AuthOperations: Exception in role assignment:", roleError);
       }
     }
 
+    // Check if email confirmation is required
     if (data.session === null) {
       toast.success("Registration successful! Please check your email to verify your account.");
-      return false;
-    }
-
-    // Set a default user role for regular users
-    if (!isAdmin && data.user) {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          role: 'user'
-        });
-
-      if (roleError) {
-        console.error("User role assignment error:", roleError);
-      }
+      return false; // Return false to indicate no active session (needs email verification)
     }
 
     toast.success("Registration successful!");
-    return !!data.session; // Return true only if we have a session
+    return true; // Return true since we have an active session
   } catch (error: any) {
-    console.error("Registration error:", error);
+    console.error("AuthOperations: Registration error:", error);
     toast.error(error.message || "An unexpected error occurred");
     return false;
   }

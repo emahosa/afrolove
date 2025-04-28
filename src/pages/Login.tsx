@@ -38,7 +38,7 @@ const Login = () => {
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user) {
-      console.log("User already logged in, redirecting to dashboard");
+      console.log("Login: User already logged in, redirecting to dashboard");
       const from = location.state?.from?.pathname || "/dashboard";
       navigate(from, { replace: true });
     }
@@ -59,22 +59,21 @@ const Login = () => {
     
     setLoading(true);
     try {
-      console.log("Attempting login with:", { email, userType });
+      console.log("Login: Attempting login with:", { email, userType });
       const success = await login(email, password, userType === "admin");
-      console.log("Login result:", success);
+      console.log("Login: Login result:", success);
       
       if (success) {
         // Get the intended destination or default to dashboard
         const from = location.state?.from?.pathname || "/dashboard";
-        console.log("Redirecting to:", from);
-        setTimeout(() => {
-          navigate(from, { replace: true });
-        }, 500);
+        console.log("Login: Redirecting to:", from);
+        navigate(from, { replace: true });
+      } else {
+        setLoading(false);
       }
     } catch (error) {
-      console.error("Login error in component:", error);
+      console.error("Login: Error in component:", error);
       toast.error("An unexpected error occurred during login");
-    } finally {
       setLoading(false);
     }
   };
