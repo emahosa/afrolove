@@ -9,7 +9,7 @@ import { Music } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
 import { OTPVerification } from "@/components/auth/OTPVerification";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 // Admin credentials constants - update to use the correct admin email

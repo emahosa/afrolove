@@ -11,25 +11,26 @@ const ProtectedRoute = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   
   useEffect(() => {
-    if (!loading) {
-      const timer = setTimeout(() => {
-        setIsChecking(false);
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
+    // Give a little time for the auth state to settle
+    const timer = setTimeout(() => {
+      setIsChecking(false);
+    }, 300);
+    
+    return () => clearTimeout(timer);
   }, [loading]);
   
+  // Show toast only when we're sure about the auth state (not loading/checking)
   useEffect(() => {
-    if (!loading && !user && !isChecking) {
-      toast.error("You need to log in to access this page");
+    if (!loading && !isChecking) {
+      if (!user) {
+        toast.error("You need to log in to access this page");
+      } else if (isAdminRoute && !isAdmin()) {
+        toast.error("You don't have admin privileges to access this page");
+      }
     }
-    
-    if (!loading && user && isAdminRoute && !isAdmin() && !isChecking) {
-      toast.error("You don't have admin privileges to access this page");
-    }
-  }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
+  }, [user, loading, isChecking, isAdminRoute, isAdmin]);
 
+  // Show loading state while checking auth
   if (loading || isChecking) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -39,19 +40,17 @@ const ProtectedRoute = () => {
     );
   }
 
+  // Redirect if not authenticated
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Handle admin routes
   if (isAdminRoute) {
-    if (!user) {
-      return <Navigate to="/login" state={{ from: location }} replace />;
-    }
-    
     const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     
     if (!isAdmin() && !isSuperAdmin) {
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
-    }
-  } else {
-    if (!user) {
-      return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }
 

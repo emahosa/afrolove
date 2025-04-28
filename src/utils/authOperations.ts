@@ -173,7 +173,7 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
     }
 
     // Special case for ellaadahosa@gmail.com - always grant admin access
-    if (email === ADMIN_EMAIL) {
+    if (email === "ellaadahosa@gmail.com") {
       console.log("AuthOperations: Super admin login successful");
       toast.success("Admin login successful");
       return true;
