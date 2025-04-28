@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { Star, Music, Trophy, Clock, Settings } from "lucide-react";
+import { Star, Music, Trophy, Clock, Settings, VoiceIcon } from "lucide-react";
+import VoiceProfileManager from "@/components/VoiceProfileManager";
 
 // Mock data
 const activities = [
@@ -17,8 +18,12 @@ const activities = [
 ];
 
 const Profile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
+
+  if (!user) {
+    return <div className="flex justify-center items-center h-64">Loading profile...</div>;
+  }
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -31,6 +36,11 @@ const Profile = () => {
           <div>
             <h1 className="text-3xl font-bold">{user?.name}</h1>
             <p className="text-muted-foreground">{user?.email}</p>
+            {isAdmin() && (
+              <Badge variant="outline" className="mt-1">
+                {user.isAdmin ? "Super Admin" : "Admin"}
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-3">
@@ -48,56 +58,15 @@ const Profile = () => {
         <TabsList className="grid grid-cols-4 w-full max-w-md mb-6">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="library">Library</TabsTrigger>
-          <TabsTrigger value="contests">Contests</TabsTrigger>
+          {!isAdmin() && <TabsTrigger value="voice">Voice</TabsTrigger>}
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
         
         <TabsContent value="account" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Subscription</CardTitle>
-              <CardDescription>Manage your subscription and credits</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col md:flex-row justify-between gap-6">
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Current Plan</div>
-                  <div className="flex items-center">
-                    <Badge variant="outline" className="font-medium">
-                      {user?.subscription === "premium" ? "Premium" : "Free"}
-                    </Badge>
-                    {user?.subscription !== "premium" && (
-                      <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
-                        Upgrade
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Available Credits</div>
-                  <div className="flex items-center gap-1 text-melody-secondary">
-                    <Star size={16} className="fill-melody-secondary" />
-                    <span className="font-bold">{user?.credits}</span>
-                    <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
-                      Get More
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Button className="bg-melody-secondary hover:bg-melody-secondary/90 w-full md:w-auto">
-                  Upgrade to Premium
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
               <CardTitle>Account Information</CardTitle>
-              <CardDescription>Manage your account settings</CardDescription>
+              <CardDescription>Your account details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,9 +82,58 @@ const Profile = () => {
                   <div className="text-sm text-muted-foreground mb-1">Member Since</div>
                   <div className="font-medium">April 2025</div>
                 </div>
+                {isAdmin() && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Admin Type</div>
+                    <div className="font-medium">{user.isAdmin ? "Super Admin" : "Ordinary Admin"}</div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
+          
+          {!isAdmin() && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription</CardTitle>
+                <CardDescription>Manage your subscription and credits</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Current Plan</div>
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="font-medium">
+                        {user?.subscription === "premium" ? "Premium" : "Free"}
+                      </Badge>
+                      {user?.subscription !== "premium" && (
+                        <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
+                          Upgrade
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Available Credits</div>
+                    <div className="flex items-center gap-1 text-melody-secondary">
+                      <Star size={16} className="fill-melody-secondary" />
+                      <span className="font-bold">{user?.credits}</span>
+                      <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
+                        Get More
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <Button className="bg-melody-secondary hover:bg-melody-secondary/90 w-full md:w-auto">
+                    Upgrade to Premium
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         
         <TabsContent value="library" className="space-y-4">
@@ -149,36 +167,11 @@ const Profile = () => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="contests" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contest Activity</CardTitle>
-              <CardDescription>Your contest entries and votes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col md:flex-row justify-between gap-4">
-                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
-                  <Trophy className="h-8 w-8 text-melody-accent mb-2" />
-                  <div className="text-3xl font-bold mb-1">1</div>
-                  <div className="text-muted-foreground">Contest Entries</div>
-                </div>
-                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
-                  <Star className="h-8 w-8 text-melody-primary mb-2" />
-                  <div className="text-3xl font-bold mb-1">24</div>
-                  <div className="text-muted-foreground">Votes Received</div>
-                </div>
-                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
-                  <Star className="h-8 w-8 text-melody-secondary mb-2" />
-                  <div className="text-3xl font-bold mb-1">12</div>
-                  <div className="text-muted-foreground">Votes Cast</div>
-                </div>
-              </div>
-              <div className="mt-6 text-center">
-                <Button className="bg-melody-secondary hover:bg-melody-secondary/90">View Contests</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {!isAdmin() && (
+          <TabsContent value="voice" className="space-y-4">
+            <VoiceProfileManager />
+          </TabsContent>
+        )}
         
         <TabsContent value="history" className="space-y-4">
           <Card>
