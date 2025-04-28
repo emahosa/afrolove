@@ -20,7 +20,7 @@ export const getStatusBadgeClass = (status: string) => {
   }
 };
 
-export const getStatusLabel = (status: string): string => {
+export const getStatusLabel = (status: string): ReactNode => {
   switch(status) {
     case "pending":
       return "Pending";

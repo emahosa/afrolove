@@ -9,6 +9,7 @@ import { Search } from "lucide-react";
 import { useSongRequests } from "@/hooks/use-song-requests";
 import { SongRequestCard } from "@/components/song-management/SongRequestCard";
 import { LyricsEditor } from "@/components/song-management/LyricsEditor";
+import { ReactNode } from "react";
 
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
@@ -108,7 +109,7 @@ const CustomSongManagement = () => {
     </div>
   );
 
-  function renderRequestsList() {
+  function renderRequestsList(): ReactNode {
     if (filteredRequests.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
