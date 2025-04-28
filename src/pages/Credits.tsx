@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Star, Music, Check, Info, CreditCard } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
-// Mock credit pack data
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
   { id: "pack2", name: "Creator Pack", credits: 30, price: 9.99, popular: true },
@@ -17,7 +15,6 @@ const creditPacks = [
   { id: "pack4", name: "Studio Pack", credits: 200, price: 49.99, popular: false },
 ];
 
-// Mock subscription plans
 const subscriptionPlans = [
   { 
     id: "basic",
@@ -69,40 +66,71 @@ const Credits = () => {
   const [activeTab, setActiveTab] = useState("credits");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | undefined>(user?.subscription);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
-  const handleBuyCredits = (packId: string) => {
+  const handleBuyCredits = async (packId: string) => {
     setPaymentProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
       const pack = creditPacks.find(p => p.id === packId);
+      
       if (pack && updateUserCredits) {
-        updateUserCredits(pack.credits);
-        toast({
-          title: "Credits Purchased!",
+        await updateUserCredits(pack.credits);
+        
+        toast.success("Credits Purchased!", {
           description: `${pack.credits} credits have been added to your account.`,
         });
+        
+        setDialogOpen(false);
       }
+    } catch (error) {
+      console.error("Error purchasing credits:", error);
+      toast.error("Purchase failed", {
+        description: "There was an error processing your purchase. Please try again.",
+      });
+    } finally {
       setPaymentProcessing(false);
-    }, 1500);
+      setSelectedPackId(null);
+    }
   };
 
-  const handleSubscribe = (planId: string) => {
+  const handleSubscribe = async (planId: string) => {
     setPaymentProcessing(true);
     
-    // Simulate subscription processing
-    setTimeout(() => {
+    try {
       const plan = subscriptionPlans.find(p => p.id === planId);
+      
       if (plan && updateUserCredits) {
         setCurrentPlan(planId);
-        updateUserCredits(plan.creditsPerMonth);
-        toast({
-          title: "Subscription Activated!",
+        await updateUserCredits(plan.creditsPerMonth);
+        
+        toast.success("Subscription Activated!", {
           description: `You've subscribed to the ${plan.name} plan. ${plan.creditsPerMonth} credits have been added to your account.`,
         });
+        
+        setDialogOpen(false);
       }
+    } catch (error) {
+      console.error("Error subscribing:", error);
+      toast.error("Subscription failed", {
+        description: "There was an error processing your subscription. Please try again.",
+      });
+    } finally {
       setPaymentProcessing(false);
-    }, 1500);
+      setSelectedPlanId(null);
+    }
+  };
+
+  const openPurchaseDialog = (packId: string) => {
+    setSelectedPackId(packId);
+    setDialogOpen(true);
+  };
+
+  const openSubscribeDialog = (planId: string) => {
+    setSelectedPlanId(planId);
+    setDialogOpen(true);
   };
 
   return (
@@ -149,9 +177,12 @@ const Credits = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Dialog>
+                  <Dialog open={dialogOpen && selectedPackId === pack.id} onOpenChange={(open) => !open && setSelectedPackId(null)}>
                     <DialogTrigger asChild>
-                      <Button className="w-full bg-melody-secondary hover:bg-melody-secondary/90">
+                      <Button 
+                        className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+                        onClick={() => openPurchaseDialog(pack.id)}
+                      >
                         Purchase
                       </Button>
                     </DialogTrigger>

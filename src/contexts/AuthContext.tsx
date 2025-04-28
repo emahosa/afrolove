@@ -72,9 +72,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateUserCredits = async (amount: number): Promise<void> => {
     if (!user) return;
-    const newCredits = await updateCredits(user.id, amount);
-    if (newCredits !== null) {
-      setUser(prevUser => prevUser ? { ...prevUser, credits: newCredits } : null);
+    
+    try {
+      const newCredits = await updateCredits(user.id, amount);
+      if (newCredits !== null) {
+        // Update the user state with the new credits value
+        setUser(prevUser => prevUser ? { ...prevUser, credits: newCredits } : null);
+        console.log("Credits updated in AuthContext:", newCredits);
+      }
+    } catch (error) {
+      console.error("Error updating credits in AuthContext:", error);
     }
   };
 
