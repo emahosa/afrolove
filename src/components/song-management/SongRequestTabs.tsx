@@ -4,7 +4,7 @@ import { SongRequest } from "@/hooks/use-song-requests";
 import { SongRequestCard } from "./SongRequestCard";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Recreate, Check } from "lucide-react";
+import { RefreshCcw, Check } from "lucide-react";
 
 interface SongRequestTabsProps {
   songRequests: SongRequest[];
@@ -57,7 +57,7 @@ export const SongRequestTabs = ({
         {request.status === "lyrics_rejected" && (
           <div className="mt-2 flex justify-end">
             <Button onClick={() => onRecreateLyrics(request.id)}>
-              <Recreate className="h-4 w-4 mr-2" />
+              <RefreshCcw className="h-4 w-4 mr-2" />
               Recreate Lyrics
             </Button>
           </div>

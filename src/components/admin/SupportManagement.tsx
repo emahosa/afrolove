@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,7 +196,7 @@ export const SupportManagement = () => {
         
         return {
           ...ticket,
-          status: 'pending',
+          status: 'pending' as const,
           last_updated: new Date().toLocaleString(),
           messages
         };
