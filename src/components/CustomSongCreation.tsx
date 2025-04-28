@@ -9,6 +9,7 @@ import { Loader2, Music, FileMusic, Pencil } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import SplitAudioControl from "./SplitAudioControl";
 
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
@@ -584,9 +585,10 @@ const CustomSongCreation = () => {
                           <div className="audio-wave-bar h-5 animate-wave4"></div>
                         </div>
                       </div>
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Button size="sm" variant="outline">Play</Button>
                         <Button size="sm" variant="outline">Download</Button>
+                        <SplitAudioControl songName={`${version.name}`} songUrl="mock-url" />
                       </div>
                     </div>
                   </div>

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -9,6 +8,7 @@ interface User {
   credits: number;
   subscription?: string;
   avatar?: string;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -38,6 +38,7 @@ const MOCK_USER = {
   credits: 5,
   subscription: "free",
   avatar: "/placeholder.svg",
+  isAdmin: false,
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

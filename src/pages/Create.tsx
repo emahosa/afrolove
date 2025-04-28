@@ -9,8 +9,8 @@ import { Disc, Mic, Loader2, Music, FileMusic } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomSongCreation from "@/components/CustomSongCreation";
+import SplitAudioControl from "@/components/SplitAudioControl";
 
-// Mock genre data
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
   { id: "rnb", name: "R&B", description: "Smooth, soulful contemporary sound" },
@@ -56,12 +56,10 @@ const Create = () => {
 
     setIsGenerating(true);
     
-    // Simulate generation process and deduct 1 credit
     setTimeout(() => {
       setIsGenerating(false);
       setGeneratedTrack({ name: `${selectedGenre} ${activeTab === "vocals" ? "song" : "instrumental"} about ${theme}` });
       
-      // Deduct 1 credit
       updateUserCredits(-1);
       
       toast({
@@ -199,6 +197,10 @@ const Create = () => {
                         Share
                       </Button>
                     </div>
+                    
+                    <div className="mt-4 flex justify-center">
+                      <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
+                    </div>
                   </div>
                   
                   <Button
@@ -325,6 +327,10 @@ const Create = () => {
                         Share
                       </Button>
                     </div>
+                    
+                    <div className="mt-4 flex justify-center">
+                      <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
+                    </div>
                   </div>
                   
                   <Button
@@ -348,6 +354,25 @@ const Create = () => {
           <CustomSongCreation />
         </TabsContent>
       </Tabs>
+      
+      {user?.isAdmin && (
+        <div className="mt-8 border-t pt-6">
+          <h2 className="text-xl font-bold mb-4">Admin Settings</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Audio Splitting Configuration</CardTitle>
+                <CardDescription>
+                  Configure the API integration for splitting vocals from instrumentals
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SplitAudioControl songName="Admin Configuration" isAdmin={true} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
