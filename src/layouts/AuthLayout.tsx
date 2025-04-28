@@ -1,15 +1,29 @@
 
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Music } from "lucide-react";
 
 const AuthLayout = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+      </div>
+    );
   }
 
+  // Redirect to dashboard if already logged in
+  if (user) {
+    // Use the intended destination or default to dashboard
+    const destination = location.state?.from?.pathname || "/dashboard";
+    return <Navigate to={destination} replace />;
+  }
+
+  // Show auth layout for non-authenticated users
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       <div className="hidden md:flex md:w-1/2 bg-melody-primary p-8 flex-col justify-center items-center">
