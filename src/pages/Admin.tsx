@@ -38,7 +38,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Form states
   const [sunoApiKey, setSunoApiKey] = useState("");
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
   const [adminEmails, setAdminEmails] = useState("");
@@ -49,7 +48,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [ticketFilter, setTicketFilter] = useState("open");
 
-  // Mock data for user management
   const [users, setUsers] = useState([
     { id: "1", name: "John Doe", email: "john@example.com", credits: 25, plan: "Premium", status: "Active" },
     { id: "2", name: "Sarah Smith", email: "sarah@example.com", credits: 10, plan: "Basic", status: "Active" },
@@ -58,14 +56,12 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     { id: "5", name: "David Johnson", email: "david@example.com", credits: 15, plan: "Basic", status: "Active" },
   ]);
 
-  // Mock data for admin management
   const [admins, setAdmins] = useState([
     { id: "1", name: "Admin User", email: "admin@example.com", role: "Super Admin" },
     { id: "2", name: "Jane Doe", email: "jane@example.com", role: "Admin" },
     { id: "3", name: "Robert Smith", email: "robert@example.com", role: "Admin" },
   ]);
 
-  // Mock data for content management
   const [content, setContent] = useState([
     { id: "1", title: "Summer Vibes", type: "Song", user: "john@example.com", created: "2023-04-15" },
     { id: "2", title: "Electronic Beat 03", type: "Instrumental", user: "admin@example.com", created: "2023-04-12" },
@@ -74,21 +70,18 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     { id: "5", title: "Lo-Fi Background", type: "Instrumental", user: "admin@example.com", created: "2023-04-05" },
   ]);
 
-  // Mock data for contest entries
   const [contests, setContests] = useState([
     { id: "1", name: "Summer Hit 2023", entries: 32, ends: "2023-05-15" },
     { id: "2", name: "Best Rock Song", entries: 18, ends: "2023-05-20" },
     { id: "3", name: "Electronic Challenge", entries: 24, ends: "2023-05-25" },
   ]);
 
-  // Mock data for payment plans
   const [plans, setPlans] = useState([
     { id: "1", name: "Basic", price: "$4.99", credits: 50, features: ["50 credits/month", "Voice cloning (2 voices)", "Standard support"] },
     { id: "2", name: "Premium", price: "$9.99", credits: 120, features: ["120 credits/month", "Voice cloning (5 voices)", "Priority support", "Contest entry"] },
     { id: "3", name: "Pro", price: "$19.99", credits: 300, features: ["300 credits/month", "Unlimited voice cloning", "24/7 support", "Contest entry", "Commercial usage"] },
   ]);
 
-  // Mock data for payment history
   const [payments, setPayments] = useState([
     { id: "1", user: "john@example.com", plan: "Premium", amount: "$9.99", date: "2023-04-15" },
     { id: "2", user: "sarah@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-14" },
@@ -97,7 +90,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     { id: "5", user: "david@example.com", plan: "Basic", amount: "$4.99", date: "2023-04-08" },
   ]);
 
-  // Mock data for support tickets
   const [tickets, setTickets] = useState([
     { id: "T-1234", user: "john@example.com", subject: "Payment issue", status: "Open", date: "Apr 15" },
     { id: "T-1233", user: "sarah@example.com", subject: "Can't generate song", status: "Open", date: "Apr 14" },
@@ -106,12 +98,10 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     { id: "T-1230", user: "david@example.com", subject: "Login problem", status: "In Progress", date: "Apr 12" },
   ]);
 
-  // Set active tab based on prop or URL
   useEffect(() => {
     if (tab) {
       setActiveTab(tab);
     } else {
-      // Extract tab from URL if not provided as prop
       const pathname = location.pathname;
       const urlTab = pathname.split('/').pop();
       if (urlTab && urlTab !== 'admin') {
@@ -120,18 +110,15 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     }
   }, [tab, location.pathname]);
 
-  // Handle tab change
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     navigate(`/admin/${value === 'dashboard' ? '' : value}`);
   };
 
-  // Redirect non-admin users
   if (!isAdmin()) {
     return <Navigate to="/dashboard" />;
   }
 
-  // Handler functions
   const handleSaveApiKeys = () => {
     toast({
       title: "API Keys Saved",
@@ -143,7 +130,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     const emails = adminEmails.split("\n").filter(email => email.trim() !== "");
     
     if (emails.length > 0) {
-      // Add new admins to the list
       const newAdmins = emails.map((email, index) => ({
         id: `new-${index}`,
         name: email.split('@')[0],
@@ -261,7 +247,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
   };
 
   const handleRespondToTicket = (id: string) => {
-    // In a real app, this would open a response modal or page
     toast({
       title: "Responding to Ticket",
       description: `Opening response form for ticket ${id}.`,
@@ -308,7 +293,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     ticketFilter === "all" || ticket.status.toLowerCase() === ticketFilter.toLowerCase()
   );
 
-  // Fix for the Element to string TypeScript errors
   const getCheckboxIcon = (checked: boolean): ReactNode => {
     return checked ? 
       <Check className="h-4 w-4 mr-2" /> : 
@@ -365,7 +349,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         
-        {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="space-y-6">
           <Card>
             <CardHeader>
@@ -435,7 +418,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
         
-        {/* Users Tab */}
         <TabsContent value="users" className="space-y-6">
           <Card>
             <CardHeader>
@@ -571,7 +553,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Admins Tab */}
         <TabsContent value="admins" className="space-y-6">
           <Card>
             <CardHeader>
@@ -632,7 +613,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* API Keys Tab */}
         <TabsContent value="apis" className="space-y-6">
           <Card>
             <CardHeader>
@@ -739,7 +719,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Content Tab */}
         <TabsContent value="content" className="space-y-6">
           <Card>
             <CardHeader>
@@ -820,7 +799,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Contest Tab */}
         <TabsContent value="contest" className="space-y-6">
           <Card>
             <CardHeader>
@@ -890,7 +868,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Payments Tab */}
         <TabsContent value="payments" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1096,7 +1073,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Support Tab */}
         <TabsContent value="support" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1201,7 +1177,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Reports Tab */}
         <TabsContent value="reports" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1276,7 +1251,6 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
           </Card>
         </TabsContent>
 
-        {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-6">
           <Card>
             <CardHeader>

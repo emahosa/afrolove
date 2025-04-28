@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,6 @@ import { Search } from "lucide-react";
 import { useSongRequests } from "@/hooks/use-song-requests";
 import { SongRequestCard } from "@/components/song-management/SongRequestCard";
 import { LyricsEditor } from "@/components/song-management/LyricsEditor";
-import { ReactNode } from "react";
 
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
