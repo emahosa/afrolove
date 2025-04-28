@@ -84,9 +84,8 @@ export const SongRequestCard = ({
             {request.status === "completed" && (
               <Button 
                 variant="outline" 
-                onClick={() => toast({ 
-                  title: "Message Sent", 
-                  description: "User has been notified about song completion." 
+                onClick={() => toast("Message Sent", {
+                  description: "User has been notified about song completion."
                 })}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
