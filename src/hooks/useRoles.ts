@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,40 +10,42 @@ export const useRoles = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchRoles = async () => {
-      if (!user) {
+  const fetchRoles = useCallback(async () => {
+    if (!user) {
+      setRoles([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      console.log("Fetching roles for user:", user.id);
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Error fetching roles:", error);
         setRoles([]);
-        setLoading(false);
-        return;
+      } else {
+        console.log("Roles fetched:", data);
+        setRoles(data.map(item => item.role as Role));
       }
-
-      try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error("Error fetching roles:", error);
-          setRoles([]);
-        } else {
-          setRoles(data.map(item => item.role as Role));
-        }
-      } catch (error) {
-        console.error("Error in useRoles hook:", error);
-        setRoles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoles();
+    } catch (error) {
+      console.error("Error in useRoles hook:", error);
+      setRoles([]);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
-  const hasRole = (role: Role): boolean => {
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
+
+  const hasRole = useCallback((role: Role): boolean => {
     return roles.includes(role);
-  };
+  }, [roles]);
 
   return {
     roles,
@@ -51,6 +53,7 @@ export const useRoles = () => {
     isAdmin: () => hasRole('admin'),
     isModerator: () => hasRole('moderator'),
     isUser: () => hasRole('user') || roles.length === 0, // Default to user role if no explicit roles
-    loading
+    loading,
+    refetchRoles: fetchRoles
   };
 };

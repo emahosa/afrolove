@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +20,9 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState("user");
-  const { login } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Auto-fill admin credentials when on admin tab
   useEffect(() => {
@@ -32,6 +34,14 @@ const Login = () => {
       setPassword("");
     }
   }, [userType]);
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      console.log("User already logged in, redirecting to dashboard");
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +64,11 @@ const Login = () => {
       
       if (success) {
         toast.success("Login successful");
-        navigate("/dashboard");
+        
+        // Get the intended destination or default to dashboard
+        const from = location.state?.from?.pathname || "/dashboard";
+        console.log("Redirecting to:", from);
+        navigate(from, { replace: true });
       }
     } catch (error) {
       console.error("Login error in component:", error);

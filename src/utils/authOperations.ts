@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -69,6 +68,8 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       return false;
     }
 
+    console.log(`Attempting to sign in user: ${email}, isAdmin: ${isAdmin}`);
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -88,26 +89,41 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       } else {
         toast.error(error.message);
       }
+      console.error("Login error:", error);
       return false;
     }
 
     if (!data.session || !data.user) {
       toast.error("Login failed - no session created");
+      console.error("No session or user data returned");
       return false;
     }
 
     if (isAdmin) {
+      console.log("Checking if user is admin:", data.user.id);
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('*')
         .eq('user_id', data.user.id)
         .eq('role', 'admin');
 
-      if (roleError || !roleData?.length) {
+      console.log("Admin role check result:", roleData, roleError);
+
+      if (roleError) {
+        console.error("Error checking admin role:", roleError);
+        toast.error("Error verifying admin access");
+        await supabase.auth.signOut();
+        return false;
+      }
+
+      if (!roleData || roleData.length === 0) {
+        console.error("User is not an admin");
         toast.error("Access denied - not an admin user");
         await supabase.auth.signOut();
         return false;
       }
+
+      console.log("Admin login successful");
     }
 
     toast.success("Login successful");
@@ -177,4 +193,3 @@ export const handleRegister = async (name: string, email: string, password: stri
     return false;
   }
 };
-

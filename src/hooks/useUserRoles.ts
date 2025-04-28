@@ -1,12 +1,22 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useUserRoles = () => {
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchUserRoles = async (userId: string) => {
+  const fetchUserRoles = useCallback(async (userId: string) => {
+    if (!userId) {
+      console.error("Cannot fetch roles: No user ID provided");
+      setUserRoles([]);
+      return;
+    }
+    
     try {
+      setLoading(true);
+      console.log("Fetching roles for user:", userId);
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -22,11 +32,19 @@ export const useUserRoles = () => {
     } catch (error) {
       console.error("Error in fetchUserRoles:", error);
       setUserRoles([]);
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  const isAdmin = useCallback(() => {
+    return userRoles.includes('admin');
+  }, [userRoles]);
+
+  return { 
+    userRoles, 
+    fetchUserRoles, 
+    isAdmin,
+    loading 
   };
-
-  const isAdmin = () => userRoles.includes('admin');
-
-  return { userRoles, fetchUserRoles, isAdmin };
 };
-

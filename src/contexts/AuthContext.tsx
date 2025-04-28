@@ -19,40 +19,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { userRoles, fetchUserRoles, isAdmin } = useUserRoles();
 
   useEffect(() => {
+    console.log("Setting up auth listener");
+    
+    // First set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
+        
         if (currentSession?.user) {
+          console.log("User is logged in, fetching profile data");
           const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
           setUser(enhancedUser);
           fetchUserRoles(currentSession.user.id);
         } else {
+          console.log("No user in session");
           setUser(null);
         }
+        
         setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
-      console.log("Initial session check:", currentSession?.user?.id);
-      setSession(currentSession);
-      if (currentSession?.user) {
-        const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
-        setUser(enhancedUser);
-        fetchUserRoles(currentSession.user.id);
-      } else {
-        setUser(null);
+    // Then check for existing session
+    const checkSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log("Initial session check:", currentSession?.user?.id);
+        
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          console.log("Found existing session, fetching profile data");
+          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+          setUser(enhancedUser);
+          fetchUserRoles(currentSession.user.id);
+        } else {
+          console.log("No existing session found");
+          setUser(null);
+        }
+        
+        setLoading(false);
+        
+        if (!initializationComplete) {
+          console.log("Initializing admin account");
+          await initializeAdminAccount();
+          setInitializationComplete(true);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+        setLoading(false);
       }
-      setLoading(false);
-      
-      if (!initializationComplete) {
-        await initializeAdminAccount();
-        setInitializationComplete(true);
-      }
-    });
+    };
+    
+    checkSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log("Cleaning up auth listener");
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = handleLogin;
@@ -60,7 +85,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const logout = async (): Promise<void> => {
     try {
+      console.log("Logging out user");
       await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
       toast.info("You've been logged out");
     } catch (error: any) {
       console.error("Logout error:", error);
@@ -71,7 +99,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateUserCredits = async (amount: number): Promise<void> => {
-    if (!user) return;
+    if (!user) {
+      console.error("Cannot update credits: No user logged in");
+      return;
+    }
     
     try {
       const newCredits = await updateCredits(user.id, amount);
@@ -85,19 +116,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // For debugging purposes
+  const contextValue = {
+    user,
+    session,
+    loading,
+    login,
+    register,
+    logout,
+    isAdmin,
+    updateUserCredits,
+  };
+  
+  console.log("Auth context state:", { 
+    user: user?.id, 
+    isLoggedIn: !!user,
+    isAdmin: isAdmin(),
+    loading
+  });
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        loading,
-        login,
-        register,
-        logout,
-        isAdmin,
-        updateUserCredits,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
