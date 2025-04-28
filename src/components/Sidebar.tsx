@@ -2,7 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText } from "lucide-react";
+import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText, Users as UsersIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
@@ -118,7 +118,7 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
                   ? "bg-melody-primary/20 text-melody-secondary font-medium" 
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}>
-                <Users className="h-5 w-5" />
+                <UsersIcon className="h-5 w-5" />
                 <span>User Management</span>
               </NavLink>
 
