@@ -5,10 +5,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Calendar, Clock, ChevronRight, Upload, ThumbsUp, Play } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // Mock current contest data
 const currentContest = {
@@ -26,7 +29,8 @@ const currentContest = {
     "Song must be at least 1 minute in length",
     "Content must be appropriate for all audiences",
     "One entry per participant"
-  ]
+  ],
+  beatFile: "summer_beats_challenge.mp3"
 };
 
 // Mock entries
@@ -83,27 +87,73 @@ const contestEntries = [
 
 const Contest = () => {
   const [showRulesModal, setShowRulesModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [votedEntries, setVotedEntries] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("current");
   const [showAllEntries, setShowAllEntries] = useState(false);
+  const [entryTitle, setEntryTitle] = useState("");
+  const [entryDescription, setEntryDescription] = useState("");
+  const [entryFile, setEntryFile] = useState<File | null>(null);
 
   const handleDownloadBeat = () => {
-    // In a real app, this would download the file
+    // Create a link element to download the file
+    const link = document.createElement('a');
+    link.href = `data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA`;
+    link.download = currentContest.beatFile;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
     toast.success("Downloading official beat...", {
-      description: "Your download will begin shortly."
+      description: "Your download has started."
     });
   };
 
   const handleSubmitEntry = () => {
-    // In a real app, this would open an upload form
-    toast.info("Submit your contest entry", {
-      description: "Upload your video performance using the official beat."
+    setShowSubmitModal(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setEntryFile(e.target.files[0]);
+    }
+  };
+
+  const handleEntrySubmission = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!entryTitle.trim() || !entryFile) {
+      toast.error("Please fill all required fields and upload a video.", {
+        description: "Both title and video file are required."
+      });
+      return;
+    }
+    
+    // In a real app, this would submit the entry to a backend
+    toast.success("Entry submitted successfully!", {
+      description: "Thank you for participating. Your entry is now being processed."
     });
+    
+    // Reset form and close modal
+    setEntryTitle("");
+    setEntryDescription("");
+    setEntryFile(null);
+    setShowSubmitModal(false);
   };
 
   const handleVote = (entryId: string) => {
     if (votedEntries.includes(entryId)) {
-      toast.error("You've already voted for this entry");
+      toast.error("You've already voted for this entry", {
+        description: "You can only vote once per entry."
+      });
+      return;
+    }
+    
+    // Check if the user has already voted for any entry
+    if (votedEntries.length > 0) {
+      toast.error("Vote limit reached", {
+        description: "You can only vote for one entry in this contest."
+      });
       return;
     }
     
@@ -285,7 +335,7 @@ const Contest = () => {
                           size="sm"
                           className={votedEntries.includes(entry.id) || entry.hasVoted ? "opacity-50 cursor-not-allowed" : ""}
                           onClick={() => handleVote(entry.id)}
-                          disabled={votedEntries.includes(entry.id) || entry.hasVoted}
+                          disabled={votedEntries.includes(entry.id) || entry.hasVoted || votedEntries.length > 0}
                         >
                           {votedEntries.includes(entry.id) || entry.hasVoted ? "Voted" : "Vote Now"}
                         </Button>
@@ -380,6 +430,63 @@ const Contest = () => {
               <p className="text-xs text-muted-foreground">By submitting an entry, you acknowledge that you have read and agreed to these rules. MelodyVerse reserves the right to disqualify any submission that violates these terms.</p>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Submit Entry Modal */}
+      <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Submit Your Entry</DialogTitle>
+            <DialogDescription>
+              Fill out the form below to submit your entry to the {currentContest.title}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEntrySubmission} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="entry-title">Entry Title *</Label>
+              <Input 
+                id="entry-title" 
+                value={entryTitle}
+                onChange={(e) => setEntryTitle(e.target.value)}
+                placeholder="Enter a title for your entry"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="entry-description">Description</Label>
+              <Textarea 
+                id="entry-description" 
+                value={entryDescription}
+                onChange={(e) => setEntryDescription(e.target.value)}
+                placeholder="Tell us about your entry (optional)"
+                rows={3}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="entry-file">Video File *</Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  id="entry-file" 
+                  type="file"
+                  onChange={handleFileChange} 
+                  accept="video/*"
+                  required
+                  className="flex-1"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Accepted formats: MP4, MOV, AVI (max size: 500MB)</p>
+            </div>
+            
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowSubmitModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Submit Entry</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
