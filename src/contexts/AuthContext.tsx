@@ -61,26 +61,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentSession?.user) {
         console.log("AuthContext: User is logged in, fetching profile data");
         
-        // First get user data
-        const enhancedUser = await enhanceUserWithProfileData(currentSession.user)
-          .catch(error => {
-            console.error("AuthContext: Error enhancing user data:", error);
-            // Return basic user data as fallback
-            return {
-              id: currentSession.user.id,
-              email: currentSession.user.email || '',
-              name: currentSession.user.user_metadata?.name || 'User',
-              avatar: currentSession.user.user_metadata?.avatar_url || '',
-              credits: 0,
-              subscription: 'free'
-            } as UserProfile;
-          });
-          
+        // Set user and session first to avoid delays in UI updates
         setSession(currentSession);
-        setUser(enhancedUser);
         
-        // Fetch roles after setting user data
+        // Use basic user info first, then update with profile data
+        const basicUser: UserProfile = {
+          ...currentSession.user,
+          name: currentSession.user.user_metadata?.name || 'User',
+          avatar: currentSession.user.user_metadata?.avatar_url || '',
+          credits: 0,
+          subscription: 'free'
+        };
+        
+        setUser(basicUser);
+        
+        // Then fetch roles
         await fetchUserRoles(currentSession.user.id);
+        
+        // Then enhance with profile data
+        try {
+          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+          setUser(enhancedUser);
+        } catch (error) {
+          console.error("AuthContext: Error fetching profile data:", error);
+          // User is already set with basic info, so no action needed
+        }
       } else {
         console.log("AuthContext: No user in session");
         setSession(null);

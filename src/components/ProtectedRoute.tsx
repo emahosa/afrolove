@@ -9,10 +9,9 @@ const ProtectedRoute = () => {
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const adminStatus = isAdmin();
-
+  
   useEffect(() => {
-    // Only show the toast if we're not in the process of loading and the user is not logged in
+    // Only show the toast if we're not loading and not checking (i.e., we've completed our checks)
     if (!loading && !user && !isChecking) {
       toast.error("Access denied", {
         description: "You need to log in to access this page"
@@ -20,7 +19,7 @@ const ProtectedRoute = () => {
     }
     
     // Show toast if user is logged in but trying to access admin route without admin privileges
-    if (!loading && user && isAdminRoute && !adminStatus && !isChecking) {
+    if (!loading && user && isAdminRoute && !isAdmin() && !isChecking) {
       toast.error("Access denied", {
         description: "You don't have admin privileges to access this page"
       });
@@ -30,14 +29,14 @@ const ProtectedRoute = () => {
     if (!loading && isChecking) {
       setIsChecking(false);
     }
-  }, [loading, user, location.pathname, isChecking, isAdminRoute, adminStatus]);
+  }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
 
   console.log("ProtectedRoute: state:", { 
     user: user?.id, 
     loading, 
     isChecking,
     isAdminRoute,
-    isAdmin: adminStatus,
+    isAdmin: isAdmin(),
     pathname: location.pathname 
   });
 
@@ -46,6 +45,7 @@ const ProtectedRoute = () => {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <div className="ml-3">Verifying access...</div>
       </div>
     );
   }
@@ -58,7 +58,7 @@ const ProtectedRoute = () => {
     }
     
     // If logged in but not admin, redirect to dashboard
-    if (!adminStatus) {
+    if (!isAdmin()) {
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
   } else {
