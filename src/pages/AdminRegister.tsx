@@ -8,11 +8,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Music, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
+// Admin email domain that should pass Supabase validation
+const ADMIN_EMAIL = "melody.admin@melodyverse.app";
+const ADMIN_PASSWORD = "Admin123";
+const ADMIN_CODE = "ADMIN123";
+
 const AdminRegister = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [adminCode, setAdminCode] = useState("");
+  const [name, setName] = useState("Admin User");
+  const [email, setEmail] = useState(ADMIN_EMAIL);
+  const [password, setPassword] = useState(ADMIN_PASSWORD);
+  const [adminCode, setAdminCode] = useState(ADMIN_CODE);
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -37,7 +42,7 @@ const AdminRegister = () => {
     }
     
     // In a real app, you would validate the admin code on the server
-    if (adminCode !== "ADMIN123") {
+    if (adminCode !== ADMIN_CODE) {
       toast.error("Invalid admin code");
       return;
     }
@@ -96,7 +101,7 @@ const AdminRegister = () => {
             required
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Use a valid email format (e.g., admin@example.com)
+            Use a valid email format with proper domain
           </p>
         </div>
         <div>
@@ -121,7 +126,7 @@ const AdminRegister = () => {
             required
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Admin code: ADMIN123 (for demo purposes)
+            Admin code: {ADMIN_CODE} (for demo purposes)
           </p>
         </div>
         <Button 

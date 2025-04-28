@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthTestPanel from "@/components/AuthTestPanel";
 import { toast } from "sonner";
 
+// Admin credentials constants - should match AuthContext
+const ADMIN_EMAIL = "melody.admin@melodyverse.app";
+const ADMIN_PASSWORD = "Admin123";
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,8 +26,8 @@ const Login = () => {
   // Auto-fill admin credentials when on admin tab
   useEffect(() => {
     if (userType === "admin") {
-      setEmail("admin@example.com");
-      setPassword("Admin123");
+      setEmail(ADMIN_EMAIL);
+      setPassword(ADMIN_PASSWORD);
     } else {
       setEmail("");
       setPassword("");
@@ -122,8 +126,8 @@ const Login = () => {
               <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
                 <p className="text-sm text-amber-800">
                   <strong>Admin credentials:</strong><br />
-                  Email: admin@example.com<br />
-                  Password: Admin123
+                  Email: {ADMIN_EMAIL}<br />
+                  Password: {ADMIN_PASSWORD}
                 </p>
               </div>
             )}

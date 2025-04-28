@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,11 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Admin account constants - placed at the top level for easier management
+const ADMIN_EMAIL = "melody.admin@melodyverse.app";
+const ADMIN_PASSWORD = "Admin123";
+const ADMIN_NAME = "Admin User";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -91,8 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       // First check if admin exists by trying to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: "admin@example.com",
-        password: "Admin123",
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
       });
       
       if (error && error.message.includes("Invalid login credentials")) {
@@ -100,13 +106,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("Admin account does not exist. Creating...");
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: "admin@example.com",
-          password: "Admin123",
+          email: ADMIN_EMAIL,
+          password: ADMIN_PASSWORD,
           options: {
             data: {
-              name: "Admin User",
-              full_name: "Admin User",
-              avatar_url: `https://ui-avatars.com/api/?name=Admin+User&background=random`,
+              name: ADMIN_NAME,
+              full_name: ADMIN_NAME,
+              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(ADMIN_NAME)}&background=random`,
             },
           }
         });
@@ -237,7 +243,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) {
         console.error("Supabase login error:", error);
         
-        if (email === "admin@example.com" && password === "Admin123") {
+        if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
           toast.error("The admin account might not be fully set up yet. Try refreshing and trying again.");
         } else {
           toast.error(error.message);
