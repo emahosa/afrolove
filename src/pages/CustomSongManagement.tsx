@@ -1,3 +1,4 @@
+
 import { useState, ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +46,28 @@ const CustomSongManagement = () => {
       
     return matchesSearch && matchesStatus;
   });
+
+  // Fix the return type explicitly to ReactNode
+  function renderRequestsList(): ReactNode {
+    if (filteredRequests.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          No song requests found matching your criteria.
+        </div>
+      );
+    }
+    
+    return filteredRequests.map((request) => (
+      <SongRequestCard
+        key={request.id}
+        request={request}
+        uploadingAudio={uploadingAudio}
+        onStartWork={handleStartWork}
+        onWriteLyrics={handleWriteLyrics}
+        onUploadAudio={handleUploadAudio}
+      />
+    ));
+  }
 
   return (
     <div className="space-y-8">
@@ -106,27 +129,6 @@ const CustomSongManagement = () => {
       </Card>
     </div>
   );
-
-  function renderRequestsList(): ReactNode {
-    if (filteredRequests.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No song requests found matching your criteria.
-        </div>
-      );
-    }
-    
-    return filteredRequests.map((request) => (
-      <SongRequestCard
-        key={request.id}
-        request={request}
-        uploadingAudio={uploadingAudio}
-        onStartWork={handleStartWork}
-        onWriteLyrics={handleWriteLyrics}
-        onUploadAudio={handleUploadAudio}
-      />
-    ));
-  }
 };
 
 export default CustomSongManagement;
