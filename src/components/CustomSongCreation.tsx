@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Music, FileMusic } from "lucide-react";
+import { Loader2, Music, FileMusic, Pencil } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +37,8 @@ const CustomSongCreation = () => {
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const { user, updateUserCredits } = useAuth();
   const navigate = useNavigate();
+  const [editedLyrics, setEditedLyrics] = useState<string>("");
+  const [isEditing, setIsEditing] = useState(false);
 
   // Mock lyric options
   const lyricOptions: SongOption[] = [
@@ -119,6 +120,20 @@ const CustomSongCreation = () => {
 
   const handleLyricSelection = (lyricId: string) => {
     setSelectedLyric(lyricId);
+    const selectedOption = lyricOptions.find(option => option.id === lyricId);
+    setEditedLyrics(selectedOption?.preview || "");
+  };
+
+  const handleLyricEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveLyrics = () => {
+    setIsEditing(false);
+    toast({
+      title: "Lyrics saved",
+      description: "Your edits have been saved successfully",
+    });
   };
 
   const handleLyricSubmit = () => {
@@ -360,12 +375,42 @@ const CustomSongCreation = () => {
                         }`}
                       />
                     </div>
-                    <pre className="mt-2 p-3 bg-muted rounded text-sm whitespace-pre-wrap">
-                      {option.preview}
-                    </pre>
                   </div>
                 ))}
               </div>
+
+              {selectedLyric && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Edit Lyrics</Label>
+                    {!isEditing ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleLyricEdit}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={handleSaveLyrics}
+                      >
+                        Save Changes
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    value={editedLyrics}
+                    onChange={(e) => setEditedLyrics(e.target.value)}
+                    rows={10}
+                    disabled={!isEditing}
+                    className={`font-mono ${!isEditing ? 'bg-muted' : ''}`}
+                  />
+                </div>
+              )}
               
               <div className="mt-4 flex flex-col gap-2">
                 <Button
