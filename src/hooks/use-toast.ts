@@ -2,7 +2,7 @@
 import * as React from "react";
 import {
   toast as sonnerToast,
-  type ToastOptions as SonnerToastOptions,
+  type ToastT,
 } from "sonner";
 
 // Define the toast types
@@ -14,7 +14,7 @@ export type ToastProps = {
   description?: React.ReactNode;
   type?: ToastType;
   action?: React.ReactNode;
-} & SonnerToastOptions;
+} & Omit<ToastT, "description">;
 
 // Create a type for the toast function
 type ToastFunction = (props: ToastProps | string) => void;

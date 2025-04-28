@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TracksList from "@/components/library/TracksList";
 import SingleTrackView from "@/components/library/SingleTrackView";
 import LibraryFilters from "@/components/library/LibraryFilters";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -66,11 +65,7 @@ const Library = () => {
         setTracks(formattedTracks);
       } catch (error) {
         console.error("Error fetching tracks:", error);
-        toast({
-          title: "Failed to load tracks",
-          description: "We couldn't load your library. Please try again later.",
-          variant: "destructive",
-        });
+        toast.error("Failed to load tracks. We couldn't load your library. Please try again later.");
       } finally {
         setIsLoading(false);
       }
@@ -113,23 +108,14 @@ const Library = () => {
   const handlePlay = (trackId: string, trackTitle: string) => {
     if (playingTrack === trackId) {
       setPlayingTrack(null);
-      toast({
-        title: "Playback stopped",
-        description: "Song preview stopped",
-      });
+      toast.success("Playback stopped. Song preview stopped");
     } else {
       setPlayingTrack(trackId);
-      toast({
-        title: "Playing preview",
-        description: `Now playing: ${trackTitle}`,
-      });
+      toast.success(`Playing preview. Now playing: ${trackTitle}`);
       
       setTimeout(() => {
         setPlayingTrack(null);
-        toast({
-          title: "Playback complete",
-          description: "The song preview has ended",
-        });
+        toast.success("Playback complete. The song preview has ended");
       }, 30000);
     }
   };

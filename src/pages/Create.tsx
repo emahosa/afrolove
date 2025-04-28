@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Disc, Mic, Loader2, Music, FileMusic } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -31,29 +31,17 @@ const Create = () => {
 
   const handleGenerate = () => {
     if (!selectedGenre) {
-      toast({
-        title: "Please select a genre",
-        description: "Select a music genre to continue",
-        variant: "destructive",
-      });
+      toast.error("Please select a genre. Select a music genre to continue");
       return;
     }
 
     if (!theme) {
-      toast({
-        title: "Please enter a theme",
-        description: "Describe the theme or topic of your song",
-        variant: "destructive",
-      });
+      toast.error("Please enter a theme. Describe the theme or topic of your song");
       return;
     }
 
     if ((user?.credits || 0) <= 0) {
-      toast({
-        title: "Insufficient credits",
-        description: "Please purchase more credits to continue",
-        variant: "destructive",
-      });
+      toast.error("Insufficient credits. Please purchase more credits to continue");
       return;
     }
 
@@ -65,10 +53,7 @@ const Create = () => {
       
       updateUserCredits(-1);
       
-      toast({
-        title: "Track generated!",
-        description: "Your AI track has been created successfully",
-      });
+      toast.success("Track generated! Your AI track has been created successfully");
     }, 5000);
   };
 
