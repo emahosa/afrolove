@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -309,15 +308,14 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     ticketFilter === "all" || ticket.status.toLowerCase() === ticketFilter.toLowerCase()
   );
 
-  // Fix for the first Element to string TypeScript error - Line 436
-  const getCheckboxIcon = (checked: boolean) => {
+  // Fix for the Element to string TypeScript errors
+  const getCheckboxIcon = (checked: boolean): ReactNode => {
     return checked ? 
       <Check className="h-4 w-4 mr-2" /> : 
       null;
   };
 
-  // Fix for the second Element to string TypeScript error - Line 741
-  const renderPlanFeatures = (features: string[]) => {
+  const renderPlanFeatures = (features: string[]): ReactNode => {
     return features.map((feature, featIndex) => (
       <li key={featIndex} className="flex items-center">
         <span className="text-green-500 mr-2">✓</span> {feature}
@@ -325,16 +323,14 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
     ));
   };
 
-  // Separated checkbox rendering function to fix type issues
-  const renderCheckbox = (checked: boolean) => {
+  const renderCheckbox = (checked: boolean): ReactNode => {
     if (checked) {
       return <Check className="h-4 w-4 mr-2" />;
     }
     return null;
   };
 
-  // This function ensures we return a React node instead of mixing types
-  const getButtonContent = (checked: boolean, text: string) => (
+  const getButtonContent = (checked: boolean, text: string): ReactNode => (
     <>
       {checked ? <Check className="h-4 w-4 mr-2" /> : null}
       {text}
@@ -1025,7 +1021,10 @@ const Admin = ({ tab = "dashboard" }: AdminProps) => {
                               {renderPlanFeatures(plan.features)}
                             </ul>
                             <div className="mt-4 flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleEditPlan(plan.id)}>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => handleEditPlan(plan.id)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </Button>
