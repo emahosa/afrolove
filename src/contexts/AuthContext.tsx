@@ -7,6 +7,7 @@ import { enhanceUserWithProfileData } from "@/utils/userProfile";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { handleLogin, handleRegister, initializeAdminAccount } from "@/utils/authOperations";
 import { updateUserCredits as updateCredits } from "@/utils/credits";
+import { toast } from "sonner";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -102,4 +103,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
