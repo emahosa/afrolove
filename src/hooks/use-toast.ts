@@ -14,6 +14,7 @@ export type ToastProps = Partial<ToastT> & {
   description?: React.ReactNode;
   type?: ToastType;
   action?: React.ReactNode;
+  title?: string;  // Add title property to match our usage
 };
 
 // Create a type for the toast function
@@ -39,8 +40,8 @@ export const useToast = (): UseToastReturn => {
         sonnerToast(props);
         return;
       }
-      const { description, type, ...options } = props;
-      sonnerToast(props.message || "", { description, ...options });
+      const { description, type, title, ...options } = props;
+      sonnerToast(title || "", { description, ...options });
     };
 
     // Add methods for different toast types
@@ -50,8 +51,8 @@ export const useToast = (): UseToastReturn => {
           sonnerToast[type](props);
           return;
         }
-        const { description, ...options } = props;
-        sonnerToast[type](props.message || "", { description, ...options });
+        const { description, title, ...options } = props;
+        sonnerToast[type](title || "", { description, ...options });
       };
     }
 
