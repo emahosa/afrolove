@@ -1,9 +1,14 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Calendar, Clock, ChevronRight, Upload, ThumbsUp, Play } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 // Mock current contest data
 const currentContest = {
@@ -49,10 +54,76 @@ const contestEntries = [
     votes: 756,
     hasVoted: false,
     thumbnail: "https://source.unsplash.com/random/300x400?music,3"
+  },
+  {
+    id: "entry-4",
+    user: "RhythmKing",
+    title: "Tropical Dreams",
+    votes: 682,
+    hasVoted: false,
+    thumbnail: "https://source.unsplash.com/random/300x400?music,4"
+  },
+  {
+    id: "entry-5",
+    user: "SongSmith",
+    title: "Ocean Melody",
+    votes: 541,
+    hasVoted: false,
+    thumbnail: "https://source.unsplash.com/random/300x400?music,5"
+  },
+  {
+    id: "entry-6",
+    user: "VocalWizard",
+    title: "Sand and Sun",
+    votes: 423,
+    hasVoted: false,
+    thumbnail: "https://source.unsplash.com/random/300x400?music,6"
   }
 ];
 
 const Contest = () => {
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [votedEntries, setVotedEntries] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("current");
+  const [showAllEntries, setShowAllEntries] = useState(false);
+
+  const handleDownloadBeat = () => {
+    // In a real app, this would download the file
+    toast.success("Downloading official beat...", {
+      description: "Your download will begin shortly."
+    });
+  };
+
+  const handleSubmitEntry = () => {
+    // In a real app, this would open an upload form
+    toast.info("Submit your contest entry", {
+      description: "Upload your video performance using the official beat."
+    });
+  };
+
+  const handleVote = (entryId: string) => {
+    if (votedEntries.includes(entryId)) {
+      toast.error("You've already voted for this entry");
+      return;
+    }
+    
+    setVotedEntries([...votedEntries, entryId]);
+    toast.success("Vote submitted!", {
+      description: "Thank you for supporting this artist."
+    });
+  };
+
+  const handlePlayVideo = (title: string) => {
+    toast.info(`Playing "${title}"`, {
+      description: "In a complete app, this would play the actual video."
+    });
+  };
+
+  // Display either featured entries or all entries based on state
+  const displayEntries = showAllEntries 
+    ? contestEntries 
+    : contestEntries.slice(0, 3);
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -64,148 +135,253 @@ const Contest = () => {
         </div>
       </div>
 
-      <div className="space-y-6">
-        <Card className="border border-melody-secondary/30">
-          <CardHeader className="bg-gradient-to-r from-melody-primary/50 to-melody-secondary/30 rounded-t-lg">
-            <div className="flex justify-between items-start">
-              <div>
-                <Badge variant="secondary" className="mb-2 bg-melody-secondary text-white">Current Contest</Badge>
-                <CardTitle className="text-2xl">{currentContest.title}</CardTitle>
-                <CardDescription className="text-white/70 mt-1">{currentContest.description}</CardDescription>
-              </div>
-              <div className="text-right hidden md:block">
-                <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
-                  <Calendar className="h-4 w-4" /> Deadline
-                </div>
-                <div className="font-semibold">{currentContest.deadline}</div>
-                <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
-                  <Clock className="h-4 w-4" /> Time Remaining
-                </div>
-                <div className="font-semibold">{currentContest.timeRemaining}</div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="md:hidden space-y-4">
-              <div className="flex justify-between">
+      <Tabs defaultValue="current" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="current">Current Contests</TabsTrigger>
+          <TabsTrigger value="past">Past Contests</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="current" className="space-y-6">
+          <Card className="border border-melody-secondary/30">
+            <CardHeader className="bg-gradient-to-r from-melody-primary/50 to-melody-secondary/30 rounded-t-lg">
+              <div className="flex justify-between items-start">
                 <div>
-                  <div className="text-sm text-muted-foreground mb-1">Deadline</div>
-                  <div className="font-semibold">{currentContest.deadline}</div>
+                  <Badge variant="secondary" className="mb-2 bg-melody-secondary text-white">Current Contest</Badge>
+                  <CardTitle className="text-2xl">{currentContest.title}</CardTitle>
+                  <CardDescription className="text-white/70 mt-1">{currentContest.description}</CardDescription>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
+                <div className="text-right hidden md:block">
+                  <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
+                    <Calendar className="h-4 w-4" /> Deadline
+                  </div>
+                  <div className="font-semibold">{currentContest.deadline}</div>
+                  <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
+                    <Clock className="h-4 w-4" /> Time Remaining
+                  </div>
                   <div className="font-semibold">{currentContest.timeRemaining}</div>
                 </div>
               </div>
-              <Progress value={currentContest.progress} className="h-2" />
-            </div>
-            
-            <div className="hidden md:block">
-              <Progress value={currentContest.progress} className="h-2 mb-2" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <div>Contest Started</div>
-                <div>Contest Ends</div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="md:hidden space-y-4">
+                <div className="flex justify-between">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Deadline</div>
+                    <div className="font-semibold">{currentContest.deadline}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
+                    <div className="font-semibold">{currentContest.timeRemaining}</div>
+                  </div>
+                </div>
+                <Progress value={currentContest.progress} className="h-2" />
               </div>
+              
+              <div className="hidden md:block">
+                <Progress value={currentContest.progress} className="h-2 mb-2" />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <div>Contest Started</div>
+                  <div>Contest Ends</div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="bg-muted/30">
+                  <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-base">Prize Pool</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3 px-4">
+                    <p className="text-xl font-bold text-melody-secondary">{currentContest.prizePool}</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/30">
+                  <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-base">Entries</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3 px-4">
+                    <p className="text-xl font-bold">{currentContest.entries}</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/30">
+                  <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-base">Rules</CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-3 px-4">
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-melody-secondary"
+                      onClick={() => setShowRulesModal(true)}
+                    >
+                      View Rules <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">Contest Rules</h3>
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  {currentContest.rules.map((rule, index) => (
+                    <li key={index}>{rule}</li>
+                  ))}
+                </ul>
+              </div>
+            </CardContent>
+            <CardFooter className="bg-card border-t border-border/50 flex flex-wrap gap-4 justify-between">
+              <Button 
+                className="bg-melody-secondary hover:bg-melody-secondary/90"
+                onClick={handleDownloadBeat}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download Official Beat
+              </Button>
+              <Button onClick={handleSubmitEntry}>
+                <Upload className="mr-2 h-4 w-4" />
+                Submit Your Entry
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Recent Entries</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {displayEntries.map((entry) => (
+                <Card key={entry.id} className="music-card overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="relative aspect-video bg-melody-primary/30">
+                      <img 
+                        src={entry.thumbnail} 
+                        alt={entry.title} 
+                        className="w-full h-full object-cover"
+                      />
+                      <Button 
+                        variant="secondary" 
+                        size="icon" 
+                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
+                        onClick={() => handlePlayVideo(entry.title)}
+                      >
+                        <Play className="h-6 w-6" />
+                      </Button>
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-bold truncate">{entry.title}</h3>
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-3">
+                        by {entry.user}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <ThumbsUp className="h-4 w-4 mr-1" />
+                          <span className="text-sm">
+                            {votedEntries.includes(entry.id) 
+                              ? entry.votes + 1 
+                              : entry.votes}
+                          </span>
+                        </div>
+                        <Button 
+                          variant={votedEntries.includes(entry.id) || entry.hasVoted ? "outline" : "default"}
+                          size="sm"
+                          className={votedEntries.includes(entry.id) || entry.hasVoted ? "opacity-50 cursor-not-allowed" : ""}
+                          onClick={() => handleVote(entry.id)}
+                          disabled={votedEntries.includes(entry.id) || entry.hasVoted}
+                        >
+                          {votedEntries.includes(entry.id) || entry.hasVoted ? "Voted" : "Vote Now"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-muted/30">
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-base">Prize Pool</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <p className="text-xl font-bold text-melody-secondary">{currentContest.prizePool}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-muted/30">
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-base">Entries</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <p className="text-xl font-bold">{currentContest.entries}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-muted/30">
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-base">Rules</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <Button variant="link" className="p-0 h-auto text-melody-secondary">
-                    View Rules <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </CardContent>
-              </Card>
+            <div className="text-center mt-6">
+              <Button 
+                variant="outline"
+                onClick={() => setShowAllEntries(!showAllEntries)}
+              >
+                {showAllEntries ? "Show Less" : "View All Entries"}
+              </Button>
             </div>
-            
+
+            {showAllEntries && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious href="#" />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink href="#" isActive>1</PaginationLink>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink href="#">2</PaginationLink>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink href="#">3</PaginationLink>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext href="#" />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="past">
+          <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/20">
+            <div className="text-center">
+              <h3 className="text-lg font-medium mb-2">Past Contests</h3>
+              <p className="text-muted-foreground">No past contests to display</p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Rules Modal */}
+      <Dialog open={showRulesModal} onOpenChange={setShowRulesModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contest Rules - {currentContest.title}</DialogTitle>
+            <DialogDescription>
+              Please read all rules carefully before participating.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Contest Rules</h3>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1">
+              <h3 className="font-semibold">Submission Requirements:</h3>
+              <ul className="space-y-2 list-disc list-inside text-sm">
                 {currentContest.rules.map((rule, index) => (
                   <li key={index}>{rule}</li>
                 ))}
+                <li>All submissions must be original content</li>
+                <li>Participants must own the rights to their submission</li>
+                <li>No copyrighted material may be used without permission</li>
               </ul>
             </div>
-          </CardContent>
-          <CardFooter className="bg-card border-t border-border/50 flex flex-wrap gap-4 justify-between">
-            <Button className="bg-melody-secondary hover:bg-melody-secondary/90">
-              <Download className="mr-2 h-4 w-4" />
-              Download Official Beat
-            </Button>
-            <Button>
-              <Upload className="mr-2 h-4 w-4" />
-              Submit Your Entry
-            </Button>
-          </CardFooter>
-        </Card>
-        
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold">Recent Entries</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {contestEntries.map((entry) => (
-              <Card key={entry.id} className="music-card overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="relative aspect-video bg-melody-primary/30">
-                    <img 
-                      src={entry.thumbnail} 
-                      alt={entry.title} 
-                      className="w-full h-full object-cover"
-                    />
-                    <Button variant="secondary" size="icon" className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary">
-                      <Play className="h-6 w-6" />
-                    </Button>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-bold truncate">{entry.title}</h3>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-3">
-                      by {entry.user}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <ThumbsUp className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{entry.votes}</span>
-                      </div>
-                      <Button 
-                        variant={entry.hasVoted ? "outline" : "default"}
-                        size="sm"
-                        className={entry.hasVoted ? "opacity-50 cursor-not-allowed" : ""}
-                      >
-                        {entry.hasVoted ? "Voted" : "Vote Now"}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            
+            <div className="space-y-2">
+              <h3 className="font-semibold">Judging Criteria:</h3>
+              <ul className="space-y-2 list-disc list-inside text-sm">
+                <li>Creativity and originality: 30%</li>
+                <li>Technical execution: 25%</li>
+                <li>Overall performance quality: 25%</li>
+                <li>Public votes: 20%</li>
+              </ul>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-semibold">Prize Details:</h3>
+              <p className="text-sm">The winner will receive {currentContest.prizePool}, which includes a record deal with MelodyVerse Records and promotion across all our platforms.</p>
+            </div>
+            
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground">By submitting an entry, you acknowledge that you have read and agreed to these rules. MelodyVerse reserves the right to disqualify any submission that violates these terms.</p>
+            </div>
           </div>
-          
-          <div className="text-center mt-6">
-            <Button variant="outline">View All Entries</Button>
-          </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
