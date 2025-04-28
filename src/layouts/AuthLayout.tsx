@@ -20,6 +20,7 @@ const AuthLayout = () => {
   if (user) {
     // Use the intended destination or default to dashboard
     const destination = location.state?.from?.pathname || "/dashboard";
+    console.log("AuthLayout: User is logged in, redirecting to:", destination);
     return <Navigate to={destination} replace />;
   }
 

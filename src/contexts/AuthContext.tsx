@@ -4,7 +4,6 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthContextType, UserProfile } from "@/types/auth";
 import { enhanceUserWithProfileData } from "@/utils/userProfile";
-import { useUserRoles } from "@/hooks/useUserRoles";
 import { handleLogin, handleRegister, initializeAdminAccount } from "@/utils/authOperations";
 import { updateUserCredits as updateCredits } from "@/utils/credits";
 import { toast } from "sonner";
@@ -15,8 +14,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [rolesLoading, setRolesLoading] = useState<boolean>(true);
   const [initializationComplete, setInitializationComplete] = useState<boolean>(false);
-  const { userRoles, fetchUserRoles, isAdmin, initialized: rolesInitialized } = useUserRoles();
+
+  const fetchUserRoles = useCallback(async (userId: string) => {
+    if (!userId) {
+      console.log("AuthContext: Cannot fetch roles without user ID");
+      setUserRoles([]);
+      setRolesLoading(false);
+      return;
+    }
+    
+    try {
+      console.log("AuthContext: Fetching roles for user:", userId);
+      
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+        
+      if (error) {
+        console.error("AuthContext: Error fetching user roles:", error);
+        setUserRoles([]);
+      } else {
+        const roles = data.map(item => item.role);
+        console.log("AuthContext: Fetched user roles:", roles);
+        setUserRoles(roles);
+      }
+    } catch (error) {
+      console.error("AuthContext: Error in fetchUserRoles:", error);
+      setUserRoles([]);
+    } finally {
+      setRolesLoading(false);
+    }
+  }, []);
+
+  const isAdmin = useCallback(() => {
+    const hasAdminRole = userRoles.includes('admin');
+    console.log("AuthContext: Admin check, roles:", userRoles, "isAdmin:", hasAdminRole);
+    return hasAdminRole;
+  }, [userRoles]);
 
   const updateAuthUser = useCallback(async (currentSession: Session | null) => {
     try {
@@ -47,6 +85,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("AuthContext: No user in session");
         setSession(null);
         setUser(null);
+        setUserRoles([]);
+        setRolesLoading(false);
       }
     } catch (error) {
       console.error("AuthContext: Error updating auth user:", error);
@@ -82,6 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("AuthContext: Error checking session:", error);
         setLoading(false);
+        setRolesLoading(false);
       }
     };
     
@@ -102,6 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
+      setUserRoles([]);
       toast.info("You've been logged out");
     } catch (error: any) {
       console.error("AuthContext: Logout error:", error);
@@ -129,26 +171,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Important: Get the admin status ONCE per render to avoid constant rechecking
-  const isAdminValue = isAdmin();
-  console.log("AuthContext: Admin check result:", isAdminValue, "userRoles:", userRoles);
-
+  const authIsReady = !loading && !rolesLoading;
+  
   const contextValue = {
     user,
     session,
-    loading: loading || !rolesInitialized,
+    loading: !authIsReady,
     login,
     register,
     logout,
-    isAdmin: () => isAdminValue,
+    isAdmin,
     updateUserCredits,
   };
   
   console.log("AuthContext: Auth context state:", { 
     user: user?.id, 
     isLoggedIn: !!user,
-    isAdmin: isAdminValue,
-    loading: loading || !rolesInitialized,
+    isAdmin: isAdmin(),
+    loading: !authIsReady,
     userRoles
   });
 

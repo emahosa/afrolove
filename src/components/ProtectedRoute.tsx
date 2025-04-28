@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,10 +61,15 @@ const ProtectedRoute = () => {
     if (!adminStatus) {
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
+  } else {
+    // For non-admin routes, just check if user is logged in
+    if (!user) {
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
   }
 
-  // For non-admin routes, just check if user is logged in
-  return user ? <Outlet /> : <Navigate to="/login" state={{ from: location }} replace />;
+  // All checks passed, render the protected route
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

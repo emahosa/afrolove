@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -94,9 +95,10 @@ export const initializeAdminAccount = async () => {
       }
       
       console.log("AuthOperations: Admin role assigned successfully to user:", userId);
+      return true;
     }
     
-    return true;
+    return false;
   } catch (error) {
     console.error("AuthOperations: Error in admin initialization:", error);
     return false;
@@ -118,26 +120,14 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
     });
 
     if (error) {
-      if (error.message.includes("Email not confirmed")) {
-        toast.error("Please check your inbox and verify your email to log in");
-        const { error: resendError } = await supabase.auth.resend({
-          type: 'signup',
-          email: email
-        });
-        
-        if (!resendError) {
-          toast.info("A new confirmation email has been sent to your email address");
-        }
-      } else {
-        toast.error(error.message);
-      }
       console.error("AuthOperations: Login error:", error);
+      toast.error(error.message || "Login failed");
       return false;
     }
 
     if (!data.session || !data.user) {
-      toast.error("Login failed - no session created");
       console.error("AuthOperations: No session or user data returned");
+      toast.error("Login failed - no session created");
       return false;
     }
 
@@ -196,7 +186,6 @@ export const handleRegister = async (name: string, email: string, password: stri
           full_name: name,
           avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
         },
-        // Don't redirect - we'll handle this ourselves
         emailRedirectTo: window.location.origin + '/login',
       },
     });
@@ -228,8 +217,6 @@ export const handleRegister = async (name: string, email: string, password: stri
 
         if (roleError) {
           console.error("AuthOperations: Role assignment error:", roleError);
-          // Don't fail registration just because role assignment failed
-          // We'll just log the error
         } else {
           console.log(`AuthOperations: Assigned ${isAdmin ? 'admin' : 'user'} role to new user`);
         }
