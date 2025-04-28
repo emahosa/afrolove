@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Music, Loader2, Speaker } from "lucide-react";
+import { Music, Loader2, Speaker, Play, Pause } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -17,6 +16,7 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const { user } = useAuth();
 
   const simulateProgress = () => {
@@ -54,10 +54,8 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
 
     setIsProcessing(true);
     
-    // Simulate voice changing process
     const progressInterval = simulateProgress();
     
-    // Simulate the steps in the voice changing process
     setTimeout(() => {
       toast({
         title: "Processing",
@@ -96,13 +94,36 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
     }, 7000);
   };
 
+  const handleListen = () => {
+    setIsPlaying(!isPlaying);
+    
+    if (!isPlaying) {
+      toast({
+        title: "Playing remastered version",
+        description: `Now playing: ${songName} with your voice`,
+      });
+      
+      setTimeout(() => {
+        setIsPlaying(false);
+        toast({
+          title: "Playback complete",
+          description: "The remastered song preview has ended",
+        });
+      }, 30000);
+    } else {
+      toast({
+        title: "Playback stopped",
+        description: "Remastered song preview stopped",
+      });
+    }
+  };
+
   const handleDownload = () => {
     toast({
       title: "Download started",
       description: "Your voice-changed song is being downloaded",
     });
     
-    // Simulate download
     setTimeout(() => {
       toast({
         title: "Download complete",
@@ -132,15 +153,35 @@ const VoiceChanger = ({ songName, songUrl, voiceId, onComplete }: VoiceChangerPr
           <Progress value={progress} className="h-2" />
         </div>
       ) : (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleDownload}
-          className="flex items-center"
-        >
-          <Music className="h-4 w-4 mr-2" />
-          Download Voice-Changed Song
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleListen}
+            className="flex items-center"
+          >
+            {isPlaying ? (
+              <>
+                <Pause className="h-4 w-4 mr-2" />
+                Stop
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Listen
+              </>
+            )}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDownload}
+            className="flex items-center"
+          >
+            <Music className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        </div>
       )}
     </div>
   );
