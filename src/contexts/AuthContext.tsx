@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [initializationComplete, setInitializationComplete] = useState<boolean>(false);
 
   useEffect(() => {
     // First set up auth state listener to avoid missing events
@@ -73,10 +74,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
       }
       setLoading(false);
+      
+      // Initialize admin account if needed
+      initializeAdminAccount();
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Function to initialize admin account
+  const initializeAdminAccount = async () => {
+    if (initializationComplete) return;
+    
+    try {
+      console.log("Checking if admin account exists...");
+      
+      // First check if admin exists by trying to sign in
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: "admin@example.com",
+        password: "Admin123",
+      });
+      
+      if (error && error.message.includes("Invalid login credentials")) {
+        // Admin doesn't exist, create one
+        console.log("Admin account does not exist. Creating...");
+        
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: "admin@example.com",
+          password: "Admin123",
+          options: {
+            data: {
+              name: "Admin User",
+              full_name: "Admin User",
+              avatar_url: `https://ui-avatars.com/api/?name=Admin+User&background=random`,
+            },
+          }
+        });
+        
+        if (signUpError) {
+          console.error("Error creating admin account:", signUpError);
+        } else if (signUpData.user) {
+          console.log("Admin user created:", signUpData.user.id);
+          
+          // Add admin role
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: signUpData.user.id,
+              role: 'admin'
+            });
+          
+          if (roleError) {
+            console.error("Error assigning admin role:", roleError);
+          } else {
+            console.log("Admin role assigned successfully");
+          }
+        }
+      } else if (data.user) {
+        console.log("Admin account already exists:", data.user.id);
+        // Sign out if we were just checking
+        await supabase.auth.signOut();
+      }
+      
+      setInitializationComplete(true);
+    } catch (error) {
+      console.error("Error in admin initialization:", error);
+    }
+  };
   
   // Function to fetch profile data and enhance the user object
   const enhanceUserWithProfileData = async (baseUser: User): Promise<UserProfile> => {
@@ -172,7 +236,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Handle login failures
       if (error) {
         console.error("Supabase login error:", error);
-        toast.error(error.message);
+        
+        if (email === "admin@example.com" && password === "Admin123") {
+          toast.error("The admin account might not be fully set up yet. Try refreshing and trying again.");
+        } else {
+          toast.error(error.message);
+        }
         return false;
       }
 

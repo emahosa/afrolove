@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,17 @@ const Login = () => {
   const [userType, setUserType] = useState("user");
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Auto-fill admin credentials when on admin tab
+  useEffect(() => {
+    if (userType === "admin") {
+      setEmail("admin@example.com");
+      setPassword("Admin123");
+    } else {
+      setEmail("");
+      setPassword("");
+    }
+  }, [userType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +117,16 @@ const Login = () => {
             >
               {loading ? "Signing in..." : userType === "admin" ? "Sign In as Admin" : "Sign In"}
             </Button>
+
+            {userType === "admin" && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-sm text-amber-800">
+                  <strong>Admin credentials:</strong><br />
+                  Email: admin@example.com<br />
+                  Password: Admin123
+                </p>
+              </div>
+            )}
           </form>
 
           {userType === "user" && (
