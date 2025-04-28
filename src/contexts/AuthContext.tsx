@@ -4,8 +4,17 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Extended User type with additional profile properties
+interface UserProfile extends User {
+  name?: string;
+  avatar?: string;
+  credits?: number;
+  subscription?: string;
+  voiceProfiles?: any[];
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string, isAdmin: boolean) => Promise<boolean>;
@@ -18,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -26,34 +35,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_, currentSession) => {
+      async (_, currentSession) => {
         setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        setLoading(false);
-        
-        // Fetch user roles when session changes
         if (currentSession?.user) {
+          // Enhance the user object with profile data
+          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+          setUser(enhancedUser);
           fetchUserRoles(currentSession.user.id);
         } else {
+          setUser(null);
           setUserRoles([]);
         }
+        setLoading(false);
       }
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
       setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setLoading(false);
-      
-      // Fetch user roles for existing session
       if (currentSession?.user) {
+        // Enhance the user object with profile data
+        const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
+        setUser(enhancedUser);
         fetchUserRoles(currentSession.user.id);
+      } else {
+        setUser(null);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+  
+  // Function to fetch profile data and enhance the user object
+  const enhanceUserWithProfileData = async (baseUser: User): Promise<UserProfile> => {
+    try {
+      // Fetch profile data from profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', baseUser.id)
+        .single();
+        
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        // Return base user with metadata if available
+        return {
+          ...baseUser,
+          name: baseUser.user_metadata?.name || baseUser.user_metadata?.full_name,
+          avatar: baseUser.user_metadata?.avatar_url,
+          credits: 0,
+          subscription: 'free'
+        };
+      }
+
+      // Fetch voice profiles if they exist
+      const { data: voiceProfilesData } = await supabase
+        .from('voice_clones')
+        .select('*')
+        .eq('user_id', baseUser.id);
+
+      // Return enhanced user object with profile data
+      return {
+        ...baseUser,
+        name: profileData.full_name || baseUser.user_metadata?.name,
+        avatar: profileData.avatar_url || baseUser.user_metadata?.avatar_url,
+        credits: profileData.credits || 0,
+        subscription: 'free', // Default to free until we implement subscription system
+        voiceProfiles: voiceProfilesData || []
+      };
+    } catch (error) {
+      console.error("Error in enhanceUserWithProfileData:", error);
+      // Return base user if there's an error
+      return {
+        ...baseUser,
+        name: baseUser.user_metadata?.name || baseUser.user_metadata?.full_name,
+        avatar: baseUser.user_metadata?.avatar_url,
+        credits: 0,
+        subscription: 'free'
+      };
+    }
+  };
   
   const fetchUserRoles = async (userId: string) => {
     try {
@@ -210,6 +272,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         return;
       }
+      
+      // Update local user state with new credit amount
+      setUser(prevUser => prevUser ? { ...prevUser, credits: newCredits } : null);
       
       // Log the transaction
       await supabase
