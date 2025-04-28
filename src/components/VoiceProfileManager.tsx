@@ -146,7 +146,7 @@ const VoiceProfileManager = () => {
             )}
             
             <div className="mt-6">
-              <VoiceCloning onSuccess={fetchVoiceProfiles} />
+              <VoiceCloning onVoiceCloned={fetchVoiceProfiles} />
             </div>
           </div>
         )}

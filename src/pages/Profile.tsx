@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { Star, Music, Trophy, Clock, Settings, VoiceIcon } from "lucide-react";
+import { Star, Music, Trophy, Clock, Settings, Mic } from "lucide-react";
 import VoiceProfileManager from "@/components/VoiceProfileManager";
 
 // Mock data
@@ -211,7 +210,6 @@ const Profile = () => {
   );
 };
 
-// Add this component separately
 const Download = ({ className, ...props }: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
