@@ -12,7 +12,7 @@ import { LyricsEditor } from "@/components/song-management/LyricsEditor";
 
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<string>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   
   const {
@@ -95,7 +95,6 @@ const CustomSongManagement = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="max-w-xs"
-                  prefix={<Search className="h-4 w-4 text-muted-foreground" />}
                 />
               </div>
             </div>
