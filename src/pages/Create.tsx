@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Disc, Mic, Loader2, Music } from "lucide-react";
+import { Disc, Mic, Loader2, Music, FileMusic } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
+import CustomSongCreation from "@/components/CustomSongCreation";
 
 // Mock genre data
 const genres = [
@@ -24,7 +24,7 @@ const Create = () => {
   const [theme, setTheme] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTrack, setGeneratedTrack] = useState<null | { name: string }>(null);
-  const { user } = useAuth();
+  const { user, updateUserCredits } = useAuth();
 
   const handleGenerate = () => {
     if (!selectedGenre) {
@@ -56,10 +56,13 @@ const Create = () => {
 
     setIsGenerating(true);
     
-    // Simulate generation process
+    // Simulate generation process and deduct 1 credit
     setTimeout(() => {
       setIsGenerating(false);
       setGeneratedTrack({ name: `${selectedGenre} ${activeTab === "vocals" ? "song" : "instrumental"} about ${theme}` });
+      
+      // Deduct 1 credit
+      updateUserCredits(-1);
       
       toast({
         title: "Track generated!",
@@ -74,14 +77,18 @@ const Create = () => {
       <p className="text-muted-foreground mb-6">Generate a new song or instrumental using AI</p>
       
       <Tabs defaultValue="vocals" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+        <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
           <TabsTrigger value="vocals" className="flex items-center gap-2">
             <Mic className="h-4 w-4" />
-            <span>Song with AI vocals</span>
+            <span>AI Vocals</span>
           </TabsTrigger>
           <TabsTrigger value="instrumental" className="flex items-center gap-2">
             <Disc className="h-4 w-4" />
-            <span>Instrumental Only</span>
+            <span>Instrumental</span>
+          </TabsTrigger>
+          <TabsTrigger value="custom" className="flex items-center gap-2">
+            <FileMusic className="h-4 w-4" />
+            <span>Custom Song</span>
           </TabsTrigger>
         </TabsList>
         
@@ -335,6 +342,10 @@ const Create = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="custom" className="space-y-6">
+          <CustomSongCreation />
         </TabsContent>
       </Tabs>
     </div>
