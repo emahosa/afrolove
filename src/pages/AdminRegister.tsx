@@ -30,27 +30,23 @@ const AdminRegister = () => {
       return;
     }
 
-    // Simple format check (contains @ and .)
-    if (!email.includes('@') || !email.includes('.')) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters long");
       return;
     }
     
     // In a real app, you would validate the admin code on the server
-    if (adminCode !== "ADMIN123") { // Simple admin code validation
+    if (adminCode !== "ADMIN123") {
       toast.error("Invalid admin code");
       return;
     }
     
     setLoading(true);
     try {
+      console.log("Registering admin:", { email, name });
       const success = await register(name, email, password, true); // true = admin
       if (success) {
+        toast.success("Admin account created successfully");
         navigate("/dashboard");
       }
     } catch (error) {

@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // First set up auth state listener to avoid missing events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         if (currentSession?.user) {
           // Enhance the user object with profile data
@@ -61,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Then check for existing session
     supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      console.log("Initial session check:", currentSession?.user?.id);
       setSession(currentSession);
       if (currentSession?.user) {
         // Enhance the user object with profile data
@@ -137,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error fetching user roles:", error);
         setUserRoles([]);
       } else {
+        console.log("Fetched user roles:", data);
         setUserRoles(data.map(item => item.role));
       }
     } catch (error) {
@@ -146,81 +149,76 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string, isAdmin: boolean): Promise<boolean> => {
+    console.log("Login function called with:", { email, isAdmin });
+    
     try {
-      console.log("Login attempt:", { email, isAdmin });
-      
-      // Simple validation - don't use regex to avoid potential issues
+      // Input validation
       if (!email.trim()) {
         toast.error("Email cannot be empty");
         return false;
       }
 
-      // Check for empty password
       if (!password.trim()) {
         toast.error("Password cannot be empty");
         return false;
       }
 
+      // Attempt login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      // Handle login failures
       if (error) {
-        console.error("Login error:", error);
-        toast.error("Login failed", {
-          description: error.message
-        });
+        console.error("Supabase login error:", error);
+        toast.error(error.message);
         return false;
       }
 
       if (!data.session || !data.user) {
-        toast.error("Login failed", {
-          description: "No session or user data returned"
-        });
+        console.error("Login failed: No session or user data returned");
+        toast.error("Login failed - no session created");
         return false;
       }
 
-      console.log("Login successful, user:", data.user.id);
+      console.log("Login successful, user ID:", data.user.id);
 
-      // If trying to log in as admin, verify admin role
+      // For admin login, verify admin role
       if (isAdmin) {
+        console.log("Verifying admin role for user:", data.user.id);
+        
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('*')
           .eq('user_id', data.user.id)
           .eq('role', 'admin');
 
-        console.log("Admin role check:", { roleData, roleError });
+        console.log("Admin role check result:", { roleData, roleError });
 
         if (roleError) {
-          console.error("Role check error:", roleError);
-          toast.error("Role verification failed", {
-            description: roleError.message
-          });
+          console.error("Role verification error:", roleError);
+          toast.error("Could not verify admin status");
           await supabase.auth.signOut();
           return false;
         }
 
         if (!roleData || roleData.length === 0) {
-          console.log("Not an admin user");
-          toast.error("Access denied", {
-            description: "You don't have admin permissions"
-          });
+          console.log("Not an admin user, signing out");
+          toast.error("Access denied - not an admin user");
           await supabase.auth.signOut();
           return false;
         }
+        
+        console.log("Admin role verified successfully");
       }
 
-      toast.success("Login successful", {
-        description: `Welcome back${data.user?.user_metadata?.name ? ', ' + data.user.user_metadata.name : ''}!`
-      });
+      // Login successful
+      toast.success("Login successful");
       return true;
     } catch (error: any) {
-      console.error("Login error:", error);
-      toast.error("Login error", {
-        description: error.message || "An unexpected error occurred"
-      });
+      console.error("Unexpected login error:", error);
+      toast.error(error.message || "An unexpected error occurred");
       return false;
     }
   };

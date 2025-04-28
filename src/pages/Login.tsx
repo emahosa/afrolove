@@ -22,7 +22,6 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
     if (!email.trim()) {
       toast.error("Email cannot be empty");
       return;
@@ -35,16 +34,16 @@ const Login = () => {
     
     setLoading(true);
     try {
-      console.log("Submitting login form:", { email, userType });
+      console.log("Attempting login with:", { email, userType });
       const success = await login(email, password, userType === "admin");
+      console.log("Login result:", success);
+      
       if (success) {
-        console.log("Login successful, navigating to dashboard");
+        toast.success("Login successful");
         navigate("/dashboard");
-      } else {
-        console.log("Login failed");
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error in component:", error);
       toast.error("An unexpected error occurred during login");
     } finally {
       setLoading(false);

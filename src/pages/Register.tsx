@@ -30,12 +30,6 @@ const Register = () => {
       return;
     }
 
-    // Simple format check (contains @ and .)
-    if (!email.includes('@') || !email.includes('.')) {
-      toast.error("Please enter a valid email address");
-      return;
-    }
-
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters long");
       return;
@@ -43,8 +37,10 @@ const Register = () => {
     
     setLoading(true);
     try {
+      console.log("Registering user:", { email, name });
       const success = await register(name, email, password, false); // false = not admin
       if (success) {
+        toast.success("Registration successful");
         navigate("/dashboard");
       }
     } catch (error) {
