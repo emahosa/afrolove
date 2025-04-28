@@ -11,6 +11,18 @@ const ProtectedRoute = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   
   useEffect(() => {
+    // If auth is no longer loading, we can finish our check
+    if (!loading) {
+      // Add a small delay to ensure any auth state updates have propagated
+      const timer = setTimeout(() => {
+        setIsChecking(false);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
+  
+  useEffect(() => {
     // Only show the toast if we're not loading and not checking (i.e., we've completed our checks)
     if (!loading && !user && !isChecking) {
       toast.error("Access denied", {
@@ -24,26 +36,9 @@ const ProtectedRoute = () => {
         description: "You don't have admin privileges to access this page"
       });
     }
-    
-    // Mark checking as complete once loading is done
-    if (!loading && isChecking) {
-      setIsChecking(false);
-    }
   }, [loading, user, location.pathname, isChecking, isAdminRoute, isAdmin]);
 
-  console.log("ProtectedRoute: state:", { 
-    user: user?.id, 
-    loading, 
-    isChecking,
-    isAdminRoute,
-    isAdmin: isAdmin(),
-    session: !!session,
-    pathname: location.pathname,
-    email: user?.email,
-    isSuperAdmin: user?.email === "ellaadahosa@gmail.com"
-  });
-
-  // Show loading state if we're still checking auth status
+  // Check for authentication status
   if (loading || isChecking) {
     return (
       <div className="flex justify-center items-center h-screen">

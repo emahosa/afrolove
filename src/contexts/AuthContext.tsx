@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +53,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const isAdmin = useCallback(() => {
-    if (user?.email === "ellaadahosa@gmail.com") {
+    if (!user) return false;
+    
+    if (user.email === "ellaadahosa@gmail.com") {
       console.log("AuthContext: Super admin access granted to ellaadahosa@gmail.com");
       return true;
     }
@@ -60,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const hasAdminRole = userRoles.includes('admin');
     console.log("AuthContext: Admin check for regular user, roles:", userRoles, "isAdmin:", hasAdminRole);
     return hasAdminRole;
-  }, [userRoles, user?.email]);
+  }, [userRoles, user]);
 
   const updateAuthUser = useCallback(async (currentSession: Session | null) => {
     try {
@@ -115,17 +118,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     console.log("AuthContext: Setting up auth listener");
     
-    // First set up the auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("AuthContext: Auth state changed:", event, currentSession?.user?.id);
-        await updateAuthUser(currentSession);
-      }
-    );
-
-    // Then check for existing session
-    const checkSession = async () => {
+    const setupAuth = async () => {
       try {
+        // First check for existing session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         console.log("AuthContext: Initial session check:", currentSession?.user?.id);
         
@@ -143,8 +138,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     
-    checkSession();
+    // Set up the auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        console.log("AuthContext: Auth state changed:", event, currentSession?.user?.id);
+        await updateAuthUser(currentSession);
+      }
+    );
 
+    setupAuth();
+    
     return () => {
       console.log("AuthContext: Cleaning up auth listener");
       subscription.unsubscribe();
