@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const ProtectedRoute = () => {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, session } = useAuth();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -37,6 +37,7 @@ const ProtectedRoute = () => {
     isChecking,
     isAdminRoute,
     isAdmin: isAdmin(),
+    session: !!session,
     pathname: location.pathname 
   });
 
