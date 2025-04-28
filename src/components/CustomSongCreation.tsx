@@ -10,7 +10,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-// Mock genre data
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
   { id: "rnb", name: "R&B", description: "Smooth, soulful contemporary sound" },
@@ -18,7 +17,6 @@ const genres = [
   { id: "highlife", name: "Highlife", description: "Traditional West African musical genre" },
 ];
 
-// Custom song creation states
 type CreationStep = 'initial' | 'waiting' | 'lyrics' | 'rhythm' | 'final';
 
 interface SongOption {
@@ -40,7 +38,6 @@ const CustomSongCreation = () => {
   const [editedLyrics, setEditedLyrics] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Mock lyric options
   const lyricOptions: SongOption[] = [
     {
       id: "lyric1",
@@ -54,7 +51,6 @@ const CustomSongCreation = () => {
     },
   ];
 
-  // Mock instrumental options
   const instrumentalOptions: SongOption[] = [
     {
       id: "inst1",
@@ -67,6 +63,20 @@ const CustomSongCreation = () => {
       preview: "Upbeat version with stronger drums and melodic synths",
     },
   ];
+
+  const generateVersions = () => {
+    const versions = [];
+    for (let i = 1; i <= versionCount; i++) {
+      versions.push({
+        id: `version-${i}`,
+        name: `Version ${i}`,
+        description: i % 2 === 0 ? 
+          "Upbeat arrangement with strong drums and melodic synths" :
+          "Smooth arrangement with piano and gentle beats"
+      });
+    }
+    return versions;
+  };
 
   const handleInitialSubmit = () => {
     if (!selectedGenre) {
@@ -98,10 +108,8 @@ const CustomSongCreation = () => {
 
     setIsGenerating(true);
     
-    // Deduct 100 credits for initial custom song request
     updateUserCredits(-100);
     
-    // Simulate submission to admin
     setTimeout(() => {
       setIsGenerating(false);
       setStep('waiting');
@@ -111,7 +119,6 @@ const CustomSongCreation = () => {
         description: "Our team is now working on your custom song lyrics",
       });
       
-      // Simulate admin response after 5 seconds (in real app this would come from backend)
       setTimeout(() => {
         setStep('lyrics');
       }, 5000);
@@ -148,7 +155,6 @@ const CustomSongCreation = () => {
 
     setIsGenerating(true);
     
-    // Simulate submission for instrumental creation
     setTimeout(() => {
       setIsGenerating(false);
       setStep('rhythm');
@@ -174,7 +180,6 @@ const CustomSongCreation = () => {
       return;
     }
 
-    // Calculate additional credits needed (20 credits per 2 versions beyond the first 2)
     const additionalVersions = Math.max(0, versionCount - 2);
     const additionalCreditsNeeded = Math.floor(additionalVersions / 2) * 20;
     
@@ -189,12 +194,10 @@ const CustomSongCreation = () => {
 
     setIsGenerating(true);
     
-    // Deduct additional credits if needed
     if (additionalCreditsNeeded > 0) {
       updateUserCredits(-additionalCreditsNeeded);
     }
     
-    // Simulate final song creation
     setTimeout(() => {
       setIsGenerating(false);
       setStep('final');
@@ -555,37 +558,49 @@ const CustomSongCreation = () => {
             <CardHeader>
               <CardTitle>Your Custom Song is Complete!</CardTitle>
               <CardDescription>
-                Your personalized song has been created by our team
+                Your personalized song has been created in {versionCount} different versions
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="aspect-square max-w-sm mx-auto bg-melody-primary/30 rounded-md flex items-center justify-center">
-                <div className="audio-wave scale-150">
-                  <div className="audio-wave-bar h-5 animate-wave1"></div>
-                  <div className="audio-wave-bar h-8 animate-wave2"></div>
-                  <div className="audio-wave-bar h-4 animate-wave3"></div>
-                  <div className="audio-wave-bar h-6 animate-wave4"></div>
-                  <div className="audio-wave-bar h-3 animate-wave1"></div>
-                  <div className="audio-wave-bar h-7 animate-wave2"></div>
-                </div>
+              <div className="space-y-4">
+                {generateVersions().map((version) => (
+                  <div 
+                    key={version.id}
+                    className="flex items-start space-x-4 p-4 border rounded-lg bg-card"
+                  >
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-melody-primary/10 flex items-center justify-center">
+                        <Music className="h-6 w-6 text-melody-secondary" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-semibold">{version.name}</h3>
+                      <p className="text-sm text-muted-foreground">{version.description}</p>
+                      <div className="mt-3 p-2 bg-muted rounded flex items-center justify-start">
+                        <div className="audio-wave scale-75">
+                          <div className="audio-wave-bar h-4 animate-wave1"></div>
+                          <div className="audio-wave-bar h-6 animate-wave2"></div>
+                          <div className="audio-wave-bar h-3 animate-wave3"></div>
+                          <div className="audio-wave-bar h-5 animate-wave4"></div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <Button size="sm" variant="outline">Play</Button>
+                        <Button size="sm" variant="outline">Download</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
               
-              <div className="text-center">
-                <h3 className="text-xl font-semibold mb-2">Sunset Love - Custom Track</h3>
-                <p className="text-muted-foreground mb-6">Created just for you</p>
-                
-                <div className="flex flex-wrap justify-center gap-3">
-                  <Button onClick={handleSaveToLibrary}>
-                    <Music className="mr-2 h-4 w-4" />
-                    Save to Library
-                  </Button>
-                  <Button variant="outline" onClick={handleDownload}>
-                    Download
-                  </Button>
-                  <Button variant="outline" onClick={handleShare}>
-                    Share
-                  </Button>
-                </div>
+              <div className="flex justify-center gap-3">
+                <Button onClick={handleSaveToLibrary}>
+                  <Music className="mr-2 h-4 w-4" />
+                  Save All to Library
+                </Button>
+                <Button variant="outline" onClick={handleShare}>
+                  Share
+                </Button>
               </div>
               
               <Button
