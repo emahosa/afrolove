@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("AuthContext: Fetching roles for user:", userId);
       
+      // Important: Using the public client with RLS policies
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         setUser(basicUser);
         
-        // Then fetch roles
+        // Then fetch roles - without this admin check won't work
         await fetchUserRoles(currentSession.user.id);
         
         // Then enhance with profile data

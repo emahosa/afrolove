@@ -114,6 +114,7 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
 
     console.log(`AuthOperations: Attempting to sign in user: ${email}, isAdmin: ${isAdmin}`);
 
+    // First authenticate the user - this is the same for both admin and regular users
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,

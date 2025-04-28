@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -64,7 +63,7 @@ const Login = () => {
       const success = await login(email, password, isAdminLogin);
       
       if (success) {
-        // Get the intended destination or default to dashboard
+        // Get the intended destination or default to dashboard/admin based on login type
         let destination = isAdminLogin ? "/admin" : "/dashboard";
         if (location.state?.from?.pathname) {
           destination = location.state.from.pathname;
