@@ -19,7 +19,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       return null;
     }
     
-    const currentCredits = profileData.credits || 0;
+    const currentCredits = profileData?.credits || 0;
     const newCredits = currentCredits + amount;
     
     // Update the user's credits in profiles table

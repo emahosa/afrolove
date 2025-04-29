@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -187,8 +186,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const newCredits = await updateCredits(user.id, amount);
       if (newCredits !== null) {
         // Update the user state with the new credits value
-        setUser(prevUser => prevUser ? { ...prevUser, credits: newCredits } : null);
-        console.log("AuthContext: Credits updated in AuthContext:", newCredits);
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          const updatedUser = { ...prevUser, credits: newCredits };
+          console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
+          return updatedUser;
+        });
       }
     } catch (error) {
       console.error("AuthContext: Error updating credits in AuthContext:", error);
