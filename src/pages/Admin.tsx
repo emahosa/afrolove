@@ -16,6 +16,13 @@ import { ContentManagement } from '@/components/admin/ContentManagement';
 import { SupportManagement } from '@/components/admin/SupportManagement';
 import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
 import { SettingsManagement } from '@/components/admin/SettingsManagement';
+import { fetchUsersFromDatabase } from '@/utils/adminOperations';
+
+// Mock data for other sections
+const admins = [
+  { id: 101, name: 'Admin User', email: 'admin@example.com', role: 'admin', permissions: 'full', lastActive: '2025-04-27' },
+  { id: 102, name: 'Support Admin', email: 'support@example.com', role: 'moderator', permissions: 'limited', lastActive: '2025-04-25' },
+];
 
 // Mock data
 const users = [
@@ -24,12 +31,6 @@ const users = [
   { id: 3, name: 'Robert Johnson', email: 'robert@example.com', status: 'suspended', role: 'user', credits: 0, joinDate: '2025-03-10' },
 ];
 
-const admins = [
-  { id: 101, name: 'Admin User', email: 'admin@example.com', role: 'admin', permissions: 'full', lastActive: '2025-04-27' },
-  { id: 102, name: 'Support Admin', email: 'support@example.com', role: 'moderator', permissions: 'limited', lastActive: '2025-04-25' },
-];
-
-// Update mock data for API keys to match our new structure
 const apiKeys = [
   { 
     id: 1, 
@@ -115,6 +116,26 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const fetchedUsers = await fetchUsersFromDatabase();
+        setUsers(fetchedUsers);
+      } catch (error) {
+        console.error("Failed to load users:", error);
+        toast.error("Failed to load users", {
+          description: "There was an error loading user data"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadUsers();
+  }, []);
 
   useEffect(() => {
     const pathSegments = location.pathname.split('/');
@@ -278,7 +299,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         
         <div className="mt-6">
           <TabsContent value="users" className="mt-0">
-            <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
+            {loading ? (
+              <div className="flex justify-center p-8">
+                <p>Loading users...</p>
+              </div>
+            ) : (
+              <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
+            )}
           </TabsContent>
 
           <TabsContent value="admins" className="mt-0">

@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { 
@@ -23,9 +22,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus, addUserToDatabase } from '@/utils/adminOperations';
 
 interface User {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   status: string;
@@ -47,11 +47,12 @@ const userFormSchema = z.object({
   role: z.string().optional(),
 });
 
-export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps) => {
-  const [usersList, setUsersList] = useState<User[]>(users);
+export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementProps) => {
+  const [usersList, setUsersList] = useState<User[]>(initialUsers);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
@@ -64,7 +65,24 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
     },
   });
 
-  const handleEdit = (userId: number) => {
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const loadedUsers = await fetchUsersFromDatabase();
+      setUsersList(loadedUsers);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      toast.error("Failed to load users");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEdit = (userId: string | number) => {
     const user = usersList.find(user => user.id === userId);
     if (user) {
       setCurrentUser(user);
@@ -79,16 +97,25 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
     }
   };
 
-  const handleToggleBan = (userId: number, currentStatus: string) => {
-    const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
-    
-    setUsersList(usersList.map(user => {
-      if (user.id === userId) {
-        toast.success(`User ${newStatus === 'suspended' ? 'banned' : 'unbanned'}`);
-        return { ...user, status: newStatus };
+  const handleToggleBan = async (userId: string | number, currentStatus: string) => {
+    setIsLoading(true);
+    try {
+      const success = await toggleUserBanStatus(userId, currentStatus);
+      if (success) {
+        const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
+        setUsersList(usersList.map(user => {
+          if (user.id === userId) {
+            toast.success(`User ${newStatus === 'suspended' ? 'banned' : 'unbanned'}`);
+            return { ...user, status: newStatus };
+          }
+          return user;
+        }));
       }
-      return user;
-    }));
+    } catch (error) {
+      console.error("Failed to toggle ban status:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddUser = () => {
@@ -103,39 +130,59 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
     setIsAddDialogOpen(true);
   };
 
-  const onSubmitEdit = (values: z.infer<typeof userFormSchema>) => {
+  const onSubmitEdit = async (values: z.infer<typeof userFormSchema>) => {
     if (currentUser) {
-      setUsersList(usersList.map(user => 
-        user.id === currentUser.id 
-          ? { 
-              ...user, 
-              name: values.name, 
-              email: values.email, 
-              credits: values.credits,
-              status: values.status || user.status,
-              role: values.role || user.role,
-            } 
-          : user
-      ));
-      toast.success("User updated successfully");
-      setIsEditDialogOpen(false);
+      setIsLoading(true);
+      try {
+        const success = await updateUserInDatabase(currentUser.id, values);
+        if (success) {
+          setUsersList(usersList.map(user => 
+            user.id === currentUser.id 
+              ? { 
+                  ...user, 
+                  name: values.name, 
+                  email: values.email, 
+                  credits: values.credits,
+                  status: values.status || user.status,
+                  role: values.role || user.role,
+                } 
+              : user
+          ));
+          toast.success("User updated successfully");
+          setIsEditDialogOpen(false);
+        }
+      } catch (error) {
+        console.error("Failed to update user:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const onSubmitAdd = (values: z.infer<typeof userFormSchema>) => {
-    const newUser: User = {
-      id: Math.max(0, ...usersList.map(u => u.id)) + 1,
-      name: values.name,
-      email: values.email,
-      credits: values.credits,
-      status: values.status || 'active',
-      role: values.role || 'user',
-      joinDate: new Date().toISOString().split('T')[0]
-    };
-    
-    setUsersList([...usersList, newUser]);
-    toast.success("New user added successfully");
-    setIsAddDialogOpen(false);
+  const onSubmitAdd = async (values: z.infer<typeof userFormSchema>) => {
+    setIsLoading(true);
+    try {
+      const newUserId = await addUserToDatabase(values);
+      if (newUserId) {
+        const newUser: User = {
+          id: newUserId,
+          name: values.name,
+          email: values.email,
+          credits: values.credits || 0,
+          status: values.status || 'active',
+          role: values.role || 'user',
+          joinDate: new Date().toISOString().split('T')[0]
+        };
+        
+        setUsersList([...usersList, newUser]);
+        toast.success("New user added successfully");
+        setIsAddDialogOpen(false);
+      }
+    } catch (error) {
+      console.error("Failed to add user:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -144,6 +191,7 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
         <h2 className="text-2xl font-bold">User Management</h2>
         <Button onClick={handleAddUser}>Add New User</Button>
       </div>
+      {isLoading && <p>Loading...</p>}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -292,7 +340,9 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Save Changes</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? 'Saving...' : 'Save Changes'}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -401,7 +451,9 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Add User</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? 'Adding...' : 'Add User'}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
