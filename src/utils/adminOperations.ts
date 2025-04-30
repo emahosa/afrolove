@@ -81,16 +81,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
     console.log("Fetching users from database");
     
-    // First try to get users from auth.users (for debugging purposes)
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    
-    if (!authError && authUsers) {
-      console.log("Auth users found:", authUsers.users.length);
-    } else {
-      console.log("No auth users found or not authorized to view auth users");
-    }
-    
-    // Get profiles with auth user data
+    // Get profiles directly - this is the main source of truth for users in our app
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
@@ -100,86 +91,98 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
     }
     
-    // Fetch user roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('*');
+    if (!profiles || profiles.length === 0) {
+      console.log("No profiles found in the database");
       
-    if (rolesError) {
-      console.error("Error fetching user roles:", rolesError);
-      throw new Error(`Failed to fetch user roles: ${rolesError.message}`);
-    }
-    
-    console.log("Fetched profiles:", profiles?.length || 0);
-    console.log("Raw profiles data:", JSON.stringify(profiles));
-    
-    // If no profiles found, attempt to add one for the current user
-    if ((!profiles || profiles.length === 0) && authUsers?.users?.length > 0) {
-      console.log("No profiles found but auth users exist. Trying to populate profiles...");
+      // Check if current user exists and add their profile if needed
+      const { data: session } = await supabase.auth.getSession();
       
-      // Get current auth user
-      const { data: currentSession } = await supabase.auth.getSession();
-      
-      if (currentSession?.session?.user) {
-        const user = currentSession.session.user;
-        console.log("Current authenticated user:", user);
-        
-        // Check if profile already exists for this user
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-          
-        if (!existingProfile) {
-          // Create profile for current user
-          const { data: newProfile, error: insertError } = await supabase
+      if (session?.session?.user) {
+        try {
+          await createProfileForUser(session.session.user);
+          // Try fetching again after creating profile
+          const { data: newProfiles, error } = await supabase
             .from('profiles')
-            .insert({
-              id: user.id,
-              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'New User',
-              username: user.email,
-              credits: 5,
-              created_at: new Date().toISOString()
-            })
-            .select();
+            .select('*');
             
-          if (insertError) {
-            console.error("Error creating profile for current user:", insertError);
-          } else {
-            console.log("Created profile for current user:", newProfile);
-            
-            // Add to profiles array if it was created
-            if (newProfile) {
-              profiles?.push(newProfile[0]);
-            }
-          }
+          if (error) throw error;
+          if (newProfiles) return processProfilesToUsersList(newProfiles);
+        } catch (err) {
+          console.error("Failed to create profile for current user:", err);
         }
       }
+      
+      return []; // Return empty list if no profiles exist
     }
     
-    // Map profiles to user objects with their roles
-    const usersWithRoles = (profiles || []).map(profile => {
-      const userRole = userRoles?.find(role => role.user_id === profile.id);
-      return {
-        id: profile.id,
-        name: profile.full_name || 'No Name',
-        email: profile.username || 'No Email', 
-        status: profile.is_suspended ? 'suspended' : 'active',
-        role: userRole ? userRole.role : 'user',
-        credits: profile.credits || 0,
-        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
-      };
-    });
+    return processProfilesToUsersList(profiles);
     
-    console.log("Processed users:", usersWithRoles.length);
-    console.log("First few users:", JSON.stringify(usersWithRoles.slice(0, 3)));
-    
-    return usersWithRoles;
   } catch (error: any) {
     console.error("Error in fetchUsersFromDatabase:", error);
     toast.error("Failed to load users", { description: error.message });
     return [];
+  }
+};
+
+// Helper function to process profiles into user list format
+const processProfilesToUsersList = (profiles: any[]): any[] => {
+  console.log(`Processing ${profiles.length} profiles to user list format`);
+  
+  return profiles.map(profile => {
+    return {
+      id: profile.id,
+      name: profile.full_name || 'No Name',
+      email: profile.username || 'No Email', 
+      status: profile.is_suspended ? 'suspended' : 'active',
+      role: 'user', // Default role 
+      credits: profile.credits || 0,
+      joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
+    };
+  });
+};
+
+// Helper function to create a profile for a user
+export const createProfileForUser = async (user: any): Promise<boolean> => {
+  try {
+    console.log("Creating profile for user:", user.id);
+    
+    if (!user || !user.id) {
+      throw new Error("Invalid user object provided");
+    }
+    
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+      
+    if (existingProfile) {
+      console.log("Profile already exists for user:", user.id);
+      return true;
+    }
+    
+    // Create new profile
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        full_name: user.user_metadata?.name || user.user_metadata?.full_name || 'New User',
+        username: user.email,
+        avatar_url: user.user_metadata?.avatar_url,
+        credits: 5 // Default starting credits
+      });
+        
+    if (insertError) {
+      console.error("Error creating profile for user:", insertError);
+      throw insertError;
+    }
+    
+    console.log("Successfully created profile for user:", user.id);
+    return true;
+  } catch (error) {
+    console.error("Error in createProfileForUser:", error);
+    return false;
   }
 };
 
