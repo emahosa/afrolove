@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -75,7 +76,9 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const loadUsers = async () => {
     setIsLoading(true);
     try {
+      console.log("Loading users...");
       const loadedUsers = await fetchUsersFromDatabase();
+      console.log(`Loaded ${loadedUsers.length} users:`, loadedUsers);
       setUsersList(loadedUsers);
     } catch (error) {
       console.error("Failed to load users:", error);
@@ -220,34 +223,42 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
             </tr>
           </thead>
           <tbody>
-            {usersList.map((user) => (
-              <tr key={user.id} className="border-b">
-                <td className="py-3 px-4">{user.name}</td>
-                <td className="py-3 px-4">{user.email}</td>
-                <td className="py-3 px-4">{renderStatusLabel(user.status)}</td>
-                <td className="py-3 px-4">{user.role}</td>
-                <td className="py-3 px-4">{user.credits}</td>
-                <td className="py-3 px-4">{user.joinDate}</td>
-                <td className="py-3 px-4 text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 px-2"
-                    onClick={() => handleEdit(user.id)}
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 px-2"
-                    onClick={() => handleToggleBan(user.id, user.status)}
-                  >
-                    {user.status === 'suspended' ? 'Unban' : 'Ban'}
-                  </Button>
+            {usersList.length > 0 ? (
+              usersList.map((user) => (
+                <tr key={user.id} className="border-b">
+                  <td className="py-3 px-4">{user.name}</td>
+                  <td className="py-3 px-4">{user.email}</td>
+                  <td className="py-3 px-4">{renderStatusLabel(user.status)}</td>
+                  <td className="py-3 px-4">{user.role}</td>
+                  <td className="py-3 px-4">{user.credits}</td>
+                  <td className="py-3 px-4">{user.joinDate}</td>
+                  <td className="py-3 px-4 text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 px-2"
+                      onClick={() => handleEdit(user.id)}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 px-2"
+                      onClick={() => handleToggleBan(user.id, user.status)}
+                    >
+                      {user.status === 'suspended' ? 'Unban' : 'Ban'}
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="text-center py-4">
+                  {isLoading ? "Loading users..." : "No users found"}
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

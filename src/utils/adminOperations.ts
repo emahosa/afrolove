@@ -79,6 +79,16 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
+    console.log("Fetching users from database");
+    
+    // Get all authenticated users first
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error("Error fetching auth users:", authError);
+      throw new Error(`Failed to fetch auth users: ${authError.message}`);
+    }
+    
     // Fetch user profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -99,7 +109,10 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       throw new Error(`Failed to fetch user roles: ${rolesError.message}`);
     }
     
-    // Map roles to user profiles
+    console.log("Fetched profiles:", profiles.length);
+    console.log("First few profiles:", profiles.slice(0, 3));
+    
+    // Map profiles to user objects with their roles
     const usersWithRoles = profiles.map(profile => {
       const userRole = userRoles.find(role => role.user_id === profile.id);
       return {
@@ -109,9 +122,12 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
         status: profile.is_suspended ? 'suspended' : 'active',
         role: userRole ? userRole.role : 'user',
         credits: profile.credits || 0,
-        joinDate: new Date(profile.created_at).toISOString().split('T')[0]
+        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
       };
     });
+    
+    console.log("Processed users:", usersWithRoles.length);
+    console.log("First few users:", usersWithRoles.slice(0, 3));
     
     return usersWithRoles;
   } catch (error: any) {

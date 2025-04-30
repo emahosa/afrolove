@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
@@ -122,7 +123,9 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   useEffect(() => {
     const loadUsers = async () => {
       try {
+        console.log("Admin component: Loading users...");
         const fetchedUsers = await fetchUsersFromDatabase();
+        console.log("Admin component: Fetched users:", fetchedUsers);
         setUsers(fetchedUsers);
       } catch (error) {
         console.error("Failed to load users:", error);
