@@ -17,6 +17,32 @@ export const enhanceUserWithProfileData = async (user: User): Promise<UserProfil
     
     if (error) {
       console.error("Error fetching user profile:", error);
+      // If the profile doesn't exist, let's try to create it
+      if (error.code === 'PGRST116') {
+        try {
+          console.log("Profile not found, creating a new one");
+          const { data: newProfile, error: insertError } = await supabase
+            .from("profiles")
+            .insert({
+              id: user.id,
+              full_name: user.user_metadata?.name || user.user_metadata?.full_name || "User",
+              username: user.email,
+              avatar_url: user.user_metadata?.avatar_url,
+              credits: 5 // Default starting credits
+            })
+            .select("*")
+            .single();
+            
+          if (insertError) {
+            console.error("Error creating profile:", insertError);
+          } else {
+            console.log("Created new profile:", newProfile);
+            profile = newProfile;
+          }
+        } catch (createError) {
+          console.error("Error in profile creation:", createError);
+        }
+      }
     }
     
     // Create an enhanced user object with profile data if available

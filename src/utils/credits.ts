@@ -10,7 +10,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       throw new Error("User ID is required to update credits");
     }
 
-    // Use direct profile table update instead of the problematic RPC function
+    // Use direct profile table update instead of RPC function
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('credits')

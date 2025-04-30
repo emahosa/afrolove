@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Music, Check, Info, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { debugCreditsSystem } from "@/utils/supabaseDebug";
+import { updateUserCredits } from "@/utils/credits";
 
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
@@ -64,7 +64,7 @@ const subscriptionPlans = [
 ];
 
 const Credits = () => {
-  const { user, updateUserCredits } = useAuth();
+  const { user, updateUserCredits: authUpdateUserCredits } = useAuth();
   const [activeTab, setActiveTab] = useState("credits");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | undefined>(user?.subscription);
@@ -104,9 +104,7 @@ const Credits = () => {
       
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
-      // Update user credits using the utility function from utils/credits.ts directly
-      // instead of the one from AuthContext
-      const { updateUserCredits } = await import('@/utils/credits');
+      // Update user credits using the utility function directly
       const newBalance = await updateUserCredits(user.id, pack.credits);
       
       if (newBalance === null) {
@@ -115,6 +113,15 @@ const Credits = () => {
       
       // Update local state with the new balance
       setCreditBalance(newBalance);
+
+      // Also update the auth context
+      if (authUpdateUserCredits) {
+        try {
+          await authUpdateUserCredits(pack.credits);
+        } catch (err) {
+          console.log("Note: Auth context update failed but credits were added successfully");
+        }
+      }
       
       toast.success("Credits Purchased!", {
         description: `${pack.credits} credits have been added to your account.`,
@@ -151,13 +158,23 @@ const Credits = () => {
       
       console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
-      // Update user's subscription and credits using the utility function from utils/credits.ts directly
-      const { updateUserCredits } = await import('@/utils/credits');
+      // Update user credits using the utility function directly
       const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
       
-      if (newBalance !== null) {
-        // Update local state with the new balance
-        setCreditBalance(newBalance);
+      if (newBalance === null) {
+        throw new Error("Failed to update credits");
+      }
+      
+      // Update local state with the new balance
+      setCreditBalance(newBalance);
+      
+      // Also update the auth context
+      if (authUpdateUserCredits) {
+        try {
+          await authUpdateUserCredits(plan.creditsPerMonth);
+        } catch (err) {
+          console.log("Note: Auth context update failed but credits were added successfully");
+        }
       }
       
       setCurrentPlan(planId);
