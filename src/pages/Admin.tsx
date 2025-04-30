@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
@@ -26,12 +25,6 @@ const admins = [
 ];
 
 // Mock data
-const users = [
-  { id: 1, name: 'John Doe', email: 'john@example.com', status: 'active', role: 'user', credits: 10, joinDate: '2025-01-15' },
-  { id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'active', role: 'user', credits: 5, joinDate: '2025-02-20' },
-  { id: 3, name: 'Robert Johnson', email: 'robert@example.com', status: 'suspended', role: 'user', credits: 0, joinDate: '2025-03-10' },
-];
-
 const apiKeys = [
   { 
     id: 1, 
@@ -223,7 +216,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     ));
   };
 
-  // Remember to keep the getButtonContent function as it is
   const getButtonContent = (status: string): React.ReactNode => {
     if (status === 'active') {
       return (
@@ -304,10 +296,20 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           <TabsContent value="users" className="mt-0">
             {loading ? (
               <div className="flex justify-center p-8">
-                <p>Loading users...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+                <span className="ml-2">Loading users...</span>
               </div>
             ) : (
-              <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
+              <>
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md mb-4">
+                  <p className="text-sm">
+                    <strong>Note:</strong> This page shows user profiles stored in the database. 
+                    To see or modify authenticated users in the Supabase authentication system, 
+                    you'll need to use the Supabase dashboard.
+                  </p>
+                </div>
+                <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
+              </>
             )}
           </TabsContent>
 

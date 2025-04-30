@@ -79,24 +79,16 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
-    console.log("Fetching users from database");
+    console.log("Fetching users from database using profiles table");
     
-    // Get all authenticated users first
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-    
-    if (authError) {
-      console.error("Error fetching auth users:", authError);
-      throw new Error(`Failed to fetch auth users: ${authError.message}`);
-    }
-    
-    // Fetch user profiles
+    // Get profiles and user_roles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
       
     if (profilesError) {
       console.error("Error fetching user profiles:", profilesError);
-      throw new Error(`Failed to fetch user profiles: ${profilesError.message}`);
+      throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
     }
     
     // Fetch user roles
@@ -110,7 +102,6 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     }
     
     console.log("Fetched profiles:", profiles.length);
-    console.log("First few profiles:", profiles.slice(0, 3));
     
     // Map profiles to user objects with their roles
     const usersWithRoles = profiles.map(profile => {
@@ -118,7 +109,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       return {
         id: profile.id,
         name: profile.full_name || 'No Name',
-        email: profile.username || 'No Email', // Using username as email since we don't have email directly
+        email: profile.username || 'No Email', 
         status: profile.is_suspended ? 'suspended' : 'active',
         role: userRole ? userRole.role : 'user',
         credits: profile.credits || 0,

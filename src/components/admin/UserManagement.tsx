@@ -57,6 +57,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
@@ -75,13 +76,19 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   const loadUsers = async () => {
     setIsLoading(true);
+    setLoadingError(null);
     try {
       console.log("Loading users...");
       const loadedUsers = await fetchUsersFromDatabase();
       console.log(`Loaded ${loadedUsers.length} users:`, loadedUsers);
       setUsersList(loadedUsers);
-    } catch (error) {
+      
+      if (loadedUsers.length === 0) {
+        setLoadingError("No users found. You may need to add a user first.");
+      }
+    } catch (error: any) {
       console.error("Failed to load users:", error);
+      setLoadingError(error.message || "Failed to load users");
       toast.error("Failed to load users");
     } finally {
       setIsLoading(false);
@@ -208,7 +215,17 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         <h2 className="text-2xl font-bold">User Management</h2>
         <Button onClick={handleAddUser}>Add New User</Button>
       </div>
-      {isLoading && <p>Loading...</p>}
+      {isLoading && (
+        <div className="flex justify-center p-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+          <span className="ml-2">Loading users...</span>
+        </div>
+      )}
+      {loadingError && !isLoading && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
+          <p>{loadingError}</p>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
