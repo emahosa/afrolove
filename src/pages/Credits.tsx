@@ -104,16 +104,16 @@ const Credits = () => {
       
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
-      // Update user credits - using direct call to our updateUserCredits function
-      // Fix: Pass only the expected parameters in the correct order (userId, amount)
+      // Update user credits using the utility function from utils/credits.ts directly
+      // instead of the one from AuthContext
+      const { updateUserCredits } = await import('@/utils/credits');
       const newBalance = await updateUserCredits(user.id, pack.credits);
       
       if (newBalance === null) {
         throw new Error("Failed to update credits");
       }
       
-      // Update local state
-      // Fix: Use the returned value properly as a state action
+      // Update local state with the new balance
       setCreditBalance(newBalance);
       
       toast.success("Credits Purchased!", {
@@ -151,12 +151,12 @@ const Credits = () => {
       
       console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
-      // Update user's subscription and credits
-      // Fix: Pass only the expected parameters in the correct order (userId, amount)
+      // Update user's subscription and credits using the utility function from utils/credits.ts directly
+      const { updateUserCredits } = await import('@/utils/credits');
       const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
       
       if (newBalance !== null) {
-        // Fix: Use the returned value properly as a state action
+        // Update local state with the new balance
         setCreditBalance(newBalance);
       }
       
