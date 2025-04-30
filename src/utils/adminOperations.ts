@@ -147,8 +147,9 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
   try {
     console.log("Adding new user to database:", userData);
     
-    // For a real implementation, you would need to create an auth user first
-    // This is a simplified version that just creates a profile
+    if (!userData.name || !userData.email) {
+      throw new Error("User name and email are required");
+    }
     
     // Generate a UUID for the new user
     const newUserId = crypto.randomUUID();
@@ -169,7 +170,7 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
       throw new Error(`Profile creation failed: ${profileError.message}`);
     }
     
-    // Add role
+    // Add role if specified
     if (userData.role) {
       const { error: roleError } = await supabase
         .from('user_roles')
@@ -180,7 +181,21 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
         
       if (roleError) {
         console.error("Error adding user role:", roleError);
-        throw new Error(`Role creation failed: ${roleError.message}`);
+        // If role creation fails, we should still return the user ID since the profile was created
+        toast.warning("User created but role assignment failed", { description: roleError.message });
+      }
+    } else {
+      // Add default role as 'user'
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: newUserId,
+          role: 'user' as UserRole
+        });
+        
+      if (roleError) {
+        console.error("Error adding default user role:", roleError);
+        toast.warning("User created but default role assignment failed", { description: roleError.message });
       }
     }
     

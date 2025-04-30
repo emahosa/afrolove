@@ -165,6 +165,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const onSubmitAdd = async (values: z.infer<typeof userFormSchema>) => {
     setIsLoading(true);
     try {
+      console.log("Adding user with values:", values);
       const newUserId = await addUserToDatabase(values);
       if (newUserId) {
         const newUser: User = {
@@ -180,6 +181,9 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         setUsersList([...usersList, newUser]);
         toast.success("New user added successfully");
         setIsAddDialogOpen(false);
+        
+        // Refresh the user list to ensure we have the latest data
+        loadUsers();
       }
     } catch (error) {
       console.error("Failed to add user:", error);
@@ -333,6 +337,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -444,6 +449,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       <SelectContent>
                         <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="moderator">Moderator</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
