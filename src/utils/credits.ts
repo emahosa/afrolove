@@ -11,9 +11,9 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     }
     
     // Use the update_user_credits RPC function
-    // TypeScript doesn't know about our custom RPC functions, so we need to use a more specific type
+    // TypeScript doesn't recognize our custom RPC functions, so we need to cast it
     const { data: upsertData, error: upsertError } = await supabase.rpc(
-      'update_user_credits', 
+      'update_user_credits' as any, 
       { 
         p_user_id: userId, 
         p_amount: amount 
@@ -47,7 +47,8 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     
     // The RPC will return the new credit balance
     console.log("Credits updated successfully. New balance:", upsertData);
-    return upsertData as number; // Explicit cast to number
+    // Ensure we return a number type
+    return upsertData as number; 
   } catch (error: any) {
     console.error("Error in updateUserCredits:", error);
     throw error; // Re-throw to be handled by the caller
