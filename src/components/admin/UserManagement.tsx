@@ -23,9 +23,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus, addUserToDatabase } from '@/utils/adminOperations';
+import { Database } from "@/integrations/supabase/types";
+
+type UserRole = Database["public"]["Enums"]["user_role"];
 
 interface User {
-  id: string | number;
+  id: string;
   name: string;
   email: string;
   status: string;
@@ -44,7 +47,7 @@ const userFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
   status: z.string().optional(),
-  role: z.string().optional(),
+  role: z.enum(["admin", "moderator", "user"]).optional(),
 });
 
 export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementProps) => {
@@ -82,7 +85,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     }
   };
 
-  const handleEdit = (userId: string | number) => {
+  const handleEdit = (userId: string) => {
     const user = usersList.find(user => user.id === userId);
     if (user) {
       setCurrentUser(user);
@@ -91,13 +94,13 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         email: user.email,
         credits: user.credits,
         status: user.status,
-        role: user.role,
+        role: user.role as UserRole,
       });
       setIsEditDialogOpen(true);
     }
   };
 
-  const handleToggleBan = async (userId: string | number, currentStatus: string) => {
+  const handleToggleBan = async (userId: string, currentStatus: string) => {
     setIsLoading(true);
     try {
       const success = await toggleUserBanStatus(userId, currentStatus);

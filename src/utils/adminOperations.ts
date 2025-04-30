@@ -1,16 +1,19 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Database } from "@/integrations/supabase/types";
+
+type UserRole = Database["public"]["Enums"]["user_role"];
 
 interface UserUpdateData {
   name?: string;
   email?: string;
   credits?: number;
   status?: string;
-  role?: string;
+  role?: UserRole;
 }
 
-export const updateUserInDatabase = async (userId: string | number, userData: UserUpdateData): Promise<boolean> => {
+export const updateUserInDatabase = async (userId: string, userData: UserUpdateData): Promise<boolean> => {
   try {
     console.log("Updating user in database:", userId, userData);
     
@@ -118,7 +121,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   }
 };
 
-export const toggleUserBanStatus = async (userId: string | number, currentStatus: string): Promise<boolean> => {
+export const toggleUserBanStatus = async (userId: string, currentStatus: string): Promise<boolean> => {
   try {
     const newIsSuspended = currentStatus !== 'suspended';
     
@@ -172,7 +175,7 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
         .from('user_roles')
         .insert({
           user_id: newUserId,
-          role: userData.role
+          role: userData.role as UserRole
         });
         
       if (roleError) {
