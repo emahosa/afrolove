@@ -199,14 +199,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
           return updatedUser;
         });
-        
-        // We should not show a success message here as it's handled by the calling component
       } else {
         throw new Error("Credit update returned null");
       }
     } catch (error: any) {
       console.error("AuthContext: Error updating credits in AuthContext:", error);
-      // Don't show toast here, let the calling component handle the error
       throw error; // Re-throw to allow handling in calling component
     }
   };

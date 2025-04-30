@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,6 +93,8 @@ const Credits = () => {
         throw new Error("You must be logged in to purchase credits");
       }
       
+      console.log("Purchasing credits:", pack.credits, "for user:", user.id);
+      
       // Update user credits
       await updateUserCredits(pack.credits);
       
@@ -124,6 +127,8 @@ const Credits = () => {
       if (!user) {
         throw new Error("You must be logged in to subscribe");
       }
+      
+      console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
       // Update user's subscription and credits
       await updateUserCredits(plan.creditsPerMonth);
