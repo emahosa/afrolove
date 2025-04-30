@@ -10,13 +10,19 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       throw new Error("User ID is required to update credits");
     }
     
-    // Use the update_user_credits RPC function with parameters in correct order
+    // Debug log to show exactly what we're sending to the RPC function
+    console.log("Calling update_user_credits RPC with params:", {
+      p_user_id: userId,
+      p_amount: amount
+    });
+    
+    // Use the update_user_credits RPC function
     // TypeScript doesn't recognize our custom RPC functions, so we need to cast it
     const { data: upsertData, error: upsertError } = await supabase.rpc(
       'update_user_credits' as any, 
       { 
-        p_user_id: userId,  // First parameter should be p_user_id
-        p_amount: amount    // Second parameter should be p_amount
+        p_user_id: userId, 
+        p_amount: amount 
       }
     );
       
