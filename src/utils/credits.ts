@@ -6,7 +6,11 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
   try {
     console.log("Updating credits for user:", userId, "amount:", amount);
     
-    // Get current credit balance
+    if (!userId) {
+      throw new Error("User ID is required to update credits");
+    }
+    
+    // Get current credit balance with improved error handling
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
@@ -20,7 +24,20 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     
     if (!profileData) {
       console.error("No profile found for user:", userId);
-      throw new Error("User profile not found");
+      
+      // Create a profile if it doesn't exist
+      const { error: createProfileError } = await supabase
+        .from('profiles')
+        .insert({ id: userId, credits: amount })
+        .single();
+        
+      if (createProfileError) {
+        console.error("Error creating profile:", createProfileError);
+        throw new Error("User profile not found and could not be created");
+      }
+      
+      console.log("Created new profile with initial credits:", amount);
+      return amount;
     }
     
     const currentCredits = profileData.credits || 0;

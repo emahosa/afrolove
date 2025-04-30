@@ -95,9 +95,6 @@ const Credits = () => {
       // Update user credits
       await updateUserCredits(pack.credits);
       
-      // Since updateUserCredits in AuthContext will handle updating the UI automatically,
-      // we don't need to manually update creditBalance here
-      
       toast.success("Credits Purchased!", {
         description: `${pack.credits} credits have been added to your account.`,
       });
@@ -120,26 +117,27 @@ const Credits = () => {
     try {
       const plan = subscriptionPlans.find(p => p.id === planId);
       
-      if (plan && user) {
-        setCurrentPlan(planId);
-        // Directly call updateUserCredits with the correct parameters
-        await updateUserCredits(plan.creditsPerMonth);
-        
-        // Manually update the local credit balance
-        setCreditBalance(prev => prev + plan.creditsPerMonth);
-        
-        toast.success("Subscription Activated!", {
-          description: `You've subscribed to the ${plan.name} plan. ${plan.creditsPerMonth} credits have been added to your account.`,
-        });
-        
-        setDialogOpen(false);
-      } else {
-        throw new Error("Plan not found or user not logged in");
+      if (!plan) {
+        throw new Error("Selected plan not found");
       }
-    } catch (error) {
+      
+      if (!user) {
+        throw new Error("You must be logged in to subscribe");
+      }
+      
+      // Update user's subscription and credits
+      await updateUserCredits(plan.creditsPerMonth);
+      setCurrentPlan(planId);
+      
+      toast.success("Subscription Activated!", {
+        description: `You've subscribed to the ${plan.name} plan. ${plan.creditsPerMonth} credits have been added to your account.`,
+      });
+      
+      setDialogOpen(false);
+    } catch (error: any) {
       console.error("Error subscribing:", error);
       toast.error("Subscription failed", {
-        description: "There was an error processing your subscription. Please try again.",
+        description: error.message || "There was an error processing your subscription. Please try again.",
       });
     } finally {
       setPaymentProcessing(false);
