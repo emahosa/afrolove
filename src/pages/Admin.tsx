@@ -117,6 +117,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     const loadUsers = async () => {
       try {
         console.log("Admin component: Loading users...");
+        setLoading(true);
         const fetchedUsers = await fetchUsersFromDatabase();
         console.log("Admin component: Fetched users:", fetchedUsers);
         setUsers(fetchedUsers);
@@ -130,8 +131,11 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       }
     };
     
-    loadUsers();
-  }, []);
+    // Load users when the component mounts or the active tab changes to 'users'
+    if (activeTab === 'users') {
+      loadUsers();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const pathSegments = location.pathname.split('/');

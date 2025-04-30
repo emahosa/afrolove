@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -24,6 +25,14 @@ import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus, addUserToDatabase } from '@/utils/adminOperations';
 import { Database } from "@/integrations/supabase/types";
+import { 
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell
+} from '@/components/ui/table';
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 
@@ -70,13 +79,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   });
 
   useEffect(() => {
-    if (initialUsers.length > 0) {
-      console.log("Initial users received:", initialUsers);
+    if (initialUsers && initialUsers.length > 0) {
+      console.log("Setting user list from props:", initialUsers);
       setUsersList(initialUsers);
       setLoadingError(null);
-    } else {
-      console.log("No initial users, loading from database");
-      loadUsers();
     }
   }, [initialUsers]);
 
@@ -84,16 +90,16 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     setIsLoading(true);
     setLoadingError(null);
     try {
-      console.log("Loading users...");
+      console.log("UserManagement: Loading users directly...");
       const loadedUsers = await fetchUsersFromDatabase();
-      console.log(`Loaded ${loadedUsers.length} users:`, loadedUsers);
+      console.log(`UserManagement: Loaded ${loadedUsers.length} users:`, loadedUsers);
       setUsersList(loadedUsers);
       
       if (loadedUsers.length === 0) {
         setLoadingError("No users found. Please use the 'Add New User' button to create your first user.");
       }
     } catch (error: any) {
-      console.error("Failed to load users:", error);
+      console.error("UserManagement: Failed to load users:", error);
       setLoadingError(error.message || "Failed to load users. Make sure your Supabase configuration is correct.");
       toast.error("Failed to load users");
     } finally {
@@ -219,7 +225,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">User Management</h2>
-        <Button onClick={handleAddUser}>Add New User</Button>
+        <div className="space-x-2">
+          <Button onClick={loadUsers} variant="outline" disabled={isLoading}>
+            {isLoading ? 'Refreshing...' : 'Refresh Users'}
+          </Button>
+          <Button onClick={handleAddUser}>Add New User</Button>
+        </div>
       </div>
       
       {isLoading && (
@@ -243,28 +254,28 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       
       {usersList.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4">Name</th>
-                <th className="text-left py-3 px-4">Email</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Role</th>
-                <th className="text-left py-3 px-4">Credits</th>
-                <th className="text-left py-3 px-4">Joined</th>
-                <th className="text-right py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Credits</TableHead>
+                <TableHead>Joined</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {usersList.map((user) => (
-                <tr key={user.id} className="border-b">
-                  <td className="py-3 px-4">{user.name}</td>
-                  <td className="py-3 px-4">{user.email}</td>
-                  <td className="py-3 px-4">{renderStatusLabel(user.status)}</td>
-                  <td className="py-3 px-4">{user.role}</td>
-                  <td className="py-3 px-4">{user.credits}</td>
-                  <td className="py-3 px-4">{user.joinDate}</td>
-                  <td className="py-3 px-4 text-right">
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{renderStatusLabel(user.status)}</TableCell>
+                  <TableCell>{user.role}</TableCell>
+                  <TableCell>{user.credits}</TableCell>
+                  <TableCell>{user.joinDate}</TableCell>
+                  <TableCell className="text-right">
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -281,11 +292,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     >
                       {user.status === 'suspended' ? 'Unban' : 'Ban'}
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 

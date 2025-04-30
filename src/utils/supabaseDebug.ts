@@ -42,6 +42,18 @@ export const debugCreditsSystem = async (userId: string) => {
       console.error("DEBUG ERROR: Error fetching profile:", profileError);
     } else if (!profile) {
       console.error("DEBUG ERROR: No profile found for this user ID");
+      
+      // Try to get all profiles to see if any exist
+      const { data: allProfiles, error: allProfilesError } = await supabase
+        .from('profiles')
+        .select('id, username, full_name')
+        .limit(10);
+        
+      if (allProfilesError) {
+        console.error("DEBUG ERROR: Error fetching all profiles:", allProfilesError);
+      } else {
+        console.log("DEBUG INFO: First 10 profiles in database:", allProfiles);
+      }
     } else {
       console.log("User profile found:", profile);
       console.log("Current credits:", profile?.credits);
@@ -77,6 +89,19 @@ export const debugCreditsSystem = async (userId: string) => {
       console.log("No roles assigned to this user");
     } else {
       console.log("User roles:", roles);
+    }
+
+    // 5. Check RLS policies for profiles table
+    console.log("======= CHECKING DATABASE STATE =======");
+    console.log("Checking all authenticated users...");
+    const { data: allUsers, error: allUsersError } = await supabase.auth.admin.listUsers();
+    if (allUsersError) {
+      console.error("DEBUG ERROR: Error listing all users:", allUsersError);
+    } else {
+      console.log(`Found ${allUsers?.users?.length || 0} authenticated users`);
+      if (allUsers?.users) {
+        console.log("User emails:", allUsers.users.map(u => u.email));
+      }
     }
 
     console.log("======= DEBUG COMPLETE =======");

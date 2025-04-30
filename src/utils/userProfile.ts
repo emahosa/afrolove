@@ -12,7 +12,8 @@ export const enhanceUserWithProfileData = async (user: User): Promise<UserProfil
       throw new Error("Failed to fetch user profile");
     }
     
-    // First, try to get the user profile
+    // Instead of using .single() which throws an error when no row is found,
+    // we'll use maybeSingle() and handle the case gracefully
     let { data: profile, error } = await supabase
       .from("profiles")
       .select("*")

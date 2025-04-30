@@ -81,7 +81,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
     console.log("Fetching users from database");
     
-    // Get profiles directly - this is the main source of truth for users in our app
+    // First check if we have authenticated users in auth.users through profiles table
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
@@ -115,6 +115,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       return []; // Return empty list if no profiles exist
     }
     
+    console.log("Fetched profiles:", profiles);
     return processProfilesToUsersList(profiles);
     
   } catch (error: any) {
@@ -129,6 +130,7 @@ const processProfilesToUsersList = (profiles: any[]): any[] => {
   console.log(`Processing ${profiles.length} profiles to user list format`);
   
   return profiles.map(profile => {
+    // Get the role for this user if it exists
     return {
       id: profile.id,
       name: profile.full_name || 'No Name',
