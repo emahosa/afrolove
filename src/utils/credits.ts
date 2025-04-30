@@ -12,7 +12,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     
     // Use the update_user_credits RPC function
     // TypeScript doesn't know about our custom RPC functions, so we need to use a more specific type
-    const { data: upsertData, error: upsertError } = await supabase.functions.rpc(
+    const { data: upsertData, error: upsertError } = await supabase.rpc(
       'update_user_credits', 
       { 
         p_user_id: userId, 
