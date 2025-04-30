@@ -16,14 +16,19 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       p_amount: amount
     });
     
+    // Force correct parameter ordering in the object to match SQL function definition
+    const params = {
+      p_user_id: userId,
+      p_amount: amount
+    };
+    
+    console.log("Final parameters being sent to RPC:", params);
+    
     // Use the update_user_credits RPC function
     // TypeScript doesn't recognize our custom RPC functions, so we need to cast it
     const { data: upsertData, error: upsertError } = await supabase.rpc(
-      'update_user_credits' as any, 
-      { 
-        p_user_id: userId, 
-        p_amount: amount 
-      }
+      'update_user_credits', 
+      params
     );
       
     if (upsertError) {

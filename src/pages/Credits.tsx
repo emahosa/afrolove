@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Star, Music, Check, Info, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { debugCreditsSystem } from "@/utils/supabaseDebug";
 
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
@@ -77,6 +78,9 @@ const Credits = () => {
     if (user) {
       setCreditBalance(user.credits || 0);
       console.log("Credits component: User credits updated from user object:", user.credits);
+      
+      // Run debug tool on component mount to help identify issues
+      debugCreditsSystem(user.id);
     }
   }, [user]);
 
@@ -97,8 +101,11 @@ const Credits = () => {
       
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
+      // Debug check before update
+      await debugCreditsSystem(user.id);
+      
       // Update user credits
-      await updateUserCredits(pack.credits);
+      await updateUserCredits(user.id, pack.credits);
       
       // Verify credits were updated by reading user object after a short delay
       setTimeout(() => {
