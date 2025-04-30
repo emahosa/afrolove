@@ -300,16 +300,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <span className="ml-2">Loading users...</span>
               </div>
             ) : (
-              <>
-                <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md mb-4">
-                  <p className="text-sm">
-                    <strong>Note:</strong> This page shows user profiles stored in the database. 
-                    To see or modify authenticated users in the Supabase authentication system, 
-                    you'll need to use the Supabase dashboard.
-                  </p>
-                </div>
-                <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
-              </>
+              <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
             )}
           </TabsContent>
 

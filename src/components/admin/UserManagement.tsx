@@ -71,8 +71,13 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   });
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    if (initialUsers.length > 0) {
+      setUsersList(initialUsers);
+      setLoadingError(null);
+    } else {
+      loadUsers();
+    }
+  }, [initialUsers]);
 
   const loadUsers = async () => {
     setIsLoading(true);

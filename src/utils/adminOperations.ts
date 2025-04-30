@@ -79,9 +79,9 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
-    console.log("Fetching users from database using profiles table");
+    console.log("Fetching users from database");
     
-    // Get profiles and user_roles
+    // Get profiles with auth user data
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
