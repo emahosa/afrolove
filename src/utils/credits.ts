@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 export const updateUserCredits = async (userId: string, amount: number): Promise<number | null> => {
   try {
+    console.log("Updating credits for user:", userId, "amount:", amount);
+    
     // Get current credit balance
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
@@ -21,6 +23,8 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     
     const currentCredits = profileData?.credits || 0;
     const newCredits = currentCredits + amount;
+    
+    console.log("Current credits:", currentCredits, "New credits:", newCredits);
     
     // Update the user's credits in profiles table
     const { error } = await supabase

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,7 +77,8 @@ const Credits = () => {
     try {
       const pack = creditPacks.find(p => p.id === packId);
       
-      if (pack && updateUserCredits) {
+      if (pack && user) {
+        // Directly call updateUserCredits with the correct parameters
         await updateUserCredits(pack.credits);
         
         toast.success("Credits Purchased!", {
@@ -84,6 +86,8 @@ const Credits = () => {
         });
         
         setDialogOpen(false);
+      } else {
+        throw new Error("Pack not found or user not logged in");
       }
     } catch (error) {
       console.error("Error purchasing credits:", error);
@@ -102,8 +106,9 @@ const Credits = () => {
     try {
       const plan = subscriptionPlans.find(p => p.id === planId);
       
-      if (plan && updateUserCredits) {
+      if (plan && user) {
         setCurrentPlan(planId);
+        // Directly call updateUserCredits with the correct parameters
         await updateUserCredits(plan.creditsPerMonth);
         
         toast.success("Subscription Activated!", {
@@ -111,6 +116,8 @@ const Credits = () => {
         });
         
         setDialogOpen(false);
+      } else {
+        throw new Error("Plan not found or user not logged in");
       }
     } catch (error) {
       console.error("Error subscribing:", error);

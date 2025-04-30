@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -179,11 +180,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateUserCredits = async (amount: number): Promise<void> => {
     if (!user) {
       console.error("AuthContext: Cannot update credits: No user logged in");
+      toast.error("Failed to update credits", { 
+        description: "You must be logged in to update credits" 
+      });
       return;
     }
     
     try {
+      console.log("AuthContext: Updating credits with amount:", amount, "for user:", user.id);
       const newCredits = await updateCredits(user.id, amount);
+      
       if (newCredits !== null) {
         // Update the user state with the new credits value
         setUser(prevUser => {
@@ -192,9 +198,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
           return updatedUser;
         });
+      } else {
+        throw new Error("Failed to update credits");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AuthContext: Error updating credits in AuthContext:", error);
+      toast.error("Failed to update credits", {
+        description: error.message || "Unknown error occurred"
+      });
     }
   };
 
