@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +105,7 @@ const Credits = () => {
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
       // Update user credits - using direct call to our updateUserCredits function
+      // Fix: Pass only the expected parameters in the correct order (userId, amount)
       const newBalance = await updateUserCredits(user.id, pack.credits);
       
       if (newBalance === null) {
@@ -111,6 +113,7 @@ const Credits = () => {
       }
       
       // Update local state
+      // Fix: Use the returned value properly as a state action
       setCreditBalance(newBalance);
       
       toast.success("Credits Purchased!", {
@@ -149,9 +152,11 @@ const Credits = () => {
       console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
       // Update user's subscription and credits
+      // Fix: Pass only the expected parameters in the correct order (userId, amount)
       const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
       
       if (newBalance !== null) {
+        // Fix: Use the returned value properly as a state action
         setCreditBalance(newBalance);
       }
       
