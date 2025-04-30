@@ -81,6 +81,15 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
     console.log("Fetching users from database");
     
+    // First try to get users from auth.users (for debugging purposes)
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (!authError && authUsers) {
+      console.log("Auth users found:", authUsers.users.length);
+    } else {
+      console.log("No auth users found or not authorized to view auth users");
+    }
+    
     // Get profiles with auth user data
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -101,12 +110,57 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       throw new Error(`Failed to fetch user roles: ${rolesError.message}`);
     }
     
-    console.log("Fetched profiles:", profiles.length);
+    console.log("Fetched profiles:", profiles?.length || 0);
     console.log("Raw profiles data:", JSON.stringify(profiles));
     
+    // If no profiles found, attempt to add one for the current user
+    if ((!profiles || profiles.length === 0) && authUsers?.users?.length > 0) {
+      console.log("No profiles found but auth users exist. Trying to populate profiles...");
+      
+      // Get current auth user
+      const { data: currentSession } = await supabase.auth.getSession();
+      
+      if (currentSession?.session?.user) {
+        const user = currentSession.session.user;
+        console.log("Current authenticated user:", user);
+        
+        // Check if profile already exists for this user
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (!existingProfile) {
+          // Create profile for current user
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'New User',
+              username: user.email,
+              credits: 5,
+              created_at: new Date().toISOString()
+            })
+            .select();
+            
+          if (insertError) {
+            console.error("Error creating profile for current user:", insertError);
+          } else {
+            console.log("Created profile for current user:", newProfile);
+            
+            // Add to profiles array if it was created
+            if (newProfile) {
+              profiles?.push(newProfile[0]);
+            }
+          }
+        }
+      }
+    }
+    
     // Map profiles to user objects with their roles
-    const usersWithRoles = profiles.map(profile => {
-      const userRole = userRoles.find(role => role.user_id === profile.id);
+    const usersWithRoles = (profiles || []).map(profile => {
+      const userRole = userRoles?.find(role => role.user_id === profile.id);
       return {
         id: profile.id,
         name: profile.full_name || 'No Name',

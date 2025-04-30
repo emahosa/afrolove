@@ -90,11 +90,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       setUsersList(loadedUsers);
       
       if (loadedUsers.length === 0) {
-        setLoadingError("No users found. You may need to add a user first.");
+        setLoadingError("No users found. Please use the 'Add New User' button to create your first user.");
       }
     } catch (error: any) {
       console.error("Failed to load users:", error);
-      setLoadingError(error.message || "Failed to load users");
+      setLoadingError(error.message || "Failed to load users. Make sure your Supabase configuration is correct.");
       toast.error("Failed to load users");
     } finally {
       setIsLoading(false);
