@@ -198,6 +198,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
           return updatedUser;
         });
+        
+        // Return the current session to refresh the user data immediately
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          await updateAuthUser(data.session);
+        }
       } else {
         throw new Error("Failed to update credits");
       }

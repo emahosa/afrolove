@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,6 +69,14 @@ const Credits = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
+
+  // Update credit balance when user changes
+  useEffect(() => {
+    if (user) {
+      setCreditBalance(user.credits || 0);
+    }
+  }, [user]);
 
   const handleBuyCredits = async (packId: string) => {
     setPaymentProcessing(true);
@@ -80,6 +87,9 @@ const Credits = () => {
       if (pack && user) {
         // Directly call updateUserCredits with the correct parameters
         await updateUserCredits(pack.credits);
+        
+        // Manually update the local credit balance to show immediate feedback
+        setCreditBalance(prev => prev + pack.credits);
         
         toast.success("Credits Purchased!", {
           description: `${pack.credits} credits have been added to your account.`,
@@ -110,6 +120,9 @@ const Credits = () => {
         setCurrentPlan(planId);
         // Directly call updateUserCredits with the correct parameters
         await updateUserCredits(plan.creditsPerMonth);
+        
+        // Manually update the local credit balance
+        setCreditBalance(prev => prev + plan.creditsPerMonth);
         
         toast.success("Subscription Activated!", {
           description: `You've subscribed to the ${plan.name} plan. ${plan.creditsPerMonth} credits have been added to your account.`,
@@ -150,7 +163,7 @@ const Credits = () => {
       <div className="flex items-center gap-3 p-4 bg-card rounded-lg border">
         <div className="flex items-center gap-1 text-lg">
           <Star className="h-6 w-6 fill-melody-secondary text-melody-secondary" />
-          <span className="font-bold">{user?.credits || 0}</span>
+          <span className="font-bold">{creditBalance}</span>
         </div>
         <div className="text-sm text-muted-foreground">Current credit balance</div>
       </div>
