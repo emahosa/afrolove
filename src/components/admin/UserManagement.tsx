@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -168,26 +167,33 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     try {
       console.log("Adding user with values:", values);
       const newUserId = await addUserToDatabase(values);
+      
       if (newUserId) {
+        toast.success("New user added successfully");
+        
+        // Create a new user object to add to the list
         const newUser: User = {
           id: newUserId,
           name: values.name,
           email: values.email,
-          credits: values.credits || 0,
-          status: values.status || 'active',
-          role: values.role || 'user',
+          credits: values.credits,
+          status: values.status,
+          role: values.role,
           joinDate: new Date().toISOString().split('T')[0]
         };
         
+        // Add the new user to the list and close the dialog
         setUsersList([...usersList, newUser]);
-        toast.success("New user added successfully");
         setIsAddDialogOpen(false);
         
         // Refresh the user list to ensure we have the latest data
         loadUsers();
+      } else {
+        toast.error("Failed to add user");
       }
     } catch (error) {
       console.error("Failed to add user:", error);
+      toast.error("An error occurred while adding the user");
     } finally {
       setIsLoading(false);
     }

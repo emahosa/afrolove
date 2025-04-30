@@ -154,7 +154,7 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
     // Generate a UUID for the new user
     const newUserId = crypto.randomUUID();
     
-    // Create profile
+    // Create profile directly in the profiles table
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -162,7 +162,9 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
         full_name: userData.name,
         username: userData.email,
         credits: userData.credits || 0,
-        is_suspended: userData.status === 'suspended'
+        is_suspended: userData.status === 'suspended',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
       
     if (profileError) {
@@ -170,33 +172,24 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
       throw new Error(`Profile creation failed: ${profileError.message}`);
     }
     
+    console.log("Created profile successfully with ID:", newUserId);
+    
     // Add role if specified
-    if (userData.role) {
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: newUserId,
-          role: userData.role as UserRole
-        });
-        
-      if (roleError) {
-        console.error("Error adding user role:", roleError);
-        // If role creation fails, we should still return the user ID since the profile was created
-        toast.warning("User created but role assignment failed", { description: roleError.message });
-      }
+    const roleToAdd: UserRole = (userData.role as UserRole) || 'user';
+    
+    const { error: roleError } = await supabase
+      .from('user_roles')
+      .insert({
+        user_id: newUserId,
+        role: roleToAdd
+      });
+      
+    if (roleError) {
+      console.error("Error adding user role:", roleError);
+      // If role creation fails, we should still return the user ID since the profile was created
+      toast.warning("User created but role assignment failed", { description: roleError.message });
     } else {
-      // Add default role as 'user'
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: newUserId,
-          role: 'user' as UserRole
-        });
-        
-      if (roleError) {
-        console.error("Error adding default user role:", roleError);
-        toast.warning("User created but default role assignment failed", { description: roleError.message });
-      }
+      console.log("Added role successfully:", roleToAdd);
     }
     
     return newUserId;
