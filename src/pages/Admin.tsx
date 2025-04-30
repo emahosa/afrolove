@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
@@ -30,9 +29,23 @@ const admins = [
   { id: 102, name: 'Support Admin', email: 'support@example.com', role: 'moderator', permissions: 'limited', lastActive: '2025-04-25' },
 ];
 
+// Update mock data for API keys to match our new structure
 const apiKeys = [
-  { id: 1, name: 'AI Music Generation', key: '******************************ABCD', status: 'active' },
-  { id: 2, name: 'Voice Cloning (Eleven Labs)', key: '******************************EFGH', status: 'inactive' },
+  { 
+    id: 1, 
+    provider: 'suno', 
+    name: 'Suno Music Generation', 
+    key: 'suno_prod_3bea4912aefg01234567890', 
+    status: 'active',
+    lastVerified: '2025-04-27T14:30:00Z'
+  },
+  { 
+    id: 2, 
+    provider: 'elevenlabs', 
+    name: 'ElevenLabs Voice Cloning', 
+    key: 'el_11b234a56cd7890abcdef123456', 
+    status: 'inactive' 
+  },
 ];
 
 const contestEntries = [
@@ -186,6 +199,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     ));
   };
 
+  // Remember to keep the getButtonContent function as it is
   const getButtonContent = (status: string): React.ReactNode => {
     if (status === 'active') {
       return (
