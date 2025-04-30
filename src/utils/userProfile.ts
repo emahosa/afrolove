@@ -9,7 +9,7 @@ export const enhanceUserWithProfileData = async (user: User): Promise<UserProfil
     
     // Instead of using .single() which throws an error when no row is found,
     // we'll use maybeSingle() and handle the case gracefully
-    const { data: profile, error } = await supabase
+    let { data: profile, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
