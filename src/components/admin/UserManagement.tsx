@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -72,9 +71,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   useEffect(() => {
     if (initialUsers.length > 0) {
+      console.log("Initial users received:", initialUsers);
       setUsersList(initialUsers);
       setLoadingError(null);
     } else {
+      console.log("No initial users, loading from database");
       loadUsers();
     }
   }, [initialUsers]);
@@ -220,33 +221,42 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         <h2 className="text-2xl font-bold">User Management</h2>
         <Button onClick={handleAddUser}>Add New User</Button>
       </div>
+      
       {isLoading && (
         <div className="flex justify-center p-4">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
           <span className="ml-2">Loading users...</span>
         </div>
       )}
+      
       {loadingError && !isLoading && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
           <p>{loadingError}</p>
         </div>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-3 px-4">Name</th>
-              <th className="text-left py-3 px-4">Email</th>
-              <th className="text-left py-3 px-4">Status</th>
-              <th className="text-left py-3 px-4">Role</th>
-              <th className="text-left py-3 px-4">Credits</th>
-              <th className="text-left py-3 px-4">Joined</th>
-              <th className="text-right py-3 px-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usersList.length > 0 ? (
-              usersList.map((user) => (
+      
+      {!isLoading && usersList.length === 0 && !loadingError && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md">
+          <p>No users found. You can add a new user using the button above.</p>
+        </div>
+      )}
+      
+      {usersList.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4">Name</th>
+                <th className="text-left py-3 px-4">Email</th>
+                <th className="text-left py-3 px-4">Status</th>
+                <th className="text-left py-3 px-4">Role</th>
+                <th className="text-left py-3 px-4">Credits</th>
+                <th className="text-left py-3 px-4">Joined</th>
+                <th className="text-right py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usersList.map((user) => (
                 <tr key={user.id} className="border-b">
                   <td className="py-3 px-4">{user.name}</td>
                   <td className="py-3 px-4">{user.email}</td>
@@ -273,17 +283,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     </Button>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="text-center py-4">
-                  {isLoading ? "Loading users..." : "No users found"}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

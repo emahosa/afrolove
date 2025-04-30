@@ -102,6 +102,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     }
     
     console.log("Fetched profiles:", profiles.length);
+    console.log("Raw profiles data:", JSON.stringify(profiles));
     
     // Map profiles to user objects with their roles
     const usersWithRoles = profiles.map(profile => {
@@ -118,7 +119,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     });
     
     console.log("Processed users:", usersWithRoles.length);
-    console.log("First few users:", usersWithRoles.slice(0, 3));
+    console.log("First few users:", JSON.stringify(usersWithRoles.slice(0, 3)));
     
     return usersWithRoles;
   } catch (error: any) {
