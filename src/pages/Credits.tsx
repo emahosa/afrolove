@@ -84,25 +84,29 @@ const Credits = () => {
     try {
       const pack = creditPacks.find(p => p.id === packId);
       
-      if (pack && user) {
-        // Directly call updateUserCredits with the correct parameters
-        await updateUserCredits(pack.credits);
-        
-        // Manually update the local credit balance to show immediate feedback
-        setCreditBalance(prev => prev + pack.credits);
-        
-        toast.success("Credits Purchased!", {
-          description: `${pack.credits} credits have been added to your account.`,
-        });
-        
-        setDialogOpen(false);
-      } else {
-        throw new Error("Pack not found or user not logged in");
+      if (!pack) {
+        throw new Error("Selected credit pack not found");
       }
-    } catch (error) {
+      
+      if (!user) {
+        throw new Error("You must be logged in to purchase credits");
+      }
+      
+      // Update user credits
+      await updateUserCredits(pack.credits);
+      
+      // Since updateUserCredits in AuthContext will handle updating the UI automatically,
+      // we don't need to manually update creditBalance here
+      
+      toast.success("Credits Purchased!", {
+        description: `${pack.credits} credits have been added to your account.`,
+      });
+      
+      setDialogOpen(false);
+    } catch (error: any) {
       console.error("Error purchasing credits:", error);
       toast.error("Purchase failed", {
-        description: "There was an error processing your purchase. Please try again.",
+        description: error.message || "There was an error processing your purchase. Please try again.",
       });
     } finally {
       setPaymentProcessing(false);

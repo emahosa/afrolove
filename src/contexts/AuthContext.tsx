@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -188,30 +187,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       console.log("AuthContext: Updating credits with amount:", amount, "for user:", user.id);
+      
+      // Call the utility function to update credits
       const newCredits = await updateCredits(user.id, amount);
       
+      // Update the user state with the new credits value
       if (newCredits !== null) {
-        // Update the user state with the new credits value
         setUser(prevUser => {
           if (!prevUser) return null;
           const updatedUser = { ...prevUser, credits: newCredits };
           console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
           return updatedUser;
         });
-        
-        // Return the current session to refresh the user data immediately
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          await updateAuthUser(data.session);
-        }
-      } else {
-        throw new Error("Failed to update credits");
       }
     } catch (error: any) {
       console.error("AuthContext: Error updating credits in AuthContext:", error);
       toast.error("Failed to update credits", {
         description: error.message || "Unknown error occurred"
       });
+      throw error; // Re-throw to allow handling in calling component
     }
   };
 

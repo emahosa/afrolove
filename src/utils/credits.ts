@@ -15,13 +15,15 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       
     if (profileError) {
       console.error("Error fetching current credits:", profileError);
-      toast.error("Failed to update credits", {
-        description: "Could not retrieve current credit balance"
-      });
-      return null;
+      throw new Error("Could not retrieve current credit balance");
     }
     
-    const currentCredits = profileData?.credits || 0;
+    if (!profileData) {
+      console.error("No profile found for user:", userId);
+      throw new Error("User profile not found");
+    }
+    
+    const currentCredits = profileData.credits || 0;
     const newCredits = currentCredits + amount;
     
     console.log("Current credits:", currentCredits, "New credits:", newCredits);
@@ -34,10 +36,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       
     if (error) {
       console.error("Error updating credits in profiles table:", error);
-      toast.error("Failed to update credits", {
-        description: error.message
-      });
-      return null;
+      throw new Error("Failed to update credits in your profile");
     }
     
     // Log the transaction
@@ -55,18 +54,10 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       // Don't block the credit update if just the transaction logging fails
     }
     
-    // Show toast notification
-    toast.success(amount > 0 ? "Credits added" : "Credits used", {
-      description: `${Math.abs(amount)} credits ${amount > 0 ? 'added to' : 'deducted from'} your account`
-    });
-
     console.log("Credits updated successfully:", newCredits);
     return newCredits;
   } catch (error: any) {
     console.error("Error updating credits:", error);
-    toast.error("Failed to update credits", {
-      description: error.message
-    });
-    return null;
+    throw error; // Re-throw the error to be handled by the caller
   }
 };
