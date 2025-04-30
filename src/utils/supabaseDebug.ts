@@ -7,10 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const checkRlsPermissions = async (tableName: string): Promise<void> => {
   // Check for read permissions
-  const { data: readData, error: readError } = await supabase
-    .from(tableName)
+  // Use 'any' type to bypass TypeScript's type checking for dynamic table names
+  const { data: readData, error: readError } = await (supabase
+    .from(tableName as any)
     .select('*')
-    .limit(1);
+    .limit(1));
   
   console.log(`RLS check for ${tableName} - READ:`, 
     readError ? `ERROR: ${readError.message}` : 'SUCCESS');
