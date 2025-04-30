@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface User {
   id: number;
@@ -42,11 +43,14 @@ const userFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
+  status: z.string().optional(),
+  role: z.string().optional(),
 });
 
 export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps) => {
   const [usersList, setUsersList] = useState<User[]>(users);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const form = useForm<z.infer<typeof userFormSchema>>({
@@ -55,6 +59,8 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
       name: "",
       email: "",
       credits: 0,
+      status: "active",
+      role: "user",
     },
   });
 
@@ -66,6 +72,8 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
         name: user.name,
         email: user.email,
         credits: user.credits,
+        status: user.status,
+        role: user.role,
       });
       setIsEditDialogOpen(true);
     }
@@ -84,8 +92,15 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
   };
 
   const handleAddUser = () => {
-    toast.info("Adding new user - this would open a form in a real application");
-    // This would typically open a dialog for adding a new user
+    setCurrentUser(null);
+    form.reset({
+      name: "",
+      email: "",
+      credits: 5,
+      status: "active",
+      role: "user",
+    });
+    setIsAddDialogOpen(true);
   };
 
   const onSubmitEdit = (values: z.infer<typeof userFormSchema>) => {
@@ -96,13 +111,31 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
               ...user, 
               name: values.name, 
               email: values.email, 
-              credits: values.credits 
+              credits: values.credits,
+              status: values.status || user.status,
+              role: values.role || user.role,
             } 
           : user
       ));
       toast.success("User updated successfully");
       setIsEditDialogOpen(false);
     }
+  };
+
+  const onSubmitAdd = (values: z.infer<typeof userFormSchema>) => {
+    const newUser: User = {
+      id: Math.max(0, ...usersList.map(u => u.id)) + 1,
+      name: values.name,
+      email: values.email,
+      credits: values.credits,
+      status: values.status || 'active',
+      role: values.role || 'user',
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+    
+    setUsersList([...usersList, newUser]);
+    toast.success("New user added successfully");
+    setIsAddDialogOpen(false);
   };
 
   return (
@@ -207,11 +240,168 @@ export const UserManagement = ({ users, renderStatusLabel }: UserManagementProps
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add User Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Enter details for the new user account.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitAdd)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="credits"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credits</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="user">User</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add User</Button>
               </DialogFooter>
             </form>
           </Form>
