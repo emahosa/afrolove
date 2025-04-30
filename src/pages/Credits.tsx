@@ -80,7 +80,9 @@ const Credits = () => {
       console.log("Credits component: User credits updated from user object:", user.credits);
       
       // Run debug tool on component mount to help identify issues
-      debugCreditsSystem(user.id);
+      if (user.id) {
+        debugCreditsSystem(user.id);
+      }
     }
   }, [user]);
 
@@ -95,22 +97,21 @@ const Credits = () => {
         throw new Error("Selected credit pack not found");
       }
       
-      if (!user) {
+      if (!user || !user.id) {
         throw new Error("You must be logged in to purchase credits");
       }
       
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
-      // Debug check before update
-      await debugCreditsSystem(user.id);
+      // Update user credits - using direct call to our updateUserCredits function
+      const newBalance = await updateUserCredits(user.id, pack.credits);
       
-      // Update user credits
-      await updateUserCredits(user.id, pack.credits);
+      if (newBalance === null) {
+        throw new Error("Failed to update credits");
+      }
       
-      // Verify credits were updated by reading user object after a short delay
-      setTimeout(() => {
-        console.log("After purchase, user credits:", user.credits);
-      }, 100);
+      // Update local state
+      setCreditBalance(newBalance);
       
       toast.success("Credits Purchased!", {
         description: `${pack.credits} credits have been added to your account.`,
@@ -141,14 +142,19 @@ const Credits = () => {
         throw new Error("Selected plan not found");
       }
       
-      if (!user) {
+      if (!user || !user.id) {
         throw new Error("You must be logged in to subscribe");
       }
       
       console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
       // Update user's subscription and credits
-      await updateUserCredits(plan.creditsPerMonth);
+      const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
+      
+      if (newBalance !== null) {
+        setCreditBalance(newBalance);
+      }
+      
       setCurrentPlan(planId);
       
       toast.success("Subscription Activated!", {

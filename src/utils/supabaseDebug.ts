@@ -40,64 +40,24 @@ export const checkProfileExists = async (userId: string): Promise<void> => {
 };
 
 /**
- * Helper function to check if the update_user_credits function exists
+ * Check if credit transactions are being properly logged
  */
-export const checkUpdateCreditsFunction = async (): Promise<void> => {
+export const checkCreditTransactions = async (userId: string): Promise<void> => {
   try {
-    console.log("Testing update_user_credits function existence...");
-    
-    // First, let's verify the exact function signature by checking available functions
-    const { data: functionsList, error: functionsError } = await supabase
-      .from('pg_catalog.pg_proc')
+    const { data: transactions, error } = await supabase
+      .from('credit_transactions')
       .select('*')
-      .ilike('proname', '%update_user_credits%');
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
       
-    if (functionsError) {
-      console.error("Error checking available functions:", functionsError);
-    } else {
-      console.log("Found functions matching 'update_user_credits':", functionsList);
-    }
-    
-    // This is a lightweight call to check if the function exists with correct parameters
-    const { data, error } = await supabase.rpc(
-      'update_user_credits', 
-      { 
-        p_user_id: '00000000-0000-0000-0000-000000000000',  // Dummy UUID
-        p_amount: 0  // Zero amount won't change anything
-      }
-    );
-    
     if (error) {
-      console.error("RPC function check failed:", error.message);
-      if (error.message.includes("Could not find the function")) {
-        console.error("The function may not be deployed or has different parameter names/order");
-        console.error("Error details:", error);
-      }
+      console.error("Error checking credit transactions:", error);
     } else {
-      console.log("RPC function exists and can be called successfully");
-      console.log("Return value:", data);
+      console.log("Recent credit transactions:", transactions);
     }
-    
-    // Try with alternative parameter ordering to debug
-    console.log("Trying alternative parameter ordering...");
-    const { data: altData, error: altError } = await supabase.rpc(
-      'update_user_credits', 
-      { 
-        // Try with parameters reversed to see if that works
-        p_amount: 0,
-        p_user_id: '00000000-0000-0000-0000-000000000000'
-      }
-    );
-    
-    if (altError) {
-      console.error("Alternative parameter ordering failed:", altError.message);
-    } else {
-      console.log("Alternative parameter ordering worked! Return value:", altData);
-      console.warn("WARNING: Function is accepting parameters in reverse order!");
-    }
-    
-  } catch (error: any) {
-    console.error("Exception during RPC function check:", error);
+  } catch (error) {
+    console.error("Exception checking credit transactions:", error);
   }
 };
 
@@ -114,8 +74,8 @@ export const debugCreditsSystem = async (userId: string): Promise<void> => {
   await checkRlsPermissions('profiles');
   await checkRlsPermissions('credit_transactions');
   
-  // 3. Check function existence
-  await checkUpdateCreditsFunction();
+  // 3. Check recent credit transactions
+  await checkCreditTransactions(userId);
   
   // 4. Try to query directly if possible
   try {

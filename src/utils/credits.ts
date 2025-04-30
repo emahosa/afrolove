@@ -9,34 +9,37 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     if (!userId) {
       throw new Error("User ID is required to update credits");
     }
+
+    // Use direct profile table update instead of the problematic RPC function
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', userId)
+      .single();
     
-    // Debug log to show exactly what we're sending to the RPC function
-    console.log("Calling update_user_credits RPC with params:", {
-      p_user_id: userId,
-      p_amount: amount
-    });
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError);
+      throw new Error("Failed to fetch user profile");
+    }
+
+    // Calculate new credit balance
+    const currentCredits = profileData?.credits || 0;
+    const newCreditBalance = currentCredits + amount;
     
-    // Force correct parameter ordering in the object to match SQL function definition
-    const params = {
-      p_user_id: userId,
-      p_amount: amount
-    };
+    // Update the profile with the new credit balance
+    const { data: updateData, error: updateError } = await supabase
+      .from('profiles')
+      .update({ credits: newCreditBalance })
+      .eq('id', userId)
+      .select('credits')
+      .single();
     
-    console.log("Final parameters being sent to RPC:", params);
-    
-    // Use the update_user_credits RPC function
-    // TypeScript doesn't recognize our custom RPC functions, so we need to cast it
-    const { data: upsertData, error: upsertError } = await supabase.rpc(
-      'update_user_credits', 
-      params
-    );
-      
-    if (upsertError) {
-      console.error("Error in update_user_credits RPC:", upsertError);
-      throw new Error(upsertError.message || "Failed to update credits");
+    if (updateError) {
+      console.error("Error updating user credits:", updateError);
+      throw new Error("Failed to update credits");
     }
     
-    // Log the transaction (which will succeed only if proper RLS is in place)
+    // Log the transaction
     try {
       const { error: transactionError } = await supabase
         .from('credit_transactions')
@@ -56,10 +59,9 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       // Continue execution, don't throw here
     }
     
-    // The RPC will return the new credit balance
-    console.log("Credits updated successfully. New balance:", upsertData);
-    // Ensure we return a number type
-    return upsertData as number; 
+    console.log("Credits updated successfully. New balance:", updateData?.credits);
+    return updateData?.credits || null;
+    
   } catch (error: any) {
     console.error("Error in updateUserCredits:", error);
     throw error; // Re-throw to be handled by the caller
