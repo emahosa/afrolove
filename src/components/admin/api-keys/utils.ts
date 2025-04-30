@@ -7,7 +7,7 @@ export const maskApiKey = (key: string): string => {
   return '*'.repeat(key.length - 8) + key.slice(-8);
 };
 
-export const getBadgeVariant = (status: string): string => {
+export const getBadgeVariant = (status: string): "success" | "pending" | "warning" | "invalid" | "outline" | "default" | "destructive" | "secondary" => {
   switch (status) {
     case 'active': return 'success';
     case 'pending': return 'pending';
