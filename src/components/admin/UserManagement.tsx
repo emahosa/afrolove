@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -46,8 +47,8 @@ const userFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
-  status: z.string().optional(),
-  role: z.enum(["admin", "moderator", "user"]).optional(),
+  status: z.enum(["active", "suspended"]).default("active"),
+  role: z.enum(["admin", "moderator", "user"]).default("user"),
 });
 
 export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementProps) => {
@@ -62,7 +63,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     defaultValues: {
       name: "",
       email: "",
-      credits: 0,
+      credits: 5,
       status: "active",
       role: "user",
     },
@@ -93,7 +94,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         name: user.name,
         email: user.email,
         credits: user.credits,
-        status: user.status,
+        status: user.status as "active" | "suspended",
         role: user.role as UserRole,
       });
       setIsEditDialogOpen(true);
