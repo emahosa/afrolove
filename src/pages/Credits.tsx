@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,16 +70,19 @@ const Credits = () => {
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Update credit balance when user changes
   useEffect(() => {
     if (user) {
       setCreditBalance(user.credits || 0);
+      console.log("Credits component: User credits updated from user object:", user.credits);
     }
   }, [user]);
 
   const handleBuyCredits = async (packId: string) => {
     setPaymentProcessing(true);
+    setErrorMessage(null);
     
     try {
       const pack = creditPacks.find(p => p.id === packId);
@@ -98,6 +100,11 @@ const Credits = () => {
       // Update user credits
       await updateUserCredits(pack.credits);
       
+      // Verify credits were updated by reading user object after a short delay
+      setTimeout(() => {
+        console.log("After purchase, user credits:", user.credits);
+      }, 100);
+      
       toast.success("Credits Purchased!", {
         description: `${pack.credits} credits have been added to your account.`,
       });
@@ -105,6 +112,9 @@ const Credits = () => {
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error purchasing credits:", error);
+      
+      setErrorMessage(error.message || "There was an error processing your purchase");
+      
       toast.error("Purchase failed", {
         description: error.message || "There was an error processing your purchase. Please try again.",
       });
@@ -174,6 +184,13 @@ const Credits = () => {
         </div>
         <div className="text-sm text-muted-foreground">Current credit balance</div>
       </div>
+      
+      {errorMessage && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-200">
+          <p className="font-medium">Error: {errorMessage}</p>
+          <p className="text-sm">Please try again or contact support if the issue persists.</p>
+        </div>
+      )}
       
       <Tabs defaultValue="credits" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-6">

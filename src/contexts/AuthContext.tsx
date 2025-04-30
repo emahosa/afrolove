@@ -199,6 +199,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log("AuthContext: Credits updated in user state:", updatedUser.credits);
           return updatedUser;
         });
+        
+        // For debugging only - verify the state was updated
+        setTimeout(() => {
+          console.log("AuthContext: After update, user.credits =", user?.credits);
+        }, 10);
+        
+        return;
       } else {
         throw new Error("Credit update returned null");
       }
