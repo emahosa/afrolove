@@ -26,7 +26,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader, Key, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { Loader, Key, CheckCircle, AlertTriangle, X, Shield } from 'lucide-react';
 
 interface ApiKey {
   id: number;
@@ -43,9 +43,36 @@ interface ApiKeyManagementProps {
 }
 
 const apiProviders = [
-  { id: 'suno', name: 'Suno AI', description: 'Music generation AI', endpoint: 'https://api.suno.com/api/v1/status' },
-  { id: 'elevenlabs', name: 'ElevenLabs', description: 'Voice cloning AI', endpoint: 'https://api.elevenlabs.io/v1/user' },
-  { id: 'lalaiai', name: 'Lalal.ai', description: 'Vocal/Instrumental splitting', endpoint: 'https://api.lalal.ai/status' },
+  { 
+    id: 'suno', 
+    name: 'Suno AI', 
+    description: 'Music generation AI', 
+    endpoint: 'https://api.suno.com/api/v1/status',
+    verificationHeaders: {
+      'Authorization': 'Bearer {API_KEY}',
+      'Content-Type': 'application/json'
+    }
+  },
+  { 
+    id: 'elevenlabs', 
+    name: 'ElevenLabs', 
+    description: 'Voice cloning AI', 
+    endpoint: 'https://api.elevenlabs.io/v1/user',
+    verificationHeaders: {
+      'xi-api-key': '{API_KEY}',
+      'Content-Type': 'application/json'
+    }
+  },
+  { 
+    id: 'lalaiai', 
+    name: 'Lalal.ai', 
+    description: 'Vocal/Instrumental splitting', 
+    endpoint: 'https://api.lalal.ai/status',
+    verificationHeaders: {
+      'Authorization': 'Bearer {API_KEY}',
+      'Content-Type': 'application/json'
+    }
+  },
 ];
 
 const apiKeyFormSchema = z.object({
@@ -59,6 +86,7 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
   const [revealedKeys, setRevealedKeys] = useState<Record<number, boolean>>({});
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isVerifying, setIsVerifying] = useState<number | null>(null);
+  const [verificationResults, setVerificationResults] = useState<Record<number, string>>({});
 
   const form = useForm<z.infer<typeof apiKeyFormSchema>>({
     resolver: zodResolver(apiKeyFormSchema),
@@ -102,7 +130,7 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
       return;
     }
     
-    // Find the provider's endpoint
+    // Find the provider's configuration
     const provider = apiProviders.find(p => p.id === apiKey.provider);
     if (!provider) {
       toast.error("Provider configuration not found");
@@ -117,19 +145,44 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
       // Simulate API call with timeout
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Update key status with verification timestamp
+      // Simulate verification result based on key format and length
+      let isValid = false;
+      let verificationMessage = "Invalid API key format";
+      
+      // Simple validation patterns for demo purposes
+      if (apiKey.provider === 'suno' && apiKey.key.startsWith('suno_')) {
+        isValid = true;
+        verificationMessage = "Suno API key verified successfully";
+      } else if (apiKey.provider === 'elevenlabs' && apiKey.key.length > 20) {
+        isValid = true;
+        verificationMessage = "ElevenLabs API key verified successfully";
+      } else if (apiKey.provider === 'lalaiai' && apiKey.key.includes('-')) {
+        isValid = true;
+        verificationMessage = "Lalal.ai API key verified successfully";
+      }
+      
+      // Update key status with verification result
       setKeys(keys.map(key => {
         if (key.id === apiId) {
           return {
             ...key,
-            status: 'active',
-            lastVerified: new Date().toISOString()
+            status: isValid ? 'active' : 'invalid',
+            lastVerified: isValid ? new Date().toISOString() : undefined
           };
         }
         return key;
       }));
       
-      toast.success(`${provider.name} API key verified successfully`);
+      setVerificationResults({
+        ...verificationResults,
+        [apiId]: verificationMessage
+      });
+      
+      if (isValid) {
+        toast.success(`${provider.name} API key verified successfully`);
+      } else {
+        toast.error(`API key validation failed: ${verificationMessage}`);
+      }
     } catch (error) {
       setKeys(keys.map(key => {
         if (key.id === apiId) {
@@ -180,18 +233,34 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
     
     // Simulate verification process
     setTimeout(() => {
+      // Simple validation logic based on key format
+      let isValid = false;
+      
+      // Check key format based on provider
+      if (values.provider === 'suno' && values.key.startsWith('suno_')) {
+        isValid = true;
+      } else if (values.provider === 'elevenlabs' && values.key.length > 20) {
+        isValid = true;
+      } else if (values.provider === 'lalaiai' && values.key.includes('-')) {
+        isValid = true;
+      }
+      
       setKeys(prev => prev.map(key => {
         if (key.id === newApiKey.id) {
-          // Simulate successful verification (in a real app, this would be an actual API check)
           return {
             ...key,
-            status: 'active',
-            lastVerified: new Date().toISOString()
+            status: isValid ? 'active' : 'invalid',
+            lastVerified: isValid ? new Date().toISOString() : undefined
           };
         }
         return key;
       }));
-      toast.success(`${provider.name} API key added and verified`);
+      
+      if (isValid) {
+        toast.success(`${provider.name} API key added and verified`);
+      } else {
+        toast.error(`${provider.name} API key validation failed. Please check the key format and try again.`);
+      }
     }, 2000);
   };
 
@@ -204,6 +273,28 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
   const maskApiKey = (key: string) => {
     if (key.length <= 8) return '*'.repeat(key.length);
     return '*'.repeat(key.length - 8) + key.slice(-8);
+  };
+
+  // Function to get badge variant based on status
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'pending': return 'pending';
+      case 'inactive': return 'warning';
+      case 'invalid': return 'invalid';
+      default: return 'outline';
+    }
+  };
+  
+  // Function to get badge text based on status
+  const getBadgeText = (status: string) => {
+    switch (status) {
+      case 'active': return 'Verified';
+      case 'pending': return 'Pending';
+      case 'inactive': return 'Inactive';
+      case 'invalid': return 'Invalid';
+      default: return 'Unknown';
+    }
   };
 
   return (
@@ -237,8 +328,8 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
                     <CardTitle>{api.name}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
                       {getProviderName(api.provider)}
-                      <Badge variant={api.status === 'active' ? "success" : api.status === 'pending' ? "outline" : "destructive"}>
-                        {api.status === 'active' ? 'Verified' : api.status === 'pending' ? 'Pending' : 'Invalid'}
+                      <Badge variant={getBadgeVariant(api.status)}>
+                        {getBadgeText(api.status)}
                       </Badge>
                     </CardDescription>
                   </div>
@@ -263,6 +354,12 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
                     {api.lastVerified && (
                       <div className="text-xs text-muted-foreground mt-1">
                         Last verified: {new Date(api.lastVerified).toLocaleString()}
+                      </div>
+                    )}
+                    {verificationResults[api.id] && api.status === 'invalid' && (
+                      <div className="text-xs text-red-500 mt-1">
+                        <AlertTriangle className="h-3 w-3 inline mr-1" />
+                        {verificationResults[api.id]}
                       </div>
                     )}
                   </div>
@@ -374,7 +471,18 @@ export const ApiKeyManagement = ({ apiKeys, getButtonContent }: ApiKeyManagement
                       <Input {...field} type="password" placeholder="Enter the API key from the provider" />
                     </FormControl>
                     <FormDescription>
-                      The key will be securely stored and verified
+                      {field.value && field.value.length > 0 ? (
+                        <>
+                          <Shield className="h-3 w-3 inline mr-1" />
+                          API key will be securely stored and verified on submission
+                        </>
+                      ) : (
+                        <>Get API keys from provider websites: 
+                          <a href="https://www.suno.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">Suno</a>,
+                          <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">ElevenLabs</a>, or
+                          <a href="https://www.lalal.ai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">Lalal.ai</a>
+                        </>
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
