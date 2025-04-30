@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings } from 'lucide-react';
+import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { SupportManagement } from '@/components/admin/SupportManagement';
 import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
 import { SettingsManagement } from '@/components/admin/SettingsManagement';
 import { fetchUsersFromDatabase } from '@/utils/adminOperations';
+import { debugCreditsSystem } from '@/utils/supabaseDebug';
 
 // Mock data for other sections
 const admins = [
@@ -112,6 +113,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const [activeTab, setActiveTab] = useState(tab);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDebugging, setIsDebugging] = useState(false);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -183,6 +185,39 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     }
   };
 
+  const handleDebugSystem = async () => {
+    if (!user) return;
+    
+    setIsDebugging(true);
+    try {
+      toast.info("Running system diagnostics...", { duration: 2000 });
+      const result = await debugCreditsSystem(user.id);
+      console.log("System diagnostics result:", result);
+      
+      if (result.profileExists) {
+        toast.success("Your user profile exists", { 
+          description: `Credits: ${result.profileCredits}, Roles: ${result.rolesCount || 0}`
+        });
+      } else {
+        toast.error("Your user profile not found", { 
+          description: "This may cause functionality issues" 
+        });
+      }
+      
+      // Refresh users list after diagnostics
+      if (activeTab === 'users') {
+        const fetchedUsers = await fetchUsersFromDatabase();
+        setUsers(fetchedUsers);
+        toast.info(`Found ${fetchedUsers.length} user profiles`);
+      }
+    } catch (error) {
+      console.error("Error in diagnostics:", error);
+      toast.error("Diagnostics failed");
+    } finally {
+      setIsDebugging(false);
+    }
+  };
+
   if (!isAdmin()) {
     toast.error("You don't have admin permissions");
     return <Navigate to="/dashboard" />;
@@ -244,6 +279,18 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         <div>
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage all aspects of your MelodyVerse platform</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleDebugSystem}
+            disabled={isDebugging}
+            className="flex items-center gap-1"
+          >
+            <Bug className="w-4 h-4" />
+            {isDebugging ? 'Running...' : 'System Diagnostics'}
+          </Button>
         </div>
       </div>
 

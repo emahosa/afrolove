@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -120,8 +119,7 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     
   } catch (error: any) {
     console.error("Error in fetchUsersFromDatabase:", error);
-    toast.error("Failed to load users", { description: error.message });
-    return [];
+    throw new Error(`Failed to load users: ${error.message}`);
   }
 };
 
@@ -130,7 +128,6 @@ const processProfilesToUsersList = (profiles: any[]): any[] => {
   console.log(`Processing ${profiles.length} profiles to user list format`);
   
   return profiles.map(profile => {
-    // Get the role for this user if it exists
     return {
       id: profile.id,
       name: profile.full_name || 'No Name',
