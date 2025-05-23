@@ -1,9 +1,10 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthContextType, UserProfile } from "@/types/auth";
 import { enhanceUserWithProfileData } from "@/utils/userProfile";
-import { handleLogin, handleRegister, initializeAdminAccount } from "@/utils/authOperations";
+import { handleLogin, handleRegister, initializeAdminAccount, createProfileForUser } from "@/utils/authOperations";
 import { updateUserCredits as updateCredits } from "@/utils/credits";
 import { toast } from "sonner";
 
@@ -82,6 +83,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         
         setUser(basicUser);
+        
+        // Ensure user has a profile
+        await createProfileForUser(currentSession.user);
         
         // Then fetch roles - without this admin check won't work
         await fetchUserRoles(currentSession.user.id);

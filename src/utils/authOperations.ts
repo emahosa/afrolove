@@ -121,6 +121,13 @@ export const initializeAdminAccount = async () => {
     }
     
     if (userId) {
+      // Create profile for admin user if it doesn't exist
+      await createProfileForUser({
+        id: userId,
+        full_name: DEFAULT_ADMIN_NAME,
+        email: ADMIN_EMAIL
+      });
+      
       // Assign admin role
       const { error: roleInsertError } = await supabase
         .from('user_roles')
@@ -171,6 +178,9 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       toast.error("Login failed - no session created");
       return false;
     }
+
+    // Ensure user has a profile - create one if it doesn't exist
+    await createProfileForUser(data.user);
 
     // Special case for ellaadahosa@gmail.com - always grant admin access
     if (email === "ellaadahosa@gmail.com") {
@@ -252,6 +262,9 @@ export const handleRegister = async (name: string, email: string, password: stri
 
     console.log("AuthOperations: User registered successfully:", data.user.id);
 
+    // Create profile for the new user
+    await createProfileForUser(data.user);
+
     // Handle role assignment
     if (data.user) {
       try {
@@ -284,6 +297,68 @@ export const handleRegister = async (name: string, email: string, password: stri
   } catch (error: any) {
     console.error("AuthOperations: Registration error:", error);
     toast.error(error.message || "An unexpected error occurred");
+    return false;
+  }
+};
+
+// Helper function to create a profile for a user
+export const createProfileForUser = async (user: any): Promise<boolean> => {
+  try {
+    if (!user || !user.id) {
+      console.error("AuthOperations: Cannot create profile - Invalid user object");
+      return false;
+    }
+    
+    console.log("AuthOperations: Creating/verifying profile for user:", user.id);
+    
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+      
+    if (existingProfile) {
+      console.log("AuthOperations: Profile already exists for user:", user.id);
+      return true;
+    }
+    
+    // Extract user data - handle different structures
+    const fullName = user.user_metadata?.full_name || 
+                    user.user_metadata?.name || 
+                    user.full_name || 
+                    user.name || 
+                    'New User';
+    
+    const email = user.email || user.user_metadata?.email || user.username || '';
+    const avatar = user.user_metadata?.avatar_url || '';
+    
+    console.log("AuthOperations: Creating new profile with data:", {
+      id: user.id,
+      fullName,
+      email
+    });
+    
+    // Create new profile
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        full_name: fullName,
+        username: email,
+        avatar_url: avatar,
+        credits: 5 // Default starting credits
+      });
+        
+    if (insertError) {
+      console.error("AuthOperations: Error creating profile:", insertError);
+      throw insertError;
+    }
+    
+    console.log("AuthOperations: Successfully created profile for user:", user.id);
+    return true;
+  } catch (error) {
+    console.error("AuthOperations: Error in createProfileForUser:", error);
     return false;
   }
 };
