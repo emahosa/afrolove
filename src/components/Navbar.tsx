@@ -22,7 +22,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
           </Button>
           <Link to="/dashboard" className="flex items-center gap-2">
             <Music className="h-6 w-6 text-melody-secondary" />
-            <span className="font-montserrat font-bold text-xl">MelodyVerse</span>
+            <span className="font-montserrat font-bold text-xl">Afroverse</span>
           </Link>
         </div>
         

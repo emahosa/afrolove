@@ -72,12 +72,12 @@ const Register = () => {
     <div className="w-full max-w-md p-4 md:p-0">
       <div className="md:hidden flex items-center justify-center mb-6">
         <Music className="h-10 w-10 text-melody-secondary" />
-        <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
+        <h1 className="text-2xl font-bold ml-2">Afroverse</h1>
       </div>
       
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold mb-2">Create User Account</h2>
-        <p className="text-muted-foreground">Sign up to get started with MelodyVerse</p>
+        <p className="text-muted-foreground">Sign up to get started with Afroverse</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

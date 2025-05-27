@@ -10,7 +10,7 @@ const Index = () => {
         <div className="container flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Music className="h-6 w-6 text-melody-secondary" />
-            <span className="font-montserrat font-bold text-xl">MelodyVerse</span>
+            <span className="font-montserrat font-bold text-xl">Afroverse</span>
           </div>
           <div className="flex gap-2">
             <Link to="/login">
@@ -107,10 +107,10 @@ const Index = () => {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
               <Music className="h-5 w-5 text-melody-secondary" />
-              <span className="font-montserrat font-bold">MelodyVerse</span>
+              <span className="font-montserrat font-bold">Afroverse</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2025 MelodyVerse AI. All rights reserved.
+              © 2025 Afroverse AI. All rights reserved.
             </div>
           </div>
         </div>
