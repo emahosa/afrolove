@@ -50,20 +50,19 @@ const Register = () => {
       const success = await register(name, email, password, false);
       
       if (success) {
-        toast.success("Registration successful");
+        toast.success("Registration successful! Welcome to Afroverse!");
         navigate("/dashboard");
       } else {
-        // If registration was "successful" but needs email verification
-        toast.info("Please check your email to verify your account");
-        // Redirect to login after a short delay
+        toast.info("Registration successful! Please check your email to verify your account before signing in.");
+        // Redirect to login after showing the message
         setTimeout(() => {
-          setLoading(false);
           navigate("/login");
-        }, 2000);
+        }, 3000);
       }
     } catch (error) {
       console.error("Register: Registration error:", error);
-      toast.error("An unexpected error occurred during registration");
+      toast.error("Registration failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -103,7 +102,7 @@ const Register = () => {
             required
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Enter your email address to receive a verification link
+            You may need to verify your email address after registration
           </p>
         </div>
         <div>
@@ -116,6 +115,9 @@ const Register = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            Password must be at least 6 characters long
+          </p>
         </div>
         <Button 
           type="submit" 

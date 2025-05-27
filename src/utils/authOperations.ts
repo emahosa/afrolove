@@ -169,7 +169,15 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
 
     if (error) {
       console.error("AuthOperations: Login error:", error);
-      toast.error(error.message || "Login failed");
+      
+      // Handle specific error cases
+      if (error.message.includes("Email not confirmed")) {
+        toast.error("Please check your email and click the verification link before signing in");
+      } else if (error.message.includes("Invalid login credentials")) {
+        toast.error("Invalid email or password. Please check your credentials and try again.");
+      } else {
+        toast.error(error.message || "Login failed");
+      }
       return false;
     }
 
@@ -244,13 +252,18 @@ export const handleRegister = async (name: string, email: string, password: stri
           full_name: name,
           avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
         },
-        emailRedirectTo: window.location.origin + '/login',
+        emailRedirectTo: window.location.origin + '/dashboard',
       },
     });
 
     if (error) {
       console.error("AuthOperations: Registration error:", error);
-      toast.error(error.message);
+      
+      if (error.message.includes("User already registered")) {
+        toast.error("An account with this email already exists. Please sign in instead.");
+      } else {
+        toast.error(error.message);
+      }
       return false;
     }
 
@@ -262,11 +275,11 @@ export const handleRegister = async (name: string, email: string, password: stri
 
     console.log("AuthOperations: User registered successfully:", data.user.id);
 
-    // Create profile for the new user
-    await createProfileForUser(data.user);
-
-    // Handle role assignment
-    if (data.user) {
+    // Create profile for the new user (only if they have a session, meaning email confirmation is disabled)
+    if (data.session) {
+      await createProfileForUser(data.user);
+      
+      // Handle role assignment
       try {
         // Set default role (admin or user)
         const { error: roleError } = await supabase
@@ -288,11 +301,11 @@ export const handleRegister = async (name: string, email: string, password: stri
 
     // Check if email confirmation is required
     if (data.session === null) {
-      toast.success("Registration successful! Please check your email to verify your account.");
+      console.log("AuthOperations: Email confirmation required");
       return false; // Return false to indicate no active session (needs email verification)
     }
 
-    toast.success("Registration successful!");
+    console.log("AuthOperations: Registration successful with active session");
     return true; // Return true since we have an active session
   } catch (error: any) {
     console.error("AuthOperations: Registration error:", error);
