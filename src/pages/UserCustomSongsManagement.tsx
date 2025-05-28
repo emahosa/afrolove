@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Clock, Plus } from "lucide-react";
+import { Music, Calendar, Clock, Plus, RefreshCw } from "lucide-react";
 import { useUserSongRequests } from "@/hooks/use-user-song-requests";
 import { UserRequestCard } from "@/components/song-management/UserRequestCard";
 import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
@@ -24,6 +24,11 @@ const UserCustomSongsManagement = () => {
   const audioUploadedRequests = getFilteredRequests('audio_uploaded');
   const completedRequests = getFilteredRequests('completed');
 
+  const handleRefresh = () => {
+    console.log('User: Manual refresh triggered');
+    refetch();
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -42,10 +47,16 @@ const UserCustomSongsManagement = () => {
             Manage your custom song requests, review lyrics, and track progress.
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Request
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Request
+          </Button>
+        </div>
       </div>
 
       {error && (
