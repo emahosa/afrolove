@@ -157,6 +157,13 @@ export const BottomAudioPlayer = ({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  // Auto-play when player becomes visible
+  useEffect(() => {
+    if (isVisible && !audioUrl && !loadingAudio) {
+      handlePlayPause();
+    }
+  }, [isVisible]);
+
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -169,31 +176,33 @@ export const BottomAudioPlayer = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-2xl z-50 animate-slide-in-right">
+    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-melody-dark via-gray-900 to-melody-dark border-t border-melody-primary/20 shadow-2xl z-50 animate-slide-in-right backdrop-blur-sm">
       <div className="px-6 py-4">
         <div className="flex items-center gap-6">
           {/* Cover Art */}
-          <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-melody-primary to-melody-secondary flex items-center justify-center flex-shrink-0">
-            <Music className="h-7 w-7 text-white" />
+          <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-melody-primary via-melody-secondary to-melody-accent flex items-center justify-center flex-shrink-0 shadow-lg">
+            <Music className="h-7 w-7 text-white drop-shadow-md" />
           </div>
 
           {/* Song Info */}
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-base truncate">{title}</h4>
-            <p className="text-sm text-muted-foreground">Custom Song</p>
+            <h4 className="font-semibold text-base truncate text-melody-light">{title}</h4>
+            <p className="text-sm text-melody-light/70">Custom Song</p>
           </div>
 
           {/* Waveform Visualizer */}
-          <div className="hidden md:flex items-center gap-1 h-10 flex-1 max-w-md">
+          <div className="hidden md:flex items-center gap-1 h-10 flex-1 max-w-md bg-black/20 rounded-lg px-4 py-2">
             {waveformBars.map((height, index) => (
               <div
                 key={index}
                 className={`w-1 rounded-full transition-all duration-200 ${
-                  isPlaying ? 'bg-melody-primary animate-pulse' : 'bg-melody-primary/30'
+                  isPlaying 
+                    ? 'bg-gradient-to-t from-melody-primary to-melody-accent animate-pulse' 
+                    : 'bg-melody-primary/40'
                 }`}
                 style={{
                   height: `${Math.max(6, height * 0.35)}px`,
-                  opacity: progress > (index / waveformBars.length) * 100 ? 1 : 0.3
+                  opacity: progress > (index / waveformBars.length) * 100 ? 1 : 0.4
                 }}
               />
             ))}
@@ -206,9 +215,11 @@ export const BottomAudioPlayer = ({
               size="sm"
               onClick={handlePlayPause}
               disabled={loadingAudio}
-              className="h-12 w-12 p-0 rounded-full bg-melody-primary text-white hover:bg-melody-primary/90"
+              className="h-12 w-12 p-0 rounded-full bg-melody-primary hover:bg-melody-primary/80 text-white shadow-lg border border-melody-accent/20"
             >
-              {isPlaying ? (
+              {loadingAudio ? (
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
+              ) : isPlaying ? (
                 <Pause className="h-6 w-6" />
               ) : (
                 <Play className="h-6 w-6 ml-0.5" />
@@ -220,20 +231,20 @@ export const BottomAudioPlayer = ({
               size="sm"
               onClick={onDownload}
               disabled={downloadingAudio}
-              className="h-10 w-10 p-0 rounded-full hover:bg-accent"
+              className="h-10 w-10 p-0 rounded-full hover:bg-melody-primary/20 text-melody-light border border-melody-primary/30"
             >
               <Download className="h-4 w-4" />
             </Button>
 
             {/* Volume Control */}
             <div className="hidden sm:flex items-center gap-2 w-24">
-              <Volume2 className="h-4 w-4 text-muted-foreground" />
+              <Volume2 className="h-4 w-4 text-melody-light/70" />
               <Slider
                 value={[volume]}
                 onValueChange={handleVolumeChange}
                 max={100}
                 step={1}
-                className="flex-1"
+                className="flex-1 [&_[role=slider]]:bg-melody-primary [&_[role=slider]]:border-melody-accent"
               />
             </div>
 
@@ -241,7 +252,7 @@ export const BottomAudioPlayer = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-8 w-8 p-0 rounded-full hover:bg-accent"
+              className="h-8 w-8 p-0 rounded-full hover:bg-red-500/20 text-melody-light/70 hover:text-white"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -255,9 +266,9 @@ export const BottomAudioPlayer = ({
             onValueChange={handleSeek}
             max={100}
             step={0.1}
-            className="w-full"
+            className="w-full [&_[role=slider]]:bg-melody-primary [&_[role=slider]]:border-melody-accent [&_.bg-primary]:bg-melody-primary"
           />
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <div className="flex items-center justify-between text-xs text-melody-light/70">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
