@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -176,9 +177,9 @@ export const BottomAudioPlayer = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 animate-slide-in-right">
-      {/* Waveform/Visualizer Section */}
-      <div className="relative bg-gradient-to-r from-orange-100 to-orange-50 px-6 py-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50">
+      {/* Spectrum Visualizer Section */}
+      <div className="relative bg-gradient-to-r from-melody-primary/10 to-melody-secondary/10 px-6 py-4">
         <div className="flex justify-center">
           <SpectrumVisualizer
             audioElement={audioRef.current}
@@ -193,7 +194,7 @@ export const BottomAudioPlayer = ({
         {/* Progress overlay */}
         <div className="absolute inset-0 pointer-events-none">
           <div 
-            className="h-full bg-orange-500/20 transition-all duration-100"
+            className="h-full bg-melody-primary/20 transition-all duration-100"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -216,7 +217,7 @@ export const BottomAudioPlayer = ({
             size="lg"
             onClick={handlePlayPause}
             disabled={loadingAudio}
-            className="h-14 w-14 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex-shrink-0"
+            className="h-14 w-14 rounded-full bg-melody-primary hover:bg-melody-primary/80 text-white flex-shrink-0"
           >
             {loadingAudio ? (
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
@@ -280,7 +281,7 @@ export const BottomAudioPlayer = ({
                   onValueChange={handleVolumeChange}
                   max={100}
                   step={1}
-                  className="[&_[role=slider]]:bg-orange-500 [&_[role=slider]]:border-orange-600"
+                  className="[&_[role=slider]]:bg-melody-primary [&_[role=slider]]:border-melody-primary"
                 />
               </div>
             </div>

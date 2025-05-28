@@ -7,7 +7,6 @@ import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { SoundCloudPlayer } from "./SoundCloudPlayer";
 import { useAudioPlayer } from "@/hooks/use-audio-player";
 import {
   AlertDialog,
@@ -105,7 +104,7 @@ export const CompletedSongItem = ({
               variant="ghost"
               size="sm"
               onClick={handlePlayClick}
-              className="h-8 w-8 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-600"
+              className="h-8 w-8 rounded-full bg-melody-primary/10 hover:bg-melody-primary/20 text-melody-primary"
             >
               <Play className="h-4 w-4" />
             </Button>
@@ -142,16 +141,27 @@ export const CompletedSongItem = ({
           </div>
         </div>
 
-        {/* SoundCloud-style player */}
+        {/* Mini preview section */}
         <div className="px-4 pb-4">
-          <SoundCloudPlayer
-            requestId={request.id}
-            title={request.title}
-            isDownloadable={true}
-            onDownload={() => onDownload(request)}
-            downloadingAudio={downloadingAudio}
-            artist="AI Generated"
-          />
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded bg-gradient-to-br from-melody-primary to-melody-secondary flex items-center justify-center">
+                <Play className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">{request.title}</p>
+                <p className="text-xs text-gray-500">AI Generated</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePlayClick}
+              className="text-melody-primary border-melody-primary hover:bg-melody-primary hover:text-white"
+            >
+              Play
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
