@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Music, FileMusic, Pencil, CheckCircle } from "lucide-react";
+import { Loader2, Music, FileMusic, Pencil, CheckCircle, Plus, RotateCcw } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -39,11 +39,14 @@ const CustomSongCreation = () => {
   const [editedLyrics, setEditedLyrics] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [forceNewRequest, setForceNewRequest] = useState(false);
 
   const { requests, createRequest, fetchLyricsForRequest, selectLyrics } = useCustomSongRequests();
 
   // Check for existing requests on component mount
   useEffect(() => {
+    if (forceNewRequest) return; // Skip auto-resume if user wants to start new
+    
     const pendingRequest = requests.find(req => req.status === 'pending');
     const lyricsProposedRequest = requests.find(req => req.status === 'lyrics_proposed');
     
@@ -59,7 +62,7 @@ const CustomSongCreation = () => {
       setDescription(pendingRequest.description);
       setStep('waiting');
     }
-  }, [requests]);
+  }, [requests, forceNewRequest]);
 
   const loadLyricsForRequest = async (requestId: string) => {
     const lyrics = await fetchLyricsForRequest(requestId);
@@ -68,6 +71,21 @@ const CustomSongCreation = () => {
       setSelectedLyric(lyrics[0].id);
       setEditedLyrics(lyrics[0].lyrics);
     }
+  };
+
+  const handleStartNewRequest = () => {
+    setForceNewRequest(true);
+    setStep('initial');
+    setSelectedGenre("");
+    setDescription("");
+    setCurrentRequestId(null);
+    setAvailableLyrics([]);
+    setSelectedLyric(null);
+    setEditedLyrics("");
+    setIsEditing(false);
+    setSelectedVersion(null);
+    setVersionCount(2);
+    setSelectedVoiceId(null);
   };
 
   const handleInitialSubmit = async () => {
@@ -94,17 +112,14 @@ const CustomSongCreation = () => {
         selectedGenre
       });
       
-      // Create the request in Supabase - pass genre_id as null since we're using string IDs for now
       const request = await createRequest(description, description, null);
       
       if (request) {
         console.log('Custom song request created successfully:', request);
         setCurrentRequestId(request.id);
-        
-        // Deduct 100 credits after successful request creation
         updateUserCredits(-100);
-        
         setStep('waiting');
+        setForceNewRequest(false); // Reset the flag after successful creation
         toast.success("Your custom song request has been submitted to our team");
       } else {
         throw new Error('Failed to create request');
@@ -193,10 +208,24 @@ const CustomSongCreation = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Create a Custom Song</CardTitle>
-              <CardDescription>
-                Work with our team to create a personalized song with professional quality
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Create a Custom Song</CardTitle>
+                  <CardDescription>
+                    Work with our team to create a personalized song with professional quality
+                  </CardDescription>
+                </div>
+                {(requests.some(req => req.status === 'pending') || requests.some(req => req.status === 'lyrics_proposed')) && !forceNewRequest && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleStartNewRequest}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Request
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -283,10 +312,22 @@ const CustomSongCreation = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Creating Your Custom Song</CardTitle>
-              <CardDescription>
-                Our team is working on your custom song
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Creating Your Custom Song</CardTitle>
+                  <CardDescription>
+                    Our team is working on your custom song
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={handleStartNewRequest}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Request
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-col items-center justify-center py-10">
@@ -596,6 +637,7 @@ const CustomSongCreation = () => {
                   setSelectedVoiceId(null);
                   setCurrentRequestId(null);
                   setAvailableLyrics([]);
+                  setForceNewRequest(true);
                 }}
               >
                 Create Another Custom Song
