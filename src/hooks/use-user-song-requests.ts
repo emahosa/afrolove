@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface UserSongRequest {
@@ -20,11 +21,17 @@ export interface UserSongRequest {
 }
 
 export const useUserSongRequests = () => {
+  const { user } = useAuth();
   const [userRequests, setUserRequests] = useState<UserSongRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchUserRequests = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -36,6 +43,7 @@ export const useUserSongRequests = () => {
           *,
           genre:genres(id, name, description)
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -54,12 +62,18 @@ export const useUserSongRequests = () => {
   };
 
   const createSongRequest = async (title: string, description: string, genreId?: string) => {
+    if (!user) {
+      toast.error('You must be logged in to create a request');
+      return false;
+    }
+
     try {
-      console.log('User: Creating song request:', { title, description, genreId });
+      console.log('User: Creating song request:', { title, description, genreId, userId: user.id });
 
       const requestData: any = {
         title,
         description,
+        user_id: user.id,
       };
 
       if (genreId) {
@@ -101,7 +115,7 @@ export const useUserSongRequests = () => {
 
   useEffect(() => {
     fetchUserRequests();
-  }, []);
+  }, [user]);
 
   return {
     userRequests,
