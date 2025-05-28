@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +6,7 @@ import { AlertCircle, CheckCircle, Key, RefreshCw, Music } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
+import { supabase } from '@/integrations/supabase/client';
 
 export const SunoApiManagement = () => {
   const { user } = useAuth();
@@ -21,32 +21,43 @@ export const SunoApiManagement = () => {
     setKeyStatus('checking');
 
     try {
-      // Make a direct GET request to the edge function with taskId as query parameter
-      const response = await fetch(`https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-status?taskId=test`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsImtpZCI6Im53blFhNkViMWYwQ2RlTzIiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2Jzd2ZpeW51dmp2b2FveWZkcnNvLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIxYTdlNGQ0Ni1iNGYyLTQ2NGUtYTFmNC0yNzY2ODM2Mjg2YzEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzQ4NDU0NTYwLCJpYXQiOjE3NDg0NTA5NjAsImVtYWlsIjoiZWxsYWFkYWhvc2FAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJhdmF0YXJfdXJsIjoiaHR0cHM6Ly91aS1hdmF0YXJzLmNvbS9hcGkvP25hbWU9QWRtaW4lMjBVc2VyXHUwMDI2YmFja2dyb3VuZD1yYW5kb20iLCJlbWFpbCI6ImVsbGFhZGFob3NhQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmdWxsX25hbWUiOiJBZG1pbiBVc2VyIiwibmFtZSI6IkFkbWluIFVzZXIiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6IjFhN2U0ZDQ2LWI0ZjItNDY0ZS1hMWY0LTI3NjY4MzYyODZjMSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzQ4NDUwOTYwfV0sInNlc3Npb25faWQiOiI0NmY3YzczZS0wNGE5LTQ4MmMtYjljMS0wNTQ4MWY3NWQwNDEiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.5Xes7I_9ZMMUnsLsKgZoYHkoAnP6cr7GVskZ3iIdVkE`,
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzd2ZpeW51dmp2b2FveWZkcnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4Mjk2NTcsImV4cCI6MjA2MTQwNTY1N30.Z-tEs9Z2p5XmcivOQjV8oc5JWWSSKtgJucvmqA2Q6-c',
-          'Content-Type': 'application/json',
-        }
+      console.log('Checking Suno API key status...');
+      
+      // Use the Supabase client to call the edge function properly
+      const { data, error } = await supabase.functions.invoke('suno-status', {
+        body: { taskId: 'test' }
       });
 
-      if (response.ok) {
-        setKeyStatus('valid');
-        toast.success('Suno API key is valid and working');
-      } else {
-        const errorData = await response.json();
-        if (errorData.error?.includes('SUNO_API_KEY not configured')) {
+      console.log('API key check response:', { data, error });
+
+      if (error) {
+        console.error('API key check error:', error);
+        if (error.message?.includes('SUNO_API_KEY not configured')) {
           setKeyStatus('missing');
+          toast.error('Suno API key is not configured');
         } else {
           setKeyStatus('invalid');
+          toast.error('API key check failed: ' + error.message);
         }
+      } else if (data) {
+        // Check if the response indicates success
+        if (data.code === 200 || data.msg === 'success') {
+          setKeyStatus('valid');
+          toast.success('Suno API key is valid and working');
+        } else {
+          setKeyStatus('invalid');
+          toast.error('API key appears to be invalid');
+        }
+      } else {
+        setKeyStatus('invalid');
+        toast.error('Unexpected response from API key check');
       }
 
       setLastChecked(new Date().toLocaleString());
     } catch (error) {
       console.error('Error checking API key:', error);
       setKeyStatus('invalid');
+      toast.error('Failed to check API key status');
     } finally {
       setIsChecking(false);
     }
