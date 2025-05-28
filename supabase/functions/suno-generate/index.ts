@@ -38,6 +38,8 @@ serve(async (req) => {
     const body: SunoGenerateRequest = await req.json()
     console.log('Suno generate request:', { ...body, userId: body.userId })
 
+    let userProfile = null;
+
     // Skip credit validation for admin test generations
     if (!body.isAdminTest) {
       // Validate user has sufficient credits
@@ -50,6 +52,8 @@ serve(async (req) => {
       if (profileError || !profile) {
         throw new Error('User profile not found')
       }
+
+      userProfile = profile;
 
       if (profile.credits < 5) { // Assuming 5 credits per generation
         throw new Error('Insufficient credits. You need at least 5 credits to generate a song.')
@@ -109,11 +113,11 @@ serve(async (req) => {
     }
 
     // Only deduct credits for non-admin test generations
-    if (!body.isAdminTest) {
+    if (!body.isAdminTest && userProfile) {
       // Deduct credits from user
       const { error: creditError } = await supabase
         .from('profiles')
-        .update({ credits: profile.credits - 5 })
+        .update({ credits: userProfile.credits - 5 })
         .eq('id', body.userId)
 
       if (creditError) {
