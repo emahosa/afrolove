@@ -35,12 +35,9 @@ serve(async (req) => {
       )
     }
 
-    // Update the environment variable for this function execution
-    Deno.env.set(keyName, newValue)
-    
-    console.log(`Successfully updated ${keyName}`)
+    console.log(`Validating new API key for ${keyName}`)
 
-    // Test the new API key immediately by making a test call
+    // Test the new API key by making a test call
     try {
       const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
         method: 'POST',
@@ -59,6 +56,7 @@ serve(async (req) => {
       })
 
       const testData = await testResponse.json()
+      console.log('API key validation response:', testData)
       
       if (testData.code === 429) {
         return new Response(
@@ -88,8 +86,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'API key updated and validated successfully',
-          note: 'The new API key is now active and has sufficient credits'
+          message: 'API key validated successfully',
+          note: 'Please update the SUNO_API_KEY secret in your Supabase dashboard under Settings > Edge Functions > Secrets with this validated key'
         }),
         { 
           status: 200, 
