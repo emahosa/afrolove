@@ -2,7 +2,28 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CustomSongRequest, CustomSongLyrics } from './use-custom-song-requests';
+
+export interface CustomSongRequest {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  genre_id: string | null;
+  status: 'pending' | 'lyrics_proposed' | 'lyrics_selected' | 'audio_uploaded' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomSongLyrics {
+  id: string;
+  request_id: string;
+  lyrics: string;
+  version: number;
+  is_selected: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
 
 export const useAdminSongRequests = () => {
   const [allRequests, setAllRequests] = useState<CustomSongRequest[]>([]);
@@ -13,50 +34,71 @@ export const useAdminSongRequests = () => {
     try {
       console.log('Admin: Fetching all custom song requests...');
       setError(null);
+      setLoading(true);
       
-      // First check if user is authenticated and has admin role
-      const { data: { user } } = await supabase.auth.getUser();
+      // Check if user is authenticated
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       console.log('Admin: Current user:', user?.id, user?.email);
+      
+      if (userError) {
+        console.error('Admin: Error getting user:', userError);
+        throw new Error('Authentication error: ' + userError.message);
+      }
       
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Check admin role
+      // Check if user has admin role
+      console.log('Admin: Checking admin role for user:', user.id);
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'admin');
+        .eq('role', 'admin')
+        .single();
 
       console.log('Admin: Role check result:', roleData, roleError);
 
-      if (roleError) {
-        console.error('Admin: Error checking role:', roleError);
+      // Super admin check
+      const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
+      
+      if (!roleData && !isSuperAdmin) {
+        console.warn('Admin: User does not have admin role and is not super admin');
+        // Don't throw error for super admin, continue fetching
+        if (!isSuperAdmin) {
+          throw new Error('Access denied: Admin role required');
+        }
       }
 
-      // Fetch requests with detailed logging
-      const { data, error, count } = await supabase
+      // Fetch all custom song requests
+      console.log('Admin: Fetching custom song requests from database...');
+      const { data: requests, error: fetchError, count } = await supabase
         .from('custom_song_requests')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      console.log('Admin: Query result - Data:', data, 'Error:', error, 'Count:', count);
+      console.log('Admin: Raw query result:', { requests, fetchError, count });
 
-      if (error) {
-        console.error('Admin: Error fetching requests:', error);
-        setError(`Failed to fetch requests: ${error.message}`);
-        throw error;
+      if (fetchError) {
+        console.error('Admin: Error fetching requests:', fetchError);
+        throw new Error(`Database error: ${fetchError.message}`);
       }
       
-      console.log(`Admin: Successfully fetched ${data?.length || 0} requests:`, data);
-      setAllRequests(data || []);
+      console.log(`Admin: Successfully fetched ${requests?.length || 0} requests`);
+      setAllRequests(requests || []);
       
-      if (!data || data.length === 0) {
-        console.log('Admin: No requests found - this could mean:');
-        console.log('1. No requests have been created yet');
-        console.log('2. RLS policies are blocking access');
-        console.log('3. User does not have admin role');
+      // Log individual requests for debugging
+      if (requests && requests.length > 0) {
+        console.log('Admin: Request details:', requests.map(r => ({
+          id: r.id,
+          title: r.title,
+          user_id: r.user_id,
+          status: r.status,
+          created_at: r.created_at
+        })));
+      } else {
+        console.log('Admin: No requests found in database');
       }
       
     } catch (error: any) {
@@ -84,6 +126,7 @@ export const useAdminSongRequests = () => {
         throw error;
       }
       
+      // Refresh the requests list
       await fetchAllRequests();
       toast.success('Request status updated successfully');
       return true;
@@ -148,45 +191,22 @@ export const useAdminSongRequests = () => {
     }
   };
 
-  // Test database connectivity
-  const testConnection = async () => {
-    try {
-      console.log('Admin: Testing database connection...');
-      const { data, error } = await supabase
-        .from('custom_song_requests')
-        .select('count', { count: 'exact', head: true });
-      
-      console.log('Admin: Connection test result:', { data, error });
-      return !error;
-    } catch (error) {
-      console.error('Admin: Connection test failed:', error);
-      return false;
-    }
-  };
-
   useEffect(() => {
     console.log('Admin: Setting up requests fetching and real-time subscription');
     
-    // Test connection first
-    testConnection().then(isConnected => {
-      console.log('Admin: Database connection status:', isConnected);
-      if (isConnected) {
-        fetchAllRequests();
-      } else {
-        setError('Failed to connect to database');
-        setLoading(false);
-      }
-    });
+    // Initial fetch
+    fetchAllRequests();
 
-    // Set up real-time subscription for all requests
+    // Set up real-time subscription for custom song requests
     const channel = supabase
-      .channel('admin_song_requests_changes')
+      .channel('admin_custom_song_requests')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'custom_song_requests'
       }, (payload) => {
         console.log('Admin: Real-time update received:', payload);
+        // Refresh requests when there are changes
         fetchAllRequests();
       })
       .subscribe();

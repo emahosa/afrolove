@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Play, Edit, CheckCircle, Clock, Music } from "lucide-react";
-import { CustomSongRequest } from "@/hooks/use-custom-song-requests";
+import { Play, Edit, CheckCircle, Clock, Music, User, Calendar } from "lucide-react";
+import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { toast } from "sonner";
 
 type AdminSongRequestCardProps = {
@@ -54,36 +54,50 @@ export const AdminSongRequestCard = ({
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardContent className="p-0">
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-3">
                 <h3 className="font-bold text-lg">{request.title}</h3>
                 {getStatusBadge(request.status)}
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                <div>
-                  <span className="font-medium">User ID:</span> {request.user_id.slice(-8)}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span className="font-medium">User ID:</span>
+                  <code className="bg-muted px-1 rounded text-xs">{request.user_id.slice(-8)}</code>
                 </div>
-                <div>
-                  <span className="font-medium">Genre ID:</span> {request.genre_id || 'Not specified'}
+                
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Music className="h-4 w-4" />
+                  <span className="font-medium">Genre ID:</span>
+                  <code className="bg-muted px-1 rounded text-xs">
+                    {request.genre_id ? request.genre_id.slice(-8) : 'Not specified'}
+                  </code>
                 </div>
-                <div>
-                  <span className="font-medium">Created:</span> {formatDate(request.created_at)}
+                
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span className="font-medium">Created:</span>
+                  <span>{formatDate(request.created_at)}</span>
                 </div>
-                <div>
-                  <span className="font-medium">Updated:</span> {formatDate(request.updated_at)}
+                
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span className="font-medium">Updated:</span>
+                  <span>{formatDate(request.updated_at)}</span>
                 </div>
               </div>
             </div>
           </div>
           
           <div className="mb-4">
-            <Label className="text-sm font-medium">Description</Label>
-            <div className="mt-1 p-3 bg-muted/30 rounded-md">
-              <p className="text-sm">{request.description}</p>
+            <Label className="text-sm font-medium mb-2 block">Description</Label>
+            <div className="p-3 bg-muted/30 rounded-md">
+              <p className="text-sm whitespace-pre-wrap">{request.description}</p>
             </div>
           </div>
           
