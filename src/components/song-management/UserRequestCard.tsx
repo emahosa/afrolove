@@ -53,15 +53,34 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       setDownloadingAudio(true);
       console.log('Downloading audio for request:', request.id);
 
-      // Fetch the selected audio record
-      const { data: audioData, error: audioError } = await supabase
+      // First try to fetch the selected audio record
+      let { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
         .eq('request_id', request.id)
         .eq('is_selected', true)
         .maybeSingle();
 
-      if (audioError) {
+      // If no selected audio found, try to get any audio for this request
+      if (!audioData) {
+        console.log('No selected audio found, trying to fetch any audio for this request...');
+        const { data: anyAudioData, error: anyAudioError } = await supabase
+          .from('custom_song_audio')
+          .select('*')
+          .eq('request_id', request.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (anyAudioError) {
+          console.error('Error fetching any audio data:', anyAudioError);
+          throw new Error('Failed to find audio file');
+        }
+
+        audioData = anyAudioData;
+      }
+
+      if (audioError && !audioData) {
         console.error('Error fetching audio data:', audioError);
         throw new Error('Failed to find audio file');
       }
