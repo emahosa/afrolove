@@ -13,11 +13,12 @@ import SplitAudioControl from "@/components/SplitAudioControl";
 import VoiceCloning from "@/components/VoiceCloning";
 import VoiceChanger from "@/components/VoiceChanger";
 import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
+import { SunoGenerationForm } from "@/components/suno/SunoGenerationForm";
 import { useNavigate } from "react-router-dom";
 import { useGenres } from "@/hooks/use-genres";
 
 const Create = () => {
-  const [activeTab, setActiveTab] = useState("vocals");
+  const [activeTab, setActiveTab] = useState("ai-suno");
   const [selectedGenre, setSelectedGenre] = useState("");
   const [theme, setTheme] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -28,7 +29,7 @@ const Create = () => {
   const navigate = useNavigate();
   const { genres, loading: genresLoading } = useGenres();
 
-  const handleGenerate = () => {
+  const handleLegacyGenerate = () => {
     const selectedGenreData = genres.find(g => g.id === selectedGenre);
     
     if (!selectedGenreData) {
@@ -51,7 +52,6 @@ const Create = () => {
       return;
     }
 
-    // Combine the genre prompt with user's theme
     const combinedPrompt = `${selectedGenreData.prompt_template}. ${theme}`;
     console.log('Combined prompt for AI generation:', combinedPrompt);
 
@@ -67,6 +67,11 @@ const Create = () => {
       
       toast.success("Track generated! Your AI track has been created successfully");
     }, 5000);
+  };
+
+  const handleSunoSuccess = (taskId: string) => {
+    console.log('Suno generation started with task ID:', taskId);
+    toast.success('🎵 Your song is being generated! Check back in a few minutes.');
   };
 
   const handleViewHistory = () => {
@@ -87,13 +92,17 @@ const Create = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-2">Create Music</h1>
-      <p className="text-muted-foreground mb-6">Generate a new song or instrumental using AI</p>
+      <p className="text-muted-foreground mb-6">Generate high-quality songs using AI technology</p>
       
-      <Tabs defaultValue="vocals" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-6">
+      <Tabs defaultValue="ai-suno" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
+          <TabsTrigger value="ai-suno" className="flex items-center gap-2">
+            <Music className="h-4 w-4" />
+            <span>Suno AI</span>
+          </TabsTrigger>
           <TabsTrigger value="vocals" className="flex items-center gap-2">
             <Mic className="h-4 w-4" />
-            <span>AI Vocals</span>
+            <span>Legacy AI</span>
           </TabsTrigger>
           <TabsTrigger value="instrumental" className="flex items-center gap-2">
             <Disc className="h-4 w-4" />
@@ -101,16 +110,30 @@ const Create = () => {
           </TabsTrigger>
           <TabsTrigger value="custom" className="flex items-center gap-2">
             <FileMusic className="h-4 w-4" />
-            <span>Custom Song</span>
+            <span>Custom</span>
           </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="ai-suno" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>🎵 Suno AI Music Generation</CardTitle>
+              <CardDescription>
+                Create professional-quality songs with advanced AI. Choose between quick prompts or detailed lyrics input.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SunoGenerationForm onSuccess={handleSunoSuccess} />
+            </CardContent>
+          </Card>
+        </TabsContent>
         
         <TabsContent value="vocals" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Generate a song with AI vocals</CardTitle>
+              <CardTitle>Generate a song with AI vocals (Legacy)</CardTitle>
               <CardDescription>
-                Our AI will create lyrics and vocals based on your description
+                Basic AI song generation with simple prompts
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -177,7 +200,7 @@ const Create = () => {
                   </div>
                   
                   <Button
-                    onClick={handleGenerate}
+                    onClick={handleLegacyGenerate}
                     disabled={isGenerating || genres.length === 0}
                     className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
                   >
@@ -331,7 +354,7 @@ const Create = () => {
                   </div>
                   
                   <Button
-                    onClick={handleGenerate}
+                    onClick={handleLegacyGenerate}
                     disabled={isGenerating || genres.length === 0}
                     className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
                   >
