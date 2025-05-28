@@ -41,8 +41,8 @@ const CustomSongManagement = () => {
   });
 
   const handleStartWork = async (requestId: string) => {
-    console.log('Admin: Starting work on request:', requestId);
-    await updateRequestStatus(requestId, 'lyrics_proposed');
+    console.log('Admin: Starting work on request (opening editor):', requestId);
+    // Don't update status yet - just open the editor
     setSelectedRequestId(requestId);
   };
 
@@ -51,6 +51,7 @@ const CustomSongManagement = () => {
       console.log('Admin: Uploading lyrics for request:', requestId);
       await addLyrics(requestId, lyrics1, 1);
       await addLyrics(requestId, lyrics2, 2);
+      // Only now update the status to lyrics_proposed
       await updateRequestStatus(requestId, 'lyrics_proposed');
       setSelectedRequestId(null);
       return true;
