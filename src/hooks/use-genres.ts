@@ -48,7 +48,7 @@ export const useGenres = () => {
     try {
       console.log("Creating genre:", genreData);
       
-      // Get current user
+      // Get current user for debugging
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error("User not authenticated:", userError);
@@ -56,21 +56,38 @@ export const useGenres = () => {
       }
       
       console.log("Current user:", user.id);
+      console.log("User email:", user.email);
+      
+      // Test the admin function directly
+      const { data: isAdminResult, error: adminError } = await supabase
+        .rpc('is_current_user_admin');
+      
+      console.log("Admin check result:", isAdminResult, "Error:", adminError);
+      
+      // Insert without created_by field first to test basic RLS
+      const insertData = {
+        name: genreData.name,
+        prompt_template: genreData.prompt_template,
+        description: genreData.description || null,
+        is_active: true
+      };
+      
+      console.log("Inserting data:", insertData);
       
       const { data, error } = await supabase
         .from('genres')
-        .insert([{
-          name: genreData.name,
-          prompt_template: genreData.prompt_template,
-          description: genreData.description || null,
-          is_active: true,
-          created_by: user.id
-        }])
+        .insert([insertData])
         .select()
         .single();
 
       if (error) {
         console.error("Error creating genre:", error);
+        console.error("Error details:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         throw error;
       }
       

@@ -654,6 +654,10 @@ export type Database = {
             }
         Returns: boolean
       }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       contest_status: "draft" | "active" | "voting" | "completed"
