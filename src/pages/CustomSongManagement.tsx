@@ -5,40 +5,62 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import { useSongRequests } from "@/hooks/use-song-requests";
-import { LyricsEditor } from "@/components/song-management/LyricsEditor";
-import { SongRequestTabs } from "@/components/song-management/SongRequestTabs";
+import { useAdminSongRequests } from "@/hooks/use-admin-song-requests";
+import { AdminLyricsEditor } from "@/components/song-management/AdminLyricsEditor";
+import { AdminSongRequestTabs } from "@/components/song-management/AdminSongRequestTabs";
 
 const CustomSongManagement = () => {
   const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   
   const {
-    songRequests,
-    selectedRequest,
-    lyricsDraft,
-    uploadingAudio,
-    setLyricsDraft,
-    handleStartWork,
-    handleWriteLyrics,
-    handleSaveLyrics,
-    handleUploadAudio,
-    handleRecreateLyrics,
-    setSelectedRequest
-  } = useSongRequests();
+    allRequests,
+    loading,
+    updateRequestStatus,
+    addLyrics,
+    fetchLyricsForRequest
+  } = useAdminSongRequests();
 
   if (!isAdmin()) {
     return <Navigate to="/dashboard" />;
   }
 
-  const filteredRequests = songRequests.filter(request => {
+  const filteredRequests = allRequests.filter(request => {
     const matchesSearch = 
-      request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.genre.toLowerCase().includes(searchQuery.toLowerCase());
+      request.genre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.user_id.toLowerCase().includes(searchQuery.toLowerCase());
       
     return matchesSearch;
   });
+
+  const handleStartWork = async (requestId: string) => {
+    await updateRequestStatus(requestId, 'lyrics_uploaded');
+    setSelectedRequestId(requestId);
+  };
+
+  const handleUploadLyrics = async (requestId: string, lyrics1: string, lyrics2: string) => {
+    try {
+      await addLyrics(requestId, lyrics1, 1);
+      await addLyrics(requestId, lyrics2, 2);
+      await updateRequestStatus(requestId, 'lyrics_uploaded');
+      setSelectedRequestId(null);
+      return true;
+    } catch (error) {
+      console.error('Error uploading lyrics:', error);
+      return false;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <span className="ml-2">Loading requests...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -64,21 +86,16 @@ const CustomSongManagement = () => {
             </div>
           </div>
           
-          <SongRequestTabs
+          <AdminSongRequestTabs
             songRequests={filteredRequests}
-            uploadingAudio={uploadingAudio}
             onStartWork={handleStartWork}
-            onWriteLyrics={handleWriteLyrics}
-            onUploadAudio={handleUploadAudio}
-            onRecreateLyrics={handleRecreateLyrics}
+            onUpdateStatus={updateRequestStatus}
           />
           
-          <LyricsEditor
-            selectedRequest={songRequests.find(r => r.id === selectedRequest)}
-            lyricsDraft={lyricsDraft}
-            onLyricsChange={setLyricsDraft}
-            onSave={handleSaveLyrics}
-            onCancel={() => setSelectedRequest(null)}
+          <AdminLyricsEditor
+            selectedRequestId={selectedRequestId}
+            onUploadLyrics={handleUploadLyrics}
+            onCancel={() => setSelectedRequestId(null)}
           />
         </CardContent>
       </Card>

@@ -1,18 +1,19 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Music, FileMusic, Pencil } from "lucide-react";
+import { Loader2, Music, FileMusic, Pencil, CheckCircle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import SplitAudioControl from "./SplitAudioControl";
 import VoiceCloning from "./VoiceCloning";
 import VoiceChanger from "./VoiceChanger";
+import { useCustomSongRequests, CustomSongLyrics } from "@/hooks/use-custom-song-requests";
 
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
@@ -23,17 +24,13 @@ const genres = [
 
 type CreationStep = 'initial' | 'waiting' | 'lyrics' | 'rhythm' | 'final';
 
-interface SongOption {
-  id: string;
-  title: string;
-  preview: string;
-}
-
 const CustomSongCreation = () => {
   const [step, setStep] = useState<CreationStep>('initial');
   const [selectedGenre, setSelectedGenre] = useState("");
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+  const [availableLyrics, setAvailableLyrics] = useState<CustomSongLyrics[]>([]);
   const [selectedLyric, setSelectedLyric] = useState<string | null>(null);
   const [versionCount, setVersionCount] = useState<number>(2);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
@@ -43,47 +40,37 @@ const CustomSongCreation = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
 
-  const lyricOptions: SongOption[] = [
-    {
-      id: "lyric1",
-      title: "Sunset Love",
-      preview: "Verse 1: The sun sets low on the horizon...\nChorus: Your love is my warm sunset glow...",
-    },
-    {
-      id: "lyric2",
-      title: "Evening Romance",
-      preview: "Verse 1: In the quiet of the evening light...\nChorus: Under stars our love takes flight...",
-    },
-  ];
+  const { requests, createRequest, fetchLyricsForRequest, selectLyrics } = useCustomSongRequests();
 
-  const instrumentalOptions: SongOption[] = [
-    {
-      id: "inst1",
-      title: "Sunset Love - Smooth Mix",
-      preview: "Smooth R&B instrumental with piano and gentle beats",
-    },
-    {
-      id: "inst2",
-      title: "Sunset Love - Upbeat Mix",
-      preview: "Upbeat version with stronger drums and melodic synths",
-    },
-  ];
-
-  const generateVersions = () => {
-    const versions = [];
-    for (let i = 1; i <= versionCount; i++) {
-      versions.push({
-        id: `version-${i}`,
-        name: `Version ${i}`,
-        description: i % 2 === 0 ? 
-          "Upbeat arrangement with strong drums and melodic synths" :
-          "Smooth arrangement with piano and gentle beats"
-      });
+  // Check for existing requests on component mount
+  useEffect(() => {
+    const pendingRequest = requests.find(req => req.status === 'pending');
+    const lyricsUploadedRequest = requests.find(req => req.status === 'lyrics_uploaded');
+    
+    if (lyricsUploadedRequest) {
+      setCurrentRequestId(lyricsUploadedRequest.id);
+      setSelectedGenre(lyricsUploadedRequest.genre);
+      setDescription(lyricsUploadedRequest.description);
+      setStep('lyrics');
+      loadLyricsForRequest(lyricsUploadedRequest.id);
+    } else if (pendingRequest) {
+      setCurrentRequestId(pendingRequest.id);
+      setSelectedGenre(pendingRequest.genre);
+      setDescription(pendingRequest.description);
+      setStep('waiting');
     }
-    return versions;
+  }, [requests]);
+
+  const loadLyricsForRequest = async (requestId: string) => {
+    const lyrics = await fetchLyricsForRequest(requestId);
+    setAvailableLyrics(lyrics);
+    if (lyrics.length > 0 && !selectedLyric) {
+      setSelectedLyric(lyrics[0].id);
+      setEditedLyrics(lyrics[0].lyrics_text);
+    }
   };
 
-  const handleInitialSubmit = () => {
+  const handleInitialSubmit = async () => {
     if (!selectedGenre) {
       toast.error("Select a music genre to continue");
       return;
@@ -101,24 +88,35 @@ const CustomSongCreation = () => {
 
     setIsGenerating(true);
     
-    updateUserCredits(-100);
-    
-    setTimeout(() => {
+    try {
+      // Deduct 100 credits first
+      updateUserCredits(-100);
+      
+      // Create the request in Supabase
+      const request = await createRequest(selectedGenre, description);
+      
+      if (request) {
+        setCurrentRequestId(request.id);
+        setStep('waiting');
+        toast.success("Your custom song request has been submitted to our team");
+      } else {
+        // Refund credits if request failed
+        updateUserCredits(100);
+      }
+    } catch (error) {
+      console.error('Error creating request:', error);
+      // Refund credits if request failed
+      updateUserCredits(100);
+      toast.error("Failed to submit request. Please try again.");
+    } finally {
       setIsGenerating(false);
-      setStep('waiting');
-      
-      toast.success("Our team is now working on your custom song lyrics");
-      
-      setTimeout(() => {
-        setStep('lyrics');
-      }, 5000);
-    }, 2000);
+    }
   };
 
   const handleLyricSelection = (lyricId: string) => {
     setSelectedLyric(lyricId);
-    const selectedOption = lyricOptions.find(option => option.id === lyricId);
-    setEditedLyrics(selectedOption?.preview || "");
+    const selectedOption = availableLyrics.find(lyric => lyric.id === lyricId);
+    setEditedLyrics(selectedOption?.lyrics_text || "");
   };
 
   const handleLyricEdit = () => {
@@ -130,24 +128,26 @@ const CustomSongCreation = () => {
     toast.success("Your edits have been saved successfully");
   };
 
-  const handleLyricSubmit = () => {
-    if (!selectedLyric) {
+  const handleLyricSubmit = async () => {
+    if (!selectedLyric || !currentRequestId) {
       toast.error("Choose one of the lyric options to continue");
       return;
     }
 
     setIsGenerating(true);
     
-    setTimeout(() => {
+    try {
+      const success = await selectLyrics(selectedLyric, currentRequestId);
+      if (success) {
+        setStep('rhythm');
+        toast.success("Lyrics selected! Our team is now working on your instrumental options");
+      }
+    } catch (error) {
+      console.error('Error selecting lyrics:', error);
+      toast.error("Failed to select lyrics. Please try again.");
+    } finally {
       setIsGenerating(false);
-      setStep('rhythm');
-      
-      toast.success("Our team is now working on your instrumental options");
-    }, 2000);
-  };
-
-  const handleVersionCountChange = (count: number) => {
-    setVersionCount(count);
+    }
   };
 
   const handleInstrumentalSubmit = () => {
@@ -183,14 +183,6 @@ const CustomSongCreation = () => {
     navigate("/library");
   };
 
-  const handleDownload = () => {
-    toast("Your custom song is being downloaded");
-  };
-
-  const handleShare = () => {
-    toast.success("Share link copied to clipboard");
-  };
-
   const renderStepContent = () => {
     switch (step) {
       case 'initial':
@@ -222,7 +214,7 @@ const CustomSongCreation = () => {
                         />
                         <Label
                           htmlFor={`${genre.id}-custom`}
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
                           <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
                             <Music className="h-5 w-5" />
@@ -300,8 +292,16 @@ const CustomSongCreation = () => {
                 <h3 className="text-xl font-semibold mt-6">Crafting Your Lyrics</h3>
                 <p className="text-muted-foreground text-center mt-2 max-w-md">
                   Our team is working on creating custom lyrics based on your description.
-                  This typically takes 24-48 hours, but we've expedited it for this demo.
+                  You'll receive a notification when the lyrics are ready for review.
                 </p>
+                <div className="mt-4 p-3 bg-muted/30 rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Request ID:</strong> {currentRequestId?.slice(-8)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Genre:</strong> {selectedGenre}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -318,26 +318,29 @@ const CustomSongCreation = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
-                {lyricOptions.map((option) => (
+                {availableLyrics.map((lyric, index) => (
                   <div 
-                    key={option.id}
+                    key={lyric.id}
                     className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      selectedLyric === option.id 
+                      selectedLyric === lyric.id 
                         ? "border-melody-secondary bg-melody-primary/5" 
                         : "border-border hover:border-melody-secondary/50"
                     }`}
-                    onClick={() => handleLyricSelection(option.id)}
+                    onClick={() => handleLyricSelection(lyric.id)}
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{option.title}</h3>
+                      <h3 className="font-medium">Lyrics Option {index + 1}</h3>
                       <div 
                         className={`w-5 h-5 rounded-full border ${
-                          selectedLyric === option.id 
+                          selectedLyric === lyric.id 
                             ? "bg-melody-secondary border-melody-secondary" 
                             : "border-gray-300"
                         }`}
                       />
                     </div>
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
+                      {lyric.lyrics_text.substring(0, 150)}...
+                    </p>
                   </div>
                 ))}
               </div>
@@ -345,7 +348,7 @@ const CustomSongCreation = () => {
               {selectedLyric && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-base font-medium">Edit Lyrics</Label>
+                    <Label className="text-base font-medium">Preview & Edit Lyrics</Label>
                     {!isEditing ? (
                       <Button 
                         variant="outline" 
@@ -361,6 +364,7 @@ const CustomSongCreation = () => {
                         size="sm"
                         onClick={handleSaveLyrics}
                       >
+                        <CheckCircle className="h-4 w-4 mr-2" />
                         Save Changes
                       </Button>
                     )}
@@ -455,28 +459,28 @@ const CustomSongCreation = () => {
                   Select your preferred version:
                 </Label>
                 <div className="grid grid-cols-1 gap-4">
-                  {instrumentalOptions.map((option) => (
+                  {['version1', 'version2'].map((versionId, index) => (
                     <div 
-                      key={option.id}
+                      key={versionId}
                       className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                        selectedVersion === option.id 
+                        selectedVersion === versionId 
                           ? "border-melody-secondary bg-melody-primary/5" 
                           : "border-border hover:border-melody-secondary/50"
                       }`}
-                      onClick={() => setSelectedVersion(option.id)}
+                      onClick={() => setSelectedVersion(versionId)}
                     >
                       <div className="flex items-center justify-between">
-                        <h3 className="font-medium">{option.title}</h3>
+                        <h3 className="font-medium">Instrumental Version {index + 1}</h3>
                         <div 
                           className={`w-5 h-5 rounded-full border ${
-                            selectedVersion === option.id 
+                            selectedVersion === versionId 
                               ? "bg-melody-secondary border-melody-secondary" 
                               : "border-gray-300"
                           }`}
                         />
                       </div>
                       <p className="mt-2 text-sm text-muted-foreground">
-                        {option.preview}
+                        {index === 0 ? "Smooth arrangement with piano and gentle beats" : "Upbeat arrangement with strong drums and melodic synths"}
                       </p>
                       <div className="mt-3 p-3 bg-muted rounded flex items-center justify-center">
                         <div className="audio-wave scale-[80%]">
@@ -520,9 +524,9 @@ const CustomSongCreation = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                {generateVersions().map((version) => (
+                {Array.from({ length: versionCount }, (_, index) => (
                   <div 
-                    key={version.id}
+                    key={index}
                     className="flex items-start space-x-4 p-4 border rounded-lg bg-card"
                   >
                     <div className="flex-shrink-0">
@@ -531,8 +535,10 @@ const CustomSongCreation = () => {
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold">{version.name}</h3>
-                      <p className="text-sm text-muted-foreground">{version.description}</p>
+                      <h3 className="text-lg font-semibold">Version {index + 1}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {index % 2 === 0 ? "Smooth arrangement with piano and gentle beats" : "Upbeat arrangement with strong drums and melodic synths"}
+                      </p>
                       <div className="mt-3 p-2 bg-muted rounded flex items-center justify-start">
                         <div className="audio-wave scale-75">
                           <div className="audio-wave-bar h-4 animate-wave1"></div>
@@ -544,14 +550,14 @@ const CustomSongCreation = () => {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button size="sm" variant="outline">Play</Button>
                         <Button size="sm" variant="outline">Download</Button>
-                        <SplitAudioControl songName={`${version.name}`} songUrl="mock-url" />
+                        <SplitAudioControl songName={`Version ${index + 1}`} songUrl="mock-url" />
                         <div className="flex items-center gap-2 mt-2">
                           <VoiceCloning 
                             onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)} 
                           />
                           {selectedVoiceId && (
                             <VoiceChanger 
-                              songName={version.name} 
+                              songName={`Version ${index + 1}`} 
                               songUrl="mock-url"
                               voiceId={selectedVoiceId}
                             />
@@ -568,7 +574,7 @@ const CustomSongCreation = () => {
                   <Music className="mr-2 h-4 w-4" />
                   Save All to Library
                 </Button>
-                <Button variant="outline" onClick={handleShare}>
+                <Button variant="outline" onClick={() => toast.success("Share link copied to clipboard")}>
                   Share
                 </Button>
               </div>
@@ -584,6 +590,8 @@ const CustomSongCreation = () => {
                   setSelectedVersion(null);
                   setVersionCount(2);
                   setSelectedVoiceId(null);
+                  setCurrentRequestId(null);
+                  setAvailableLyrics([]);
                 }}
               >
                 Create Another Custom Song
