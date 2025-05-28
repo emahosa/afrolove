@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -30,11 +29,38 @@ export const useAdminSongRequests = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const ensureStorageBucket = async () => {
+    try {
+      // Check if bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const customSongsBucket = buckets?.find(bucket => bucket.name === 'custom-songs');
+      
+      if (!customSongsBucket) {
+        console.log('Creating custom-songs storage bucket...');
+        const { error: bucketError } = await supabase.storage.createBucket('custom-songs', {
+          public: true,
+          allowedMimeTypes: ['audio/*']
+        });
+        
+        if (bucketError) {
+          console.error('Error creating bucket:', bucketError);
+        } else {
+          console.log('Custom-songs bucket created successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring storage bucket:', error);
+    }
+  };
+
   const fetchAllRequests = async () => {
     try {
       console.log('Admin: Starting to fetch all custom song requests...');
       setError(null);
       setLoading(true);
+      
+      // Ensure storage bucket exists
+      await ensureStorageBucket();
       
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();

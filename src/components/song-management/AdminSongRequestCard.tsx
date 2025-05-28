@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Play, Edit, CheckCircle, Clock, Music, User, Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Play, Edit, CheckCircle, Clock, Music, User, Calendar, Upload } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { toast } from "sonner";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 type AdminSongRequestCardProps = {
   request: CustomSongRequest;
@@ -38,6 +41,9 @@ export const AdminSongRequestCard = ({
   onStartWork,
   onUpdateStatus,
 }: AdminSongRequestCardProps) => {
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -51,6 +57,70 @@ export const AdminSongRequestCard = ({
   const handleMarkCompleted = () => {
     onUpdateStatus(request.id, 'completed');
     toast.success("Request marked as completed");
+  };
+
+  const handleAudioUpload = async () => {
+    if (!audioFile) {
+      toast.error("Please select an audio file first");
+      return;
+    }
+
+    setUploadingAudio(true);
+    try {
+      console.log('Admin: Uploading audio file for request:', request.id);
+      
+      // Create unique filename
+      const fileExt = audioFile.name.split('.').pop();
+      const fileName = `${request.id}_final.${fileExt}`;
+      
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('custom-songs')
+        .upload(`audio/${fileName}`, audioFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Error uploading audio:', uploadError);
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('custom-songs')
+        .getPublicUrl(`audio/${fileName}`);
+
+      console.log('Audio uploaded successfully, URL:', publicUrl);
+
+      // Save audio record to database
+      const { error: dbError } = await supabase
+        .from('custom_song_audio')
+        .insert({
+          request_id: request.id,
+          audio_url: publicUrl,
+          version: 1,
+          is_selected: true
+        });
+
+      if (dbError) {
+        console.error('Error saving audio record:', dbError);
+        throw dbError;
+      }
+
+      // Update request status
+      await onUpdateStatus(request.id, 'audio_uploaded');
+      setAudioFile(null);
+      toast.success("Audio uploaded successfully!");
+      
+    } catch (error: any) {
+      console.error('Error in audio upload:', error);
+      toast.error("Failed to upload audio", {
+        description: error.message
+      });
+    } finally {
+      setUploadingAudio(false);
+    }
   };
 
   return (
@@ -100,6 +170,26 @@ export const AdminSongRequestCard = ({
               <p className="text-sm whitespace-pre-wrap">{request.description}</p>
             </div>
           </div>
+
+          {/* Audio upload section for lyrics_selected status */}
+          {request.status === "lyrics_selected" && (
+            <div className="mb-4 p-4 border border-dashed border-border rounded-md">
+              <Label className="text-sm font-medium mb-2 block">Upload Final Audio</Label>
+              <div className="space-y-3">
+                <Input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                  className="file:mr-2 file:rounded file:border-0 file:bg-melody-primary file:text-white file:px-2 file:py-1"
+                />
+                {audioFile && (
+                  <div className="text-sm text-muted-foreground">
+                    Selected: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           
           <div className="flex justify-end gap-2 mt-4">
             {request.status === "pending" && (
@@ -121,11 +211,12 @@ export const AdminSongRequestCard = ({
             
             {request.status === "lyrics_selected" && (
               <Button 
-                onClick={() => onUpdateStatus(request.id, 'audio_uploaded')}
+                onClick={handleAudioUpload}
+                disabled={!audioFile || uploadingAudio}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <Music className="h-4 w-4 mr-2" />
-                Mark Audio Uploaded
+                <Upload className="h-4 w-4 mr-2" />
+                {uploadingAudio ? "Uploading..." : "Upload Audio"}
               </Button>
             )}
             
