@@ -32,11 +32,11 @@ export const useAdminSongRequests = () => {
 
   const fetchAllRequests = async () => {
     try {
-      console.log('Admin: Fetching all custom song requests...');
+      console.log('Admin: Starting to fetch all custom song requests...');
       setError(null);
       setLoading(true);
       
-      // Check if user is authenticated
+      // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
@@ -48,27 +48,37 @@ export const useAdminSongRequests = () => {
         throw new Error('User not authenticated');
       }
 
-      // Super admin bypass - don't check roles table for ellaadahosa@gmail.com
+      console.log('Admin: Current user:', user.email, user.id);
+
+      // Super admin bypass for ellaadahosa@gmail.com
       const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
       console.log('Admin: Is super admin:', isSuperAdmin);
       
       if (!isSuperAdmin) {
-        // Check admin role for non-super admins
-        console.log('Admin: Checking admin role for user:', user.id);
+        // For non-super admins, check if they have admin role
+        console.log('Admin: Checking admin role for non-super admin...');
+        
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'admin')
-          .single();
+          .maybeSingle();
 
-        if (roleError || !roleData) {
+        if (roleError) {
+          console.error('Admin: Error checking admin role:', roleError);
+          throw new Error('Failed to verify admin access: ' + roleError.message);
+        }
+
+        if (!roleData) {
           console.warn('Admin: User does not have admin role');
           throw new Error('Access denied: Admin role required');
         }
+        
+        console.log('Admin: Regular admin access confirmed');
       }
 
-      // Fetch all custom song requests directly from the table
+      // Fetch all custom song requests - this should work with proper RLS policies
       console.log('Admin: Fetching custom song requests from database...');
       
       const { data: requests, error: fetchError } = await supabase
@@ -76,14 +86,12 @@ export const useAdminSongRequests = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Admin: Raw query result:', { requests, fetchError });
-
       if (fetchError) {
         console.error('Admin: Error fetching requests:', fetchError);
         throw new Error(`Database error: ${fetchError.message}`);
       }
       
-      console.log(`Admin: Successfully fetched ${requests?.length || 0} requests`);
+      console.log(`Admin: Successfully fetched ${requests?.length || 0} requests:`, requests);
       setAllRequests(requests || []);
       
     } catch (error: any) {
