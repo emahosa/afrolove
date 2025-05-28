@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserRequestCardProps {
   request: CustomSongRequest;
@@ -15,6 +15,7 @@ interface UserRequestCardProps {
 }
 
 export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => {
+  const { user } = useAuth();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
 
@@ -53,30 +54,52 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       setDownloadingAudio(true);
       console.log('Starting download for request:', request.id);
 
-      // First, let's check if any audio records exist for this request
-      const { data: allAudioData, error: allAudioError } = await supabase
+      // Check if user is authenticated
+      if (!user) {
+        console.error('User not authenticated');
+        toast.error('Please log in to download audio files');
+        return;
+      }
+
+      console.log('User authenticated:', user.id);
+
+      // Get current session to ensure we have valid auth
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        toast.error('Authentication session expired. Please log in again.');
+        return;
+      }
+
+      console.log('Valid session found');
+
+      // Fetch audio records with explicit auth context
+      console.log('Fetching audio records for request:', request.id);
+      
+      const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
         .eq('request_id', request.id);
 
-      console.log('All audio records for request:', allAudioData);
-      console.log('Audio query error:', allAudioError);
+      console.log('Audio query result:', { audioData, audioError });
 
-      if (allAudioError) {
-        console.error('Error fetching audio records:', allAudioError);
-        throw new Error(`Database error: ${allAudioError.message}`);
+      if (audioError) {
+        console.error('Database error fetching audio:', audioError);
+        toast.error('Database error: ' + audioError.message);
+        return;
       }
 
-      if (!allAudioData || allAudioData.length === 0) {
-        console.error('No audio records found for request:', request.id);
-        throw new Error('No audio files found for this request');
+      if (!audioData || audioData.length === 0) {
+        console.error('No audio records found');
+        toast.error('No audio files found for this request');
+        return;
       }
 
-      // Try to find selected audio first, then fall back to latest
-      let audioRecord = allAudioData.find(record => record.is_selected === true);
+      // Find the audio file to download
+      let audioRecord = audioData.find(record => record.is_selected === true);
       if (!audioRecord) {
-        console.log('No selected audio found, using latest audio record');
-        audioRecord = allAudioData.sort((a, b) => 
+        audioRecord = audioData.sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )[0];
       }
@@ -84,32 +107,32 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       console.log('Using audio record:', audioRecord);
 
       if (!audioRecord.audio_url) {
-        console.error('Audio record has no URL:', audioRecord);
-        throw new Error('Audio file URL is missing');
+        console.error('No audio URL found');
+        toast.error('Audio file URL is missing');
+        return;
       }
 
-      console.log('Attempting to download from URL:', audioRecord.audio_url);
-
-      // Create filename from title or use default
-      const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `${sanitizedTitle}_custom_song.mp3`;
+      console.log('Downloading from URL:', audioRecord.audio_url);
 
       // Download the file
       const response = await fetch(audioRecord.audio_url);
-      console.log('Fetch response status:', response.status, response.statusText);
+      console.log('Fetch response:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error(`Failed to download audio file: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      console.log('Downloaded blob size:', blob.size, 'bytes');
-      
+      console.log('Downloaded blob size:', blob.size);
+
       if (blob.size === 0) {
         throw new Error('Downloaded file is empty');
       }
 
-      // Create download link
+      // Create download
+      const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${sanitizedTitle}_custom_song.mp3`;
+      
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -117,7 +140,6 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       document.body.appendChild(link);
       link.click();
       
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -125,10 +147,8 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       toast.success('Audio file downloaded successfully!');
       
     } catch (error: any) {
-      console.error('Download error details:', error);
-      toast.error('Failed to download audio file', {
-        description: error.message
-      });
+      console.error('Download error:', error);
+      toast.error('Failed to download audio file: ' + error.message);
     } finally {
       setDownloadingAudio(false);
     }
