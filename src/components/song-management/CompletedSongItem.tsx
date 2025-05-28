@@ -36,6 +36,7 @@ export const CompletedSongItem = ({
   };
 
   const handlePlayClick = () => {
+    console.log('CompletedSongItem: Play clicked for:', request.id, request.title);
     handlePlay({ id: request.id, title: request.title });
   };
 
@@ -47,8 +48,27 @@ export const CompletedSongItem = ({
       console.log('Deleting song request:', request.id);
 
       // Delete related records first
-      await supabase.from('custom_song_audio').delete().eq('request_id', request.id);
-      await supabase.from('custom_song_lyrics').delete().eq('request_id', request.id);
+      const { error: audioError } = await supabase
+        .from('custom_song_audio')
+        .delete()
+        .eq('request_id', request.id);
+
+      if (audioError) {
+        console.error('Error deleting audio records:', audioError);
+        toast.error('Failed to delete audio records: ' + audioError.message);
+        return;
+      }
+
+      const { error: lyricsError } = await supabase
+        .from('custom_song_lyrics')
+        .delete()
+        .eq('request_id', request.id);
+
+      if (lyricsError) {
+        console.error('Error deleting lyrics records:', lyricsError);
+        toast.error('Failed to delete lyrics records: ' + lyricsError.message);
+        return;
+      }
       
       // Delete the main request
       const { error } = await supabase
@@ -150,19 +170,21 @@ export const CompletedSongItem = ({
               Download
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="h-9 px-3 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
-            >
-              {isDeleting ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-destructive border-t-transparent" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="h-9 px-3 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
+              >
+                {isDeleting ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-destructive border-t-transparent" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Clock, CheckCircle, Download, Eye, EyeOff } from "lucide-react";
+import { Music, Calendar, Clock, CheckCircle, Download, Eye, EyeOff, Trash2 } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
 import { CompletedSongItem } from "./CompletedSongItem";
@@ -97,6 +97,7 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   };
 
   const handleDelete = (requestId: string) => {
+    console.log('UserRequestCard: Song deleted, triggering parent update');
     // Trigger parent update to refresh the list
     onUpdate();
   };
