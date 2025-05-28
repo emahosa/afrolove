@@ -5,14 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Key, RefreshCw, Music } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSunoGeneration } from '@/hooks/use-suno-generation';
 
 export const SunoApiManagement = () => {
   const { user } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
   const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing'>('checking');
   const [lastChecked, setLastChecked] = useState<string | null>(null);
+  
+  const { generateSong, isGenerating, generationStatus } = useSunoGeneration();
 
   const checkApiKeyStatus = async () => {
     setIsChecking(true);
@@ -23,7 +25,7 @@ export const SunoApiManagement = () => {
       const response = await fetch(`https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-status?taskId=test`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzd2ZpeW51dmp2b2FveWZkcnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4Mjk2NTcsImV4cCI6MjA2MTQwNTY1N30.Z-tEs9Z2p5XmcivOQjV8oc5JWWSSKtgJucvmqA2Q6-c`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsImtpZCI6Im53blFhNkViMWYwQ2RlTzIiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2Jzd2ZpeW51dmp2b2FveWZkcnNvLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIxYTdlNGQ0Ni1iNGYyLTQ2NGUtYTFmNC0yNzY2ODM2Mjg2YzEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzQ4NDU0NTYwLCJpYXQiOjE3NDg0NTA5NjAsImVtYWlsIjoiZWxsYWFkYWhvc2FAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJhdmF0YXJfdXJsIjoiaHR0cHM6Ly91aS1hdmF0YXJzLmNvbS9hcGkvP25hbWU9QWRtaW4lMjBVc2VyXHUwMDI2YmFja2dyb3VuZD1yYW5kb20iLCJlbWFpbCI6ImVsbGFhZGFob3NhQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmdWxsX25hbWUiOiJBZG1pbiBVc2VyIiwibmFtZSI6IkFkbWluIFVzZXIiLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6IjFhN2U0ZDQ2LWI0ZjItNDY0ZS1hMWY0LTI3NjY4MzYyODZjMSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzQ4NDUwOTYwfV0sInNlc3Npb25faWQiOiI0NmY3YzczZS0wNGE5LTQ4MmMtYjljMS0wNTQ4MWY3NWQwNDEiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.5Xes7I_9ZMMUnsLsKgZoYHkoAnP6cr7GVskZ3iIdVkE`,
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzd2ZpeW51dmp2b2FveWZkcnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4Mjk2NTcsImV4cCI6MjA2MTQwNTY1N30.Z-tEs9Z2p5XmcivOQjV8oc5JWWSSKtgJucvmqA2Q6-c',
           'Content-Type': 'application/json',
         }
@@ -114,30 +116,35 @@ export const SunoApiManagement = () => {
     }
 
     try {
-      setIsChecking(true);
-      const { data, error } = await supabase.functions.invoke('suno-generate', {
-        body: {
-          prompt: 'Test generation',
-          style: 'Pop',
-          title: 'API Test',
-          instrumental: true,
-          customMode: false,
-          model: 'V3_5',
-          userId: user.id
-        }
+      console.log('Starting test generation...');
+      await generateSong({
+        prompt: 'Test generation for API verification',
+        style: 'Pop',
+        title: 'API Test Song',
+        instrumental: true,
+        customMode: false,
+        model: 'V3_5'
       });
-
-      if (error) {
-        toast.error('Test generation failed: ' + error.message);
-      } else {
-        toast.success('Test generation started successfully!');
-      }
-    } catch (error) {
-      toast.error('Failed to test generation');
-    } finally {
-      setIsChecking(false);
+    } catch (error: any) {
+      console.error('Test generation error:', error);
+      toast.error('Failed to test generation: ' + error.message);
     }
   };
+
+  // Show generation status updates
+  useEffect(() => {
+    if (generationStatus) {
+      console.log('Generation status update:', generationStatus);
+      
+      if (generationStatus.status === 'SUCCESS') {
+        toast.success('🎵 Test generation completed successfully!');
+      } else if (generationStatus.status === 'FAIL') {
+        toast.error('Test generation failed');
+      } else if (generationStatus.status === 'TEXT_SUCCESS') {
+        toast.info('Test: Lyrics generated, creating audio...');
+      }
+    }
+  }, [generationStatus]);
 
   return (
     <div className="space-y-6">
@@ -190,13 +197,31 @@ export const SunoApiManagement = () => {
                   variant="outline" 
                   size="sm" 
                   onClick={handleTestGeneration}
-                  disabled={isChecking}
+                  disabled={isGenerating}
                 >
                   <Music className="h-4 w-4 mr-2" />
-                  Test Generation
+                  {isGenerating ? 'Generating...' : 'Test Generation'}
                 </Button>
               )}
             </div>
+
+            {/* Show current generation status */}
+            {generationStatus && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium">Generation Status:</p>
+                <p className="text-sm text-muted-foreground">
+                  Task ID: {generationStatus.task_id}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Status: {generationStatus.status}
+                </p>
+                {generationStatus.audio_url && (
+                  <p className="text-sm text-green-600">
+                    ✅ Audio generated successfully!
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
