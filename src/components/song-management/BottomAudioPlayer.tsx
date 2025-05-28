@@ -82,6 +82,29 @@ export const BottomAudioPlayer = ({
     }
   };
 
+  const handleAudioEnd = () => {
+    console.log('BottomAudioPlayer: Audio ended, repeat mode:', repeatMode);
+    
+    if (repeatMode === 'one' || repeatMode === 'all') {
+      // Repeat current song (both 'one' and 'all' do the same thing for a single song)
+      if (audioRef.current) {
+        console.log('BottomAudioPlayer: Repeating song');
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(error => {
+          console.error('BottomAudioPlayer: Error repeating song:', error);
+          setIsPlaying(false);
+        });
+        setCurrentTime(0);
+        return;
+      }
+    }
+    
+    // No repeat - stop playing
+    console.log('BottomAudioPlayer: No repeat, stopping playback');
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
   const handlePlayPause = async () => {
     try {
       if (isPlaying && audioRef.current) {
@@ -115,9 +138,7 @@ export const BottomAudioPlayer = ({
         setCurrentTime(audio.currentTime);
       });
 
-      audio.addEventListener('ended', () => {
-        handleAudioEnd();
-      });
+      audio.addEventListener('ended', handleAudioEnd);
 
       audio.addEventListener('error', (e) => {
         console.error('BottomAudioPlayer: Audio error:', e);
@@ -135,35 +156,21 @@ export const BottomAudioPlayer = ({
     }
   };
 
-  const handleAudioEnd = () => {
-    if (repeatMode === 'one') {
-      // Repeat current song
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
-        setCurrentTime(0);
-        return;
-      }
-    } else if (repeatMode === 'all') {
-      // In a single song context, repeat all is the same as repeat one
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
-        setCurrentTime(0);
-        return;
-      }
-    }
-    
-    // No repeat - stop playing
-    setIsPlaying(false);
-    setCurrentTime(0);
-  };
-
   const toggleRepeatMode = () => {
     const modes: RepeatMode[] = ['none', 'all', 'one'];
     const currentIndex = modes.indexOf(repeatMode);
     const nextIndex = (currentIndex + 1) % modes.length;
-    setRepeatMode(modes[nextIndex]);
+    const newMode = modes[nextIndex];
+    setRepeatMode(newMode);
+    console.log('BottomAudioPlayer: Repeat mode changed to:', newMode);
+    
+    // Show feedback to user
+    const modeNames = {
+      'none': 'Repeat Off',
+      'all': 'Repeat All',
+      'one': 'Repeat One'
+    };
+    toast.success(`${modeNames[newMode]}`);
   };
 
   const getRepeatIcon = () => {
