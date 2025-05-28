@@ -175,7 +175,7 @@ export const BottomAudioPlayer = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-2xl z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50">
       {/* Progress Bar */}
       <div className="px-6 py-2">
         <Slider
@@ -196,7 +196,7 @@ export const BottomAudioPlayer = ({
             size="lg"
             onClick={handlePlayPause}
             disabled={loadingAudio}
-            className="h-14 w-14 rounded-full bg-primary hover:bg-primary/80 text-primary-foreground flex-shrink-0"
+            className="h-14 w-14 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
           >
             {loadingAudio ? (
               <div className="animate-spin rounded-full h-6 w-6 border-2 border-current border-t-transparent" />
@@ -210,12 +210,12 @@ export const BottomAudioPlayer = ({
           {/* Song Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-foreground truncate text-lg">{title}</h3>
-              <span className="text-sm text-muted-foreground">by AI Generated</span>
+              <h3 className="font-semibold text-white truncate text-lg">{title}</h3>
+              <span className="text-sm text-gray-400">by AI Generated</span>
             </div>
             
             {/* Time Display */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
               <span>{formatTime(currentTime)}</span>
               <span>/</span>
               <span>{formatTime(duration)}</span>
@@ -228,7 +228,7 @@ export const BottomAudioPlayer = ({
               variant="ghost"
               size="sm"
               onClick={() => setIsLiked(!isLiked)}
-              className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-muted-foreground'} hover:text-red-500`}
+              className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
             >
               <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
             </Button>
@@ -236,7 +236,7 @@ export const BottomAudioPlayer = ({
             <Button
               variant="ghost"
               size="sm"
-              className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground"
+              className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
             >
               <Share2 className="h-5 w-5" />
             </Button>
@@ -246,7 +246,7 @@ export const BottomAudioPlayer = ({
               size="sm"
               onClick={onDownload}
               disabled={downloadingAudio}
-              className="h-10 w-10 rounded-full text-muted-foreground hover:text-foreground"
+              className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
             >
               {downloadingAudio ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
@@ -257,7 +257,7 @@ export const BottomAudioPlayer = ({
 
             {/* Volume Control */}
             <div className="hidden sm:flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-muted-foreground" />
+              <Volume2 className="h-5 w-5 text-gray-400" />
               <div className="w-24">
                 <Slider
                   value={[volume]}
@@ -272,7 +272,7 @@ export const BottomAudioPlayer = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-10 w-10 rounded-full text-muted-foreground hover:text-red-500"
+              className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500"
             >
               <X className="h-5 w-5" />
             </Button>
