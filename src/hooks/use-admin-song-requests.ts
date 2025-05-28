@@ -68,7 +68,7 @@ export const useAdminSongRequests = () => {
         }
       }
 
-      // Fetch all custom song requests
+      // Fetch all custom song requests directly from the table
       console.log('Admin: Fetching custom song requests from database...');
       
       const { data: requests, error: fetchError } = await supabase
