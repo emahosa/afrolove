@@ -6,7 +6,6 @@ import { Music, Calendar, Clock, CheckCircle, Download, Eye, EyeOff } from "luci
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
 import { CompletedSongItem } from "./CompletedSongItem";
-import { BottomAudioPlayer } from "./BottomAudioPlayer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,8 +19,6 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const { user } = useAuth();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
-  const [currentPlayingRequest, setCurrentPlayingRequest] = useState<CustomSongRequest | null>(null);
-  const [showBottomPlayer, setShowBottomPlayer] = useState(false);
 
   const handleDownloadAudio = async (targetRequest?: CustomSongRequest) => {
     const requestToDownload = targetRequest || request;
@@ -96,13 +93,12 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   };
 
   const handlePlay = (targetRequest: CustomSongRequest) => {
-    setCurrentPlayingRequest(targetRequest);
-    setShowBottomPlayer(true);
+    // This is not used anymore as CompletedSongItem handles play internally
   };
 
-  const handleClosePlayer = () => {
-    setShowBottomPlayer(false);
-    setCurrentPlayingRequest(null);
+  const handleDelete = (requestId: string) => {
+    // Trigger parent update to refresh the list
+    onUpdate();
   };
 
   const getStatusBadge = (status: string) => {
@@ -137,31 +133,17 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
 
   const canManageLyrics = request.status === 'lyrics_proposed';
   const showLyricsButton = ['lyrics_proposed', 'lyrics_selected', 'audio_uploaded', 'completed'].includes(request.status);
-  const canDownloadAudio = ['audio_uploaded', 'completed'].includes(request.status);
-  const canPlayAudio = ['audio_uploaded', 'completed'].includes(request.status);
 
   // Use the new minimalistic design for completed songs
   if (request.status === 'completed' || request.status === 'audio_uploaded') {
     return (
-      <>
-        <CompletedSongItem
-          request={request}
-          onPlay={handlePlay}
-          onDownload={handleDownloadAudio}
-          downloadingAudio={downloadingAudio}
-        />
-        
-        {currentPlayingRequest && (
-          <BottomAudioPlayer
-            requestId={currentPlayingRequest.id}
-            title={currentPlayingRequest.title}
-            isVisible={showBottomPlayer}
-            onClose={handleClosePlayer}
-            onDownload={() => handleDownloadAudio(currentPlayingRequest)}
-            downloadingAudio={downloadingAudio}
-          />
-        )}
-      </>
+      <CompletedSongItem
+        request={request}
+        onPlay={handlePlay}
+        onDownload={handleDownloadAudio}
+        onDelete={handleDelete}
+        downloadingAudio={downloadingAudio}
+      />
     );
   }
 

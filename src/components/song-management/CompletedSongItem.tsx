@@ -1,14 +1,18 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Play, Download, Music, Eye, EyeOff } from "lucide-react";
+import { Play, Download, Music, Eye, EyeOff, Trash2 } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { useState } from "react";
+import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CompletedSongItemProps {
   request: CustomSongRequest;
   onPlay: (request: CustomSongRequest) => void;
   onDownload: (request: CustomSongRequest) => void;
+  onDelete?: (requestId: string) => void;
   downloadingAudio: boolean;
 }
 
@@ -16,9 +20,12 @@ export const CompletedSongItem = ({
   request, 
   onPlay, 
   onDownload, 
+  onDelete,
   downloadingAudio 
 }: CompletedSongItemProps) => {
   const [showLyrics, setShowLyrics] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { handlePlay } = useAudioPlayer();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -26,6 +33,43 @@ export const CompletedSongItem = ({
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const handlePlayClick = () => {
+    handlePlay({ id: request.id, title: request.title });
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      console.log('Deleting song request:', request.id);
+
+      // Delete related records first
+      await supabase.from('custom_song_audio').delete().eq('request_id', request.id);
+      await supabase.from('custom_song_lyrics').delete().eq('request_id', request.id);
+      
+      // Delete the main request
+      const { error } = await supabase
+        .from('custom_song_requests')
+        .delete()
+        .eq('id', request.id);
+
+      if (error) {
+        console.error('Error deleting song request:', error);
+        toast.error('Failed to delete song: ' + error.message);
+        return;
+      }
+
+      toast.success('Song deleted successfully');
+      onDelete(request.id);
+    } catch (error: any) {
+      console.error('Error deleting song:', error);
+      toast.error('Failed to delete song: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -88,7 +132,7 @@ export const CompletedSongItem = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onPlay(request)}
+              onClick={handlePlayClick}
               className="h-9 px-3"
             >
               <Play className="h-4 w-4 mr-2" />
@@ -104,6 +148,20 @@ export const CompletedSongItem = ({
             >
               <Download className="h-4 w-4 mr-2" />
               Download
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="h-9 px-3 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20"
+            >
+              {isDeleting ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-destructive border-t-transparent" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
