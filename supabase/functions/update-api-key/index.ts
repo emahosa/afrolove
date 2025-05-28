@@ -51,7 +51,8 @@ serve(async (req) => {
           title: 'API Key Test',
           instrumental: true,
           customMode: false,
-          model: 'V3_5'
+          model: 'V3_5',
+          callBackUrl: 'https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback'
         })
       })
 
