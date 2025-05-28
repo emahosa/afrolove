@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,17 +44,17 @@ const CustomSongCreation = () => {
   // Check for existing requests on component mount
   useEffect(() => {
     const pendingRequest = requests.find(req => req.status === 'pending');
-    const lyricsUploadedRequest = requests.find(req => req.status === 'lyrics_uploaded');
+    const lyricsProposedRequest = requests.find(req => req.status === 'lyrics_proposed');
     
-    if (lyricsUploadedRequest) {
-      setCurrentRequestId(lyricsUploadedRequest.id);
-      setSelectedGenre(lyricsUploadedRequest.genre);
-      setDescription(lyricsUploadedRequest.description);
+    if (lyricsProposedRequest) {
+      setCurrentRequestId(lyricsProposedRequest.id);
+      setSelectedGenre(lyricsProposedRequest.genre_id || '');
+      setDescription(lyricsProposedRequest.description);
       setStep('lyrics');
-      loadLyricsForRequest(lyricsUploadedRequest.id);
+      loadLyricsForRequest(lyricsProposedRequest.id);
     } else if (pendingRequest) {
       setCurrentRequestId(pendingRequest.id);
-      setSelectedGenre(pendingRequest.genre);
+      setSelectedGenre(pendingRequest.genre_id || '');
       setDescription(pendingRequest.description);
       setStep('waiting');
     }
@@ -66,7 +65,7 @@ const CustomSongCreation = () => {
     setAvailableLyrics(lyrics);
     if (lyrics.length > 0 && !selectedLyric) {
       setSelectedLyric(lyrics[0].id);
-      setEditedLyrics(lyrics[0].lyrics_text);
+      setEditedLyrics(lyrics[0].lyrics);
     }
   };
 
@@ -93,7 +92,7 @@ const CustomSongCreation = () => {
       updateUserCredits(-100);
       
       // Create the request in Supabase
-      const request = await createRequest(selectedGenre, description);
+      const request = await createRequest(description, description, selectedGenre);
       
       if (request) {
         setCurrentRequestId(request.id);
@@ -116,7 +115,7 @@ const CustomSongCreation = () => {
   const handleLyricSelection = (lyricId: string) => {
     setSelectedLyric(lyricId);
     const selectedOption = availableLyrics.find(lyric => lyric.id === lyricId);
-    setEditedLyrics(selectedOption?.lyrics_text || "");
+    setEditedLyrics(selectedOption?.lyrics || "");
   };
 
   const handleLyricEdit = () => {
@@ -339,7 +338,7 @@ const CustomSongCreation = () => {
                       />
                     </div>
                     <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                      {lyric.lyrics_text.substring(0, 150)}...
+                      {lyric.lyrics.substring(0, 150)}...
                     </p>
                   </div>
                 ))}
