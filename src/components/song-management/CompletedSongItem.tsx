@@ -132,122 +132,129 @@ export const CompletedSongItem = ({
   return (
     <Card className="overflow-hidden bg-gray-900 border-gray-700 hover:shadow-md transition-shadow">
       <CardContent className="p-0">
-        {/* Header with song info and actions */}
-        <div className="p-4 pb-2 flex justify-between items-start">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white truncate mb-1">{request.title}</h3>
-            <p className="text-sm text-gray-400 line-clamp-2">{request.description}</p>
-            <p className="text-xs text-gray-500 mt-1">Created: {formatDate(request.created_at)}</p>
-          </div>
-          
-          <div className="flex items-center gap-2 ml-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePlayClick}
-              className="h-8 w-8 rounded-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-400"
-            >
-              <Play className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleToggleLyrics}
-              className="h-8 w-8 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400"
-            >
-              {showLyrics ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDownloadClick}
-              disabled={downloadingAudio}
-              className="h-8 w-8 rounded-full bg-green-600/20 hover:bg-green-600/30 text-green-400"
-            >
-              {downloadingAudio ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-            </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
+        <div className={`flex ${showLyrics ? 'gap-4' : ''}`}>
+          {/* Main content section */}
+          <div className={`${showLyrics ? 'flex-1' : 'w-full'}`}>
+            {/* Header with song info and actions */}
+            <div className="p-4 pb-2 flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white truncate mb-1">{request.title}</h3>
+                <p className="text-sm text-gray-400 line-clamp-2">{request.description}</p>
+                <p className="text-xs text-gray-500 mt-1">Created: {formatDate(request.created_at)}</p>
+              </div>
+              
+              <div className="flex items-center gap-2 ml-4">
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={isDeleting}
-                  className="h-8 w-8 rounded-full hover:bg-red-600/20 text-gray-400 hover:text-red-400"
+                  onClick={handlePlayClick}
+                  className="h-8 w-8 rounded-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-400"
                 >
-                  {isDeleting ? (
+                  <Play className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleLyrics}
+                  className="h-8 w-8 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400"
+                >
+                  {showLyrics ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadClick}
+                  disabled={downloadingAudio}
+                  className="h-8 w-8 rounded-full bg-green-600/20 hover:bg-green-600/30 text-green-400"
+                >
+                  {downloadingAudio ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
                   ) : (
-                    <Trash2 className="h-4 w-4" />
+                    <Download className="h-4 w-4" />
                   )}
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-gray-900 border-gray-700">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">Delete Song</AlertDialogTitle>
-                  <AlertDialogDescription className="text-gray-400">
-                    Are you sure you want to delete "{request.title}"? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-600 hover:bg-gray-700">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
 
-        {/* Lyrics section */}
-        {showLyrics && (
-          <div className="px-4 pb-2">
-            <div className="p-3 bg-gray-800 rounded-lg">
-              <h4 className="font-medium text-white mb-2">Lyrics</h4>
-              {loadingLyrics ? (
-                <div className="flex justify-center items-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent" />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isDeleting}
+                      className="h-8 w-8 rounded-full hover:bg-red-600/20 text-gray-400 hover:text-red-400"
+                    >
+                      {isDeleting ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-gray-900 border-gray-700">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-white">Delete Song</AlertDialogTitle>
+                      <AlertDialogDescription className="text-gray-400">
+                        Are you sure you want to delete "{request.title}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-600 hover:bg-gray-700">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+
+            {/* Mini preview section */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+                    <Play className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{request.title}</p>
+                    <p className="text-xs text-gray-400">AI Generated</p>
+                  </div>
                 </div>
-              ) : (
-                <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
-                  {selectedLyrics || 'No lyrics available'}
-                </pre>
-              )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePlayClick}
+                  className="text-purple-400 border-purple-600 hover:bg-purple-600 hover:text-white"
+                >
+                  Play
+                </Button>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Mini preview section */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-                <Play className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white">{request.title}</p>
-                <p className="text-xs text-gray-400">AI Generated</p>
+          {/* Lyrics side panel */}
+          {showLyrics && (
+            <div className="w-80 border-l border-gray-700 bg-gray-800">
+              <div className="p-4 h-full">
+                <h4 className="font-medium text-white mb-3 border-b border-gray-700 pb-2">Lyrics</h4>
+                {loadingLyrics ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent" />
+                  </div>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto">
+                    <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                      {selectedLyrics || 'No lyrics available'}
+                    </pre>
+                  </div>
+                )}
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePlayClick}
-              className="text-purple-400 border-purple-600 hover:bg-purple-600 hover:text-white"
-            >
-              Play
-            </Button>
-          </div>
+          )}
         </div>
       </CardContent>
     </Card>
