@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, Play, Download } from "lucide-react";
+import { Trash2, Play, Download, Eye, EyeOff } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -37,7 +37,44 @@ export const CompletedSongItem = ({
 }: CompletedSongItemProps) => {
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [selectedLyrics, setSelectedLyrics] = useState<string | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
   const { handlePlay } = useAudioPlayer();
+
+  const fetchSelectedLyrics = async () => {
+    if (selectedLyrics) return; // Already loaded
+    
+    try {
+      setLoadingLyrics(true);
+      const { data: lyricsData, error } = await supabase
+        .from('custom_song_lyrics')
+        .select('lyrics')
+        .eq('request_id', request.id)
+        .eq('is_selected', true)
+        .single();
+
+      if (error) {
+        console.error('Error fetching lyrics:', error);
+        toast.error('Failed to load lyrics');
+        return;
+      }
+
+      setSelectedLyrics(lyricsData?.lyrics || 'No lyrics available');
+    } catch (error) {
+      console.error('Error fetching lyrics:', error);
+      toast.error('Failed to load lyrics');
+    } finally {
+      setLoadingLyrics(false);
+    }
+  };
+
+  const handleToggleLyrics = () => {
+    if (!showLyrics) {
+      fetchSelectedLyrics();
+    }
+    setShowLyrics(!showLyrics);
+  };
 
   const handleDelete = async () => {
     if (!user?.id) {
@@ -116,9 +153,18 @@ export const CompletedSongItem = ({
             <Button
               variant="ghost"
               size="sm"
+              onClick={handleToggleLyrics}
+              className="h-8 w-8 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400"
+            >
+              {showLyrics ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleDownloadClick}
               disabled={downloadingAudio}
-              className="h-8 w-8 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400"
+              className="h-8 w-8 rounded-full bg-green-600/20 hover:bg-green-600/30 text-green-400"
             >
               {downloadingAudio ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
@@ -162,6 +208,24 @@ export const CompletedSongItem = ({
             </AlertDialog>
           </div>
         </div>
+
+        {/* Lyrics section */}
+        {showLyrics && (
+          <div className="px-4 pb-2">
+            <div className="p-3 bg-gray-800 rounded-lg">
+              <h4 className="font-medium text-white mb-2">Lyrics</h4>
+              {loadingLyrics ? (
+                <div className="flex justify-center items-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent" />
+                </div>
+              ) : (
+                <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                  {selectedLyrics || 'No lyrics available'}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Mini preview section */}
         <div className="px-4 pb-4">
