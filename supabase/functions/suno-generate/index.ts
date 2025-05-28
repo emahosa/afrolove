@@ -102,7 +102,11 @@ serve(async (req) => {
     const sunoData = await sunoResponse.json()
     console.log('Suno API response:', sunoData)
 
-    if (!sunoResponse.ok) {
+    if (!sunoResponse.ok || sunoData.code !== 200) {
+      // Handle specific Suno API errors
+      if (sunoData.code === 429) {
+        throw new Error('Suno API credits are insufficient. Please check your Suno account and top up credits.')
+      }
       throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`)
     }
 
