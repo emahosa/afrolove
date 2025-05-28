@@ -14,13 +14,7 @@ import VoiceCloning from "@/components/VoiceCloning";
 import VoiceChanger from "@/components/VoiceChanger";
 import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
 import { useNavigate } from "react-router-dom";
-
-const genres = [
-  { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
-  { id: "rnb", name: "R&B", description: "Smooth, soulful contemporary sound" },
-  { id: "pop", name: "Pop", description: "Catchy, commercial contemporary sound" },
-  { id: "highlife", name: "Highlife", description: "Traditional West African musical genre" },
-];
+import { useGenres } from "@/hooks/use-genres";
 
 const Create = () => {
   const [activeTab, setActiveTab] = useState("vocals");
@@ -32,9 +26,12 @@ const Create = () => {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const navigate = useNavigate();
+  const { genres, loading: genresLoading } = useGenres();
 
   const handleGenerate = () => {
-    if (!selectedGenre) {
+    const selectedGenreData = genres.find(g => g.id === selectedGenre);
+    
+    if (!selectedGenreData) {
       toast.error("Please select a genre. Select a music genre to continue");
       return;
     }
@@ -44,16 +41,27 @@ const Create = () => {
       return;
     }
 
+    if (theme.length > 90) {
+      toast.error("Song description must be 90 characters or less");
+      return;
+    }
+
     if ((user?.credits || 0) <= 0) {
       toast.error("Insufficient credits. Please purchase more credits to continue");
       return;
     }
 
+    // Combine the genre prompt with user's theme
+    const combinedPrompt = `${selectedGenreData.prompt_template}. ${theme}`;
+    console.log('Combined prompt for AI generation:', combinedPrompt);
+
     setIsGenerating(true);
     
     setTimeout(() => {
       setIsGenerating(false);
-      setGeneratedTrack({ name: `${selectedGenre} ${activeTab === "vocals" ? "song" : "instrumental"} about ${theme}` });
+      setGeneratedTrack({ 
+        name: `${selectedGenreData.name} ${activeTab === "vocals" ? "song" : "instrumental"} about ${theme}` 
+      });
       
       updateUserCredits(-1);
       
@@ -64,6 +72,17 @@ const Create = () => {
   const handleViewHistory = () => {
     navigate("/custom-songs-management");
   };
+
+  if (genresLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-center items-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading genres...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -102,38 +121,45 @@ const Create = () => {
                       <Label htmlFor="genre" className="text-base font-medium">
                         1. Select a genre
                       </Label>
-                      <RadioGroup
-                        value={selectedGenre}
-                        onValueChange={setSelectedGenre}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
-                      >
-                        {genres.map((genre) => (
-                          <div key={genre.id} className="space-y-1">
-                            <RadioGroupItem
-                              value={genre.id}
-                              id={genre.id}
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor={genre.id}
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
-                                <Music className="h-5 w-5" />
-                              </div>
-                              <div className="font-medium">{genre.name}</div>
-                              <div className="text-xs text-muted-foreground text-center">
-                                {genre.description}
-                              </div>
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      {genres.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Music className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No genres available</p>
+                        </div>
+                      ) : (
+                        <RadioGroup
+                          value={selectedGenre}
+                          onValueChange={setSelectedGenre}
+                          className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
+                        >
+                          {genres.map((genre) => (
+                            <div key={genre.id} className="space-y-1">
+                              <RadioGroupItem
+                                value={genre.id}
+                                id={genre.id}
+                                className="peer sr-only"
+                              />
+                              <Label
+                                htmlFor={genre.id}
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                              >
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
+                                  <Music className="h-5 w-5" />
+                                </div>
+                                <div className="font-medium">{genre.name}</div>
+                                <div className="text-xs text-muted-foreground text-center">
+                                  {genre.description}
+                                </div>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
                     </div>
                     
                     <div>
                       <Label htmlFor="theme" className="text-base font-medium">
-                        2. Describe your song
+                        2. Describe your song (max 90 characters)
                       </Label>
                       <div className="mt-3">
                         <Input
@@ -141,14 +167,18 @@ const Create = () => {
                           placeholder="E.g., A song about falling in love on a summer evening"
                           value={theme}
                           onChange={(e) => setTheme(e.target.value)}
+                          maxLength={90}
                         />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {theme.length}/90 characters
+                        </p>
                       </div>
                     </div>
                   </div>
                   
                   <Button
                     onClick={handleGenerate}
-                    disabled={isGenerating}
+                    disabled={isGenerating || genres.length === 0}
                     className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
                   >
                     {isGenerating ? (
@@ -242,41 +272,48 @@ const Create = () => {
                 <>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="genre" className="text-base font-medium">
+                      <Label htmlFor="genre-inst" className="text-base font-medium">
                         1. Select a genre
                       </Label>
-                      <RadioGroup
-                        value={selectedGenre}
-                        onValueChange={setSelectedGenre}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
-                      >
-                        {genres.map((genre) => (
-                          <div key={genre.id} className="space-y-1">
-                            <RadioGroupItem
-                              value={genre.id}
-                              id={`${genre.id}-inst`}
-                              className="peer sr-only"
-                            />
-                            <Label
-                              htmlFor={`${genre.id}-inst`}
-                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                            >
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
-                                <Disc className="h-5 w-5" />
-                              </div>
-                              <div className="font-medium">{genre.name}</div>
-                              <div className="text-xs text-muted-foreground text-center">
-                                {genre.description}
-                              </div>
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                      {genres.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Music className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No genres available</p>
+                        </div>
+                      ) : (
+                        <RadioGroup
+                          value={selectedGenre}
+                          onValueChange={setSelectedGenre}
+                          className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
+                        >
+                          {genres.map((genre) => (
+                            <div key={genre.id} className="space-y-1">
+                              <RadioGroupItem
+                                value={genre.id}
+                                id={`${genre.id}-inst`}
+                                className="peer sr-only"
+                              />
+                              <Label
+                                htmlFor={`${genre.id}-inst`}
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                              >
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
+                                  <Disc className="h-5 w-5" />
+                                </div>
+                                <div className="font-medium">{genre.name}</div>
+                                <div className="text-xs text-muted-foreground text-center">
+                                  {genre.description}
+                                </div>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
                     </div>
                     
                     <div>
                       <Label htmlFor="theme-inst" className="text-base font-medium">
-                        2. Describe your instrumental
+                        2. Describe your instrumental (max 90 characters)
                       </Label>
                       <div className="mt-3">
                         <Input
@@ -284,14 +321,18 @@ const Create = () => {
                           placeholder="E.g., A relaxing beat with piano and soft drums"
                           value={theme}
                           onChange={(e) => setTheme(e.target.value)}
+                          maxLength={90}
                         />
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {theme.length}/90 characters
+                        </p>
                       </div>
                     </div>
                   </div>
                   
                   <Button
                     onClick={handleGenerate}
-                    disabled={isGenerating}
+                    disabled={isGenerating || genres.length === 0}
                     className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
                   >
                     {isGenerating ? (

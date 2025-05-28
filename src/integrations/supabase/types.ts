@@ -370,40 +370,31 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          description: string | null
           id: string
-          max_credits: number
-          min_credits: number
+          is_active: boolean
           name: string
           prompt_template: string
-          recommended_instruments: string[] | null
-          recommended_moods: string[] | null
-          recommended_styles: string[] | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          description?: string | null
           id?: string
-          max_credits?: number
-          min_credits?: number
+          is_active?: boolean
           name: string
-          prompt_template: string
-          recommended_instruments?: string[] | null
-          recommended_moods?: string[] | null
-          recommended_styles?: string[] | null
+          prompt_template?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          description?: string | null
           id?: string
-          max_credits?: number
-          min_credits?: number
+          is_active?: boolean
           name?: string
           prompt_template?: string
-          recommended_instruments?: string[] | null
-          recommended_moods?: string[] | null
-          recommended_styles?: string[] | null
           updated_at?: string
         }
         Relationships: []
