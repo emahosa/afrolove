@@ -18,11 +18,11 @@ export const SunoApiManagement = () => {
 
     try {
       // Make a direct GET request to the edge function with taskId as query parameter
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/suno-status?taskId=test`, {
+      const response = await fetch(`https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-status?taskId=test`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
-          'apikey': supabase.supabaseKey,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzd2ZpeW51dmp2b2FveWZkcnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4Mjk2NTcsImV4cCI6MjA2MTQwNTY1N30.Z-tEs9Z2p5XmcivOQjV8oc5JWWSSKtgJucvmqA2Q6-c`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzd2ZpeW51dmp2b2FveWZkcnNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4Mjk2NTcsImV4cCI6MjA2MTQwNTY1N30.Z-tEs9Z2p5XmcivOQjV8oc5JWWSSKtgJucvmqA2Q6-c',
           'Content-Type': 'application/json',
         }
       });
