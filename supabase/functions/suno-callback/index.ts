@@ -62,20 +62,15 @@ serve(async (req) => {
     for (const track of tracks) {
       console.log('Processing track:', track.id, track.title)
 
-      // Find existing pending audio record
-      const { data: existingAudio, error: findError } = await supabase
+      // First check if this is for a custom song request
+      const { data: existingAudio, error: findCustomError } = await supabase
         .from('custom_song_audio')
         .select('*')
         .like('audio_url', `task_pending:${task_id}%`)
-        .single()
-
-      if (findError) {
-        console.error('Error finding pending audio record:', findError)
-        continue
-      }
+        .maybeSingle()
 
       if (existingAudio) {
-        // Update existing record with actual audio URL
+        // Update custom song audio record
         const { error: updateError } = await supabase
           .from('custom_song_audio')
           .update({
@@ -85,44 +80,47 @@ serve(async (req) => {
           .eq('id', existingAudio.id)
 
         if (updateError) {
-          console.error('Error updating audio record:', updateError)
+          console.error('Error updating custom audio record:', updateError)
         } else {
-          console.log('Updated audio record for request:', existingAudio.request_id)
+          console.log('Updated custom audio record for request:', existingAudio.request_id)
 
-          // Update the request status to audio_uploaded if not already completed
-          const { error: statusError } = await supabase
+          // Update the request status
+          await supabase
             .from('custom_song_requests')
             .update({ 
               status: 'audio_uploaded',
               updated_at: new Date().toISOString()
             })
             .eq('id', existingAudio.request_id)
-            .not('status', 'eq', 'completed')
-
-          if (statusError) {
-            console.error('Error updating request status:', statusError)
-          }
         }
       } else {
-        // Create new song record for general AI generation (not custom requests)
-        console.log('Creating new song record for general generation')
-        
-        // Try to find the user who initiated this task (we'll need to store task_id with user_id)
-        // For now, we'll create a general song record
-        const { error: insertError } = await supabase
+        // Check if this is a general song generation
+        const { data: pendingSong, error: findSongError } = await supabase
           .from('songs')
-          .insert({
-            title: track.title,
-            audio_url: track.audio_url,
-            lyrics: track.prompt,
-            type: 'song',
-            user_id: '00000000-0000-0000-0000-000000000000', // Default user - this should be improved
-            status: 'completed',
-            credits_used: 5
-          })
+          .select('*')
+          .like('audio_url', `task_pending:${task_id}%`)
+          .maybeSingle()
 
-        if (insertError) {
-          console.error('Error creating song record:', insertError)
+        if (pendingSong) {
+          // Update the pending song with actual audio URL
+          const { error: updateSongError } = await supabase
+            .from('songs')
+            .update({
+              title: track.title || pendingSong.title,
+              audio_url: track.audio_url,
+              status: 'completed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', pendingSong.id)
+
+          if (updateSongError) {
+            console.error('Error updating song record:', updateSongError)
+          } else {
+            console.log('Updated song record:', pendingSong.id, 'for user:', pendingSong.user_id)
+          }
+        } else {
+          console.log('No pending song found for task:', task_id)
+          // This shouldn't happen with the new flow, but log it for debugging
         }
       }
     }

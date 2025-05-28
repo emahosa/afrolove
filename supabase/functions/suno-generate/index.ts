@@ -17,7 +17,7 @@ interface SunoGenerateRequest {
   negativeTags?: string;
   userId: string;
   requestId?: string;
-  isAdminTest?: boolean; // Add flag for admin testing
+  isAdminTest?: boolean;
 }
 
 serve(async (req) => {
@@ -106,7 +106,6 @@ serve(async (req) => {
       throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`)
     }
 
-    // Fix: Check for both task_id and taskId (the API returns taskId in camelCase)
     const taskId = sunoData.data?.task_id || sunoData.data?.taskId
     if (!taskId) {
       throw new Error('No task ID received from Suno API')
@@ -136,8 +135,9 @@ serve(async (req) => {
         })
     }
 
-    // Store generation task in database if this is for a custom song request
+    // Store generation task in database for callback linking
     if (body.requestId) {
+      // This is for a custom song request
       const { error: insertError } = await supabase
         .from('custom_song_audio')
         .insert({
@@ -150,6 +150,26 @@ serve(async (req) => {
 
       if (insertError) {
         console.error('Error storing task info:', insertError)
+      }
+    } else {
+      // This is a general Suno generation - create a pending song record
+      const { error: insertError } = await supabase
+        .from('songs')
+        .insert({
+          title: body.title || 'Generating...',
+          audio_url: `task_pending:${taskId}`,
+          lyrics: body.prompt,
+          type: body.instrumental ? 'instrumental' : 'song',
+          user_id: body.userId,
+          status: 'pending',
+          credits_used: 5,
+          prompt: body.prompt
+        })
+
+      if (insertError) {
+        console.error('Error storing pending song:', insertError)
+      } else {
+        console.log('Created pending song record for task:', taskId)
       }
     }
 
