@@ -10,7 +10,29 @@ import { ContestManagement } from "./ContestManagement";
 import { ApiKeyManagement } from "./ApiKeyManagement";
 import { GenreManagement } from "./GenreManagement";
 
-export const AdminManagement = () => {
+interface AdminManagementProps {
+  users?: any[];
+  admins?: any[];
+  apiKeys?: any[];
+  contestEntries?: any[];
+  pricingPlans?: any[];
+  creditPackages?: any[];
+  renderStatusLabel?: (status: string) => React.ReactNode;
+  renderPlanFeatures?: (features: any[]) => React.ReactNode;
+  getButtonContent?: (status: string) => React.ReactNode;
+}
+
+export const AdminManagement = ({ 
+  users = [], 
+  admins = [],
+  apiKeys = [],
+  contestEntries = [],
+  pricingPlans = [],
+  creditPackages = [],
+  renderStatusLabel = (status: string) => status,
+  renderPlanFeatures = (features: any[]) => null,
+  getButtonContent = (status: string) => status
+}: AdminManagementProps) => {
   return (
     <div className="space-y-6">
       <div>
@@ -32,7 +54,7 @@ export const AdminManagement = () => {
         </TabsList>
         
         <TabsContent value="users">
-          <UserManagement />
+          <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
         </TabsContent>
         
         <TabsContent value="content">
@@ -44,15 +66,20 @@ export const AdminManagement = () => {
         </TabsContent>
         
         <TabsContent value="contests">
-          <ContestManagement />
+          <ContestManagement contestEntries={contestEntries} renderStatusLabel={renderStatusLabel} />
         </TabsContent>
         
         <TabsContent value="payments">
-          <PaymentManagement />
+          <PaymentManagement 
+            pricingPlans={pricingPlans}
+            creditPackages={creditPackages}
+            renderPlanFeatures={renderPlanFeatures}
+            renderStatusLabel={renderStatusLabel}
+          />
         </TabsContent>
         
         <TabsContent value="api-keys">
-          <ApiKeyManagement />
+          <ApiKeyManagement apiKeys={apiKeys} getButtonContent={getButtonContent} />
         </TabsContent>
         
         <TabsContent value="reports">

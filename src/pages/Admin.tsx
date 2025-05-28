@@ -154,7 +154,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'support': 'support',
       'reports': 'reports',
       'settings': 'settings',
-      'custom-songs': 'custom-songs'
+      'custom-songs': 'custom-songs',
+      'genres': 'genres'
     };
     
     const newTab = tabMapping[lastSegment] || 'users';
@@ -169,6 +170,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     const tabToUrlMapping: Record<string, string> = {
       'users': '/admin/users',
       'admins': '/admin/admins',
+      'genres': '/admin/genres',
       'custom-songs': '/admin/custom-songs',
       'apis': '/admin/api-keys',
       'contest': '/admin/contest',
@@ -306,6 +308,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Admins
               </TabsTrigger>
+              <TabsTrigger value="genres" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
+                <Music className="mr-2 h-4 w-4" />
+                Genres
+              </TabsTrigger>
               <TabsTrigger value="custom-songs" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium"
                 onClick={() => navigate('/admin/custom-songs')}>
                 <Music className="mr-2 h-4 w-4" />
@@ -356,7 +362,21 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="admins" className="mt-0">
-            <AdminManagement admins={admins} />
+            <AdminManagement 
+              users={users}
+              admins={admins}
+              apiKeys={apiKeys}
+              contestEntries={contestEntries}
+              pricingPlans={pricingPlans}
+              creditPackages={creditPackages}
+              renderStatusLabel={renderStatusLabel}
+              renderPlanFeatures={renderPlanFeatures}
+              getButtonContent={getButtonContent}
+            />
+          </TabsContent>
+
+          <TabsContent value="genres" className="mt-0">
+            <GenreManagement />
           </TabsContent>
 
           <TabsContent value="apis" className="mt-0">
