@@ -51,58 +51,64 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const handleDownloadAudio = async () => {
     try {
       setDownloadingAudio(true);
-      console.log('Downloading audio for request:', request.id);
+      console.log('Starting download for request:', request.id);
 
-      // First try to fetch the selected audio record
-      let { data: audioData, error: audioError } = await supabase
+      // First, let's check if any audio records exist for this request
+      const { data: allAudioData, error: allAudioError } = await supabase
         .from('custom_song_audio')
         .select('*')
-        .eq('request_id', request.id)
-        .eq('is_selected', true)
-        .maybeSingle();
+        .eq('request_id', request.id);
 
-      // If no selected audio found, try to get any audio for this request
-      if (!audioData) {
-        console.log('No selected audio found, trying to fetch any audio for this request...');
-        const { data: anyAudioData, error: anyAudioError } = await supabase
-          .from('custom_song_audio')
-          .select('*')
-          .eq('request_id', request.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+      console.log('All audio records for request:', allAudioData);
+      console.log('Audio query error:', allAudioError);
 
-        if (anyAudioError) {
-          console.error('Error fetching any audio data:', anyAudioError);
-          throw new Error('Failed to find audio file');
-        }
-
-        audioData = anyAudioData;
+      if (allAudioError) {
+        console.error('Error fetching audio records:', allAudioError);
+        throw new Error(`Database error: ${allAudioError.message}`);
       }
 
-      if (audioError && !audioData) {
-        console.error('Error fetching audio data:', audioError);
-        throw new Error('Failed to find audio file');
+      if (!allAudioData || allAudioData.length === 0) {
+        console.error('No audio records found for request:', request.id);
+        throw new Error('No audio files found for this request');
       }
 
-      if (!audioData || !audioData.audio_url) {
-        throw new Error('No audio file available for download');
+      // Try to find selected audio first, then fall back to latest
+      let audioRecord = allAudioData.find(record => record.is_selected === true);
+      if (!audioRecord) {
+        console.log('No selected audio found, using latest audio record');
+        audioRecord = allAudioData.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
       }
 
-      console.log('Found audio data:', audioData);
+      console.log('Using audio record:', audioRecord);
 
-      // Extract filename from URL or create a default one
-      const urlParts = audioData.audio_url.split('/');
-      const fileName = urlParts[urlParts.length - 1] || `${request.title}_custom_song.mp3`;
+      if (!audioRecord.audio_url) {
+        console.error('Audio record has no URL:', audioRecord);
+        throw new Error('Audio file URL is missing');
+      }
+
+      console.log('Attempting to download from URL:', audioRecord.audio_url);
+
+      // Create filename from title or use default
+      const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${sanitizedTitle}_custom_song.mp3`;
 
       // Download the file
-      const response = await fetch(audioData.audio_url);
+      const response = await fetch(audioRecord.audio_url);
+      console.log('Fetch response status:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error('Failed to download audio file');
+        throw new Error(`Failed to download audio file: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
+      console.log('Downloaded blob size:', blob.size, 'bytes');
       
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -115,10 +121,11 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
+      console.log('Download completed successfully');
       toast.success('Audio file downloaded successfully!');
       
     } catch (error: any) {
-      console.error('Error downloading audio:', error);
+      console.error('Download error details:', error);
       toast.error('Failed to download audio file', {
         description: error.message
       });
