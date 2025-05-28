@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Edit, Save, RefreshCw, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Edit, Save, RefreshCw, AlertCircle, Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomSongRequest, CustomSongLyrics } from "@/hooks/use-admin-song-requests";
