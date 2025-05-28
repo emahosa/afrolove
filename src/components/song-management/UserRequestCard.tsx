@@ -54,97 +54,101 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       setDownloadingAudio(true);
       console.log('Starting download for request:', request.id);
 
-      // Check if user is authenticated
-      if (!user) {
-        console.error('User not authenticated');
-        toast.error('Please log in to download audio files');
-        return;
-      }
-
-      console.log('User authenticated:', user.id);
-
-      // Get current session to ensure we have valid auth
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session) {
-        console.error('Session error:', sessionError);
-        toast.error('Authentication session expired. Please log in again.');
-        return;
-      }
-
-      console.log('Valid session found');
-
-      // Fetch audio records with explicit auth context
-      console.log('Fetching audio records for request:', request.id);
-      
+      // Fetch audio records without any complex conditions
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
-        .eq('request_id', request.id);
+        .eq('request_id', request.id)
+        .order('created_at', { ascending: false });
 
-      console.log('Audio query result:', { audioData, audioError });
+      console.log('Audio query result:', { audioData, audioError, requestId: request.id });
 
       if (audioError) {
-        console.error('Database error fetching audio:', audioError);
+        console.error('Database error:', audioError);
         toast.error('Database error: ' + audioError.message);
         return;
       }
 
       if (!audioData || audioData.length === 0) {
-        console.error('No audio records found');
+        console.error('No audio records found for request:', request.id);
         toast.error('No audio files found for this request');
         return;
       }
 
-      // Find the audio file to download
+      console.log('Found audio records:', audioData);
+
+      // Get the selected audio file or the most recent one
       let audioRecord = audioData.find(record => record.is_selected === true);
       if (!audioRecord) {
-        audioRecord = audioData.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
+        console.log('No selected audio found, using most recent');
+        audioRecord = audioData[0]; // Already ordered by created_at desc
       }
 
       console.log('Using audio record:', audioRecord);
 
       if (!audioRecord.audio_url) {
-        console.error('No audio URL found');
+        console.error('Audio record missing URL:', audioRecord);
         toast.error('Audio file URL is missing');
         return;
       }
 
-      console.log('Downloading from URL:', audioRecord.audio_url);
+      console.log('Attempting download from URL:', audioRecord.audio_url);
 
-      // Download the file
-      const response = await fetch(audioRecord.audio_url);
-      console.log('Fetch response:', response.status, response.statusText);
+      // Try to download the file directly
+      try {
+        const response = await fetch(audioRecord.audio_url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'audio/*',
+          }
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        console.log('Fetch response status:', response.status, response.statusText);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get('content-type');
+        console.log('Content type:', contentType);
+
+        const blob = await response.blob();
+        console.log('Downloaded blob:', {
+          size: blob.size,
+          type: blob.type
+        });
+
+        if (blob.size === 0) {
+          throw new Error('Downloaded file is empty');
+        }
+
+        // Create and trigger download
+        const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+        const fileName = `${sanitizedTitle}_custom_song.mp3`;
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 1000);
+
+        console.log('Download completed successfully');
+        toast.success('Audio file downloaded successfully!');
+        
+      } catch (fetchError: any) {
+        console.error('Fetch error details:', fetchError);
+        toast.error('Failed to download audio file: ' + fetchError.message);
       }
-
-      const blob = await response.blob();
-      console.log('Downloaded blob size:', blob.size);
-
-      if (blob.size === 0) {
-        throw new Error('Downloaded file is empty');
-      }
-
-      // Create download
-      const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `${sanitizedTitle}_custom_song.mp3`;
-      
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      console.log('Download completed successfully');
-      toast.success('Audio file downloaded successfully!');
       
     } catch (error: any) {
       console.error('Download error:', error);
