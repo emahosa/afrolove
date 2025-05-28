@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Music, Calendar, Clock, Edit, CheckCircle, XCircle, Download, Eye, EyeOff } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface UserRequestCardProps {
   request: CustomSongRequest;
@@ -14,6 +16,7 @@ interface UserRequestCardProps {
 
 export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => {
   const [showLyrics, setShowLyrics] = useState(false);
+  const [downloadingAudio, setDownloadingAudio] = useState(false);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -45,8 +48,69 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     });
   };
 
+  const handleDownloadAudio = async () => {
+    try {
+      setDownloadingAudio(true);
+      console.log('Downloading audio for request:', request.id);
+
+      // Fetch the selected audio record
+      const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('*')
+        .eq('request_id', request.id)
+        .eq('is_selected', true)
+        .maybeSingle();
+
+      if (audioError) {
+        console.error('Error fetching audio data:', audioError);
+        throw new Error('Failed to find audio file');
+      }
+
+      if (!audioData || !audioData.audio_url) {
+        throw new Error('No audio file available for download');
+      }
+
+      console.log('Found audio data:', audioData);
+
+      // Extract filename from URL or create a default one
+      const urlParts = audioData.audio_url.split('/');
+      const fileName = urlParts[urlParts.length - 1] || `${request.title}_custom_song.mp3`;
+
+      // Download the file
+      const response = await fetch(audioData.audio_url);
+      if (!response.ok) {
+        throw new Error('Failed to download audio file');
+      }
+
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Audio file downloaded successfully!');
+      
+    } catch (error: any) {
+      console.error('Error downloading audio:', error);
+      toast.error('Failed to download audio file', {
+        description: error.message
+      });
+    } finally {
+      setDownloadingAudio(false);
+    }
+  };
+
   const canManageLyrics = request.status === 'lyrics_proposed';
   const showLyricsButton = ['lyrics_proposed', 'lyrics_selected', 'audio_uploaded', 'completed'].includes(request.status);
+  const canDownloadAudio = ['audio_uploaded', 'completed'].includes(request.status);
 
   return (
     <Card className="overflow-hidden">
@@ -104,9 +168,13 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
             <p className="text-muted-foreground mb-4">
               Your custom song has been created and is ready for download.
             </p>
-            <Button className="bg-melody-secondary hover:bg-melody-secondary/90">
+            <Button 
+              className="bg-melody-secondary hover:bg-melody-secondary/90"
+              onClick={handleDownloadAudio}
+              disabled={downloadingAudio}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download Song
+              {downloadingAudio ? "Downloading..." : "Download Song"}
             </Button>
           </div>
         )}
@@ -118,9 +186,13 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
             <p className="text-muted-foreground mb-4">
               Your custom song request has been completed. Thank you for using our service!
             </p>
-            <Button className="bg-melody-secondary hover:bg-melody-secondary/90">
+            <Button 
+              className="bg-melody-secondary hover:bg-melody-secondary/90"
+              onClick={handleDownloadAudio}
+              disabled={downloadingAudio}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download Song
+              {downloadingAudio ? "Downloading..." : "Download Song"}
             </Button>
           </div>
         )}
