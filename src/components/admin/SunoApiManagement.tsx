@@ -13,7 +13,7 @@ import { SunoApiKeyForm } from './SunoApiKeyForm';
 export const SunoApiManagement = () => {
   const { user } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
-  const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing'>('checking');
+  const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing' | 'no_credits'>('checking');
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   
   const { generateSong, isGenerating, generationStatus } = useSunoGeneration();
@@ -36,6 +36,9 @@ export const SunoApiManagement = () => {
         if (error.message?.includes('SUNO_API_KEY not configured')) {
           setKeyStatus('missing');
           toast.error('Suno API key is not configured');
+        } else if (error.message?.includes('credits are insufficient')) {
+          setKeyStatus('no_credits');
+          toast.warning('⚠️ Suno API has insufficient credits');
         } else {
           setKeyStatus('invalid');
           toast.error('API key check failed: ' + error.message);
@@ -77,6 +80,8 @@ export const SunoApiManagement = () => {
         return <Badge variant="destructive">Invalid</Badge>;
       case 'missing':
         return <Badge variant="outline">Not Configured</Badge>;
+      case 'no_credits':
+        return <Badge variant="destructive" className="bg-orange-500">No Credits</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -88,6 +93,8 @@ export const SunoApiManagement = () => {
         return <RefreshCw className="h-5 w-5 animate-spin text-gray-500" />;
       case 'valid':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'no_credits':
+        return <AlertCircle className="h-5 w-5 text-orange-500" />;
       case 'invalid':
       case 'missing':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
@@ -106,6 +113,8 @@ export const SunoApiManagement = () => {
         return 'API key is configured but appears to be invalid or expired.';
       case 'missing':
         return 'No API key configured. Please add your Suno API key to enable music generation.';
+      case 'no_credits':
+        return 'API key is valid but the Suno account has insufficient credits. Please top up your Suno account to continue generating music.';
       default:
         return 'Unable to determine API key status.';
     }
@@ -165,6 +174,31 @@ export const SunoApiManagement = () => {
         <h2 className="text-2xl font-bold">Suno AI API Management</h2>
         <p className="text-muted-foreground">Configure and manage your Suno AI API integration for music generation</p>
       </div>
+
+      {/* Show credit warning if no credits */}
+      {keyStatus === 'no_credits' && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <div>
+                <h4 className="font-medium text-orange-900">Suno Account Credits Exhausted</h4>
+                <p className="text-sm text-orange-700 mt-1">
+                  Your Suno AI account has run out of credits. Users will not be able to generate songs until you top up your Suno account.
+                </p>
+                <a 
+                  href="https://suno.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-orange-600 underline hover:text-orange-800 mt-2 inline-block"
+                >
+                  Visit Suno Dashboard to Add Credits →
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* API Key Status Card */}
@@ -263,6 +297,14 @@ export const SunoApiManagement = () => {
                   <li>• Lyric Input Mode - Full song lyrics</li>
                   <li>• Instrumental tracks available</li>
                   <li>• Custom styles and genres</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2 text-orange-600">💡 Credit Management</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Each generation uses Suno account credits</li>
+                  <li>• Monitor credit usage in your Suno dashboard</li>
+                  <li>• Top up credits as needed for continuous service</li>
                 </ul>
               </div>
             </div>

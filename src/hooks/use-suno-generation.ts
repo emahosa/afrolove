@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -51,10 +50,29 @@ export const useSunoGeneration = () => {
 
       if (error) {
         console.error('Suno generation error:', error);
+        
+        // Handle specific Suno API credit errors
+        if (error.message?.includes('Suno API credits are insufficient')) {
+          toast.error('⚠️ Suno API Credits Exhausted', {
+            description: 'The Suno AI service has run out of credits. Please contact the administrator to top up the Suno account.',
+            duration: 8000,
+          });
+        } else {
+          toast.error('Generation failed: ' + (error.message || 'Unknown error'));
+        }
+        
         throw new Error(error.message || 'Failed to start song generation');
       }
 
       if (!data.success) {
+        if (data.error?.includes('Suno API credits are insufficient')) {
+          toast.error('⚠️ Suno API Credits Exhausted', {
+            description: 'The Suno AI service has run out of credits. Please contact the administrator to top up the Suno account.',
+            duration: 8000,
+          });
+        } else {
+          toast.error('Generation failed: ' + (data.error || 'Unknown error'));
+        }
         throw new Error(data.error || 'Generation failed');
       }
 
@@ -74,7 +92,7 @@ export const useSunoGeneration = () => {
       return taskId;
     } catch (error: any) {
       console.error('Error generating song:', error);
-      toast.error(error.message || 'Failed to generate song');
+      // Don't show duplicate error toasts - they're already handled above
       return null;
     } finally {
       setIsGenerating(false);
