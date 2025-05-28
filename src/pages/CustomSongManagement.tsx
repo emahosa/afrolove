@@ -4,20 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, AlertCircle } from "lucide-react";
 import { useAdminSongRequests } from "@/hooks/use-admin-song-requests";
 import { AdminLyricsEditor } from "@/components/song-management/AdminLyricsEditor";
 import { AdminSongRequestTabs } from "@/components/song-management/AdminSongRequestTabs";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const CustomSongManagement = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   
   const {
     allRequests,
     loading,
+    error,
     updateRequestStatus,
     addLyrics,
     fetchLyricsForRequest,
@@ -29,8 +31,13 @@ const CustomSongManagement = () => {
   }
 
   useEffect(() => {
+    console.log('CustomSongManagement: User info:', {
+      userId: user?.id,
+      email: user?.email,
+      isAdmin: isAdmin()
+    });
     console.log('CustomSongManagement: All requests updated:', allRequests);
-  }, [allRequests]);
+  }, [allRequests, user]);
 
   const filteredRequests = allRequests.filter(request => {
     const matchesSearch = 
@@ -85,10 +92,34 @@ const CustomSongManagement = () => {
         </Button>
       </div>
 
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+            <div className="mt-2 text-sm">
+              <p>Troubleshooting steps:</p>
+              <ul className="list-disc list-inside mt-1">
+                <li>Check if you have admin role assigned</li>
+                <li>Verify database connection</li>
+                <li>Check browser console for detailed errors</li>
+              </ul>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Custom Song Requests ({allRequests.length})</CardTitle>
-          <CardDescription>Manage and fulfill custom song requests from users</CardDescription>
+          <CardDescription>
+            Manage and fulfill custom song requests from users
+            {user && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Logged in as: {user.email} (ID: {user.id?.slice(-8)})
+              </div>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-end mb-6">
@@ -103,12 +134,18 @@ const CustomSongManagement = () => {
             </div>
           </div>
           
-          {allRequests.length === 0 ? (
+          {!error && allRequests.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No custom song requests found.</p>
               <p className="text-sm text-muted-foreground mt-2">
                 Requests will appear here when users create them.
               </p>
+              <div className="mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded">
+                <p className="font-medium">Debug info:</p>
+                <p>• User ID: {user?.id}</p>
+                <p>• Is Admin: {isAdmin().toString()}</p>
+                <p>• Error: {error || 'None'}</p>
+              </div>
             </div>
           ) : (
             <AdminSongRequestTabs
