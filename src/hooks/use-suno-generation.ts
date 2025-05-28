@@ -13,6 +13,7 @@ export interface SunoGenerationRequest {
   model: 'V3_5' | 'V4' | 'V4_5';
   negativeTags?: string;
   requestId?: string;
+  isAdminTest?: boolean; // Add this field
 }
 
 export interface SunoGenerationStatus {

@@ -123,7 +123,8 @@ export const SunoApiManagement = () => {
         title: 'API Test Song',
         instrumental: true,
         customMode: false,
-        model: 'V3_5'
+        model: 'V3_5',
+        isAdminTest: true // Add this flag for admin testing
       });
     } catch (error: any) {
       console.error('Test generation error:', error);

@@ -17,6 +17,7 @@ interface SunoGenerateRequest {
   negativeTags?: string;
   userId: string;
   requestId?: string;
+  isAdminTest?: boolean; // Add flag for admin testing
 }
 
 serve(async (req) => {
@@ -37,19 +38,22 @@ serve(async (req) => {
     const body: SunoGenerateRequest = await req.json()
     console.log('Suno generate request:', { ...body, userId: body.userId })
 
-    // Validate user has sufficient credits
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', body.userId)
-      .single()
+    // Skip credit validation for admin test generations
+    if (!body.isAdminTest) {
+      // Validate user has sufficient credits
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', body.userId)
+        .single()
 
-    if (profileError || !profile) {
-      throw new Error('User profile not found')
-    }
+      if (profileError || !profile) {
+        throw new Error('User profile not found')
+      }
 
-    if (profile.credits < 5) { // Assuming 5 credits per generation
-      throw new Error('Insufficient credits. You need at least 5 credits to generate a song.')
+      if (profile.credits < 5) { // Assuming 5 credits per generation
+        throw new Error('Insufficient credits. You need at least 5 credits to generate a song.')
+      }
     }
 
     // Validate prompt length based on mode and model
@@ -104,15 +108,28 @@ serve(async (req) => {
       throw new Error('No task ID received from Suno API')
     }
 
-    // Deduct credits from user
-    const { error: creditError } = await supabase
-      .from('profiles')
-      .update({ credits: profile.credits - 5 })
-      .eq('id', body.userId)
+    // Only deduct credits for non-admin test generations
+    if (!body.isAdminTest) {
+      // Deduct credits from user
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ credits: profile.credits - 5 })
+        .eq('id', body.userId)
 
-    if (creditError) {
-      console.error('Error deducting credits:', creditError)
-      // Continue anyway as the generation has started
+      if (creditError) {
+        console.error('Error deducting credits:', creditError)
+        // Continue anyway as the generation has started
+      }
+
+      // Log credit transaction
+      await supabase
+        .from('credit_transactions')
+        .insert({
+          user_id: body.userId,
+          amount: -5,
+          transaction_type: 'debit',
+          description: `Song generation: ${body.title || 'Untitled'}`
+        })
     }
 
     // Store generation task in database if this is for a custom song request
@@ -131,16 +148,6 @@ serve(async (req) => {
         console.error('Error storing task info:', insertError)
       }
     }
-
-    // Log credit transaction
-    await supabase
-      .from('credit_transactions')
-      .insert({
-        user_id: body.userId,
-        amount: -5,
-        transaction_type: 'debit',
-        description: `Song generation: ${body.title || 'Untitled'}`
-      })
 
     return new Response(
       JSON.stringify({
