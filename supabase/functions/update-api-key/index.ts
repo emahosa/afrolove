@@ -83,12 +83,13 @@ serve(async (req) => {
         )
       }
 
-      // Key is valid and has credits
+      // Key is valid and has credits - return the validated key for manual update
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: 'API key validated successfully',
-          note: 'Please update the SUNO_API_KEY secret in your Supabase dashboard under Settings > Edge Functions > Secrets with this validated key'
+          validatedKey: newValue,
+          instructions: 'Please update the SUNO_API_KEY secret in your Supabase dashboard under Settings > Edge Functions > Secrets with this validated key'
         }),
         { 
           status: 200, 
