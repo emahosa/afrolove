@@ -1,4 +1,5 @@
 
+
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/users" element={<Admin tab="users" />} />
             <Route path="/admin/admins" element={<Admin tab="admins" />} />
+            <Route path="/admin/genres" element={<Admin tab="genres" />} />
             <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
             <Route path="/admin/api-keys" element={<Admin tab="apis" />} />
             <Route path="/admin/contest" element={<Admin tab="contest" />} />

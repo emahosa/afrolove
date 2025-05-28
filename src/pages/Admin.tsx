@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug } from 'lucide-react';
@@ -379,6 +377,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
 
           <TabsContent value="genres" className="mt-0">
             <GenreManagement />
+          </TabsContent>
+
+          <TabsContent value="custom-songs" className="mt-0">
+            <ContentManagement />
           </TabsContent>
 
           <TabsContent value="apis" className="mt-0">

@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,16 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
               )}>
                 <Shield className="h-5 w-5" />
                 <span>Admin Management</span>
+              </NavLink>
+
+              <NavLink to="/admin/genres" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <Music className="h-5 w-5" />
+                <span>Genre Management</span>
               </NavLink>
 
               <NavLink to="/admin/custom-songs" className={({ isActive }) => cn(
