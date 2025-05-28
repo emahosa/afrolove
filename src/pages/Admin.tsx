@@ -149,6 +149,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'admin': 'users',
       'users': 'users',
       'admins': 'admins',
+      'api-keys': 'suno-api', // Redirect old API keys route to Suno API
       'suno-api': 'suno-api',
       'contest': 'contest',
       'content': 'content',
@@ -163,8 +164,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     const newTab = tabMapping[lastSegment] || 'users';
     if (newTab !== activeTab) {
       setActiveTab(newTab);
+      
+      // If coming from the old api-keys route, redirect to suno-api
+      if (lastSegment === 'api-keys') {
+        navigate('/admin/suno-api', { replace: true });
+      }
     }
-  }, [location.pathname, activeTab]);
+  }, [location.pathname, activeTab, navigate]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
