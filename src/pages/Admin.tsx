@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug } from 'lucide-react';
@@ -16,6 +17,7 @@ import { ContentManagement } from '@/components/admin/ContentManagement';
 import { SupportManagement } from '@/components/admin/SupportManagement';
 import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
 import { SettingsManagement } from '@/components/admin/SettingsManagement';
+import { GenreManagement } from '@/components/admin/GenreManagement';
 import { fetchUsersFromDatabase } from '@/utils/adminOperations';
 import { debugCreditsSystem } from '@/utils/supabaseDebug';
 
