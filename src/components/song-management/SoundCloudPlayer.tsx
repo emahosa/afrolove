@@ -1,28 +1,29 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Download, X, Volume2, Heart, Share2 } from "lucide-react";
+import { Play, Pause, Volume2, Download, Heart, Share2, MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SpectrumVisualizer } from "./SpectrumVisualizer";
 
-interface BottomAudioPlayerProps {
+interface SoundCloudPlayerProps {
   requestId: string;
   title: string;
-  isVisible: boolean;
-  onClose: () => void;
+  isDownloadable?: boolean;
   onDownload?: () => void;
   downloadingAudio?: boolean;
+  artist?: string;
 }
 
-export const BottomAudioPlayer = ({ 
+export const SoundCloudPlayer = ({ 
   requestId, 
   title, 
-  isVisible,
-  onClose,
+  isDownloadable = true,
   onDownload,
-  downloadingAudio = false
-}: BottomAudioPlayerProps) => {
+  downloadingAudio = false,
+  artist = "AI Generated"
+}: SoundCloudPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -37,7 +38,7 @@ export const BottomAudioPlayer = ({
     
     try {
       setLoadingAudio(true);
-      console.log('BottomAudioPlayer: Fetching audio URL for request:', requestId);
+      console.log('SoundCloudPlayer: Fetching audio URL for request:', requestId);
 
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
@@ -46,13 +47,13 @@ export const BottomAudioPlayer = ({
         .order('created_at', { ascending: false });
 
       if (audioError) {
-        console.error('BottomAudioPlayer: Database error:', audioError);
+        console.error('SoundCloudPlayer: Database error:', audioError);
         toast.error('Failed to load audio: ' + audioError.message);
         return null;
       }
 
       if (!audioData || audioData.length === 0) {
-        console.log('BottomAudioPlayer: No audio records found for request:', requestId);
+        console.log('SoundCloudPlayer: No audio records found for request:', requestId);
         toast.error('No audio files found for this request');
         return null;
       }
@@ -63,7 +64,7 @@ export const BottomAudioPlayer = ({
       }
 
       if (!audioRecord?.audio_url) {
-        console.error('BottomAudioPlayer: Audio record missing URL:', audioRecord);
+        console.error('SoundCloudPlayer: Audio record missing URL:', audioRecord);
         toast.error('Audio file URL is missing');
         return null;
       }
@@ -71,7 +72,7 @@ export const BottomAudioPlayer = ({
       setAudioUrl(audioRecord.audio_url);
       return audioRecord.audio_url;
     } catch (error: any) {
-      console.error('BottomAudioPlayer: Error fetching audio URL:', error);
+      console.error('SoundCloudPlayer: Error fetching audio URL:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
     } finally {
@@ -118,7 +119,7 @@ export const BottomAudioPlayer = ({
       });
 
       audio.addEventListener('error', (e) => {
-        console.error('BottomAudioPlayer: Audio error:', e);
+        console.error('SoundCloudPlayer: Audio error:', e);
         toast.error('Failed to play audio - file may be corrupted or inaccessible');
         setIsPlaying(false);
       });
@@ -127,7 +128,7 @@ export const BottomAudioPlayer = ({
       await audio.play();
       setIsPlaying(true);
     } catch (error: any) {
-      console.error('BottomAudioPlayer: Error in handlePlayPause:', error);
+      console.error('SoundCloudPlayer: Error in handlePlayPause:', error);
       toast.error('Failed to play audio: ' + error.message);
       setIsPlaying(false);
     }
@@ -157,13 +158,6 @@ export const BottomAudioPlayer = ({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // Auto-play when player becomes visible
-  useEffect(() => {
-    if (isVisible && !audioUrl && !loadingAudio) {
-      handlePlayPause();
-    }
-  }, [isVisible]);
-
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -173,19 +167,17 @@ export const BottomAudioPlayer = ({
     };
   }, []);
 
-  if (!isVisible) return null;
-
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 animate-slide-in-right">
+    <div className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
       {/* Waveform/Visualizer Section */}
-      <div className="relative bg-gradient-to-r from-orange-100 to-orange-50 px-6 py-4">
-        <div className="flex justify-center">
+      <div className="relative bg-gradient-to-r from-orange-100 to-orange-50 p-4">
+        <div className="flex justify-center mb-2">
           <SpectrumVisualizer
             audioElement={audioRef.current}
             isPlaying={isPlaying}
-            width={800}
-            height={60}
-            barCount={120}
+            width={600}
+            height={80}
+            barCount={100}
             showToggle={false}
           />
         </div>
@@ -208,8 +200,8 @@ export const BottomAudioPlayer = ({
       </div>
 
       {/* Controls Section */}
-      <div className="px-6 py-4 bg-white">
-        <div className="flex items-center gap-6">
+      <div className="p-4 bg-white">
+        <div className="flex items-center gap-4">
           {/* Play/Pause Button */}
           <Button
             variant="ghost"
@@ -230,8 +222,8 @@ export const BottomAudioPlayer = ({
           {/* Song Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-gray-900 truncate text-lg">{title}</h3>
-              <span className="text-sm text-gray-500">by AI Generated</span>
+              <h3 className="font-semibold text-gray-900 truncate">{title}</h3>
+              <span className="text-sm text-gray-500">by {artist}</span>
             </div>
             
             {/* Time Display */}
@@ -243,38 +235,40 @@ export const BottomAudioPlayer = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsLiked(!isLiked)}
-              className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
+              className={`h-8 w-8 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
             >
-              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-gray-600"
+              className="h-8 w-8 rounded-full text-gray-400 hover:text-gray-600"
             >
-              <Share2 className="h-5 w-5" />
+              <Share2 className="h-4 w-4" />
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDownload}
-              disabled={downloadingAudio}
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-gray-600"
-            >
-              <Download className="h-5 w-5" />
-            </Button>
+            {isDownloadable && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDownload}
+                disabled={downloadingAudio}
+                className="h-8 w-8 rounded-full text-gray-400 hover:text-gray-600"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
 
             {/* Volume Control */}
-            <div className="hidden sm:flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-gray-400" />
-              <div className="w-24">
+            <div className="hidden sm:flex items-center gap-2 ml-2">
+              <Volume2 className="h-4 w-4 text-gray-400" />
+              <div className="w-20">
                 <Slider
                   value={[volume]}
                   onValueChange={handleVolumeChange}
@@ -288,10 +282,9 @@ export const BottomAudioPlayer = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onClose}
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500"
+              className="h-8 w-8 rounded-full text-gray-400 hover:text-gray-600"
             >
-              <X className="h-5 w-5" />
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
           </div>
         </div>
