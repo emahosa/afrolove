@@ -5,7 +5,6 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, X, Volume2, Heart, Share2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { SpectrumVisualizer } from "./SpectrumVisualizer";
 
 interface BottomAudioPlayerProps {
   requestId: string;
@@ -178,34 +177,15 @@ export const BottomAudioPlayer = ({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50">
-      {/* Spectrum Visualizer Section */}
-      <div className="relative bg-gradient-to-r from-melody-primary/10 to-melody-secondary/10 px-6 py-4">
-        <div className="flex justify-center">
-          <SpectrumVisualizer
-            audioElement={audioRef.current}
-            isPlaying={isPlaying}
-            width={800}
-            height={60}
-            barCount={120}
-            showToggle={false}
-          />
-        </div>
-        
-        {/* Progress overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div 
-            className="h-full bg-melody-primary/20 transition-all duration-100"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Progress bar for seeking */}
-        <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const clickX = e.clientX - rect.left;
-          const percentage = (clickX / rect.width) * 100;
-          handleSeek([percentage]);
-        }} />
+      {/* Progress Bar */}
+      <div className="px-6 py-2">
+        <Slider
+          value={[progress]}
+          onValueChange={handleSeek}
+          max={100}
+          step={0.1}
+          className="w-full [&_[role=slider]]:bg-melody-primary [&_[role=slider]]:border-melody-primary"
+        />
       </div>
 
       {/* Controls Section */}
