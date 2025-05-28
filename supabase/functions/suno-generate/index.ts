@@ -28,7 +28,16 @@ serve(async (req) => {
   try {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     if (!sunoApiKey) {
-      throw new Error('SUNO_API_KEY not configured')
+      return new Response(
+        JSON.stringify({ 
+          error: 'SUNO_API_KEY not configured',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -50,13 +59,31 @@ serve(async (req) => {
         .single()
 
       if (profileError || !profile) {
-        throw new Error('User profile not found')
+        return new Response(
+          JSON.stringify({ 
+            error: 'User profile not found',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
       }
 
       userProfile = profile;
 
       if (profile.credits < 5) { // Assuming 5 credits per generation
-        throw new Error('Insufficient credits. You need at least 5 credits to generate a song.')
+        return new Response(
+          JSON.stringify({ 
+            error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
       }
     }
 
@@ -65,11 +92,29 @@ serve(async (req) => {
     const promptModeMaxLength = 400
 
     if (!body.customMode && body.prompt.length > promptModeMaxLength) {
-      throw new Error(`Prompt mode is limited to ${promptModeMaxLength} characters`)
+      return new Response(
+        JSON.stringify({ 
+          error: `Prompt mode is limited to ${promptModeMaxLength} characters`,
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     if (body.customMode && body.prompt.length > maxLength) {
-      throw new Error(`Lyric input mode for ${body.model} is limited to ${maxLength} characters`)
+      return new Response(
+        JSON.stringify({ 
+          error: `Lyric input mode for ${body.model} is limited to ${maxLength} characters`,
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     // Prepare callback URL
@@ -105,14 +150,42 @@ serve(async (req) => {
     if (!sunoResponse.ok || sunoData.code !== 200) {
       // Handle specific Suno API errors
       if (sunoData.code === 429) {
-        throw new Error('Suno API credits are insufficient. Please check your Suno account and top up credits.')
+        return new Response(
+          JSON.stringify({ 
+            error: 'Suno API credits are insufficient. Please check your Suno account and top up credits.',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
       }
-      throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`)
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `Suno API error: ${sunoData.msg || 'Unknown error'}`,
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     const taskId = sunoData.data?.task_id || sunoData.data?.taskId
     if (!taskId) {
-      throw new Error('No task ID received from Suno API')
+      return new Response(
+        JSON.stringify({ 
+          error: 'No task ID received from Suno API',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     // Only deduct credits for non-admin test generations
@@ -198,7 +271,7 @@ serve(async (req) => {
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400 
+        status: 500 
       }
     )
   }
