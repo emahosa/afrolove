@@ -65,7 +65,7 @@ export const CompletedSongItem = ({
       console.log('CompletedSongItem: Successfully deleted request:', request.id);
       toast.success('Song deleted successfully');
       
-      // Call the onDelete callback to update the parent component
+      // Call the onDelete callback immediately to update the parent component
       onDelete(request.id);
       
     } catch (error: any) {

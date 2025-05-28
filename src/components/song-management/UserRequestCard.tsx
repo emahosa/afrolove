@@ -97,8 +97,8 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   };
 
   const handleDelete = (requestId: string) => {
-    console.log('UserRequestCard: Song deleted, triggering parent update');
-    // Trigger parent update to refresh the list
+    console.log('UserRequestCard: Song deleted, triggering parent update for request:', requestId);
+    // Immediately call parent update to refresh the list
     onUpdate();
   };
 
