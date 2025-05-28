@@ -13,14 +13,17 @@ import SplitAudioControl from "./SplitAudioControl";
 import VoiceCloning from "./VoiceCloning";
 import VoiceChanger from "./VoiceChanger";
 import { useCustomSongRequests, CustomSongLyrics } from "@/hooks/use-custom-song-requests";
+import { useGenres } from "@/hooks/use-genres";
 
-// Create proper genre objects with UUIDs
-const genres = [
-  { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
-  { id: "rnb", name: "R&B", description: "Smooth, soulful contemporary sound" },
-  { id: "pop", name: "Pop", description: "Catchy, commercial contemporary sound" },
-  { id: "highlife", name: "Highlife", description: "Traditional West African musical genre" },
-];
+export interface Genre {
+  id: string;
+  name: string;
+  prompt_template: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 type CreationStep = 'initial' | 'waiting' | 'lyrics' | 'rhythm' | 'final';
 
@@ -42,8 +45,8 @@ const CustomSongCreation = () => {
   const [forceNewRequest, setForceNewRequest] = useState(false);
 
   const { requests, createRequest, fetchLyricsForRequest, selectLyrics } = useCustomSongRequests();
+  const { genres, loading: genresLoading } = useGenres();
 
-  // Check for existing requests on component mount
   useEffect(() => {
     if (forceNewRequest) return; // Skip auto-resume if user wants to start new
     
@@ -112,14 +115,14 @@ const CustomSongCreation = () => {
         selectedGenre
       });
       
-      const request = await createRequest(description, description, null);
+      const request = await createRequest(description, description, selectedGenre);
       
       if (request) {
         console.log('Custom song request created successfully:', request);
         setCurrentRequestId(request.id);
         updateUserCredits(-100);
         setStep('waiting');
-        setForceNewRequest(false); // Reset the flag after successful creation
+        setForceNewRequest(false);
         toast.success("Your custom song request has been submitted to our team");
       } else {
         throw new Error('Failed to create request');
@@ -233,33 +236,40 @@ const CustomSongCreation = () => {
                   <Label htmlFor="genre-custom" className="text-base font-medium">
                     1. Select a genre
                   </Label>
-                  <RadioGroup
-                    value={selectedGenre}
-                    onValueChange={setSelectedGenre}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
-                  >
-                    {genres.map((genre) => (
-                      <div key={genre.id} className="space-y-1">
-                        <RadioGroupItem
-                          value={genre.id}
-                          id={`${genre.id}-custom`}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={`${genre.id}-custom`}
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                        >
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
-                            <Music className="h-5 w-5" />
-                          </div>
-                          <div className="font-medium">{genre.name}</div>
-                          <div className="text-xs text-muted-foreground text-center">
-                            {genre.description}
-                          </div>
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                  {genresLoading ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <span className="ml-2">Loading genres...</span>
+                    </div>
+                  ) : (
+                    <RadioGroup
+                      value={selectedGenre}
+                      onValueChange={setSelectedGenre}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
+                    >
+                      {genres.map((genre) => (
+                        <div key={genre.id} className="space-y-1">
+                          <RadioGroupItem
+                            value={genre.id}
+                            id={`${genre.id}-custom`}
+                            className="peer sr-only"
+                          />
+                          <Label
+                            htmlFor={`${genre.id}-custom`}
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                          >
+                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
+                              <Music className="h-5 w-5" />
+                            </div>
+                            <div className="font-medium">{genre.name}</div>
+                            <div className="text-xs text-muted-foreground text-center">
+                              {genre.description || "AI-generated music genre"}
+                            </div>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
                 </div>
                 
                 <div>
