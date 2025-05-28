@@ -29,7 +29,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      apiKey: "",
+      apiKey: "014149ccc3a976f8573e5f29e73c51db",
     },
   });
 
@@ -74,7 +74,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
   };
 
   const openSupabaseSecrets = () => {
-    window.open('https://supabase.com/dashboard/project/_/settings/functions', '_blank');
+    window.open('https://supabase.com/dashboard/project/bswfiynuvjvoaoyfdrso/settings/functions', '_blank');
   };
 
   return (
