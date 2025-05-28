@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -210,6 +211,30 @@ export const useAdminSongRequests = () => {
     }
   };
 
+  const fetchSelectedLyrics = async (requestId: string): Promise<CustomSongLyrics | null> => {
+    try {
+      console.log('Admin: Fetching selected lyrics for request:', requestId);
+      
+      const { data, error } = await supabase
+        .from('custom_song_lyrics')
+        .select('*')
+        .eq('request_id', requestId)
+        .eq('is_selected', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Admin: Error fetching selected lyrics:', error);
+        throw error;
+      }
+      
+      console.log('Admin: Fetched selected lyrics:', data);
+      return data;
+    } catch (error: any) {
+      console.error('Error fetching selected lyrics:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     console.log('Admin: Setting up requests fetching and real-time subscription');
     
@@ -243,6 +268,7 @@ export const useAdminSongRequests = () => {
     updateRequestStatus,
     addLyrics,
     fetchLyricsForRequest,
+    fetchSelectedLyrics,
     refetch: fetchAllRequests
   };
 };

@@ -4,16 +4,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Play, Edit, CheckCircle, Clock, Music, User, Calendar, Upload } from "lucide-react";
-import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
+import { Play, Edit, CheckCircle, Clock, Music, User, Calendar, Upload, Copy } from "lucide-react";
+import { CustomSongRequest, CustomSongLyrics } from "@/hooks/use-admin-song-requests";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type AdminSongRequestCardProps = {
   request: CustomSongRequest;
   onStartWork: (id: string) => void;
   onUpdateStatus: (id: string, status: CustomSongRequest['status']) => void;
+  fetchSelectedLyrics: (requestId: string) => Promise<CustomSongLyrics | null>;
 };
 
 const getStatusBadge = (status: CustomSongRequest['status']) => {
@@ -40,9 +41,30 @@ export const AdminSongRequestCard = ({
   request,
   onStartWork,
   onUpdateStatus,
+  fetchSelectedLyrics,
 }: AdminSongRequestCardProps) => {
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [selectedLyrics, setSelectedLyrics] = useState<CustomSongLyrics | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
+
+  useEffect(() => {
+    if (request.status === 'lyrics_selected' || request.status === 'audio_uploaded' || request.status === 'completed') {
+      loadSelectedLyrics();
+    }
+  }, [request.status, request.id]);
+
+  const loadSelectedLyrics = async () => {
+    setLoadingLyrics(true);
+    try {
+      const lyrics = await fetchSelectedLyrics(request.id);
+      setSelectedLyrics(lyrics);
+    } catch (error) {
+      console.error('Error loading selected lyrics:', error);
+    } finally {
+      setLoadingLyrics(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -52,6 +74,18 @@ export const AdminSongRequestCard = ({
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleCopyLyrics = async () => {
+    if (selectedLyrics?.lyrics) {
+      try {
+        await navigator.clipboard.writeText(selectedLyrics.lyrics);
+        toast.success('Lyrics copied to clipboard');
+      } catch (error) {
+        console.error('Error copying lyrics:', error);
+        toast.error('Failed to copy lyrics');
+      }
+    }
   };
 
   const handleMarkCompleted = () => {
@@ -170,6 +204,40 @@ export const AdminSongRequestCard = ({
               <p className="text-sm whitespace-pre-wrap">{request.description}</p>
             </div>
           </div>
+
+          {/* Selected lyrics section */}
+          {(request.status === 'lyrics_selected' || request.status === 'audio_uploaded' || request.status === 'completed') && (
+            <div className="mb-4">
+              <Label className="text-sm font-medium mb-2 block">Selected Lyrics by User</Label>
+              {loadingLyrics ? (
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <p className="text-sm text-muted-foreground">Loading selected lyrics...</p>
+                </div>
+              ) : selectedLyrics ? (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge className="bg-green-100 text-green-800">
+                      Version {selectedLyrics.version} - Selected
+                    </Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyLyrics}
+                      className="flex items-center gap-1"
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy
+                    </Button>
+                  </div>
+                  <pre className="text-sm whitespace-pre-wrap font-mono">{selectedLyrics.lyrics}</pre>
+                </div>
+              ) : (
+                <div className="p-3 bg-muted/30 rounded-md">
+                  <p className="text-sm text-muted-foreground">No lyrics selected yet</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Audio upload section for lyrics_selected status */}
           {request.status === "lyrics_selected" && (

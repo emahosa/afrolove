@@ -22,6 +22,7 @@ const CustomSongManagement = () => {
     updateRequestStatus,
     addLyrics,
     fetchLyricsForRequest,
+    fetchSelectedLyrics,
     refetch
   } = useAdminSongRequests();
 
@@ -128,6 +129,7 @@ const CustomSongManagement = () => {
               songRequests={filteredRequests}
               onStartWork={handleStartWork}
               onUpdateStatus={updateRequestStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           )}
           

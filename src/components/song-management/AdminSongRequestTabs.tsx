@@ -1,18 +1,20 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
+import { CustomSongRequest, CustomSongLyrics } from "@/hooks/use-admin-song-requests";
 import { AdminSongRequestCard } from "./AdminSongRequestCard";
 
 interface AdminSongRequestTabsProps {
   songRequests: CustomSongRequest[];
   onStartWork: (id: string) => void;
   onUpdateStatus: (id: string, status: CustomSongRequest['status']) => void;
+  fetchSelectedLyrics: (requestId: string) => Promise<CustomSongLyrics | null>;
 }
 
 export const AdminSongRequestTabs = ({
   songRequests,
   onStartWork,
   onUpdateStatus,
+  fetchSelectedLyrics,
 }: AdminSongRequestTabsProps) => {
   
   // Filter requests for each tab
@@ -45,6 +47,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
@@ -62,6 +65,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
@@ -79,6 +83,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
@@ -96,6 +101,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
@@ -113,6 +119,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
@@ -130,6 +137,7 @@ export const AdminSongRequestTabs = ({
               request={request}
               onStartWork={onStartWork}
               onUpdateStatus={onUpdateStatus}
+              fetchSelectedLyrics={fetchSelectedLyrics}
             />
           ))
         )}
