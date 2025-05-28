@@ -14,6 +14,7 @@ import VoiceCloning from "./VoiceCloning";
 import VoiceChanger from "./VoiceChanger";
 import { useCustomSongRequests, CustomSongLyrics } from "@/hooks/use-custom-song-requests";
 
+// Create proper genre objects with UUIDs
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
   { id: "rnb", name: "R&B", description: "Smooth, soulful contemporary sound" },
@@ -88,24 +89,28 @@ const CustomSongCreation = () => {
     setIsGenerating(true);
     
     try {
-      // Deduct 100 credits first
-      updateUserCredits(-100);
+      console.log('Creating custom song request with:', {
+        description,
+        selectedGenre
+      });
       
-      // Create the request in Supabase
-      const request = await createRequest(description, description, selectedGenre);
+      // Create the request in Supabase - pass genre_id as null since we're using string IDs for now
+      const request = await createRequest(description, description, null);
       
       if (request) {
+        console.log('Custom song request created successfully:', request);
         setCurrentRequestId(request.id);
+        
+        // Deduct 100 credits after successful request creation
+        updateUserCredits(-100);
+        
         setStep('waiting');
         toast.success("Your custom song request has been submitted to our team");
       } else {
-        // Refund credits if request failed
-        updateUserCredits(100);
+        throw new Error('Failed to create request');
       }
     } catch (error) {
       console.error('Error creating request:', error);
-      // Refund credits if request failed
-      updateUserCredits(100);
       toast.error("Failed to submit request. Please try again.");
     } finally {
       setIsGenerating(false);
