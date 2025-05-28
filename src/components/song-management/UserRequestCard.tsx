@@ -54,45 +54,55 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   };
 
   const fetchAudioUrl = async () => {
-    if (audioUrl) return audioUrl; // Already fetched
+    if (audioUrl) {
+      console.log('User Dashboard: Audio URL already cached:', audioUrl);
+      return audioUrl;
+    }
     
     try {
       setLoadingAudio(true);
-      console.log('Fetching audio URL for request:', request.id);
+      console.log('User Dashboard: Fetching audio URL for request:', request.id);
 
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
-        .eq('request_id', request.id);
+        .eq('request_id', request.id)
+        .order('created_at', { ascending: false });
+
+      console.log('User Dashboard: Audio query result:', { audioData, audioError, requestId: request.id });
 
       if (audioError) {
-        console.error('Error fetching audio:', audioError);
-        toast.error('Failed to load audio');
+        console.error('User Dashboard: Database error:', audioError);
+        toast.error('Failed to load audio: ' + audioError.message);
         return null;
       }
 
       if (!audioData || audioData.length === 0) {
-        toast.error('No audio files found');
+        console.log('User Dashboard: No audio records found for request:', request.id);
+        toast.error('No audio files found for this request');
         return null;
       }
 
       // Get the selected audio file or the most recent one
       let audioRecord = audioData.find(record => record.is_selected === true);
       if (!audioRecord) {
-        audioRecord = audioData.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
+        console.log('User Dashboard: No selected audio found, using most recent');
+        audioRecord = audioData[0]; // Already sorted by created_at desc
       }
 
+      console.log('User Dashboard: Using audio record:', audioRecord);
+
       if (!audioRecord?.audio_url) {
+        console.error('User Dashboard: Audio record missing URL:', audioRecord);
         toast.error('Audio file URL is missing');
         return null;
       }
 
+      console.log('User Dashboard: Setting audio URL:', audioRecord.audio_url);
       setAudioUrl(audioRecord.audio_url);
       return audioRecord.audio_url;
     } catch (error: any) {
-      console.error('Error fetching audio URL:', error);
+      console.error('User Dashboard: Error fetching audio URL:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
     } finally {
@@ -100,40 +110,107 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     }
   };
 
+  const stopCurrentAudio = () => {
+    if (currentAudio) {
+      console.log('User Dashboard: Stopping current audio');
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+      setIsPlaying(false);
+    }
+  };
+
   const handlePlayPause = async () => {
     try {
-      if (!audioUrl) {
-        const url = await fetchAudioUrl();
-        if (!url) return;
+      console.log('User Dashboard: Play/pause clicked, current state:', { isPlaying, hasAudio: !!currentAudio });
+      
+      // If we're currently playing, just pause
+      if (isPlaying && currentAudio) {
+        console.log('User Dashboard: Pausing audio');
+        currentAudio.pause();
+        setIsPlaying(false);
+        return;
       }
 
-      if (currentAudio) {
-        if (isPlaying) {
-          currentAudio.pause();
-          setIsPlaying(false);
-        } else {
-          currentAudio.play();
-          setIsPlaying(true);
-        }
-      } else {
-        const audio = new Audio(audioUrl!);
-        audio.addEventListener('ended', () => {
-          setIsPlaying(false);
-          setCurrentAudio(null);
-        });
-        audio.addEventListener('error', () => {
-          toast.error('Failed to play audio');
-          setIsPlaying(false);
-          setCurrentAudio(null);
-        });
-        
-        setCurrentAudio(audio);
-        audio.play();
+      // If we have paused audio, resume it
+      if (!isPlaying && currentAudio) {
+        console.log('User Dashboard: Resuming audio');
+        await currentAudio.play();
         setIsPlaying(true);
+        return;
       }
+
+      // Otherwise, we need to load and play new audio
+      const url = await fetchAudioUrl();
+      if (!url) {
+        console.log('User Dashboard: No audio URL available');
+        return;
+      }
+
+      console.log('User Dashboard: Creating new audio element with URL:', url);
+      
+      // Stop any existing audio first
+      stopCurrentAudio();
+
+      const audio = new Audio();
+      
+      // Set up event listeners before setting src
+      audio.addEventListener('loadstart', () => {
+        console.log('User Dashboard: Audio load started');
+      });
+      
+      audio.addEventListener('loadeddata', () => {
+        console.log('User Dashboard: Audio data loaded');
+      });
+      
+      audio.addEventListener('canplay', () => {
+        console.log('User Dashboard: Audio can start playing');
+      });
+      
+      audio.addEventListener('ended', () => {
+        console.log('User Dashboard: Audio playback ended');
+        setIsPlaying(false);
+        setCurrentAudio(null);
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error('User Dashboard: Audio error:', e);
+        console.error('User Dashboard: Audio error details:', audio.error);
+        toast.error('Failed to play audio - file may be corrupted or inaccessible');
+        setIsPlaying(false);
+        setCurrentAudio(null);
+      });
+
+      audio.addEventListener('pause', () => {
+        console.log('User Dashboard: Audio paused');
+        setIsPlaying(false);
+      });
+
+      audio.addEventListener('play', () => {
+        console.log('User Dashboard: Audio started playing');
+        setIsPlaying(true);
+      });
+
+      // Set the audio source
+      audio.src = url;
+      setCurrentAudio(audio);
+
+      console.log('User Dashboard: Attempting to play audio');
+      try {
+        await audio.play();
+        console.log('User Dashboard: Audio play() succeeded');
+        setIsPlaying(true);
+      } catch (playError) {
+        console.error('User Dashboard: Audio play() failed:', playError);
+        toast.error('Failed to start audio playback');
+        setCurrentAudio(null);
+      }
+      
     } catch (error: any) {
-      console.error('Error playing audio:', error);
-      toast.error('Failed to play audio');
+      console.error('User Dashboard: Error in handlePlayPause:', error);
+      toast.error('Failed to play audio: ' + error.message);
+      setIsPlaying(false);
+      setCurrentAudio(null);
     }
   };
 
@@ -142,13 +219,14 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       setDownloadingAudio(true);
       console.log('User Dashboard: Starting download for request:', request.id);
 
-      // Simple query to get audio records for this request
+      // Use the same logic as fetchAudioUrl but for download
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
-        .eq('request_id', request.id);
+        .eq('request_id', request.id)
+        .order('created_at', { ascending: false });
 
-      console.log('User Dashboard: Audio query result:', { audioData, audioError, requestId: request.id });
+      console.log('User Dashboard: Audio query result for download:', { audioData, audioError, requestId: request.id });
 
       if (audioError) {
         console.error('User Dashboard: Database error:', audioError);
@@ -158,13 +236,6 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
 
       if (!audioData || audioData.length === 0) {
         console.error('User Dashboard: No audio records found for request:', request.id);
-        // Let's also check if the request exists
-        const { data: requestData } = await supabase
-          .from('custom_song_requests')
-          .select('id, status')
-          .eq('id', request.id);
-        
-        console.log('User Dashboard: Request verification:', requestData);
         toast.error('No audio files found for this request. Please contact support if this seems incorrect.');
         return;
       }
@@ -175,13 +246,10 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       let audioRecord = audioData.find(record => record.is_selected === true);
       if (!audioRecord) {
         console.log('User Dashboard: No selected audio found, using most recent');
-        // Sort by created_at descending and take the first one
-        audioRecord = audioData.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
+        audioRecord = audioData[0]; // Already sorted by created_at desc
       }
 
-      console.log('User Dashboard: Using audio record:', audioRecord);
+      console.log('User Dashboard: Using audio record for download:', audioRecord);
 
       if (!audioRecord?.audio_url) {
         console.error('User Dashboard: Audio record missing URL:', audioRecord);
@@ -302,15 +370,16 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
                 variant="outline"
                 onClick={handlePlayPause}
                 disabled={loadingAudio}
+                className="flex items-center gap-2"
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="h-4 w-4 mr-2" />
+                    <Pause className="h-4 w-4" />
                     Pause
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4 mr-2" />
+                    <Play className="h-4 w-4" />
                     {loadingAudio ? "Loading..." : "Play"}
                   </>
                 )}
@@ -339,15 +408,16 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
                 variant="outline"
                 onClick={handlePlayPause}
                 disabled={loadingAudio}
+                className="flex items-center gap-2"
               >
                 {isPlaying ? (
                   <>
-                    <Pause className="h-4 w-4 mr-2" />
+                    <Pause className="h-4 w-4" />
                     Pause
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4 mr-2" />
+                    <Play className="h-4 w-4" />
                     {loadingAudio ? "Loading..." : "Play"}
                   </>
                 )}
