@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
 import { supabase } from '@/integrations/supabase/client';
+import { SunoApiKeyForm } from './SunoApiKeyForm';
 
 export const SunoApiManagement = () => {
   const { user } = useAuth();
@@ -23,7 +25,6 @@ export const SunoApiManagement = () => {
     try {
       console.log('Checking Suno API key status...');
       
-      // Use the Supabase client to call the edge function properly
       const { data, error } = await supabase.functions.invoke('suno-status', {
         body: { taskId: 'test' }
       });
@@ -40,7 +41,6 @@ export const SunoApiManagement = () => {
           toast.error('API key check failed: ' + error.message);
         }
       } else if (data) {
-        // Check if the response indicates success
         if (data.code === 200 || data.msg === 'success') {
           setKeyStatus('valid');
           toast.success('Suno API key is valid and working');
@@ -111,10 +111,6 @@ export const SunoApiManagement = () => {
     }
   };
 
-  const handleAddApiKey = () => {
-    toast.info('Use the secret form below to securely add your Suno API key.');
-  };
-
   const handleTestGeneration = async () => {
     if (keyStatus !== 'valid') {
       toast.error('Please configure a valid API key first.');
@@ -135,12 +131,17 @@ export const SunoApiManagement = () => {
         instrumental: true,
         customMode: false,
         model: 'V3_5',
-        isAdminTest: true // Add this flag for admin testing
+        isAdminTest: true
       });
     } catch (error: any) {
       console.error('Test generation error:', error);
       toast.error('Failed to test generation: ' + error.message);
     }
+  };
+
+  const handleKeyUpdated = () => {
+    // Refresh the API key status after update
+    checkApiKeyStatus();
   };
 
   // Show generation status updates
@@ -237,73 +238,40 @@ export const SunoApiManagement = () => {
           </CardContent>
         </Card>
 
-        {/* API Configuration Card */}
+        {/* Usage Information Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              API Configuration
-            </CardTitle>
+            <CardTitle>API Usage & Features</CardTitle>
             <CardDescription>
-              Manage your Suno API key securely
+              Information about Suno AI API capabilities and usage
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <h4 className="font-medium">Configure API Key</h4>
-              <p className="text-sm text-muted-foreground">
-                Your API key is stored securely in Supabase secrets. Click the button below to add or update your key.
-              </p>
-            </div>
-
-            <Button 
-              onClick={handleAddApiKey}
-              className="w-full"
-              variant={keyStatus === 'missing' ? 'default' : 'outline'}
-            >
-              <Key className="h-4 w-4 mr-2" />
-              {keyStatus === 'missing' ? 'Add API Key' : 'Update API Key'}
-            </Button>
-
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p>• Get your API key from the Suno AI dashboard</p>
-              <p>• Keys are encrypted and stored securely</p>
-              <p>• Never share your API key publicly</p>
+          <CardContent>
+            <div className="grid gap-4">
+              <div>
+                <h4 className="font-medium mb-2">Supported Models</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• V3.5 - Stable, good structure (max 3000 chars)</li>
+                  <li>• V4 - High-quality audio (max 3000 chars)</li>
+                  <li>• V4.5 - Most advanced (max 5000 chars)</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">Generation Modes</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Prompt Mode - Short creative descriptions</li>
+                  <li>• Lyric Input Mode - Full song lyrics</li>
+                  <li>• Instrumental tracks available</li>
+                  <li>• Custom styles and genres</li>
+                </ul>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Usage Information Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>API Usage & Features</CardTitle>
-          <CardDescription>
-            Information about Suno AI API capabilities and usage
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <h4 className="font-medium mb-2">Supported Models</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• V3.5 - Stable, good structure (max 3000 chars)</li>
-                <li>• V4 - High-quality audio (max 3000 chars)</li>
-                <li>• V4.5 - Most advanced (max 5000 chars)</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">Generation Modes</h4>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Prompt Mode - Short creative descriptions</li>
-                <li>• Lyric Input Mode - Full song lyrics</li>
-                <li>• Instrumental tracks available</li>
-                <li>• Custom styles and genres</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* API Key Update Form */}
+      <SunoApiKeyForm onKeyUpdated={handleKeyUpdated} />
     </div>
   );
 };
