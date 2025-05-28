@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, X, Volume2, Heart, Share2 } from "lucide-react";
+import { Repeat, Repeat1 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -13,6 +14,8 @@ interface BottomAudioPlayerProps {
   onDownload?: () => void;
   downloadingAudio?: boolean;
 }
+
+type RepeatMode = 'none' | 'one' | 'all';
 
 export const BottomAudioPlayer = ({ 
   requestId, 
@@ -29,6 +32,7 @@ export const BottomAudioPlayer = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('none');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchAudioUrl = async () => {
@@ -112,8 +116,7 @@ export const BottomAudioPlayer = ({
       });
 
       audio.addEventListener('ended', () => {
-        setIsPlaying(false);
-        setCurrentTime(0);
+        handleAudioEnd();
       });
 
       audio.addEventListener('error', (e) => {
@@ -130,6 +133,55 @@ export const BottomAudioPlayer = ({
       toast.error('Failed to play audio: ' + error.message);
       setIsPlaying(false);
     }
+  };
+
+  const handleAudioEnd = () => {
+    if (repeatMode === 'one') {
+      // Repeat current song
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play();
+        setCurrentTime(0);
+        return;
+      }
+    } else if (repeatMode === 'all') {
+      // In a single song context, repeat all is the same as repeat one
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play();
+        setCurrentTime(0);
+        return;
+      }
+    }
+    
+    // No repeat - stop playing
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const toggleRepeatMode = () => {
+    const modes: RepeatMode[] = ['none', 'all', 'one'];
+    const currentIndex = modes.indexOf(repeatMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setRepeatMode(modes[nextIndex]);
+  };
+
+  const getRepeatIcon = () => {
+    switch (repeatMode) {
+      case 'one':
+        return <Repeat1 className="h-5 w-5" />;
+      case 'all':
+        return <Repeat className="h-5 w-5" />;
+      default:
+        return <Repeat className="h-5 w-5" />;
+    }
+  };
+
+  const getRepeatButtonClass = () => {
+    if (repeatMode === 'none') {
+      return "h-10 w-10 rounded-full text-gray-400 hover:text-white";
+    }
+    return "h-10 w-10 rounded-full text-purple-400 hover:text-purple-300";
   };
 
   const handleSeek = (value: number[]) => {
@@ -231,6 +283,16 @@ export const BottomAudioPlayer = ({
               className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
             >
               <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleRepeatMode}
+              className={getRepeatButtonClass()}
+              title={`Repeat: ${repeatMode}`}
+            >
+              {getRepeatIcon()}
             </Button>
 
             <Button
