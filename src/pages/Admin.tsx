@@ -1,6 +1,7 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug } from 'lucide-react';
+import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug, Key } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -9,7 +10,7 @@ import { toast } from 'sonner';
 // Components
 import { UserManagement } from '@/components/admin/UserManagement';
 import { AdminManagement } from '@/components/admin/AdminManagement';
-import { ApiKeyManagement } from '@/components/admin/ApiKeyManagement';
+import { SunoApiManagement } from '@/components/admin/SunoApiManagement';
 import { ContestManagement } from '@/components/admin/ContestManagement';
 import { PaymentManagement } from '@/components/admin/PaymentManagement';
 import { ContentManagement } from '@/components/admin/ContentManagement';
@@ -148,7 +149,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'admin': 'users',
       'users': 'users',
       'admins': 'admins',
-      'api-keys': 'apis',
+      'suno-api': 'suno-api',
       'contest': 'contest',
       'content': 'content',
       'payments': 'payments',
@@ -173,7 +174,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'admins': '/admin/admins',
       'genres': '/admin/genres',
       'custom-songs': '/admin/custom-songs',
-      'apis': '/admin/api-keys',
+      'suno-api': '/admin/suno-api',
       'contest': '/admin/contest',
       'content': '/admin/content',
       'payments': '/admin/payments',
@@ -317,6 +318,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <Music className="mr-2 h-4 w-4" />
                 Custom Songs
               </TabsTrigger>
+              <TabsTrigger value="suno-api" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
+                <Key className="mr-2 h-4 w-4" />
+                Suno API
+              </TabsTrigger>
               <TabsTrigger value="contest" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Trophy className="mr-2 h-4 w-4" />
                 Contest
@@ -324,10 +329,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
               <TabsTrigger value="content" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <FileText className="mr-2 h-4 w-4" />
                 Content
-              </TabsTrigger>
-              <TabsTrigger value="apis" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Headphones className="mr-2 h-4 w-4" />
-                API Keys
               </TabsTrigger>
               <TabsTrigger value="payments" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <DollarSign className="mr-2 h-4 w-4" />
@@ -365,7 +366,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
             <AdminManagement 
               users={users}
               admins={admins}
-              apiKeys={apiKeys}
+              apiKeys={[]}
               contestEntries={contestEntries}
               pricingPlans={pricingPlans}
               creditPackages={creditPackages}
@@ -383,8 +384,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
             <ContentManagement />
           </TabsContent>
 
-          <TabsContent value="apis" className="mt-0">
-            <ApiKeyManagement apiKeys={apiKeys} getButtonContent={getButtonContent} />
+          <TabsContent value="suno-api" className="mt-0">
+            <SunoApiManagement />
           </TabsContent>
 
           <TabsContent value="contest" className="mt-0">

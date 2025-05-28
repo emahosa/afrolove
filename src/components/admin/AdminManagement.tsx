@@ -7,7 +7,6 @@ import { ReportsAnalytics } from "./ReportsAnalytics";
 import { SupportManagement } from "./SupportManagement";
 import { SettingsManagement } from "./SettingsManagement";
 import { ContestManagement } from "./ContestManagement";
-import { ApiKeyManagement } from "./ApiKeyManagement";
 import { GenreManagement } from "./GenreManagement";
 
 interface AdminManagementProps {
@@ -41,13 +40,12 @@ export const AdminManagement = ({
       </div>
       
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-9">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-8">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="genres">Genres</TabsTrigger>
           <TabsTrigger value="contests">Contests</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -76,10 +74,6 @@ export const AdminManagement = ({
             renderPlanFeatures={renderPlanFeatures}
             renderStatusLabel={renderStatusLabel}
           />
-        </TabsContent>
-        
-        <TabsContent value="api-keys">
-          <ApiKeyManagement apiKeys={apiKeys} getButtonContent={getButtonContent} />
         </TabsContent>
         
         <TabsContent value="reports">
