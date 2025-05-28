@@ -12,8 +12,23 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url)
-    const taskId = url.searchParams.get('taskId')
+    let taskId: string | null = null;
+
+    // Try to get taskId from request body first (for API key status checks)
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        taskId = body.taskId;
+      } catch (e) {
+        // If body parsing fails, continue to try URL params
+      }
+    }
+
+    // Fall back to URL query parameter
+    if (!taskId) {
+      const url = new URL(req.url);
+      taskId = url.searchParams.get('taskId');
+    }
 
     if (!taskId) {
       throw new Error('Task ID is required')
