@@ -205,7 +205,7 @@ export const AdminSongRequestCard = ({
             </div>
           </div>
 
-          {/* Selected lyrics section */}
+          {/* Selected lyrics section with improved color palette */}
           {(request.status === 'lyrics_selected' || request.status === 'audio_uploaded' || request.status === 'completed') && (
             <div className="mb-4">
               <Label className="text-sm font-medium mb-2 block">Selected Lyrics by User</Label>
@@ -214,22 +214,22 @@ export const AdminSongRequestCard = ({
                   <p className="text-sm text-muted-foreground">Loading selected lyrics...</p>
                 </div>
               ) : selectedLyrics ? (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md">
                   <div className="flex justify-between items-start mb-2">
-                    <Badge className="bg-green-100 text-green-800">
+                    <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">
                       Version {selectedLyrics.version} - Selected
                     </Badge>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleCopyLyrics}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
                     >
                       <Copy className="h-3 w-3" />
                       Copy
                     </Button>
                   </div>
-                  <pre className="text-sm whitespace-pre-wrap font-mono">{selectedLyrics.lyrics}</pre>
+                  <pre className="text-sm whitespace-pre-wrap font-mono text-emerald-900 leading-relaxed">{selectedLyrics.lyrics}</pre>
                 </div>
               ) : (
                 <div className="p-3 bg-muted/30 rounded-md">
