@@ -1,10 +1,12 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Clock, Edit, CheckCircle, XCircle, Download, Eye, EyeOff, Play, Pause } from "lucide-react";
+import { Music, Calendar, Clock, CheckCircle, Download, Eye, EyeOff } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
+import { AudioPlayerCard } from "./AudioPlayerCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,10 +20,6 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const { user } = useAuth();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [loadingAudio, setLoadingAudio] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -53,180 +51,16 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     });
   };
 
-  const fetchAudioUrl = async () => {
-    if (audioUrl) {
-      console.log('User Dashboard: Audio URL already cached:', audioUrl);
-      return audioUrl;
-    }
-    
-    try {
-      setLoadingAudio(true);
-      console.log('User Dashboard: Fetching audio URL for request:', request.id);
-
-      const { data: audioData, error: audioError } = await supabase
-        .from('custom_song_audio')
-        .select('*')
-        .eq('request_id', request.id)
-        .order('created_at', { ascending: false });
-
-      console.log('User Dashboard: Audio query result:', { audioData, audioError, requestId: request.id });
-
-      if (audioError) {
-        console.error('User Dashboard: Database error:', audioError);
-        toast.error('Failed to load audio: ' + audioError.message);
-        return null;
-      }
-
-      if (!audioData || audioData.length === 0) {
-        console.log('User Dashboard: No audio records found for request:', request.id);
-        toast.error('No audio files found for this request');
-        return null;
-      }
-
-      // Get the selected audio file or the most recent one
-      let audioRecord = audioData.find(record => record.is_selected === true);
-      if (!audioRecord) {
-        console.log('User Dashboard: No selected audio found, using most recent');
-        audioRecord = audioData[0]; // Already sorted by created_at desc
-      }
-
-      console.log('User Dashboard: Using audio record:', audioRecord);
-
-      if (!audioRecord?.audio_url) {
-        console.error('User Dashboard: Audio record missing URL:', audioRecord);
-        toast.error('Audio file URL is missing');
-        return null;
-      }
-
-      console.log('User Dashboard: Setting audio URL:', audioRecord.audio_url);
-      setAudioUrl(audioRecord.audio_url);
-      return audioRecord.audio_url;
-    } catch (error: any) {
-      console.error('User Dashboard: Error fetching audio URL:', error);
-      toast.error('Failed to load audio: ' + error.message);
-      return null;
-    } finally {
-      setLoadingAudio(false);
-    }
-  };
-
-  const stopCurrentAudio = () => {
-    if (currentAudio) {
-      console.log('User Dashboard: Stopping current audio');
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-      setCurrentAudio(null);
-      setIsPlaying(false);
-    }
-  };
-
-  const handlePlayPause = async () => {
-    try {
-      console.log('User Dashboard: Play/pause clicked, current state:', { isPlaying, hasAudio: !!currentAudio });
-      
-      // If we're currently playing, just pause
-      if (isPlaying && currentAudio) {
-        console.log('User Dashboard: Pausing audio');
-        currentAudio.pause();
-        setIsPlaying(false);
-        return;
-      }
-
-      // If we have paused audio, resume it
-      if (!isPlaying && currentAudio) {
-        console.log('User Dashboard: Resuming audio');
-        await currentAudio.play();
-        setIsPlaying(true);
-        return;
-      }
-
-      // Otherwise, we need to load and play new audio
-      const url = await fetchAudioUrl();
-      if (!url) {
-        console.log('User Dashboard: No audio URL available');
-        return;
-      }
-
-      console.log('User Dashboard: Creating new audio element with URL:', url);
-      
-      // Stop any existing audio first
-      stopCurrentAudio();
-
-      const audio = new Audio();
-      
-      // Set up event listeners before setting src
-      audio.addEventListener('loadstart', () => {
-        console.log('User Dashboard: Audio load started');
-      });
-      
-      audio.addEventListener('loadeddata', () => {
-        console.log('User Dashboard: Audio data loaded');
-      });
-      
-      audio.addEventListener('canplay', () => {
-        console.log('User Dashboard: Audio can start playing');
-      });
-      
-      audio.addEventListener('ended', () => {
-        console.log('User Dashboard: Audio playback ended');
-        setIsPlaying(false);
-        setCurrentAudio(null);
-      });
-      
-      audio.addEventListener('error', (e) => {
-        console.error('User Dashboard: Audio error:', e);
-        console.error('User Dashboard: Audio error details:', audio.error);
-        toast.error('Failed to play audio - file may be corrupted or inaccessible');
-        setIsPlaying(false);
-        setCurrentAudio(null);
-      });
-
-      audio.addEventListener('pause', () => {
-        console.log('User Dashboard: Audio paused');
-        setIsPlaying(false);
-      });
-
-      audio.addEventListener('play', () => {
-        console.log('User Dashboard: Audio started playing');
-        setIsPlaying(true);
-      });
-
-      // Set the audio source
-      audio.src = url;
-      setCurrentAudio(audio);
-
-      console.log('User Dashboard: Attempting to play audio');
-      try {
-        await audio.play();
-        console.log('User Dashboard: Audio play() succeeded');
-        setIsPlaying(true);
-      } catch (playError) {
-        console.error('User Dashboard: Audio play() failed:', playError);
-        toast.error('Failed to start audio playback');
-        setCurrentAudio(null);
-      }
-      
-    } catch (error: any) {
-      console.error('User Dashboard: Error in handlePlayPause:', error);
-      toast.error('Failed to play audio: ' + error.message);
-      setIsPlaying(false);
-      setCurrentAudio(null);
-    }
-  };
-
   const handleDownloadAudio = async () => {
     try {
       setDownloadingAudio(true);
       console.log('User Dashboard: Starting download for request:', request.id);
 
-      // Use the same logic as fetchAudioUrl but for download
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
         .eq('request_id', request.id)
         .order('created_at', { ascending: false });
-
-      console.log('User Dashboard: Audio query result for download:', { audioData, audioError, requestId: request.id });
 
       if (audioError) {
         console.error('User Dashboard: Database error:', audioError);
@@ -240,16 +74,10 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
         return;
       }
 
-      console.log('User Dashboard: Found audio records:', audioData);
-
-      // Get the selected audio file or the most recent one
       let audioRecord = audioData.find(record => record.is_selected === true);
       if (!audioRecord) {
-        console.log('User Dashboard: No selected audio found, using most recent');
-        audioRecord = audioData[0]; // Already sorted by created_at desc
+        audioRecord = audioData[0];
       }
-
-      console.log('User Dashboard: Using audio record for download:', audioRecord);
 
       if (!audioRecord?.audio_url) {
         console.error('User Dashboard: Audio record missing URL:', audioRecord);
@@ -257,24 +85,16 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
         return;
       }
 
-      console.log('User Dashboard: Attempting download from URL:', audioRecord.audio_url);
-
-      // Download the file
       const response = await fetch(audioRecord.audio_url);
-      console.log('User Dashboard: Fetch response status:', response.status);
-
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const blob = await response.blob();
-      console.log('User Dashboard: Downloaded blob size:', blob.size);
-
       if (blob.size === 0) {
         throw new Error('Downloaded file is empty');
       }
 
-      // Create and trigger download
       const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
       const fileName = `${sanitizedTitle}_custom_song.mp3`;
       
@@ -288,12 +108,10 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       link.click();
       document.body.removeChild(link);
       
-      // Clean up
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 1000);
 
-      console.log('User Dashboard: Download completed successfully');
       toast.success('Audio file downloaded successfully!');
       
     } catch (error: any) {
@@ -358,79 +176,35 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
           </div>
         )}
         
-        {request.status === 'audio_uploaded' && (
-          <div className="text-center py-6">
-            <Download className="h-12 w-12 text-orange-600 mx-auto mb-3" />
-            <h4 className="font-semibold mb-2">Your Song is Ready!</h4>
-            <p className="text-muted-foreground mb-4">
-              Your custom song has been created and is ready for download.
-            </p>
-            <div className="flex justify-center gap-2">
-              <Button 
-                variant="outline"
-                onClick={handlePlayPause}
-                disabled={loadingAudio}
-                className="flex items-center gap-2"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" />
-                    {loadingAudio ? "Loading..." : "Play"}
-                  </>
-                )}
-              </Button>
-              <Button 
-                className="bg-melody-secondary hover:bg-melody-secondary/90"
-                onClick={handleDownloadAudio}
-                disabled={downloadingAudio}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {downloadingAudio ? "Downloading..." : "Download Song"}
-              </Button>
+        {(request.status === 'audio_uploaded' || request.status === 'completed') && canPlayAudio && (
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              {request.status === 'audio_uploaded' ? (
+                <>
+                  <Download className="h-12 w-12 text-orange-600 mx-auto mb-3" />
+                  <h4 className="font-semibold mb-2">Your Song is Ready!</h4>
+                  <p className="text-muted-foreground mb-4">
+                    Your custom song has been created and is ready for download.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
+                  <h4 className="font-semibold mb-2">Song Completed!</h4>
+                  <p className="text-muted-foreground mb-4">
+                    Your custom song request has been completed. Thank you for using our service!
+                  </p>
+                </>
+              )}
             </div>
-          </div>
-        )}
-        
-        {request.status === 'completed' && (
-          <div className="text-center py-6">
-            <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
-            <h4 className="font-semibold mb-2">Song Completed!</h4>
-            <p className="text-muted-foreground mb-4">
-              Your custom song request has been completed. Thank you for using our service!
-            </p>
-            <div className="flex justify-center gap-2">
-              <Button 
-                variant="outline"
-                onClick={handlePlayPause}
-                disabled={loadingAudio}
-                className="flex items-center gap-2"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4" />
-                    {loadingAudio ? "Loading..." : "Play"}
-                  </>
-                )}
-              </Button>
-              <Button 
-                className="bg-melody-secondary hover:bg-melody-secondary/90"
-                onClick={handleDownloadAudio}
-                disabled={downloadingAudio}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {downloadingAudio ? "Downloading..." : "Download Song"}
-              </Button>
-            </div>
+            
+            <AudioPlayerCard
+              requestId={request.id}
+              title={request.title}
+              isDownloadable={canDownloadAudio}
+              onDownload={handleDownloadAudio}
+              downloadingAudio={downloadingAudio}
+            />
           </div>
         )}
 
