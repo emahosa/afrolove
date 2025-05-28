@@ -98,7 +98,9 @@ serve(async (req) => {
       throw new Error(`Suno API error: ${sunoData.msg || 'Unknown error'}`)
     }
 
-    if (!sunoData.data?.task_id) {
+    // Fix: Check for both task_id and taskId (the API returns taskId in camelCase)
+    const taskId = sunoData.data?.task_id || sunoData.data?.taskId
+    if (!taskId) {
       throw new Error('No task ID received from Suno API')
     }
 
@@ -119,7 +121,7 @@ serve(async (req) => {
         .from('custom_song_audio')
         .insert({
           request_id: body.requestId,
-          audio_url: `task_pending:${sunoData.data.task_id}`,
+          audio_url: `task_pending:${taskId}`,
           version: 1,
           is_selected: true,
           created_by: body.userId
@@ -143,7 +145,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        task_id: sunoData.data.task_id,
+        task_id: taskId,
         message: 'Song generation started successfully'
       }),
       { 
