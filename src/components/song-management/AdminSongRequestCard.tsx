@@ -107,7 +107,7 @@ export const AdminSongRequestCard = ({
       const fileExt = audioFile.name.split('.').pop();
       const fileName = `${request.id}_final.${fileExt}`;
       
-      // Upload to Supabase Storage
+      // Upload directly to Supabase Storage (bucket should exist from SQL migration)
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('custom-songs')
         .upload(`audio/${fileName}`, audioFile, {
