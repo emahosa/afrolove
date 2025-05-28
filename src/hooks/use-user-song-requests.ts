@@ -12,7 +12,7 @@ export interface UserSongRequest {
   created_at: string;
   updated_at: string;
   user_id: string;
-  genre_id?: string;
+  genre_id: string | null;
   genre?: {
     id: string;
     name: string;
