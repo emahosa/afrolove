@@ -18,6 +18,7 @@ import Credits from "./pages/Credits";
 import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
+import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/credits" element={<Credits />} />
             <Route path="/my-custom-songs" element={<UserCustomSongs />} />
+            <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
             
             {/* Admin routes */}
             <Route path="/admin" element={<Admin />} />
