@@ -17,18 +17,26 @@ export const SunoApiManagement = () => {
     setKeyStatus('checking');
 
     try {
-      const { data, error } = await supabase.functions.invoke('suno-status', {
-        body: { taskId: 'test' }
+      // Make a direct GET request to the edge function with taskId as query parameter
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/suno-status?taskId=test`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'apikey': supabase.supabaseKey,
+          'Content-Type': 'application/json',
+        }
       });
 
-      if (error) {
-        if (error.message?.includes('SUNO_API_KEY not configured')) {
+      if (response.ok) {
+        setKeyStatus('valid');
+        toast.success('Suno API key is valid and working');
+      } else {
+        const errorData = await response.json();
+        if (errorData.error?.includes('SUNO_API_KEY not configured')) {
           setKeyStatus('missing');
         } else {
           setKeyStatus('invalid');
         }
-      } else {
-        setKeyStatus('valid');
       }
 
       setLastChecked(new Date().toLocaleString());
