@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Music, Calendar, Clock, Edit, CheckCircle, XCircle, Download, Eye, EyeOff } from "lucide-react";
+import { Music, Calendar, Clock, Edit, CheckCircle, XCircle, Download, Eye, EyeOff, Play, Pause } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,10 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const { user } = useAuth();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [loadingAudio, setLoadingAudio] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -48,6 +51,90 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const fetchAudioUrl = async () => {
+    if (audioUrl) return audioUrl; // Already fetched
+    
+    try {
+      setLoadingAudio(true);
+      console.log('Fetching audio URL for request:', request.id);
+
+      const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('*')
+        .eq('request_id', request.id);
+
+      if (audioError) {
+        console.error('Error fetching audio:', audioError);
+        toast.error('Failed to load audio');
+        return null;
+      }
+
+      if (!audioData || audioData.length === 0) {
+        toast.error('No audio files found');
+        return null;
+      }
+
+      // Get the selected audio file or the most recent one
+      let audioRecord = audioData.find(record => record.is_selected === true);
+      if (!audioRecord) {
+        audioRecord = audioData.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )[0];
+      }
+
+      if (!audioRecord?.audio_url) {
+        toast.error('Audio file URL is missing');
+        return null;
+      }
+
+      setAudioUrl(audioRecord.audio_url);
+      return audioRecord.audio_url;
+    } catch (error: any) {
+      console.error('Error fetching audio URL:', error);
+      toast.error('Failed to load audio: ' + error.message);
+      return null;
+    } finally {
+      setLoadingAudio(false);
+    }
+  };
+
+  const handlePlayPause = async () => {
+    try {
+      if (!audioUrl) {
+        const url = await fetchAudioUrl();
+        if (!url) return;
+      }
+
+      if (currentAudio) {
+        if (isPlaying) {
+          currentAudio.pause();
+          setIsPlaying(false);
+        } else {
+          currentAudio.play();
+          setIsPlaying(true);
+        }
+      } else {
+        const audio = new Audio(audioUrl!);
+        audio.addEventListener('ended', () => {
+          setIsPlaying(false);
+          setCurrentAudio(null);
+        });
+        audio.addEventListener('error', () => {
+          toast.error('Failed to play audio');
+          setIsPlaying(false);
+          setCurrentAudio(null);
+        });
+        
+        setCurrentAudio(audio);
+        audio.play();
+        setIsPlaying(true);
+      }
+    } catch (error: any) {
+      console.error('Error playing audio:', error);
+      toast.error('Failed to play audio');
+    }
   };
 
   const handleDownloadAudio = async () => {
@@ -152,6 +239,7 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const canManageLyrics = request.status === 'lyrics_proposed';
   const showLyricsButton = ['lyrics_proposed', 'lyrics_selected', 'audio_uploaded', 'completed'].includes(request.status);
   const canDownloadAudio = ['audio_uploaded', 'completed'].includes(request.status);
+  const canPlayAudio = ['audio_uploaded', 'completed'].includes(request.status);
 
   return (
     <Card className="overflow-hidden">
@@ -209,14 +297,33 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
             <p className="text-muted-foreground mb-4">
               Your custom song has been created and is ready for download.
             </p>
-            <Button 
-              className="bg-melody-secondary hover:bg-melody-secondary/90"
-              onClick={handleDownloadAudio}
-              disabled={downloadingAudio}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {downloadingAudio ? "Downloading..." : "Download Song"}
-            </Button>
+            <div className="flex justify-center gap-2">
+              <Button 
+                variant="outline"
+                onClick={handlePlayPause}
+                disabled={loadingAudio}
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause className="h-4 w-4 mr-2" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    {loadingAudio ? "Loading..." : "Play"}
+                  </>
+                )}
+              </Button>
+              <Button 
+                className="bg-melody-secondary hover:bg-melody-secondary/90"
+                onClick={handleDownloadAudio}
+                disabled={downloadingAudio}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloadingAudio ? "Downloading..." : "Download Song"}
+              </Button>
+            </div>
           </div>
         )}
         
@@ -227,14 +334,33 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
             <p className="text-muted-foreground mb-4">
               Your custom song request has been completed. Thank you for using our service!
             </p>
-            <Button 
-              className="bg-melody-secondary hover:bg-melody-secondary/90"
-              onClick={handleDownloadAudio}
-              disabled={downloadingAudio}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {downloadingAudio ? "Downloading..." : "Download Song"}
-            </Button>
+            <div className="flex justify-center gap-2">
+              <Button 
+                variant="outline"
+                onClick={handlePlayPause}
+                disabled={loadingAudio}
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause className="h-4 w-4 mr-2" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    {loadingAudio ? "Loading..." : "Play"}
+                  </>
+                )}
+              </Button>
+              <Button 
+                className="bg-melody-secondary hover:bg-melody-secondary/90"
+                onClick={handleDownloadAudio}
+                disabled={downloadingAudio}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloadingAudio ? "Downloading..." : "Download Song"}
+              </Button>
+            </div>
           </div>
         )}
 
