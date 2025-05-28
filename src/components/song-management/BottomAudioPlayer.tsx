@@ -1,10 +1,10 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Music, X, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SpectrumVisualizer } from "./SpectrumVisualizer";
 
 interface BottomAudioPlayerProps {
   requestId: string;
@@ -29,7 +29,6 @@ export const BottomAudioPlayer = ({
   const [volume, setVolume] = useState(100);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
-  const [waveformBars] = useState(Array.from({ length: 60 }, () => Math.random() * 100));
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchAudioUrl = async () => {
@@ -178,6 +177,18 @@ export const BottomAudioPlayer = ({
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-melody-dark via-gray-900 to-melody-dark border-t border-melody-primary/20 shadow-2xl z-50 animate-slide-in-right backdrop-blur-sm">
       <div className="px-6 py-4">
+        {/* Spectrum Visualizer */}
+        <div className="flex justify-center mb-4">
+          <SpectrumVisualizer
+            audioElement={audioRef.current}
+            isPlaying={isPlaying}
+            width={600}
+            height={60}
+            barCount={80}
+            showToggle={true}
+          />
+        </div>
+
         <div className="flex items-center gap-6">
           {/* Cover Art */}
           <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-melody-primary via-melody-secondary to-melody-accent flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -188,24 +199,6 @@ export const BottomAudioPlayer = ({
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-base truncate text-melody-light">{title}</h4>
             <p className="text-sm text-melody-light/70">Custom Song</p>
-          </div>
-
-          {/* Waveform Visualizer */}
-          <div className="hidden md:flex items-center gap-1 h-10 flex-1 max-w-md bg-black/20 rounded-lg px-4 py-2">
-            {waveformBars.map((height, index) => (
-              <div
-                key={index}
-                className={`w-1 rounded-full transition-all duration-200 ${
-                  isPlaying 
-                    ? 'bg-gradient-to-t from-melody-primary to-melody-accent animate-pulse' 
-                    : 'bg-melody-primary/40'
-                }`}
-                style={{
-                  height: `${Math.max(6, height * 0.35)}px`,
-                  opacity: progress > (index / waveformBars.length) * 100 ? 1 : 0.4
-                }}
-              />
-            ))}
           </div>
 
           {/* Controls */}

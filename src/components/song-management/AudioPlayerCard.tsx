@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Download, Music } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SpectrumVisualizer } from "./SpectrumVisualizer";
 
 interface AudioPlayerCardProps {
   requestId: string;
@@ -28,7 +28,6 @@ export const AudioPlayerCard = ({
   const [volume, setVolume] = useState(100);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState(false);
-  const [waveformBars] = useState(Array.from({ length: 40 }, () => Math.random() * 100));
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchAudioUrl = async () => {
@@ -211,20 +210,16 @@ export const AudioPlayerCard = ({
               </div>
             </div>
 
-            {/* Waveform Visualizer */}
-            <div className="flex items-center gap-0.5 h-8 mb-2">
-              {waveformBars.map((height, index) => (
-                <div
-                  key={index}
-                  className={`w-1 rounded-full transition-all duration-200 ${
-                    isPlaying ? 'bg-melody-primary animate-pulse' : 'bg-melody-primary/30'
-                  }`}
-                  style={{
-                    height: `${Math.max(4, height * 0.24)}px`,
-                    opacity: progress > (index / waveformBars.length) * 100 ? 1 : 0.3
-                  }}
-                />
-              ))}
+            {/* Spectrum Visualizer */}
+            <div className="mb-2 flex justify-center">
+              <SpectrumVisualizer
+                audioElement={audioRef.current}
+                isPlaying={isPlaying}
+                width={320}
+                height={40}
+                barCount={40}
+                showToggle={false}
+              />
             </div>
 
             {/* Progress and Time */}
