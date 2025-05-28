@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Music, Calendar, Clock, CheckCircle, Download, Eye, EyeOff } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { UserLyricsManager } from "./UserLyricsManager";
-import { AudioPlayerCard } from "./AudioPlayerCard";
+import { CompletedSongItem } from "./CompletedSongItem";
+import { BottomAudioPlayer } from "./BottomAudioPlayer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +20,90 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const { user } = useAuth();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
+  const [currentPlayingRequest, setCurrentPlayingRequest] = useState<CustomSongRequest | null>(null);
+  const [showBottomPlayer, setShowBottomPlayer] = useState(false);
+
+  const handleDownloadAudio = async (targetRequest?: CustomSongRequest) => {
+    const requestToDownload = targetRequest || request;
+    try {
+      setDownloadingAudio(true);
+      console.log('User Dashboard: Starting download for request:', requestToDownload.id);
+
+      const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('*')
+        .eq('request_id', requestToDownload.id)
+        .order('created_at', { ascending: false });
+
+      if (audioError) {
+        console.error('User Dashboard: Database error:', audioError);
+        toast.error('Failed to fetch audio data: ' + audioError.message);
+        return;
+      }
+
+      if (!audioData || audioData.length === 0) {
+        console.error('User Dashboard: No audio records found for request:', requestToDownload.id);
+        toast.error('No audio files found for this request. Please contact support if this seems incorrect.');
+        return;
+      }
+
+      let audioRecord = audioData.find(record => record.is_selected === true);
+      if (!audioRecord) {
+        audioRecord = audioData[0];
+      }
+
+      if (!audioRecord?.audio_url) {
+        console.error('User Dashboard: Audio record missing URL:', audioRecord);
+        toast.error('Audio file URL is missing');
+        return;
+      }
+
+      const response = await fetch(audioRecord.audio_url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
+      const sanitizedTitle = requestToDownload.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+      const fileName = `${sanitizedTitle}_custom_song.mp3`;
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+
+      toast.success('Audio file downloaded successfully!');
+      
+    } catch (error: any) {
+      console.error('User Dashboard: Download error:', error);
+      toast.error('Failed to download audio file: ' + error.message);
+    } finally {
+      setDownloadingAudio(false);
+    }
+  };
+
+  const handlePlay = (targetRequest: CustomSongRequest) => {
+    setCurrentPlayingRequest(targetRequest);
+    setShowBottomPlayer(true);
+  };
+
+  const handleClosePlayer = () => {
+    setShowBottomPlayer(false);
+    setCurrentPlayingRequest(null);
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -51,81 +135,35 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     });
   };
 
-  const handleDownloadAudio = async () => {
-    try {
-      setDownloadingAudio(true);
-      console.log('User Dashboard: Starting download for request:', request.id);
-
-      const { data: audioData, error: audioError } = await supabase
-        .from('custom_song_audio')
-        .select('*')
-        .eq('request_id', request.id)
-        .order('created_at', { ascending: false });
-
-      if (audioError) {
-        console.error('User Dashboard: Database error:', audioError);
-        toast.error('Failed to fetch audio data: ' + audioError.message);
-        return;
-      }
-
-      if (!audioData || audioData.length === 0) {
-        console.error('User Dashboard: No audio records found for request:', request.id);
-        toast.error('No audio files found for this request. Please contact support if this seems incorrect.');
-        return;
-      }
-
-      let audioRecord = audioData.find(record => record.is_selected === true);
-      if (!audioRecord) {
-        audioRecord = audioData[0];
-      }
-
-      if (!audioRecord?.audio_url) {
-        console.error('User Dashboard: Audio record missing URL:', audioRecord);
-        toast.error('Audio file URL is missing');
-        return;
-      }
-
-      const response = await fetch(audioRecord.audio_url);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error('Downloaded file is empty');
-      }
-
-      const sanitizedTitle = request.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-      const fileName = `${sanitizedTitle}_custom_song.mp3`;
-      
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-
-      toast.success('Audio file downloaded successfully!');
-      
-    } catch (error: any) {
-      console.error('User Dashboard: Download error:', error);
-      toast.error('Failed to download audio file: ' + error.message);
-    } finally {
-      setDownloadingAudio(false);
-    }
-  };
-
   const canManageLyrics = request.status === 'lyrics_proposed';
   const showLyricsButton = ['lyrics_proposed', 'lyrics_selected', 'audio_uploaded', 'completed'].includes(request.status);
   const canDownloadAudio = ['audio_uploaded', 'completed'].includes(request.status);
   const canPlayAudio = ['audio_uploaded', 'completed'].includes(request.status);
+
+  // Use the new minimalistic design for completed songs
+  if (request.status === 'completed' || request.status === 'audio_uploaded') {
+    return (
+      <>
+        <CompletedSongItem
+          request={request}
+          onPlay={handlePlay}
+          onDownload={handleDownloadAudio}
+          downloadingAudio={downloadingAudio}
+        />
+        
+        {currentPlayingRequest && (
+          <BottomAudioPlayer
+            requestId={currentPlayingRequest.id}
+            title={currentPlayingRequest.title}
+            isVisible={showBottomPlayer}
+            onClose={handleClosePlayer}
+            onDownload={() => handleDownloadAudio(currentPlayingRequest)}
+            downloadingAudio={downloadingAudio}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <Card className="overflow-hidden">
@@ -173,38 +211,6 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
             <p className="text-muted-foreground">
               Lyrics have been finalized. Our team is now creating your custom song!
             </p>
-          </div>
-        )}
-        
-        {(request.status === 'audio_uploaded' || request.status === 'completed') && canPlayAudio && (
-          <div className="space-y-4">
-            <div className="text-center py-4">
-              {request.status === 'audio_uploaded' ? (
-                <>
-                  <Download className="h-12 w-12 text-orange-600 mx-auto mb-3" />
-                  <h4 className="font-semibold mb-2">Your Song is Ready!</h4>
-                  <p className="text-muted-foreground mb-4">
-                    Your custom song has been created and is ready for download.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-3" />
-                  <h4 className="font-semibold mb-2">Song Completed!</h4>
-                  <p className="text-muted-foreground mb-4">
-                    Your custom song request has been completed. Thank you for using our service!
-                  </p>
-                </>
-              )}
-            </div>
-            
-            <AudioPlayerCard
-              requestId={request.id}
-              title={request.title}
-              isDownloadable={canDownloadAudio}
-              onDownload={handleDownloadAudio}
-              downloadingAudio={downloadingAudio}
-            />
           </div>
         )}
 
