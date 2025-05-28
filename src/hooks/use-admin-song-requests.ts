@@ -38,7 +38,6 @@ export const useAdminSongRequests = () => {
       
       // Check if user is authenticated
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Admin: Current user:', user?.id, user?.email);
       
       if (userError) {
         console.error('Admin: Error getting user:', userError);
@@ -54,7 +53,7 @@ export const useAdminSongRequests = () => {
       console.log('Admin: Is super admin:', isSuperAdmin);
       
       if (!isSuperAdmin) {
-        // Only check roles for non-super admins to avoid infinite recursion
+        // Check admin role for non-super admins
         console.log('Admin: Checking admin role for user:', user.id);
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
@@ -63,71 +62,29 @@ export const useAdminSongRequests = () => {
           .eq('role', 'admin')
           .single();
 
-        console.log('Admin: Role check result:', roleData, roleError);
-
-        if (!roleData && roleError) {
+        if (roleError || !roleData) {
           console.warn('Admin: User does not have admin role');
           throw new Error('Access denied: Admin role required');
         }
       }
 
-      // Fetch all custom song requests directly without RLS restrictions
+      // Fetch all custom song requests
       console.log('Admin: Fetching custom song requests from database...');
       
-      // Use service role or bypass RLS for admin access
-      const { data: requests, error: fetchError, count } = await supabase
+      const { data: requests, error: fetchError } = await supabase
         .from('custom_song_requests')
-        .select('*', { count: 'exact' })
+        .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('Admin: Raw query result:', { requests, fetchError, count });
+      console.log('Admin: Raw query result:', { requests, fetchError });
 
       if (fetchError) {
         console.error('Admin: Error fetching requests:', fetchError);
-        
-        // If RLS is blocking, try a different approach for super admin
-        if (isSuperAdmin && fetchError.message?.includes('policy')) {
-          console.log('Admin: RLS blocking access, trying alternative query...');
-          
-          // Try with a more specific query
-          const { data: altRequests, error: altError } = await supabase
-            .rpc('get_all_custom_song_requests_for_admin');
-            
-          if (altError) {
-            console.error('Admin: Alternative query failed:', altError);
-            throw new Error(`Database error: ${fetchError.message}`);
-          }
-          
-          console.log('Admin: Alternative query successful:', altRequests);
-          setAllRequests(altRequests || []);
-          return;
-        }
-        
         throw new Error(`Database error: ${fetchError.message}`);
       }
       
       console.log(`Admin: Successfully fetched ${requests?.length || 0} requests`);
       setAllRequests(requests || []);
-      
-      // Log individual requests for debugging
-      if (requests && requests.length > 0) {
-        console.log('Admin: Request details:', requests.map(r => ({
-          id: r.id,
-          title: r.title,
-          user_id: r.user_id,
-          status: r.status,
-          created_at: r.created_at
-        })));
-      } else {
-        console.log('Admin: No requests found in database');
-        
-        // Additional debugging - check if data exists at all
-        const { data: testData, error: testError } = await supabase
-          .from('custom_song_requests')
-          .select('count(*)', { count: 'exact' });
-          
-        console.log('Admin: Total count test:', testData, testError);
-      }
       
     } catch (error: any) {
       console.error('Admin: Error in fetchAllRequests:', error);

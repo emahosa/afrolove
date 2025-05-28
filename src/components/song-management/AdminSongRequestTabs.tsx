@@ -1,6 +1,6 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CustomSongRequest } from "@/hooks/use-custom-song-requests";
+import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { AdminSongRequestCard } from "./AdminSongRequestCard";
 
 interface AdminSongRequestTabsProps {
