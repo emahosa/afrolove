@@ -5,13 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Disc, Mic, Loader2, Music, FileMusic } from "lucide-react";
+import { Disc, Mic, Loader2, Music, FileMusic, Plus, History } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomSongCreation from "@/components/CustomSongCreation";
 import SplitAudioControl from "@/components/SplitAudioControl";
 import VoiceCloning from "@/components/VoiceCloning";
 import VoiceChanger from "@/components/VoiceChanger";
+import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
+import { useNavigate } from "react-router-dom";
 
 const genres = [
   { id: "afrobeats", name: "Afrobeats", description: "Vibrant rhythms with West African influences" },
@@ -28,6 +30,8 @@ const Create = () => {
   const [generatedTrack, setGeneratedTrack] = useState<null | { name: string }>(null);
   const { user, updateUserCredits, isAdmin } = useAuth();
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const navigate = useNavigate();
 
   const handleGenerate = () => {
     if (!selectedGenre) {
@@ -55,6 +59,10 @@ const Create = () => {
       
       toast.success("Track generated! Your AI track has been created successfully");
     }, 5000);
+  };
+
+  const handleViewHistory = () => {
+    navigate("/custom-songs-management");
   };
 
   return (
@@ -352,7 +360,38 @@ const Create = () => {
         </TabsContent>
         
         <TabsContent value="custom" className="space-y-6">
-          <CustomSongCreation />
+          <Card>
+            <CardHeader>
+              <CardTitle>Custom Song Requests</CardTitle>
+              <CardDescription>
+                Request custom songs from our team. Get personalized lyrics and professional audio production.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  onClick={() => setShowCreateDialog(true)}
+                  className="h-20 flex flex-col items-center justify-center gap-2 bg-melody-primary hover:bg-melody-primary/90"
+                >
+                  <Plus className="h-6 w-6" />
+                  <span>Create New Request</span>
+                </Button>
+                
+                <Button
+                  onClick={handleViewHistory}
+                  variant="outline"
+                  className="h-20 flex flex-col items-center justify-center gap-2"
+                >
+                  <History className="h-6 w-6" />
+                  <span>View History</span>
+                </Button>
+              </div>
+              
+              <div className="mt-6">
+                <CustomSongCreation />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
       
@@ -386,6 +425,15 @@ const Create = () => {
           </div>
         </div>
       )}
+      
+      <CreateSongRequestDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={() => {
+          setShowCreateDialog(false);
+          toast.success("Custom song request created successfully!");
+        }}
+      />
     </div>
   );
 };
