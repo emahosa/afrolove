@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug } from 'lucide-react';
@@ -314,8 +315,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <Music className="mr-2 h-4 w-4" />
                 Genres
               </TabsTrigger>
-              <TabsTrigger value="custom-songs" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium"
-                onClick={() => navigate('/admin/custom-songs')}>
+              <TabsTrigger value="custom-songs" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
                 <Music className="mr-2 h-4 w-4" />
                 Custom Songs
               </TabsTrigger>
