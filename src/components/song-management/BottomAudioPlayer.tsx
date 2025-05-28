@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -105,6 +106,31 @@ export const BottomAudioPlayer = ({
     setCurrentTime(0);
   };
 
+  const setupAudioListeners = (audio: HTMLAudioElement) => {
+    // Remove any existing listeners first
+    audio.removeEventListener('loadedmetadata', () => {});
+    audio.removeEventListener('timeupdate', () => {});
+    audio.removeEventListener('ended', handleAudioEnd);
+    audio.removeEventListener('error', () => {});
+
+    audio.addEventListener('loadedmetadata', () => {
+      console.log('BottomAudioPlayer: Audio metadata loaded, duration:', audio.duration);
+      setDuration(audio.duration);
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      setCurrentTime(audio.currentTime);
+    });
+
+    audio.addEventListener('ended', handleAudioEnd);
+
+    audio.addEventListener('error', (e) => {
+      console.error('BottomAudioPlayer: Audio error:', e);
+      toast.error('Failed to play audio - file may be corrupted or inaccessible');
+      setIsPlaying(false);
+    });
+  };
+
   const handlePlayPause = async () => {
     try {
       if (isPlaying && audioRef.current) {
@@ -130,25 +156,12 @@ export const BottomAudioPlayer = ({
       const audio = new Audio(url);
       audioRef.current = audio;
 
-      audio.addEventListener('loadedmetadata', () => {
-        setDuration(audio.duration);
-      });
-
-      audio.addEventListener('timeupdate', () => {
-        setCurrentTime(audio.currentTime);
-      });
-
-      audio.addEventListener('ended', handleAudioEnd);
-
-      audio.addEventListener('error', (e) => {
-        console.error('BottomAudioPlayer: Audio error:', e);
-        toast.error('Failed to play audio - file may be corrupted or inaccessible');
-        setIsPlaying(false);
-      });
+      setupAudioListeners(audio);
 
       audio.volume = volume / 100;
       await audio.play();
       setIsPlaying(true);
+      console.log('BottomAudioPlayer: Audio started playing, repeat mode:', repeatMode);
     } catch (error: any) {
       console.error('BottomAudioPlayer: Error in handlePlayPause:', error);
       toast.error('Failed to play audio: ' + error.message);
