@@ -16,8 +16,9 @@ type AdminSongRequestCardProps = {
 const getStatusBadge = (status: CustomSongRequest['status']) => {
   const statusConfig = {
     pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending", icon: Clock },
-    lyrics_uploaded: { color: "bg-blue-100 text-blue-800", label: "Lyrics Ready", icon: Edit },
-    instrumental_ready: { color: "bg-purple-100 text-purple-800", label: "Instrumental Ready", icon: Music },
+    lyrics_proposed: { color: "bg-blue-100 text-blue-800", label: "Lyrics Proposed", icon: Edit },
+    lyrics_selected: { color: "bg-purple-100 text-purple-800", label: "Lyrics Selected", icon: Music },
+    audio_uploaded: { color: "bg-orange-100 text-orange-800", label: "Audio Uploaded", icon: Music },
     completed: { color: "bg-green-100 text-green-800", label: "Completed", icon: CheckCircle }
   };
 
@@ -59,7 +60,7 @@ export const AdminSongRequestCard = ({
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h3 className="font-bold text-lg">Custom Song Request</h3>
+                <h3 className="font-bold text-lg">{request.title}</h3>
                 {getStatusBadge(request.status)}
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
@@ -67,7 +68,7 @@ export const AdminSongRequestCard = ({
                   <span className="font-medium">User ID:</span> {request.user_id.slice(-8)}
                 </div>
                 <div>
-                  <span className="font-medium">Genre:</span> {request.genre}
+                  <span className="font-medium">Genre ID:</span> {request.genre_id || 'Not specified'}
                 </div>
                 <div>
                   <span className="font-medium">Created:</span> {formatDate(request.created_at)}
@@ -97,14 +98,24 @@ export const AdminSongRequestCard = ({
               </Button>
             )}
             
-            {request.status === "lyrics_uploaded" && (
+            {request.status === "lyrics_proposed" && (
               <Button variant="outline" disabled>
                 <Clock className="h-4 w-4 mr-2" />
                 Waiting for User Selection
               </Button>
             )}
             
-            {request.status === "instrumental_ready" && (
+            {request.status === "lyrics_selected" && (
+              <Button 
+                onClick={() => onUpdateStatus(request.id, 'audio_uploaded')}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Music className="h-4 w-4 mr-2" />
+                Mark Audio Uploaded
+              </Button>
+            )}
+            
+            {request.status === "audio_uploaded" && (
               <Button 
                 onClick={handleMarkCompleted}
                 className="bg-green-600 hover:bg-green-700 text-white"

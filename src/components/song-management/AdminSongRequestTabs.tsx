@@ -17,8 +17,9 @@ export const AdminSongRequestTabs = ({
   
   // Filter requests for each tab
   const pendingRequests = songRequests.filter(r => r.status === "pending");
-  const lyricsUploadedRequests = songRequests.filter(r => r.status === "lyrics_uploaded");
-  const instrumentalReadyRequests = songRequests.filter(r => r.status === "instrumental_ready");
+  const lyricsProposedRequests = songRequests.filter(r => r.status === "lyrics_proposed");
+  const lyricsSelectedRequests = songRequests.filter(r => r.status === "lyrics_selected");
+  const audioUploadedRequests = songRequests.filter(r => r.status === "audio_uploaded");
   const completedRequests = songRequests.filter(r => r.status === "completed");
 
   return (
@@ -26,8 +27,9 @@ export const AdminSongRequestTabs = ({
       <TabsList>
         <TabsTrigger value="all">All Requests ({songRequests.length})</TabsTrigger>
         <TabsTrigger value="pending">Pending ({pendingRequests.length})</TabsTrigger>
-        <TabsTrigger value="lyrics_uploaded">Lyrics Ready ({lyricsUploadedRequests.length})</TabsTrigger>
-        <TabsTrigger value="instrumental_ready">Instrumental Ready ({instrumentalReadyRequests.length})</TabsTrigger>
+        <TabsTrigger value="lyrics_proposed">Lyrics Proposed ({lyricsProposedRequests.length})</TabsTrigger>
+        <TabsTrigger value="lyrics_selected">Lyrics Selected ({lyricsSelectedRequests.length})</TabsTrigger>
+        <TabsTrigger value="audio_uploaded">Audio Uploaded ({audioUploadedRequests.length})</TabsTrigger>
         <TabsTrigger value="completed">Completed ({completedRequests.length})</TabsTrigger>
       </TabsList>
       
@@ -65,13 +67,13 @@ export const AdminSongRequestTabs = ({
         )}
       </TabsContent>
       
-      <TabsContent value="lyrics_uploaded" className="space-y-4">
-        {lyricsUploadedRequests.length === 0 ? (
+      <TabsContent value="lyrics_proposed" className="space-y-4">
+        {lyricsProposedRequests.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No requests with lyrics uploaded.
+            No requests with lyrics proposed.
           </div>
         ) : (
-          lyricsUploadedRequests.map(request => (
+          lyricsProposedRequests.map(request => (
             <AdminSongRequestCard
               key={request.id}
               request={request}
@@ -82,13 +84,30 @@ export const AdminSongRequestTabs = ({
         )}
       </TabsContent>
       
-      <TabsContent value="instrumental_ready" className="space-y-4">
-        {instrumentalReadyRequests.length === 0 ? (
+      <TabsContent value="lyrics_selected" className="space-y-4">
+        {lyricsSelectedRequests.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No requests ready for instrumental.
+            No requests with lyrics selected.
           </div>
         ) : (
-          instrumentalReadyRequests.map(request => (
+          lyricsSelectedRequests.map(request => (
+            <AdminSongRequestCard
+              key={request.id}
+              request={request}
+              onStartWork={onStartWork}
+              onUpdateStatus={onUpdateStatus}
+            />
+          ))
+        )}
+      </TabsContent>
+      
+      <TabsContent value="audio_uploaded" className="space-y-4">
+        {audioUploadedRequests.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No requests with audio uploaded.
+          </div>
+        ) : (
+          audioUploadedRequests.map(request => (
             <AdminSongRequestCard
               key={request.id}
               request={request}

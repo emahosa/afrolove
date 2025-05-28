@@ -28,15 +28,15 @@ const CustomSongManagement = () => {
 
   const filteredRequests = allRequests.filter(request => {
     const matchesSearch = 
-      request.genre.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.user_id.toLowerCase().includes(searchQuery.toLowerCase());
+      request.user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.title.toLowerCase().includes(searchQuery.toLowerCase());
       
     return matchesSearch;
   });
 
   const handleStartWork = async (requestId: string) => {
-    await updateRequestStatus(requestId, 'lyrics_uploaded');
+    await updateRequestStatus(requestId, 'lyrics_proposed');
     setSelectedRequestId(requestId);
   };
 
@@ -44,7 +44,7 @@ const CustomSongManagement = () => {
     try {
       await addLyrics(requestId, lyrics1, 1);
       await addLyrics(requestId, lyrics2, 2);
-      await updateRequestStatus(requestId, 'lyrics_uploaded');
+      await updateRequestStatus(requestId, 'lyrics_proposed');
       setSelectedRequestId(null);
       return true;
     } catch (error) {

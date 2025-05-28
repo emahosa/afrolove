@@ -7,9 +7,10 @@ import { toast } from 'sonner';
 export interface CustomSongRequest {
   id: string;
   user_id: string;
-  genre: string;
+  genre_id: string | null;
+  title: string;
   description: string;
-  status: 'pending' | 'lyrics_uploaded' | 'instrumental_ready' | 'completed';
+  status: 'pending' | 'lyrics_proposed' | 'lyrics_selected' | 'audio_uploaded' | 'completed';
   created_at: string;
   updated_at: string;
 }
@@ -17,7 +18,7 @@ export interface CustomSongRequest {
 export interface CustomSongLyrics {
   id: string;
   request_id: string;
-  lyrics_text: string;
+  lyrics: string;
   version: number;
   is_selected: boolean;
   created_at: string;
@@ -49,7 +50,7 @@ export const useCustomSongRequests = () => {
     }
   };
 
-  const createRequest = async (genre: string, description: string) => {
+  const createRequest = async (title: string, description: string, genre_id?: string) => {
     if (!user) {
       toast.error('You must be logged in to create a request');
       return null;
@@ -60,8 +61,9 @@ export const useCustomSongRequests = () => {
         .from('custom_song_requests')
         .insert({
           user_id: user.id,
-          genre,
+          title,
           description,
+          genre_id: genre_id || null,
           status: 'pending'
         })
         .select()
@@ -70,7 +72,7 @@ export const useCustomSongRequests = () => {
       if (error) throw error;
       
       toast.success('Custom song request submitted successfully!');
-      await fetchUserRequests(); // Refresh the list
+      await fetchUserRequests();
       return data;
     } catch (error) {
       console.error('Error creating request:', error);
@@ -88,7 +90,7 @@ export const useCustomSongRequests = () => {
 
       if (error) throw error;
       
-      await fetchUserRequests(); // Refresh the list
+      await fetchUserRequests();
       return true;
     } catch (error) {
       console.error('Error updating request status:', error);
@@ -130,8 +132,8 @@ export const useCustomSongRequests = () => {
 
       if (error) throw error;
 
-      // Update request status to instrumental_ready
-      await updateRequestStatus(requestId, 'instrumental_ready');
+      // Update request status to audio_uploaded
+      await updateRequestStatus(requestId, 'audio_uploaded');
       
       toast.success('Lyrics selected successfully!');
       return true;
@@ -155,7 +157,7 @@ export const useCustomSongRequests = () => {
           table: 'custom_song_requests',
           filter: `user_id=eq.${user.id}`
         }, () => {
-          fetchUserRequests(); // Refresh when changes occur
+          fetchUserRequests();
         })
         .subscribe();
 

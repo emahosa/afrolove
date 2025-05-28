@@ -34,7 +34,7 @@ export const useAdminSongRequests = () => {
 
       if (error) throw error;
       
-      await fetchAllRequests(); // Refresh the list
+      await fetchAllRequests();
       toast.success('Request status updated successfully');
       return true;
     } catch (error) {
@@ -50,7 +50,7 @@ export const useAdminSongRequests = () => {
         .from('custom_song_lyrics')
         .insert({
           request_id: requestId,
-          lyrics_text: lyricsText,
+          lyrics: lyricsText,
           version,
           is_selected: false
         });
@@ -93,7 +93,7 @@ export const useAdminSongRequests = () => {
         schema: 'public',
         table: 'custom_song_requests'
       }, () => {
-        fetchAllRequests(); // Refresh when changes occur
+        fetchAllRequests();
       })
       .subscribe();
 
