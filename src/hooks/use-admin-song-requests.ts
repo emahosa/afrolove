@@ -10,12 +10,19 @@ export const useAdminSongRequests = () => {
 
   const fetchAllRequests = async () => {
     try {
+      console.log('Admin: Fetching all custom song requests...');
+      
       const { data, error } = await supabase
         .from('custom_song_requests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin: Error fetching requests:', error);
+        throw error;
+      }
+      
+      console.log('Admin: Fetched requests:', data);
       setAllRequests(data || []);
     } catch (error) {
       console.error('Error fetching all requests:', error);
@@ -27,12 +34,17 @@ export const useAdminSongRequests = () => {
 
   const updateRequestStatus = async (requestId: string, status: CustomSongRequest['status']) => {
     try {
+      console.log('Admin: Updating request status:', { requestId, status });
+      
       const { error } = await supabase
         .from('custom_song_requests')
         .update({ status })
         .eq('id', requestId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin: Error updating status:', error);
+        throw error;
+      }
       
       await fetchAllRequests();
       toast.success('Request status updated successfully');
@@ -46,6 +58,8 @@ export const useAdminSongRequests = () => {
 
   const addLyrics = async (requestId: string, lyricsText: string, version: number) => {
     try {
+      console.log('Admin: Adding lyrics:', { requestId, version });
+      
       const { error } = await supabase
         .from('custom_song_lyrics')
         .insert({
@@ -55,7 +69,10 @@ export const useAdminSongRequests = () => {
           is_selected: false
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin: Error adding lyrics:', error);
+        throw error;
+      }
       
       toast.success(`Lyrics version ${version} added successfully`);
       return true;
@@ -68,13 +85,20 @@ export const useAdminSongRequests = () => {
 
   const fetchLyricsForRequest = async (requestId: string): Promise<CustomSongLyrics[]> => {
     try {
+      console.log('Admin: Fetching lyrics for request:', requestId);
+      
       const { data, error } = await supabase
         .from('custom_song_lyrics')
         .select('*')
         .eq('request_id', requestId)
         .order('version', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Admin: Error fetching lyrics:', error);
+        throw error;
+      }
+      
+      console.log('Admin: Fetched lyrics:', data);
       return data || [];
     } catch (error) {
       console.error('Error fetching lyrics:', error);
@@ -83,6 +107,7 @@ export const useAdminSongRequests = () => {
   };
 
   useEffect(() => {
+    console.log('Admin: Setting up requests fetching and real-time subscription');
     fetchAllRequests();
 
     // Set up real-time subscription for all requests
@@ -92,12 +117,14 @@ export const useAdminSongRequests = () => {
         event: '*',
         schema: 'public',
         table: 'custom_song_requests'
-      }, () => {
+      }, (payload) => {
+        console.log('Admin: Real-time update received:', payload);
         fetchAllRequests();
       })
       .subscribe();
 
     return () => {
+      console.log('Admin: Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, []);
