@@ -91,13 +91,7 @@ export const useSunoGeneration = () => {
         console.log(`Polling status for task ${taskId}, attempt ${pollCount}`);
         
         const { data, error } = await supabase.functions.invoke('suno-status', {
-          body: {},
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }, {
-          method: 'GET',
-          query: { taskId }
+          body: { taskId }
         });
 
         if (error) {
@@ -147,13 +141,7 @@ export const useSunoGeneration = () => {
   const checkStatus = async (taskId: string): Promise<SunoGenerationStatus | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('suno-status', {
-        body: {},
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }, {
-        method: 'GET',
-        query: { taskId }
+        body: { taskId }
       });
 
       if (error) {
