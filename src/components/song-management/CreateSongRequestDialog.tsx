@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserSongRequests } from "@/hooks/use-user-song-requests";
+import { useGenres } from "@/hooks/use-genres";
 import { toast } from "sonner";
+import { Music, Loader2 } from "lucide-react";
 
 interface CreateSongRequestDialogProps {
   open: boolean;
@@ -17,8 +20,10 @@ interface CreateSongRequestDialogProps {
 export const CreateSongRequestDialog = ({ open, onOpenChange, onSuccess }: CreateSongRequestDialogProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedGenreId, setSelectedGenreId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { createSongRequest } = useUserSongRequests();
+  const { genres, loading: genresLoading } = useGenres();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,12 +33,18 @@ export const CreateSongRequestDialog = ({ open, onOpenChange, onSuccess }: Creat
       return;
     }
 
+    if (!selectedGenreId) {
+      toast.error("Please select a genre");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const success = await createSongRequest(title.trim(), description.trim());
+      const success = await createSongRequest(title.trim(), description.trim(), selectedGenreId);
       if (success) {
         setTitle("");
         setDescription("");
+        setSelectedGenreId("");
         onSuccess();
         toast.success("Song request submitted successfully!");
       }
@@ -47,6 +58,7 @@ export const CreateSongRequestDialog = ({ open, onOpenChange, onSuccess }: Creat
   const handleCancel = () => {
     setTitle("");
     setDescription("");
+    setSelectedGenreId("");
     onOpenChange(false);
   };
 
@@ -70,6 +82,41 @@ export const CreateSongRequestDialog = ({ open, onOpenChange, onSuccess }: Creat
               placeholder="Enter your song title..."
               disabled={submitting}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="genre">Genre</Label>
+            {genresLoading ? (
+              <div className="flex items-center justify-center p-4 border rounded-md">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm text-muted-foreground">Loading genres...</span>
+              </div>
+            ) : (
+              <Select
+                value={selectedGenreId}
+                onValueChange={setSelectedGenreId}
+                disabled={submitting}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a genre" />
+                </SelectTrigger>
+                <SelectContent>
+                  {genres.map((genre) => (
+                    <SelectItem key={genre.id} value={genre.id}>
+                      <div className="flex items-center gap-2">
+                        <Music className="h-4 w-4" />
+                        <div>
+                          <div className="font-medium">{genre.name}</div>
+                          {genre.description && (
+                            <div className="text-xs text-muted-foreground">{genre.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -95,7 +142,7 @@ export const CreateSongRequestDialog = ({ open, onOpenChange, onSuccess }: Creat
             </Button>
             <Button
               type="submit"
-              disabled={submitting || !title.trim() || !description.trim()}
+              disabled={submitting || !title.trim() || !description.trim() || !selectedGenreId}
             >
               {submitting ? "Submitting..." : "Submit Request"}
             </Button>
