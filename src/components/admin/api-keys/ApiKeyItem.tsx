@@ -1,10 +1,9 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Loader, X, AlertTriangle, Edit, Save, Cancel } from 'lucide-react';
+import { Loader, X, AlertTriangle, Edit, Save } from 'lucide-react';
 import { ApiKey } from './types';
 import { apiProviders } from './types';
 import { maskApiKey, getBadgeVariant, getBadgeText, verifyApiKey } from './utils';
@@ -183,7 +182,7 @@ const ApiKeyItem = ({
                     onClick={handleCancelEdit}
                     disabled={isSaving}
                   >
-                    <Cancel className="h-4 w-4 mr-2" />
+                    <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
                 </div>
