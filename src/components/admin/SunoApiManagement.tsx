@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Key, RefreshCw, Music } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const SunoApiManagement = () => {
+  const { user } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
   const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing'>('checking');
   const [lastChecked, setLastChecked] = useState<string | null>(null);
@@ -106,6 +108,11 @@ export const SunoApiManagement = () => {
       return;
     }
 
+    if (!user) {
+      toast.error('You must be logged in to test generation.');
+      return;
+    }
+
     try {
       setIsChecking(true);
       const { data, error } = await supabase.functions.invoke('suno-generate', {
@@ -115,7 +122,8 @@ export const SunoApiManagement = () => {
           title: 'API Test',
           instrumental: true,
           customMode: false,
-          model: 'V3_5'
+          model: 'V3_5',
+          userId: user.id
         }
       });
 
