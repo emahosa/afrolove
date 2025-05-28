@@ -21,13 +21,20 @@ export const useGenres = () => {
   const fetchGenres = async () => {
     try {
       setLoading(true);
+      console.log("Fetching genres...");
+      
       const { data, error } = await supabase
         .from('genres')
         .select('*')
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching genres:", error);
+        throw error;
+      }
+      
+      console.log("Genres fetched successfully:", data);
       setGenres(data || []);
     } catch (error) {
       console.error('Error fetching genres:', error);
@@ -39,29 +46,52 @@ export const useGenres = () => {
 
   const createGenre = async (genreData: { name: string; prompt_template: string; description?: string }) => {
     try {
+      console.log("Creating genre:", genreData);
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error("User not authenticated:", userError);
+        throw new Error("You must be logged in to create genres");
+      }
+      
+      console.log("Current user:", user.id);
+      
       const { data, error } = await supabase
         .from('genres')
         .insert([{
-          ...genreData,
-          is_active: true
+          name: genreData.name,
+          prompt_template: genreData.prompt_template,
+          description: genreData.description || null,
+          is_active: true,
+          created_by: user.id
         }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating genre:", error);
+        throw error;
+      }
       
+      console.log("Genre created successfully:", data);
       setGenres(prev => [...prev, data]);
       toast.success('Genre created successfully!');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating genre:', error);
-      toast.error('Failed to create genre');
+      const errorMessage = error.message || 'Failed to create genre';
+      toast.error('Failed to create genre', {
+        description: errorMessage
+      });
       throw error;
     }
   };
 
   const updateGenre = async (id: string, updates: Partial<Genre>) => {
     try {
+      console.log("Updating genre:", id, updates);
+      
       const { data, error } = await supabase
         .from('genres')
         .update(updates)
@@ -69,32 +99,48 @@ export const useGenres = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating genre:", error);
+        throw error;
+      }
       
+      console.log("Genre updated successfully:", data);
       setGenres(prev => prev.map(g => g.id === id ? data : g));
       toast.success('Genre updated successfully!');
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating genre:', error);
-      toast.error('Failed to update genre');
+      const errorMessage = error.message || 'Failed to update genre';
+      toast.error('Failed to update genre', {
+        description: errorMessage
+      });
       throw error;
     }
   };
 
   const deleteGenre = async (id: string) => {
     try {
+      console.log("Deleting genre:", id);
+      
       const { error } = await supabase
         .from('genres')
         .update({ is_active: false })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting genre:", error);
+        throw error;
+      }
       
+      console.log("Genre deleted successfully");
       setGenres(prev => prev.filter(g => g.id !== id));
       toast.success('Genre deleted successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting genre:', error);
-      toast.error('Failed to delete genre');
+      const errorMessage = error.message || 'Failed to delete genre';
+      toast.error('Failed to delete genre', {
+        description: errorMessage
+      });
       throw error;
     }
   };
