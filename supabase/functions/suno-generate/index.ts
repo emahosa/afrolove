@@ -47,7 +47,37 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Use service role to bypass RLS and check/create profile
+    // Get Suno API key first to fail fast if not configured
+    console.log('Checking for Suno API key configuration...')
+    const { data: apiConfig, error: apiError } = await supabase
+      .from('api_configs')
+      .select('api_key_encrypted')
+      .eq('service', 'suno')
+      .eq('is_enabled', true)
+      .maybeSingle()
+
+    if (apiError) {
+      console.error('Error fetching Suno API config:', apiError)
+      return new Response(
+        JSON.stringify({ error: 'Database error while checking API configuration' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!apiConfig || !apiConfig.api_key_encrypted) {
+      console.error('Suno API key not configured')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Suno API not configured', 
+          details: 'Please contact the administrator to configure the Suno API key' 
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Suno API key found, proceeding with user profile check...')
+
+    // Check user profile and credits
     let profile;
     const { data: existingProfile, error: profileError } = await supabase
       .from('profiles')
@@ -57,14 +87,19 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError)
-      
-      // Try to create profile if it doesn't exist
+      return new Response(
+        JSON.stringify({ error: 'Error checking user profile' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!existingProfile) {
       console.log('Creating profile for user:', user.id)
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert({
           id: user.id,
-          full_name: user.user_metadata?.name || 'User',
+          full_name: user.user_metadata?.name || user.user_metadata?.full_name || 'User',
           username: user.email || '',
           avatar_url: user.user_metadata?.avatar_url || '',
           credits: 5
@@ -85,34 +120,16 @@ Deno.serve(async (req) => {
       profile = existingProfile
     }
 
-    if (!profile) {
-      return new Response(
-        JSON.stringify({ error: 'User profile not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
     // Check if user has enough credits (5 credits per song)
     if (profile.credits < 5) {
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits. You need at least 5 credits to generate a song.' }),
+        JSON.stringify({ 
+          error: 'Insufficient credits', 
+          details: 'You need at least 5 credits to generate a song. Please purchase more credits.',
+          required: 5,
+          available: profile.credits
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Get Suno API key
-    const { data: apiConfig, error: apiError } = await supabase
-      .from('api_configs')
-      .select('api_key_encrypted')
-      .eq('service', 'suno')
-      .eq('is_enabled', true)
-      .single()
-
-    if (apiError || !apiConfig?.api_key_encrypted) {
-      console.error('Suno API key not found:', apiError)
-      return new Response(
-        JSON.stringify({ error: 'Suno API not configured. Please contact administrator.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -174,6 +191,8 @@ Deno.serve(async (req) => {
       tags: style || (instrumental ? 'instrumental' : undefined)
     }
 
+    console.log('Calling Suno API with request:', sunoRequest)
+
     // Call Suno API
     try {
       const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
@@ -185,31 +204,84 @@ Deno.serve(async (req) => {
         body: JSON.stringify(sunoRequest)
       })
 
+      const responseText = await sunoResponse.text()
+      console.log('Suno API response status:', sunoResponse.status)
+      console.log('Suno API response body:', responseText)
+
       if (!sunoResponse.ok) {
-        const errorText = await sunoResponse.text()
-        console.error('Suno API error:', sunoResponse.status, errorText)
+        console.error('Suno API error:', sunoResponse.status, responseText)
         
         // Update song with error status
         await supabase
           .from('songs')
           .update({ 
             status: 'rejected',
-            audio_url: `error: Suno API failed - ${sunoResponse.status}`
+            audio_url: `error: Suno API failed - ${sunoResponse.status}: ${responseText}`
+          })
+          .eq('id', song.id)
+        
+        // Check for specific error types
+        if (responseText.includes('insufficient') || responseText.includes('credits')) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Suno API credits exhausted', 
+              details: 'The Suno AI service has run out of credits. Please contact the administrator.' 
+            }),
+            { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'Suno API request failed', 
+            details: `API returned status ${sunoResponse.status}: ${responseText}` 
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      let sunoData;
+      try {
+        sunoData = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('Failed to parse Suno API response:', parseError)
+        
+        await supabase
+          .from('songs')
+          .update({ 
+            status: 'rejected',
+            audio_url: 'error: Invalid API response format'
           })
           .eq('id', song.id)
         
         return new Response(
-          JSON.stringify({ error: 'Suno API request failed. Please try again later.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Invalid response format from Suno API' }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
-      const sunoData = await sunoResponse.json()
-      console.log('Suno API response:', sunoData)
+      console.log('Parsed Suno API response:', sunoData)
 
       // Update song with Suno task ID
       if (sunoData.data && sunoData.data.length > 0) {
         const taskId = sunoData.data[0].id || sunoData.data[0].task_id
+        
+        if (!taskId) {
+          console.error('No task ID found in Suno response:', sunoData)
+          
+          await supabase
+            .from('songs')
+            .update({ 
+              status: 'rejected',
+              audio_url: 'error: No task ID received'
+            })
+            .eq('id', song.id)
+          
+          return new Response(
+            JSON.stringify({ error: 'No task ID received from Suno API' }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
         
         await supabase
           .from('songs')
@@ -237,13 +309,13 @@ Deno.serve(async (req) => {
           .from('songs')
           .update({ 
             status: 'rejected',
-            audio_url: 'error: Invalid API response'
+            audio_url: 'error: Invalid API response structure'
           })
           .eq('id', song.id)
         
         return new Response(
-          JSON.stringify({ error: 'Invalid response from Suno API' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Invalid response structure from Suno API' }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
@@ -260,15 +332,21 @@ Deno.serve(async (req) => {
         .eq('id', song.id)
       
       return new Response(
-        JSON.stringify({ error: 'Failed to communicate with Suno API' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'Failed to communicate with Suno API', 
+          details: error.message 
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
   } catch (error) {
     console.error('General error in suno-generate:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
