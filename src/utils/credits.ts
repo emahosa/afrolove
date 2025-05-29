@@ -6,8 +6,8 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
   try {
     console.log("Credits: Updating credits for user:", userId, "amount:", amount);
     
-    // Use the RPC function to update credits - cast to any to handle type mismatch
-    const { data, error } = await (supabase as any).rpc('update_user_credits', {
+    // Use the RPC function to update credits
+    const { data, error } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: amount
     });
