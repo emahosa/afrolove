@@ -85,6 +85,7 @@ const Library = () => {
       const completedSongs = songsData.filter(song => {
         const isCompleted = song.audio_url && 
                            !song.audio_url.startsWith('task_pending:') &&
+                           !song.audio_url.startsWith('error:') &&
                            (song.status === 'completed' || song.status === 'approved');
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
         return isCompleted;
@@ -92,12 +93,21 @@ const Library = () => {
       
       const pendingSongsList = songsData.filter(song => {
         const isPending = song.status === 'pending' || 
-                         (song.audio_url && song.audio_url.startsWith('task_pending:'));
+                         (song.audio_url && (
+                           song.audio_url.startsWith('task_pending:') || 
+                           song.audio_url === 'task_pending:generating'
+                         ));
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isPending=${isPending}`);
         return isPending;
       });
+
+      // Also check for failed songs
+      const failedSongs = songsData.filter(song => {
+        return song.status === 'rejected' || 
+               (song.audio_url && song.audio_url.startsWith('error:'));
+      });
       
-      console.log(`Library: Found ${completedSongs.length} completed songs and ${pendingSongsList.length} pending songs`);
+      console.log(`Library: Found ${completedSongs.length} completed, ${pendingSongsList.length} pending, ${failedSongs.length} failed songs`);
       
       const formattedTracks = completedSongs.map(song => ({
         id: song.id,
@@ -124,7 +134,12 @@ const Library = () => {
       setTracks(formattedTracks);
       setPendingSongs(formattedPendingSongs);
       
-      if (formattedTracks.length === 0 && formattedPendingSongs.length === 0) {
+      // Show appropriate messages
+      if (failedSongs.length > 0) {
+        toast.error(`${failedSongs.length} song(s) failed to generate. Please try again.`);
+      }
+      
+      if (formattedTracks.length === 0 && formattedPendingSongs.length === 0 && failedSongs.length === 0) {
         toast.info("No songs found in your library. Generate some songs to see them here!");
       } else if (formattedPendingSongs.length > 0) {
         toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear once ready.`);
@@ -165,10 +180,16 @@ const Library = () => {
           
           if ((payload.new.status === 'completed' || payload.new.status === 'approved') && 
               payload.new.audio_url && 
-              !payload.new.audio_url.startsWith('task_pending:')) {
+              !payload.new.audio_url.startsWith('task_pending:') &&
+              !payload.new.audio_url.startsWith('error:')) {
             console.log('Library: Detected completed song, refreshing...');
             fetchTracks(true);
             toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
+          } else if (payload.new.status === 'rejected' || 
+                     (payload.new.audio_url && payload.new.audio_url.startsWith('error:'))) {
+            console.log('Library: Detected failed song, refreshing...');
+            fetchTracks(true);
+            toast.error(`❌ "${payload.new.title}" failed to generate. Please try again.`);
           }
         }
       )
