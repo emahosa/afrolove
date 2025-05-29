@@ -26,16 +26,33 @@ serve(async (req) => {
   }
 
   try {
-    // Use the hardcoded API key directly
     const sunoApiKey = "9f290dd97b2bbacfbb9eb199787aea31"
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const body: SunoGenerateRequest = await req.json()
-    console.log('=== SUNO GENERATE START ===')
-    console.log('Request body:', { ...body, userId: body.userId })
+    console.log('=== SUNO GENERATE REQUEST ===')
+    console.log('Full request body:', JSON.stringify(body, null, 2))
+
+    // Validate required fields
+    if (!body.prompt || !body.style || !body.userId) {
+      console.error('Missing required fields:', { 
+        hasPrompt: !!body.prompt, 
+        hasStyle: !!body.style, 
+        hasUserId: !!body.userId 
+      })
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing required fields: prompt, style, and userId are required',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
+    }
 
     let userProfile = null;
 
@@ -43,52 +60,47 @@ serve(async (req) => {
     if (!body.isAdminTest) {
       console.log('Checking user profile and credits for user:', body.userId)
       
-      // Validate user has sufficient credits
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('credits')
         .eq('id', body.userId)
-        .single()
+        .maybeSingle()
 
       console.log('Profile query result:', { profile, profileError })
 
       if (profileError) {
         console.error('Profile error:', profileError)
-        // If profile doesn't exist, create it
-        if (profileError.code === 'PGRST116') {
-          console.log('Creating new profile for user:', body.userId)
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              id: body.userId,
-              credits: 5,
-              username: null,
-              full_name: null,
-              avatar_url: null
-            })
-            .select()
-            .single()
-
-          console.log('Profile creation result:', { newProfile, createError })
-
-          if (createError) {
-            console.error('Error creating profile:', createError)
-            return new Response(
-              JSON.stringify({ 
-                error: 'Failed to create user profile',
-                success: false
-              }),
-              { 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400 
-              }
-            )
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to fetch user profile',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
           }
-          userProfile = newProfile
-        } else {
+        )
+      }
+
+      if (!profile) {
+        console.log('Creating new profile for user:', body.userId)
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: body.userId,
+            credits: 5,
+            username: null,
+            full_name: null,
+            avatar_url: null
+          })
+          .select()
+          .single()
+
+        if (createError) {
+          console.error('Error creating profile:', createError)
           return new Response(
             JSON.stringify({ 
-              error: 'User profile not found',
+              error: 'Failed to create user profile',
               success: false
             }),
             { 
@@ -97,13 +109,12 @@ serve(async (req) => {
             }
           )
         }
+        userProfile = newProfile
       } else {
         userProfile = profile
       }
 
-      console.log('User profile credits:', userProfile.credits)
-
-      if (userProfile.credits < 5) { // Assuming 5 credits per generation
+      if (userProfile.credits < 5) {
         return new Response(
           JSON.stringify({ 
             error: 'Insufficient credits. You need at least 5 credits to generate a song.',
@@ -133,7 +144,7 @@ serve(async (req) => {
       ...(body.negativeTags && { negativeTags: body.negativeTags })
     }
 
-    console.log('Sending request to Suno API with payload:', sunoPayload)
+    console.log('Sending request to Suno API with payload:', JSON.stringify(sunoPayload, null, 2))
 
     // Call Suno API
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -146,13 +157,12 @@ serve(async (req) => {
     })
 
     const sunoData = await sunoResponse.json()
-    console.log('Suno API response:', sunoData)
-    console.log('Suno response status:', sunoResponse.status)
+    console.log('Suno API response status:', sunoResponse.status)
+    console.log('Suno API response data:', JSON.stringify(sunoData, null, 2))
 
     if (!sunoResponse.ok || sunoData.code !== 200) {
       console.error('Suno API error - Status:', sunoResponse.status, 'Data:', sunoData)
       
-      // Handle specific Suno API errors
       if (sunoData.code === 429) {
         return new Response(
           JSON.stringify({ 
@@ -193,13 +203,14 @@ serve(async (req) => {
       )
     }
 
-    console.log('Received task ID from Suno:', taskId)
+    console.log('✅ Received task ID from Suno:', taskId)
 
-    // Store generation task in database for callback linking
+    // Store generation task in database
     if (body.requestId) {
       console.log('=== CUSTOM SONG REQUEST PATH ===')
       console.log('Creating custom song audio record for request:', body.requestId)
-      const { error: insertError } = await supabase
+      
+      const { data: insertedAudio, error: insertError } = await supabase
         .from('custom_song_audio')
         .insert({
           request_id: body.requestId,
@@ -208,17 +219,27 @@ serve(async (req) => {
           is_selected: true,
           created_by: body.userId
         })
+        .select()
+        .single()
 
       if (insertError) {
         console.error('Error storing custom song task info:', insertError)
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to store custom song task info',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
       } else {
-        console.log('Successfully created custom song audio record for task:', taskId)
+        console.log('✅ Created custom song audio record:', insertedAudio.id)
       }
     } else {
       console.log('=== GENERAL SONG GENERATION PATH ===')
-      console.log('Creating pending song record for task:', taskId)
       
-      // Make sure the audio_url is exactly in the format: task_pending:TASK_ID
       const pendingAudioUrl = `task_pending:${taskId}`
       
       const songData = {
@@ -232,16 +253,13 @@ serve(async (req) => {
         prompt: body.prompt
       }
 
-      console.log('Song data to insert:', songData)
-      console.log('CRITICAL: Pending audio URL format:', pendingAudioUrl)
+      console.log('Inserting song data:', JSON.stringify(songData, null, 2))
 
       const { data: insertedSong, error: insertError } = await supabase
         .from('songs')
         .insert(songData)
         .select()
         .single()
-
-      console.log('Song insertion result:', { insertedSong, insertError })
 
       if (insertError) {
         console.error('Error storing pending song:', insertError)
@@ -257,17 +275,15 @@ serve(async (req) => {
           }
         )
       } else {
-        console.log('✅ Successfully created pending song record:', insertedSong.id, 'for task:', taskId)
-        console.log('✅ Pending song stored with audio_url:', insertedSong.audio_url)
-        console.log('✅ Callback will look for audio_url:', pendingAudioUrl)
+        console.log('✅ Created pending song record:', insertedSong.id)
+        console.log('✅ Song stored with audio_url:', insertedSong.audio_url)
       }
     }
 
-    // Only deduct credits for non-admin test generations
+    // Deduct credits for non-admin test generations
     if (!body.isAdminTest && userProfile) {
-      console.log('Deducting credits from user:', body.userId, 'Current credits:', userProfile.credits)
+      console.log('Deducting credits from user:', body.userId)
       
-      // Deduct credits from user
       const { error: creditError } = await supabase
         .from('profiles')
         .update({ credits: userProfile.credits - 5 })
@@ -275,9 +291,8 @@ serve(async (req) => {
 
       if (creditError) {
         console.error('Error deducting credits:', creditError)
-        // Continue anyway as the generation has started
       } else {
-        console.log('Successfully deducted 5 credits from user:', body.userId)
+        console.log('✅ Deducted 5 credits from user:', body.userId)
       }
 
       // Log credit transaction
@@ -296,7 +311,6 @@ serve(async (req) => {
     }
 
     console.log('=== SUNO GENERATE SUCCESS ===')
-    console.log('Returning success response with task_id:', taskId)
 
     return new Response(
       JSON.stringify({
@@ -312,7 +326,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('=== SUNO GENERATE ERROR ===')
-    console.error('Error in suno-generate:', error)
+    console.error('Error details:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to generate song',

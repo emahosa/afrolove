@@ -10,14 +10,12 @@ import { Loader2, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-// Track interface for consistency
 interface Track {
   id: string;
   title: string;
   type: "song" | "instrumental";
   genre: string;
   date: string;
-  // Additional properties from the database
   audio_url?: string;
   genre_id?: string;
   status?: string;
@@ -51,7 +49,7 @@ const Library = () => {
       
       console.log('Library: Fetching tracks for user:', user.id);
       
-      // Fetch user-specific songs
+      // Fetch user-specific songs with better error handling
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select(`
@@ -62,6 +60,7 @@ const Library = () => {
           audio_url,
           genre_id,
           status,
+          user_id,
           genres (name)
         `)
         .eq('user_id', user.id)
@@ -69,25 +68,37 @@ const Library = () => {
         
       if (songsError) {
         console.error('Library: Error fetching user songs:', songsError);
-        throw songsError;
+        toast.error('Failed to load songs: ' + songsError.message);
+        return;
       }
       
-      console.log('Library: User songs data:', songsData);
+      console.log('Library: Raw songs data:', songsData);
       
-      // Separate completed and pending songs
-      const completedSongs = (songsData || []).filter(song => 
-        song.audio_url && 
-        !song.audio_url.startsWith('task_pending:') &&
-        song.status === 'approved'
-      );
+      if (!songsData || songsData.length === 0) {
+        console.log('Library: No songs found for user');
+        setTracks([]);
+        setPendingSongs([]);
+        toast.info("No songs found. Create your first song to get started!");
+        return;
+      }
       
-      const pendingSongsList = (songsData || []).filter(song => 
-        song.status === 'pending' || 
-        (song.audio_url && song.audio_url.startsWith('task_pending:'))
-      );
+      // Separate completed and pending songs with detailed logging
+      const completedSongs = songsData.filter(song => {
+        const isCompleted = song.audio_url && 
+                           !song.audio_url.startsWith('task_pending:') &&
+                           song.status === 'approved';
+        console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
+        return isCompleted;
+      });
       
-      console.log('Library: Completed songs:', completedSongs.length);
-      console.log('Library: Pending songs:', pendingSongsList.length);
+      const pendingSongsList = songsData.filter(song => {
+        const isPending = song.status === 'pending' || 
+                         (song.audio_url && song.audio_url.startsWith('task_pending:'));
+        console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isPending=${isPending}`);
+        return isPending;
+      });
+      
+      console.log(`Library: Found ${completedSongs.length} completed songs and ${pendingSongsList.length} pending songs`);
       
       const formattedTracks = completedSongs.map(song => ({
         id: song.id,
@@ -111,18 +122,15 @@ const Library = () => {
         status: song.status
       }));
       
-      console.log('Library: Formatted tracks:', formattedTracks);
-      console.log('Library: Formatted pending songs:', formattedPendingSongs);
-      
       setTracks(formattedTracks);
       setPendingSongs(formattedPendingSongs);
       
       if (formattedTracks.length === 0 && formattedPendingSongs.length === 0) {
         toast.info("No songs found in your library. Generate some songs to see them here!");
       } else if (formattedPendingSongs.length > 0) {
-        toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear in completed once ready.`);
+        toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear once ready.`);
       } else {
-        console.log(`Library: Found ${formattedTracks.length} completed tracks`);
+        console.log(`Library: Successfully loaded ${formattedTracks.length} completed tracks`);
       }
     } catch (error) {
       console.error("Library: Error fetching tracks:", error);
@@ -137,9 +145,11 @@ const Library = () => {
     fetchTracks();
   }, [user]);
 
-  // Set up realtime subscription for new songs
+  // Set up realtime subscription for song updates
   useEffect(() => {
     if (!user?.id) return;
+
+    console.log('Library: Setting up realtime subscription for user:', user.id);
 
     const channel = supabase
       .channel('songs-changes')
@@ -153,22 +163,26 @@ const Library = () => {
         },
         (payload) => {
           console.log('Library: Song updated via realtime:', payload);
-          // Refresh tracks when a song is updated (approved)
-          if (payload.new.status === 'approved' && payload.new.audio_url && !payload.new.audio_url.startsWith('task_pending:')) {
+          
+          if (payload.new.status === 'approved' && 
+              payload.new.audio_url && 
+              !payload.new.audio_url.startsWith('task_pending:')) {
             console.log('Library: Detected approved song, refreshing...');
             fetchTracks(true);
             toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Library: Realtime subscription status:', status);
+      });
 
     return () => {
+      console.log('Library: Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
   
-  // Helper function to format dates
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -215,6 +229,7 @@ const Library = () => {
   };
 
   const handleRefresh = () => {
+    console.log('Library: Manual refresh triggered');
     fetchTracks(true);
   };
 
@@ -227,7 +242,6 @@ const Library = () => {
     );
   }
 
-  // Show debug info if no user
   if (!user) {
     return (
       <div className="space-y-6">
