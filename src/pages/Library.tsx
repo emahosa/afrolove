@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TracksList from "@/components/library/TracksList";
@@ -17,6 +18,7 @@ interface Track {
   // Additional properties from the database
   audio_url?: string;
   genre_id?: string;
+  status?: string;
 }
 
 const Library = () => {
@@ -31,11 +33,41 @@ const Library = () => {
 
   useEffect(() => {
     const fetchTracks = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log('Library: No user ID available, skipping fetch');
+        setIsLoading(false);
+        return;
+      }
       
       try {
         setIsLoading(true);
+        console.log('Library: Fetching tracks for user:', user.id);
         
+        // First, let's check all songs regardless of user_id to debug
+        const { data: allSongs, error: allSongsError } = await supabase
+          .from('songs')
+          .select(`
+            id,
+            title,
+            type,
+            created_at,
+            audio_url,
+            genre_id,
+            user_id,
+            status,
+            genres (name)
+          `)
+          .order('created_at', { ascending: false });
+          
+        if (allSongsError) {
+          console.error('Library: Error fetching all songs:', allSongsError);
+        } else {
+          console.log('Library: All songs in database:', allSongs);
+          const userSongs = allSongs?.filter(song => song.user_id === user.id) || [];
+          console.log('Library: Songs for current user:', userSongs);
+        }
+        
+        // Now fetch user-specific songs
         const { data: songsData, error: songsError } = await supabase
           .from('songs')
           .select(`
@@ -45,12 +77,18 @@ const Library = () => {
             created_at,
             audio_url,
             genre_id,
+            status,
             genres (name)
           `)
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
           
-        if (songsError) throw songsError;
+        if (songsError) {
+          console.error('Library: Error fetching user songs:', songsError);
+          throw songsError;
+        }
+        
+        console.log('Library: User songs data:', songsData);
         
         const formattedTracks = (songsData || []).map(song => ({
           id: song.id,
@@ -59,12 +97,20 @@ const Library = () => {
           genre: song.genres?.name || "Unknown",
           date: formatDate(song.created_at),
           audio_url: song.audio_url,
-          genre_id: song.genre_id
+          genre_id: song.genre_id,
+          status: song.status
         }));
         
+        console.log('Library: Formatted tracks:', formattedTracks);
         setTracks(formattedTracks);
+        
+        if (formattedTracks.length === 0) {
+          toast.info("No songs found in your library. Generated songs should appear here automatically.");
+        } else {
+          console.log(`Library: Found ${formattedTracks.length} tracks`);
+        }
       } catch (error) {
-        console.error("Error fetching tracks:", error);
+        console.error("Library: Error fetching tracks:", error);
         toast.error("Failed to load tracks. We couldn't load your library. Please try again later.");
       } finally {
         setIsLoading(false);
@@ -124,6 +170,19 @@ const Library = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading your library...</span>
+      </div>
+    );
+  }
+
+  // Show debug info if no user
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">My Library</h1>
+          <p className="text-muted-foreground">Please log in to view your songs</p>
+        </div>
       </div>
     );
   }
@@ -133,6 +192,9 @@ const Library = () => {
       <div>
         <h1 className="text-3xl font-bold mb-2">My Library</h1>
         <p className="text-muted-foreground">All your saved songs and instrumentals</p>
+        {user && (
+          <p className="text-xs text-muted-foreground mt-1">User ID: {user.id}</p>
+        )}
       </div>
 
       {!selectedTrack ? (
