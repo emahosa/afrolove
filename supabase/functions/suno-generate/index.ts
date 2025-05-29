@@ -16,6 +16,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get Suno API key from environment
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    if (!sunoApiKey) {
+      console.error('SUNO_API_KEY not configured in environment')
+      return new Response(
+        JSON.stringify({ error: 'Suno API not configured. Please contact administrator.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    console.log('Suno API key found in environment')
+
     // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -78,32 +90,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check API configuration
-    console.log('Checking API configuration...')
-    const { data: apiConfig, error: apiError } = await supabase
-      .from('api_configs')
-      .select('api_key_encrypted')
-      .eq('service', 'suno')
-      .eq('is_enabled', true)
-      .maybeSingle()
-
-    if (apiError) {
-      console.error('API config error:', apiError)
-      return new Response(
-        JSON.stringify({ error: 'Database error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    if (!apiConfig?.api_key_encrypted) {
-      console.error('No Suno API key configured')
-      return new Response(
-        JSON.stringify({ error: 'Suno API not configured' }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    console.log('API key found, checking user profile...')
+    console.log('Getting user profile...')
 
     // Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -219,7 +206,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': apiConfig.api_key_encrypted
+        'api-key': sunoApiKey
       },
       body: JSON.stringify(sunoRequest)
     })
