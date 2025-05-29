@@ -12,20 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
-    if (!sunoApiKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'SUNO_API_KEY not configured',
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      )
-    }
-
+    // Use the hardcoded API key directly instead of environment variable
+    const sunoApiKey = "9f290dd97b2bbacfbb9eb199787aea31"
+    
     const body = await req.json()
     const { taskId } = body
 
@@ -33,7 +22,6 @@ serve(async (req) => {
 
     // If taskId is 'test', this is just an API key validation request
     if (taskId === 'test') {
-      // Test the API key by making a simple request to Suno API
       try {
         const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
           method: 'POST',
@@ -64,7 +52,7 @@ serve(async (req) => {
             }),
             { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400 
+              status: 200 
             }
           )
         } else if (testData.code === 200) {
@@ -89,7 +77,7 @@ serve(async (req) => {
             }),
             { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400 
+              status: 200 
             }
           )
         }
@@ -102,7 +90,7 @@ serve(async (req) => {
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
+            status: 500 
           }
         )
       }
