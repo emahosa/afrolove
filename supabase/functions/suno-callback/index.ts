@@ -175,6 +175,7 @@ async function updateSongRecord(supabase: any, pendingSong: any, track: any) {
       throw updateSongError
     } else {
       console.log('Successfully updated song record:', pendingSong.id)
+      console.log('Song should now be visible in user library with status: approved')
     }
   } catch (error) {
     console.error('Failed to update song record:', error)

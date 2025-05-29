@@ -47,22 +47,54 @@ serve(async (req) => {
         .eq('id', body.userId)
         .single()
 
-      if (profileError || !profile) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'User profile not found',
-            success: false
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
+      if (profileError) {
+        console.error('Profile error:', profileError)
+        // If profile doesn't exist, create it
+        if (profileError.code === 'PGRST116') {
+          console.log('Creating new profile for user:', body.userId)
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: body.userId,
+              credits: 5,
+              username: null,
+              full_name: null,
+              avatar_url: null
+            })
+            .select()
+            .single()
+
+          if (createError) {
+            console.error('Error creating profile:', createError)
+            return new Response(
+              JSON.stringify({ 
+                error: 'Failed to create user profile',
+                success: false
+              }),
+              { 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400 
+              }
+            )
           }
-        )
+          userProfile = newProfile
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              error: 'User profile not found',
+              success: false
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        }
+      } else {
+        userProfile = profile
       }
 
-      userProfile = profile;
-
-      if (profile.credits < 5) { // Assuming 5 credits per generation
+      if (userProfile.credits < 5) { // Assuming 5 credits per generation
         return new Response(
           JSON.stringify({ 
             error: 'Insufficient credits. You need at least 5 credits to generate a song.',
@@ -225,7 +257,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: 'Failed to create song record in database',
-            success: false
+            success: false,
+            details: insertError
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
