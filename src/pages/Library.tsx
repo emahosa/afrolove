@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TracksList from "@/components/library/TracksList";
@@ -5,8 +6,9 @@ import SingleTrackView from "@/components/library/SingleTrackView";
 import LibraryFilters from "@/components/library/LibraryFilters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 // Track interface for consistency
 interface Track {
@@ -26,6 +28,7 @@ const Library = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [pendingSongs, setPendingSongs] = useState<Track[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
@@ -48,7 +51,7 @@ const Library = () => {
       
       console.log('Library: Fetching tracks for user:', user.id);
       
-      // Fetch user-specific songs with proper status filtering
+      // Fetch user-specific songs
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select(`
@@ -71,22 +74,20 @@ const Library = () => {
       
       console.log('Library: User songs data:', songsData);
       
-      // Filter out pending songs that don't have real audio URLs yet
+      // Separate completed and pending songs
       const completedSongs = (songsData || []).filter(song => 
         song.audio_url && 
         !song.audio_url.startsWith('task_pending:') &&
-        song.status === 'approved'  // Use 'approved' instead of 'completed'
+        song.status === 'approved'
       );
       
-      // Also get pending songs for status display
-      const pendingSongs = (songsData || []).filter(song => 
-        song.audio_url && 
-        song.audio_url.startsWith('task_pending:') &&
-        song.status === 'pending'
+      const pendingSongsList = (songsData || []).filter(song => 
+        song.status === 'pending' || 
+        (song.audio_url && song.audio_url.startsWith('task_pending:'))
       );
       
       console.log('Library: Completed songs:', completedSongs.length);
-      console.log('Library: Pending songs:', pendingSongs.length);
+      console.log('Library: Pending songs:', pendingSongsList.length);
       
       const formattedTracks = completedSongs.map(song => ({
         id: song.id,
@@ -98,14 +99,28 @@ const Library = () => {
         genre_id: song.genre_id,
         status: song.status
       }));
+
+      const formattedPendingSongs = pendingSongsList.map(song => ({
+        id: song.id,
+        title: song.title || 'Generating...',
+        type: song.type as "song" | "instrumental",
+        genre: song.genres?.name || "Unknown",
+        date: formatDate(song.created_at),
+        audio_url: song.audio_url,
+        genre_id: song.genre_id,
+        status: song.status
+      }));
       
       console.log('Library: Formatted tracks:', formattedTracks);
-      setTracks(formattedTracks);
+      console.log('Library: Formatted pending songs:', formattedPendingSongs);
       
-      if (formattedTracks.length === 0 && pendingSongs.length === 0) {
+      setTracks(formattedTracks);
+      setPendingSongs(formattedPendingSongs);
+      
+      if (formattedTracks.length === 0 && formattedPendingSongs.length === 0) {
         toast.info("No songs found in your library. Generate some songs to see them here!");
-      } else if (pendingSongs.length > 0) {
-        toast.info(`You have ${pendingSongs.length} song(s) still generating. They will appear here once complete.`);
+      } else if (formattedPendingSongs.length > 0) {
+        toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear in completed once ready.`);
       } else {
         console.log(`Library: Found ${formattedTracks.length} completed tracks`);
       }
@@ -244,6 +259,35 @@ const Library = () => {
           </Button>
         </div>
       </div>
+
+      {/* Show pending songs section */}
+      {pendingSongs.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            <h2 className="text-xl font-semibold">Generating Songs</h2>
+            <Badge variant="secondary">{pendingSongs.length}</Badge>
+          </div>
+          <div className="grid gap-4">
+            {pendingSongs.map((song) => (
+              <div key={song.id} className="p-4 border rounded-lg bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium">{song.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {song.genre} • {song.date}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Badge variant="outline">Generating</Badge>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!selectedTrack ? (
         <>
