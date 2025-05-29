@@ -188,33 +188,12 @@ serve(async (req) => {
       )
     }
 
-    // Only deduct credits for non-admin test generations
-    if (!body.isAdminTest && userProfile) {
-      // Deduct credits from user
-      const { error: creditError } = await supabase
-        .from('profiles')
-        .update({ credits: userProfile.credits - 5 })
-        .eq('id', body.userId)
-
-      if (creditError) {
-        console.error('Error deducting credits:', creditError)
-        // Continue anyway as the generation has started
-      }
-
-      // Log credit transaction
-      await supabase
-        .from('credit_transactions')
-        .insert({
-          user_id: body.userId,
-          amount: -5,
-          transaction_type: 'debit',
-          description: `Song generation: ${body.title || 'Untitled'}`
-        })
-    }
+    console.log('Received task ID from Suno:', taskId)
 
     // Store generation task in database for callback linking
     if (body.requestId) {
       // This is for a custom song request
+      console.log('Creating custom song audio record for request:', body.requestId)
       const { error: insertError } = await supabase
         .from('custom_song_audio')
         .insert({
@@ -226,28 +205,73 @@ serve(async (req) => {
         })
 
       if (insertError) {
-        console.error('Error storing task info:', insertError)
+        console.error('Error storing custom song task info:', insertError)
+      } else {
+        console.log('Successfully created custom song audio record for task:', taskId)
       }
     } else {
       // This is a general Suno generation - create a pending song record
-      const { error: insertError } = await supabase
+      console.log('Creating pending song record for task:', taskId)
+      const songData = {
+        title: body.title || 'Generating...',
+        audio_url: `task_pending:${taskId}`,
+        lyrics: body.prompt,
+        type: body.instrumental ? 'instrumental' : 'song',
+        user_id: body.userId,
+        status: 'pending',
+        credits_used: body.isAdminTest ? 0 : 5,
+        prompt: body.prompt
+      }
+
+      console.log('Inserting song with data:', songData)
+
+      const { data: insertedSong, error: insertError } = await supabase
         .from('songs')
-        .insert({
-          title: body.title || 'Generating...',
-          audio_url: `task_pending:${taskId}`,
-          lyrics: body.prompt,
-          type: body.instrumental ? 'instrumental' : 'song',
-          user_id: body.userId,
-          status: 'pending',
-          credits_used: 5,
-          prompt: body.prompt
-        })
+        .insert(songData)
+        .select()
+        .single()
 
       if (insertError) {
         console.error('Error storing pending song:', insertError)
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to create song record in database',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
       } else {
-        console.log('Created pending song record for task:', taskId)
+        console.log('Successfully created pending song record:', insertedSong.id, 'for task:', taskId)
       }
+    }
+
+    // Only deduct credits for non-admin test generations
+    if (!body.isAdminTest && userProfile) {
+      // Deduct credits from user
+      const { error: creditError } = await supabase
+        .from('profiles')
+        .update({ credits: userProfile.credits - 5 })
+        .eq('id', body.userId)
+
+      if (creditError) {
+        console.error('Error deducting credits:', creditError)
+        // Continue anyway as the generation has started
+      } else {
+        console.log('Successfully deducted 5 credits from user:', body.userId)
+      }
+
+      // Log credit transaction
+      await supabase
+        .from('credit_transactions')
+        .insert({
+          user_id: body.userId,
+          amount: -5,
+          transaction_type: 'debit',
+          description: `Song generation: ${body.title || 'Untitled'}`
+        })
     }
 
     return new Response(

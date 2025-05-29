@@ -38,7 +38,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const callbackData: SunoCallback = await req.json()
-    console.log('Received Suno callback:', callbackData)
+    console.log('Suno callback received:', JSON.stringify(callbackData, null, 2))
 
     if (callbackData.code !== 200) {
       console.error('Suno callback error:', callbackData.msg)
@@ -51,25 +51,28 @@ serve(async (req) => {
     const { task_id, data: tracks } = callbackData.data
 
     if (!tracks || tracks.length === 0) {
-      console.error('No tracks in callback data')
+      console.error('No tracks in callback data for task:', task_id)
       return new Response(JSON.stringify({ error: 'No tracks received' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400
       })
     }
 
+    console.log(`Processing ${tracks.length} tracks for task: ${task_id}`)
+
     // Process each track (usually 1-2 tracks)
     for (const track of tracks) {
-      console.log('Processing track:', track.id, track.title)
+      console.log('Processing track:', track.id, 'Title:', track.title, 'Audio URL:', track.audio_url)
 
       // First check if this is for a custom song request
       const { data: existingAudio, error: findCustomError } = await supabase
         .from('custom_song_audio')
         .select('*')
-        .like('audio_url', `task_pending:${task_id}%`)
+        .eq('audio_url', `task_pending:${task_id}`)
         .maybeSingle()
 
       if (existingAudio) {
+        console.log('Found custom song audio record, updating...')
         // Update custom song audio record
         const { error: updateError } = await supabase
           .from('custom_song_audio')
@@ -94,33 +97,41 @@ serve(async (req) => {
             .eq('id', existingAudio.request_id)
         }
       } else {
-        // Check if this is a general song generation
+        // Check if this is a general song generation - try exact match first
+        console.log('Looking for pending song with exact task ID match...')
         const { data: pendingSong, error: findSongError } = await supabase
           .from('songs')
           .select('*')
-          .like('audio_url', `task_pending:${task_id}%`)
+          .eq('audio_url', `task_pending:${task_id}`)
           .maybeSingle()
 
-        if (pendingSong) {
-          // Update the pending song with actual audio URL
-          const { error: updateSongError } = await supabase
+        if (!pendingSong) {
+          // Try with LIKE pattern as fallback
+          console.log('Exact match failed, trying LIKE pattern...')
+          const { data: pendingSongLike, error: findSongLikeError } = await supabase
             .from('songs')
-            .update({
-              title: track.title || pendingSong.title,
-              audio_url: track.audio_url,
-              status: 'completed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', pendingSong.id)
-
-          if (updateSongError) {
-            console.error('Error updating song record:', updateSongError)
+            .select('*')
+            .like('audio_url', `task_pending:${task_id}%`)
+            .maybeSingle()
+          
+          if (pendingSongLike) {
+            console.log('Found pending song with LIKE pattern:', pendingSongLike.id)
+            await updateSongRecord(supabase, pendingSongLike, track)
           } else {
-            console.log('Updated song record:', pendingSong.id, 'for user:', pendingSong.user_id)
+            console.error('No pending song found for task:', task_id)
+            // Log all pending songs for debugging
+            const { data: allPending } = await supabase
+              .from('songs')
+              .select('id, audio_url, user_id, title')
+              .like('audio_url', 'task_pending:%')
+              .order('created_at', { ascending: false })
+              .limit(10)
+            
+            console.log('Recent pending songs:', allPending)
           }
         } else {
-          console.log('No pending song found for task:', task_id)
-          // This shouldn't happen with the new flow, but log it for debugging
+          console.log('Found pending song with exact match:', pendingSong.id)
+          await updateSongRecord(supabase, pendingSong, track)
         }
       }
     }
@@ -144,3 +155,29 @@ serve(async (req) => {
     )
   }
 })
+
+async function updateSongRecord(supabase: any, pendingSong: any, track: any) {
+  try {
+    console.log('Updating song record:', pendingSong.id, 'for user:', pendingSong.user_id)
+    
+    const { error: updateSongError } = await supabase
+      .from('songs')
+      .update({
+        title: track.title || pendingSong.title,
+        audio_url: track.audio_url,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pendingSong.id)
+
+    if (updateSongError) {
+      console.error('Error updating song record:', updateSongError)
+      throw updateSongError
+    } else {
+      console.log('Successfully updated song record:', pendingSong.id)
+    }
+  } catch (error) {
+    console.error('Failed to update song record:', error)
+    throw error
+  }
+}
