@@ -672,7 +672,7 @@ export type Database = {
         | "audio_uploaded"
         | "completed"
       flag_status: "pending" | "reviewed" | "dismissed"
-      song_status: "pending" | "approved" | "rejected"
+      song_status: "pending" | "approved" | "rejected" | "completed"
       song_type: "song" | "instrumental"
       user_role: "admin" | "moderator" | "user"
       voice_clone_status: "pending" | "approved" | "rejected"
@@ -800,7 +800,7 @@ export const Constants = {
         "completed",
       ],
       flag_status: ["pending", "reviewed", "dismissed"],
-      song_status: ["pending", "approved", "rejected"],
+      song_status: ["pending", "approved", "rejected", "completed"],
       song_type: ["song", "instrumental"],
       user_role: ["admin", "moderator", "user"],
       voice_clone_status: ["pending", "approved", "rejected"],

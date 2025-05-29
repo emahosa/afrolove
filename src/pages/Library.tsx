@@ -85,7 +85,7 @@ const Library = () => {
       const completedSongs = songsData.filter(song => {
         const isCompleted = song.audio_url && 
                            !song.audio_url.startsWith('task_pending:') &&
-                           song.status === 'completed';
+                           (song.status === 'completed' || song.status === 'approved');
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
         return isCompleted;
       });
@@ -163,7 +163,7 @@ const Library = () => {
         (payload) => {
           console.log('Library: Song updated via realtime:', payload);
           
-          if (payload.new.status === 'completed' && 
+          if ((payload.new.status === 'completed' || payload.new.status === 'approved') && 
               payload.new.audio_url && 
               !payload.new.audio_url.startsWith('task_pending:')) {
             console.log('Library: Detected completed song, refreshing...');
