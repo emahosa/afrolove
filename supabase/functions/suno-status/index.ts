@@ -12,36 +12,118 @@ serve(async (req) => {
   }
 
   try {
-    let taskId: string | null = null;
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    if (!sunoApiKey) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'SUNO_API_KEY not configured',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
+    }
 
-    // Try to get taskId from request body first (for API key status checks)
-    if (req.method === 'POST') {
+    const body = await req.json()
+    const { taskId } = body
+
+    console.log('Checking Suno status for task:', taskId)
+
+    // If taskId is 'test', this is just an API key validation request
+    if (taskId === 'test') {
+      // Test the API key by making a simple request to Suno API
       try {
-        const body = await req.json();
-        taskId = body.taskId;
-      } catch (e) {
-        // If body parsing fails, continue to try URL params
+        const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: 'test',
+            style: 'Pop',
+            title: 'API Key Test',
+            instrumental: true,
+            customMode: false,
+            model: 'V3_5',
+            callBackUrl: 'https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback'
+          })
+        })
+
+        const testData = await testResponse.json()
+        console.log('API key test response:', testData)
+
+        if (testData.code === 429) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Suno API credits are insufficient',
+              success: false,
+              code: 429
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        } else if (testData.code === 200) {
+          return new Response(
+            JSON.stringify({ 
+              success: true,
+              code: 200,
+              msg: 'success',
+              message: 'API key is valid'
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200 
+            }
+          )
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              error: `API key validation failed: ${testData.msg || 'Invalid response'}`,
+              success: false,
+              code: testData.code
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        }
+      } catch (testError) {
+        console.error('Error testing API key:', testError)
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to validate API key',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
       }
     }
 
-    // Fall back to URL query parameter
+    // For actual task status checks
     if (!taskId) {
-      const url = new URL(req.url);
-      taskId = url.searchParams.get('taskId');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Task ID is required',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
-    if (!taskId) {
-      throw new Error('Task ID is required')
-    }
-
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
-    if (!sunoApiKey) {
-      throw new Error('SUNO_API_KEY not configured')
-    }
-
-    console.log('Checking status for task:', taskId)
-
-    const response = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
+    // Check task status with Suno API
+    const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?ids=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -49,21 +131,42 @@ serve(async (req) => {
       }
     })
 
-    const data = await response.json()
-    console.log('Suno status response:', data)
+    const statusData = await statusResponse.json()
+    console.log('Suno status response:', statusData)
+
+    if (!statusResponse.ok || statusData.code !== 200) {
+      return new Response(
+        JSON.stringify({ 
+          error: `Status check failed: ${statusData.msg || 'Unknown error'}`,
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
+    }
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({
+        success: true,
+        data: statusData.data,
+        code: statusData.code,
+        msg: statusData.msg
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: response.ok ? 200 : 400
+        status: 200 
       }
     )
 
   } catch (error) {
-    console.error('Error checking Suno status:', error)
+    console.error('Error in suno-status:', error)
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to check status' }),
+      JSON.stringify({ 
+        error: error.message || 'Status check failed',
+        success: false
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
