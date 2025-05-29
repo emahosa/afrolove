@@ -10,7 +10,6 @@ export const initializeAdminAccount = async () => {
   try {
     console.log("AuthOperations: Checking if admin account exists...");
     
-    // First check if the admin role exists for any user
     const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('user_id')
@@ -22,7 +21,6 @@ export const initializeAdminAccount = async () => {
       return false;
     }
 
-    // If admin role exists, we're done
     if (roleData) {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
       return true;
@@ -30,11 +28,9 @@ export const initializeAdminAccount = async () => {
     
     console.log("AuthOperations: No admin account found. Creating admin account...");
     
-    // Store current session to restore it later
     const { data: currentSession } = await supabase.auth.getSession();
     const currentUser = currentSession.session?.user;
     
-    // Try to sign up the admin user (don't sign in existing users)
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
@@ -58,7 +54,6 @@ export const initializeAdminAccount = async () => {
       adminUserId = signUpData.user.id;
       console.log("AuthOperations: Admin user created with ID:", adminUserId);
     } else {
-      // User already exists, try to get their ID
       const { data: userData } = await supabase.auth.signInWithPassword({
         email: ADMIN_EMAIL,
         password: ADMIN_PASSWORD,
@@ -68,17 +63,14 @@ export const initializeAdminAccount = async () => {
         adminUserId = userData.user.id;
         console.log("AuthOperations: Found existing admin user with ID:", adminUserId);
         
-        // Sign out the admin and restore original session
         await supabase.auth.signOut();
         if (currentUser) {
-          // This is a hack but necessary to restore session
           console.log("AuthOperations: Restoring original user session");
         }
       }
     }
     
     if (adminUserId) {
-      // Assign admin role
       const { error: roleInsertError } = await supabase
         .from('user_roles')
         .insert({
@@ -134,14 +126,12 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       return false;
     }
 
-    // Special case for ellaadahosa@gmail.com - always grant admin access
     if (email === "ellaadahosa@gmail.com") {
       console.log("AuthOperations: Super admin login successful");
       toast.success("Admin login successful");
       return true;
     }
 
-    // If admin login (but not the special admin), verify admin role
     if (isAdmin) {
       console.log("AuthOperations: Checking if user is admin:", data.user.id);
       const { data: roleData, error: roleError } = await supabase
@@ -219,13 +209,14 @@ export const handleRegister = async (name: string, email: string, password: stri
 
     console.log("AuthOperations: User registered successfully:", data.user.id);
 
-    // Check if email confirmation is required
     if (data.session === null) {
       console.log("AuthOperations: Email confirmation required");
+      toast.info("Please check your email to verify your account before signing in");
       return false;
     }
 
     console.log("AuthOperations: Registration successful with active session");
+    toast.success("Registration successful! Welcome to Afroverse!");
     return true;
   } catch (error: any) {
     console.error("AuthOperations: Registration error:", error);

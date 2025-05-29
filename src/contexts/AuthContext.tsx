@@ -1,8 +1,8 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthContextType, UserProfile } from "@/types/auth";
-import { enhanceUserWithProfileData } from "@/utils/userProfile";
 import { handleLogin, handleRegister, initializeAdminAccount } from "@/utils/authOperations";
 import { updateUserCredits as updateCredits } from "@/utils/credits";
 import { toast } from "sonner";
@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("AuthContext: Fetching roles for user:", userId);
       
-      // Important: Using the public client with RLS policies
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -64,15 +63,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return hasAdminRole;
   }, [userRoles, user]);
 
+  const createOrUpdateProfile = async (authUser: any) => {
+    try {
+      console.log("AuthContext: Creating/updating profile for user:", authUser.id);
+      
+      // First try to get existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+        
+      if (existingProfile) {
+        console.log("AuthContext: Profile exists:", existingProfile);
+        return existingProfile;
+      }
+      
+      // Profile doesn't exist, create it
+      console.log("AuthContext: Creating new profile");
+      
+      const newProfile = {
+        id: authUser.id,
+        full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.name || 'User',
+        username: authUser.email || authUser.user_metadata?.email || '',
+        avatar_url: authUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(authUser.user_metadata?.name || 'User')}&background=random`,
+        credits: 5
+      };
+      
+      const { data: insertedProfile, error: insertError } = await supabase
+        .from('profiles')
+        .insert(newProfile)
+        .select()
+        .single();
+        
+      if (insertError) {
+        console.error("AuthContext: Error creating profile:", insertError);
+        return null;
+      }
+      
+      console.log("AuthContext: Profile created successfully:", insertedProfile);
+      return insertedProfile;
+    } catch (error) {
+      console.error("AuthContext: Error in createOrUpdateProfile:", error);
+      return null;
+    }
+  };
+
   const updateAuthUser = useCallback(async (currentSession: Session | null) => {
     try {
       if (currentSession?.user) {
-        console.log("AuthContext: User is logged in, fetching profile data");
+        console.log("AuthContext: User is logged in, setting up profile");
         
-        // Set user and session first to avoid delays in UI updates
         setSession(currentSession);
         
-        // Use basic user info first, then update with profile data
+        // Create basic user first
         const basicUser: UserProfile = {
           ...currentSession.user,
           name: currentSession.user.user_metadata?.name || 'User',
@@ -83,22 +127,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         setUser(basicUser);
         
-        // Then fetch roles - without this admin check won't work
+        // Fetch roles
         await fetchUserRoles(currentSession.user.id);
         
-        // Then enhance with profile data (this function handles profile creation internally)
-        try {
-          const enhancedUser = await enhanceUserWithProfileData(currentSession.user);
-          setUser(enhancedUser);
+        // Create/get profile
+        const profile = await createOrUpdateProfile(currentSession.user);
+        
+        if (profile) {
+          const enhancedUser: UserProfile = {
+            ...currentSession.user,
+            name: profile.full_name || currentSession.user.user_metadata?.name || 'User',
+            avatar: profile.avatar_url || currentSession.user.user_metadata?.avatar_url || '',
+            credits: profile.credits || 0,
+            subscription: 'free'
+          };
           
-          // Check MFA status for the user
+          setUser(enhancedUser);
+          console.log("AuthContext: User profile updated:", enhancedUser);
+        }
+        
+        // Check MFA status
+        try {
           const { data: factorData } = await supabase.auth.mfa.listFactors();
           setMfaEnabled(factorData?.totp && factorData.totp.length > 0);
-          
         } catch (error) {
-          console.error("AuthContext: Error fetching profile data:", error);
-          // User is already set with basic info, so no action needed
+          console.error("AuthContext: Error checking MFA status:", error);
+          setMfaEnabled(false);
         }
+        
       } else {
         console.log("AuthContext: No user in session");
         setSession(null);
@@ -119,7 +175,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     const setupAuth = async () => {
       try {
-        // First check for existing session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         console.log("AuthContext: Initial session check:", currentSession?.user?.id);
         
@@ -137,12 +192,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     
-    // Set up the auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log("AuthContext: Auth state changed:", event, currentSession?.user?.id);
-        
-        // Use setTimeout to avoid potential circular calls within the event handler
         setTimeout(() => {
           updateAuthUser(currentSession);
         }, 0);
@@ -188,10 +240,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("AuthContext: Updating credits with amount:", amount, "for user:", user.id);
       
-      // Call the utility function to update credits
       const newCredits = await updateCredits(user.id, amount);
       
-      // Update the user state with the new credits value
       if (newCredits !== null) {
         setUser(prevUser => {
           if (!prevUser) return null;
@@ -200,18 +250,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return updatedUser;
         });
         
-        // For debugging only - verify the state was updated
-        setTimeout(() => {
-          console.log("AuthContext: After update, user.credits =", user?.credits);
-        }, 10);
-        
         return;
       } else {
         throw new Error("Credit update returned null");
       }
     } catch (error: any) {
       console.error("AuthContext: Error updating credits in AuthContext:", error);
-      throw error; // Re-throw to allow handling in calling component
+      throw error;
     }
   };
 

@@ -6,7 +6,6 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -14,7 +13,6 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get the Authorization header
     const authorization = req.headers.get('Authorization')
     if (!authorization) {
       console.error('No authorization header provided')
@@ -49,18 +47,20 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Use admin client to check user credits (bypasses RLS)
-    const { data: profile, error: profileError } = await supabase
+    // Use service role to bypass RLS and check/create profile
+    let profile;
+    const { data: existingProfile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError)
       
       // Try to create profile if it doesn't exist
-      const { error: createError } = await supabase
+      console.log('Creating profile for user:', user.id)
+      const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert({
           id: user.id,
@@ -69,30 +69,27 @@ Deno.serve(async (req) => {
           avatar_url: user.user_metadata?.avatar_url || '',
           credits: 5
         })
+        .select('credits')
+        .single()
 
       if (createError) {
         console.error('Error creating profile:', createError)
         return new Response(
-          JSON.stringify({ error: 'Failed to access user profile' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      // Retry fetching after creation
-      const { data: newProfile, error: retryError } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single()
-
-      if (retryError || !newProfile) {
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch user profile after creation' }),
+          JSON.stringify({ error: 'Failed to create user profile' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
 
       profile = newProfile
+    } else {
+      profile = existingProfile
+    }
+
+    if (!profile) {
+      return new Response(
+        JSON.stringify({ error: 'User profile not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Check if user has enough credits (5 credits per song)
@@ -146,16 +143,26 @@ Deno.serve(async (req) => {
 
     console.log('Song record created:', song.id)
 
-    // Deduct credits
-    const { error: creditError } = await supabase.rpc('update_user_credits', {
-      p_user_id: user.id,
-      p_amount: -5
-    })
+    // Deduct credits using service role
+    const { error: creditError } = await supabase
+      .from('profiles')
+      .update({ credits: profile.credits - 5 })
+      .eq('id', user.id)
 
     if (creditError) {
       console.error('Error updating credits:', creditError)
       // Don't fail the request, but log the error
     }
+
+    // Log credit transaction
+    await supabase
+      .from('credit_transactions')
+      .insert({
+        user_id: user.id,
+        amount: -5,
+        transaction_type: 'usage',
+        description: 'Credits used for song generation'
+      })
 
     // Prepare Suno API request
     const sunoRequest = {
