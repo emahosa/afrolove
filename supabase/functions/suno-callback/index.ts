@@ -213,7 +213,7 @@ async function updateSongRecord(supabase: any, pendingSong: any, track: any, tas
     const updateData = {
       title: track.title || pendingSong.title,
       audio_url: track.audio_url,
-      status: 'approved',
+      status: 'completed',
       updated_at: new Date().toISOString()
     }
     

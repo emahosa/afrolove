@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TracksList from "@/components/library/TracksList";
@@ -86,7 +85,7 @@ const Library = () => {
       const completedSongs = songsData.filter(song => {
         const isCompleted = song.audio_url && 
                            !song.audio_url.startsWith('task_pending:') &&
-                           song.status === 'approved';
+                           song.status === 'completed';
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
         return isCompleted;
       });
@@ -164,10 +163,10 @@ const Library = () => {
         (payload) => {
           console.log('Library: Song updated via realtime:', payload);
           
-          if (payload.new.status === 'approved' && 
+          if (payload.new.status === 'completed' && 
               payload.new.audio_url && 
               !payload.new.audio_url.startsWith('task_pending:')) {
-            console.log('Library: Detected approved song, refreshing...');
+            console.log('Library: Detected completed song, refreshing...');
             fetchTracks(true);
             toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
           }
