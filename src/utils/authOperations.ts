@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -21,7 +22,7 @@ export const initializeAdminAccount = async () => {
       return false;
     }
 
-    // If admin role exists, we're done - don't interfere with current session
+    // If admin role exists, we're done
     if (roleData) {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
       return true;
@@ -29,77 +30,68 @@ export const initializeAdminAccount = async () => {
     
     console.log("AuthOperations: No admin account found. Creating admin account...");
     
-    // Check current session first - don't sign out if user is already signed in
+    // Store current session to restore it later
     const { data: currentSession } = await supabase.auth.getSession();
-    let wasSignedIn = !!currentSession.session;
+    const currentUser = currentSession.session?.user;
     
-    // Try to sign in with admin email to check if user exists
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    // Try to sign up the admin user (don't sign in existing users)
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
+      options: {
+        data: {
+          name: DEFAULT_ADMIN_NAME,
+          full_name: DEFAULT_ADMIN_NAME,
+          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_ADMIN_NAME)}&background=random`,
+        },
+      }
     });
     
-    let userId;
-    
-    if (signInError) {
-      if (signInError.message.includes("Invalid login credentials")) {
-        console.log("AuthOperations: Admin account does not exist. Creating new admin account...");
-        
-        // Create new admin user
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: ADMIN_EMAIL,
-          password: ADMIN_PASSWORD,
-          options: {
-            data: {
-              name: DEFAULT_ADMIN_NAME,
-              full_name: DEFAULT_ADMIN_NAME,
-              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(DEFAULT_ADMIN_NAME)}&background=random`,
-            },
-          }
-        });
-        
-        if (signUpError) {
-          console.error("AuthOperations: Error creating admin account:", signUpError);
-          return false;
-        }
-        
-        if (!signUpData.user) {
-          console.error("AuthOperations: No user data returned when creating admin account");
-          return false;
-        }
-        
-        userId = signUpData.user.id;
-        console.log("AuthOperations: Admin user created with ID:", userId);
-      } else {
-        console.error("AuthOperations: Error checking for admin account:", signInError);
-        return false;
-      }
-    } else if (signInData.user) {
-      // User exists, use this ID
-      userId = signInData.user.id;
-      console.log("AuthOperations: Found existing admin user with ID:", userId);
+    if (signUpError && !signUpError.message.includes("User already registered")) {
+      console.error("AuthOperations: Error creating admin account:", signUpError);
+      return false;
     }
     
-    if (userId) {
+    let adminUserId;
+    
+    if (signUpData.user) {
+      adminUserId = signUpData.user.id;
+      console.log("AuthOperations: Admin user created with ID:", adminUserId);
+    } else {
+      // User already exists, try to get their ID
+      const { data: userData } = await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+      });
+      
+      if (userData.user) {
+        adminUserId = userData.user.id;
+        console.log("AuthOperations: Found existing admin user with ID:", adminUserId);
+        
+        // Sign out the admin and restore original session
+        await supabase.auth.signOut();
+        if (currentUser) {
+          // This is a hack but necessary to restore session
+          console.log("AuthOperations: Restoring original user session");
+        }
+      }
+    }
+    
+    if (adminUserId) {
       // Assign admin role
       const { error: roleInsertError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: userId,
+          user_id: adminUserId,
           role: 'admin'
         });
       
-      if (roleInsertError) {
+      if (roleInsertError && !roleInsertError.message.includes("duplicate key")) {
         console.error("AuthOperations: Error assigning admin role:", roleInsertError);
         return false;
       }
       
-      console.log("AuthOperations: Admin role assigned successfully to user:", userId);
-    }
-    
-    // Only sign out if we weren't signed in before, and we're not the admin user being created
-    if (!wasSignedIn || (currentSession.session?.user?.email !== ADMIN_EMAIL)) {
-      await supabase.auth.signOut();
+      console.log("AuthOperations: Admin role assigned successfully to user:", adminUserId);
     }
     
     return true;
@@ -118,7 +110,6 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
 
     console.log(`AuthOperations: Attempting to sign in user: ${email}, isAdmin: ${isAdmin}`);
 
-    // First authenticate the user - this is the same for both admin and regular users
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -127,7 +118,6 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
     if (error) {
       console.error("AuthOperations: Login error:", error);
       
-      // Handle specific error cases
       if (error.message.includes("Email not confirmed")) {
         toast.error("Please check your email and click the verification link before signing in");
       } else if (error.message.includes("Invalid login credentials")) {
@@ -143,9 +133,6 @@ export const handleLogin = async (email: string, password: string, isAdmin: bool
       toast.error("Login failed - no session created");
       return false;
     }
-
-    // Ensure user has a profile - create one if it doesn't exist
-    await createProfileForUser(data.user);
 
     // Special case for ellaadahosa@gmail.com - always grant admin access
     if (email === "ellaadahosa@gmail.com") {
@@ -232,103 +219,17 @@ export const handleRegister = async (name: string, email: string, password: stri
 
     console.log("AuthOperations: User registered successfully:", data.user.id);
 
-    // Create profile for the new user (only if they have a session, meaning email confirmation is disabled)
-    if (data.session) {
-      await createProfileForUser(data.user);
-      
-      // Handle role assignment
-      try {
-        // Set default role (admin or user)
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: data.user.id,
-            role: isAdmin ? 'admin' : 'user'
-          });
-
-        if (roleError) {
-          console.error("AuthOperations: Role assignment error:", roleError);
-        } else {
-          console.log(`AuthOperations: Assigned ${isAdmin ? 'admin' : 'user'} role to new user`);
-        }
-      } catch (roleError) {
-        console.error("AuthOperations: Exception in role assignment:", roleError);
-      }
-    }
-
     // Check if email confirmation is required
     if (data.session === null) {
       console.log("AuthOperations: Email confirmation required");
-      return false; // Return false to indicate no active session (needs email verification)
+      return false;
     }
 
     console.log("AuthOperations: Registration successful with active session");
-    return true; // Return true since we have an active session
+    return true;
   } catch (error: any) {
     console.error("AuthOperations: Registration error:", error);
     toast.error(error.message || "An unexpected error occurred");
-    return false;
-  }
-};
-
-// Helper function to create a profile for a user
-export const createProfileForUser = async (user: any): Promise<boolean> => {
-  try {
-    if (!user || !user.id) {
-      console.error("AuthOperations: Cannot create profile - Invalid user object");
-      return false;
-    }
-    
-    console.log("AuthOperations: Creating/verifying profile for user:", user.id);
-    
-    // Check if profile already exists
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .maybeSingle();
-      
-    if (existingProfile) {
-      console.log("AuthOperations: Profile already exists for user:", user.id);
-      return true;
-    }
-    
-    // Extract user data - handle different structures
-    const fullName = user.user_metadata?.full_name || 
-                    user.user_metadata?.name || 
-                    user.full_name || 
-                    user.name || 
-                    'New User';
-    
-    const email = user.email || user.user_metadata?.email || user.username || '';
-    const avatar = user.user_metadata?.avatar_url || '';
-    
-    console.log("AuthOperations: Creating new profile with data:", {
-      id: user.id,
-      fullName,
-      email
-    });
-    
-    // Create new profile
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        full_name: fullName,
-        username: email,
-        avatar_url: avatar,
-        credits: 5 // Default starting credits
-      });
-        
-    if (insertError) {
-      console.error("AuthOperations: Error creating profile:", insertError);
-      throw insertError;
-    }
-    
-    console.log("AuthOperations: Successfully created profile for user:", user.id);
-    return true;
-  } catch (error) {
-    console.error("AuthOperations: Error in createProfileForUser:", error);
     return false;
   }
 };

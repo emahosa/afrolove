@@ -14,7 +14,8 @@ export const enhanceUserWithProfileData = async (user: any) => {
       
     if (fetchError) {
       console.error("Error fetching profile:", fetchError);
-      throw new Error("Failed to fetch user profile");
+      // Don't throw here, try to create profile instead
+      console.log("Profile fetch failed, attempting to create new profile");
     }
     
     if (existingProfile) {
@@ -49,7 +50,15 @@ export const enhanceUserWithProfileData = async (user: any) => {
       
     if (insertError) {
       console.error("Error creating profile:", insertError);
-      throw new Error("Failed to create user profile");
+      // Return user data without profile if creation fails
+      console.log("Profile creation failed, returning user without profile data");
+      return {
+        ...user,
+        name: user.user_metadata?.name || 'User',
+        avatar: user.user_metadata?.avatar_url || '',
+        credits: 0,
+        subscription: 'free' as const
+      };
     }
     
     console.log("Profile created successfully:", insertedProfile);
@@ -64,6 +73,13 @@ export const enhanceUserWithProfileData = async (user: any) => {
     
   } catch (error) {
     console.error("Error enhancing user with profile data:", error);
-    throw new Error("Failed to fetch user profile");
+    // Return basic user data if everything fails
+    return {
+      ...user,
+      name: user.user_metadata?.name || 'User',
+      avatar: user.user_metadata?.avatar_url || '',
+      credits: 0,
+      subscription: 'free' as const
+    };
   }
 };

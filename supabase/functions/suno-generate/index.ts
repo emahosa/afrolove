@@ -2,33 +2,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
-interface SunoGenerateRequest {
-  prompt: string
-  make_instrumental: boolean
-  wait_audio: boolean
-  model_version?: string
-  title?: string
-  tags?: string
-}
-
-interface SunoResponse {
-  id: string
-  title: string
-  status: string
-  audio_url?: string
-  video_url?: string
-  image_url?: string
-  lyric?: string
-  model_name?: string
-  gpt_description_prompt?: string
-  prompt?: string
-  type?: string
-  tags?: string
-  duration?: number
-  error_type?: string
-  error_message?: string
-}
-
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -67,7 +40,7 @@ Deno.serve(async (req) => {
     const requestBody = await req.json()
     console.log('Suno Generate: Request received for user:', user.id, 'Body:', requestBody)
 
-    const { prompt, type, genre_id, title } = requestBody
+    const { prompt, type, genre_id, title, instrumental, style } = requestBody
 
     if (!prompt) {
       return new Response(
@@ -76,7 +49,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check user credits
+    // Use admin client to check user credits (bypasses RLS)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
@@ -85,16 +58,47 @@ Deno.serve(async (req) => {
 
     if (profileError) {
       console.error('Error fetching user profile:', profileError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch user profile' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      
+      // Try to create profile if it doesn't exist
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: user.user_metadata?.name || 'User',
+          username: user.email || '',
+          avatar_url: user.user_metadata?.avatar_url || '',
+          credits: 5
+        })
+
+      if (createError) {
+        console.error('Error creating profile:', createError)
+        return new Response(
+          JSON.stringify({ error: 'Failed to access user profile' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Retry fetching after creation
+      const { data: newProfile, error: retryError } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single()
+
+      if (retryError || !newProfile) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch user profile after creation' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      profile = newProfile
     }
 
-    // Check if user has enough credits (assuming 1 credit per song)
-    if (profile.credits < 1) {
+    // Check if user has enough credits (5 credits per song)
+    if (profile.credits < 5) {
       return new Response(
-        JSON.stringify({ error: 'Insufficient credits' }),
+        JSON.stringify({ error: 'Insufficient credits. You need at least 5 credits to generate a song.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -110,23 +114,24 @@ Deno.serve(async (req) => {
     if (apiError || !apiConfig?.api_key_encrypted) {
       console.error('Suno API key not found:', apiError)
       return new Response(
-        JSON.stringify({ error: 'Suno API not configured' }),
+        JSON.stringify({ error: 'Suno API not configured. Please contact administrator.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Create song record first with pending status
+    const songTitle = title || `Generated ${style || 'Song'}`
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
-        title: title || 'Generated Song',
-        type: type || 'song',
+        title: songTitle,
+        type: instrumental ? 'instrumental' : 'song',
         user_id: user.id,
         genre_id: genre_id || null,
         prompt: prompt,
         status: 'pending',
         audio_url: 'task_pending:generating',
-        credits_used: 1
+        credits_used: 5
       })
       .select()
       .single()
@@ -144,7 +149,7 @@ Deno.serve(async (req) => {
     // Deduct credits
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: user.id,
-      p_amount: -1
+      p_amount: -5
     })
 
     if (creditError) {
@@ -153,13 +158,13 @@ Deno.serve(async (req) => {
     }
 
     // Prepare Suno API request
-    const sunoRequest: SunoGenerateRequest = {
+    const sunoRequest = {
       prompt: prompt,
-      make_instrumental: type === 'instrumental',
-      wait_audio: false, // Don't wait for audio, use callback
+      make_instrumental: instrumental || false,
+      wait_audio: false,
       model_version: 'chirp-v3-5',
-      title: title || 'Generated Song',
-      tags: type === 'instrumental' ? 'instrumental' : undefined
+      title: songTitle,
+      tags: style || (instrumental ? 'instrumental' : undefined)
     }
 
     // Call Suno API
@@ -187,7 +192,7 @@ Deno.serve(async (req) => {
           .eq('id', song.id)
         
         return new Response(
-          JSON.stringify({ error: 'Suno API request failed' }),
+          JSON.stringify({ error: 'Suno API request failed. Please try again later.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -214,7 +219,7 @@ Deno.serve(async (req) => {
             success: true, 
             song_id: song.id,
             task_id: taskId,
-            message: 'Song generation started'
+            message: 'Song generation started successfully'
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
