@@ -165,7 +165,7 @@ async function updateSongRecord(supabase: any, pendingSong: any, track: any) {
       .update({
         title: track.title || pendingSong.title,
         audio_url: track.audio_url,
-        status: 'completed',
+        status: 'approved',
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingSong.id)

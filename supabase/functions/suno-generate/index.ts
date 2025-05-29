@@ -26,19 +26,8 @@ serve(async (req) => {
   }
 
   try {
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
-    if (!sunoApiKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'SUNO_API_KEY not configured',
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      )
-    }
+    // Use the hardcoded API key directly
+    const sunoApiKey = "9f290dd97b2bbacfbb9eb199787aea31"
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
