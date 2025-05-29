@@ -662,6 +662,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      update_user_credits: {
+        Args: { p_user_id: string; p_amount: number }
+        Returns: number
+      }
     }
     Enums: {
       contest_status: "draft" | "active" | "voting" | "completed"

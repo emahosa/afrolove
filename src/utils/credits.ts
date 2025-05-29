@@ -6,8 +6,8 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
   try {
     console.log("Credits: Updating credits for user:", userId, "amount:", amount);
     
-    // Use the RPC function to update credits
-    const { data, error } = await supabase.rpc('update_user_credits', {
+    // Use the RPC function to update credits - cast to any to handle type mismatch
+    const { data, error } = await (supabase as any).rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: amount
     });
@@ -17,7 +17,9 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       throw new Error(`Failed to update credits: ${error.message}`);
     }
     
-    console.log("Credits: Successfully updated, new balance:", data);
+    // Ensure we return a number
+    const newBalance = typeof data === 'number' ? data : parseInt(data) || 0;
+    console.log("Credits: Successfully updated, new balance:", newBalance);
     
     if (amount > 0) {
       toast.success(`${amount} credits added to your account`);
@@ -25,7 +27,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
       toast.info(`${Math.abs(amount)} credits used`);
     }
     
-    return data;
+    return newBalance;
   } catch (error: any) {
     console.error("Credits: Error updating credits:", error);
     toast.error("Failed to update credits", {
