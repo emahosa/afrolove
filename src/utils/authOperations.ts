@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,53 +21,17 @@ export const initializeAdminAccount = async () => {
       return false;
     }
 
-    // If admin role exists, we're done
+    // If admin role exists, we're done - don't interfere with current session
     if (roleData) {
       console.log("AuthOperations: Admin account already exists:", roleData.user_id);
-      
-      // Check if ellaadahosa@gmail.com exists and has admin role
-      // First find the user by email in auth system
-      const { data: signInCheck } = await supabase.auth.signInWithPassword({
-        email: ADMIN_EMAIL,
-        password: ADMIN_PASSWORD,
-      }).catch(() => ({ data: null }));
-      
-      // If user exists, check for admin role
-      if (signInCheck?.user) {
-        console.log("AuthOperations: Found existing admin email account:", signInCheck.user.id);
-        
-        // Sign out immediately after checking
-        await supabase.auth.signOut();
-        
-        // Check if user has admin role
-        const { data: adminRoleCheck } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', signInCheck.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-          
-        if (!adminRoleCheck) {
-          // Add admin role to the user
-          const { error: insertRoleError } = await supabase
-            .from('user_roles')
-            .insert({
-              user_id: signInCheck.user.id,
-              role: 'admin'
-            });
-            
-          if (insertRoleError) {
-            console.error("AuthOperations: Error assigning admin role to existing user:", insertRoleError);
-          } else {
-            console.log("AuthOperations: Admin role assigned to ellaadahosa@gmail.com");
-          }
-        }
-      }
-      
       return true;
     }
     
     console.log("AuthOperations: No admin account found. Creating admin account...");
+    
+    // Check current session first - don't sign out if user is already signed in
+    const { data: currentSession } = await supabase.auth.getSession();
+    let wasSignedIn = !!currentSession.session;
     
     // Try to sign in with admin email to check if user exists
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -115,19 +78,9 @@ export const initializeAdminAccount = async () => {
       // User exists, use this ID
       userId = signInData.user.id;
       console.log("AuthOperations: Found existing admin user with ID:", userId);
-      
-      // Sign out after checking
-      await supabase.auth.signOut();
     }
     
     if (userId) {
-      // Create profile for admin user if it doesn't exist
-      await createProfileForUser({
-        id: userId,
-        full_name: DEFAULT_ADMIN_NAME,
-        email: ADMIN_EMAIL
-      });
-      
       // Assign admin role
       const { error: roleInsertError } = await supabase
         .from('user_roles')
@@ -142,10 +95,14 @@ export const initializeAdminAccount = async () => {
       }
       
       console.log("AuthOperations: Admin role assigned successfully to user:", userId);
-      return true;
     }
     
-    return false;
+    // Only sign out if we weren't signed in before, and we're not the admin user being created
+    if (!wasSignedIn || (currentSession.session?.user?.email !== ADMIN_EMAIL)) {
+      await supabase.auth.signOut();
+    }
+    
+    return true;
   } catch (error) {
     console.error("AuthOperations: Error in admin initialization:", error);
     return false;
