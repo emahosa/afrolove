@@ -217,9 +217,13 @@ serve(async (req) => {
     } else {
       console.log('=== GENERAL SONG GENERATION PATH ===')
       console.log('Creating pending song record for task:', taskId)
+      
+      // Make sure the audio_url is exactly in the format: task_pending:TASK_ID
+      const pendingAudioUrl = `task_pending:${taskId}`
+      
       const songData = {
         title: body.title || 'Generating...',
-        audio_url: `task_pending:${taskId}`,
+        audio_url: pendingAudioUrl,
         lyrics: body.prompt,
         type: body.instrumental ? 'instrumental' : 'song',
         user_id: body.userId,
@@ -229,6 +233,7 @@ serve(async (req) => {
       }
 
       console.log('Song data to insert:', songData)
+      console.log('CRITICAL: Pending audio URL format:', pendingAudioUrl)
 
       const { data: insertedSong, error: insertError } = await supabase
         .from('songs')
@@ -252,8 +257,9 @@ serve(async (req) => {
           }
         )
       } else {
-        console.log('Successfully created pending song record:', insertedSong.id, 'for task:', taskId)
-        console.log('Pending song stored with audio_url:', insertedSong.audio_url)
+        console.log('✅ Successfully created pending song record:', insertedSong.id, 'for task:', taskId)
+        console.log('✅ Pending song stored with audio_url:', insertedSong.audio_url)
+        console.log('✅ Callback will look for audio_url:', pendingAudioUrl)
       }
     }
 

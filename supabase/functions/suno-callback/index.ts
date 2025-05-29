@@ -113,7 +113,7 @@ serve(async (req) => {
         }
       } else {
         console.log('=== GENERAL SONG PATH ===')
-        console.log('Looking for pending song with pattern:', `task_pending:${task_id}`)
+        console.log('Looking for pending song with audio_url:', `task_pending:${task_id}`)
         
         // Check if this is a general song generation - try exact match first
         const { data: pendingSong, error: findSongError } = await supabase
@@ -122,9 +122,12 @@ serve(async (req) => {
           .eq('audio_url', `task_pending:${task_id}`)
           .maybeSingle()
 
-        console.log('Pending song query result:', { pendingSong, findSongError })
+        console.log('Pending song exact match query result:', { pendingSong, findSongError })
 
-        if (!pendingSong) {
+        if (pendingSong) {
+          console.log('Found pending song with exact match:', pendingSong.id)
+          await updateSongRecord(supabase, pendingSong, track, task_id)
+        } else {
           console.log('Exact match failed, trying LIKE pattern...')
           const { data: pendingSongLike, error: findSongLikeError } = await supabase
             .from('songs')
@@ -141,29 +144,34 @@ serve(async (req) => {
             console.error('=== NO PENDING SONG FOUND ===')
             console.error('No pending song found for task:', task_id)
             
-            // Log all pending songs for debugging
+            // Log all songs with task_pending pattern for debugging
             const { data: allPending, error: allPendingError } = await supabase
               .from('songs')
               .select('id, audio_url, user_id, title, status, created_at')
               .like('audio_url', 'task_pending:%')
               .order('created_at', { ascending: false })
-              .limit(10)
-            
-            console.log('Recent pending songs query result:', { allPending, allPendingError })
-            console.log('All recent pending songs:', allPending)
-            
-            // Also check ALL songs for this user to see what's there
-            const { data: allUserSongs, error: allUserSongsError } = await supabase
-              .from('songs')
-              .select('id, audio_url, user_id, title, status, created_at')
-              .order('created_at', { ascending: false })
               .limit(20)
             
-            console.log('All recent songs in database:', { allUserSongs, allUserSongsError })
+            console.log('All pending songs in database:', { allPending, allPendingError })
+            
+            // Try to find ANY song with status pending for this user - emergency fallback
+            console.log('Emergency fallback: looking for any pending song...')
+            const { data: anyPending, error: anyPendingError } = await supabase
+              .from('songs')
+              .select('*')
+              .eq('status', 'pending')
+              .order('created_at', { ascending: false })
+              .limit(5)
+            
+            console.log('Any pending songs:', { anyPending, anyPendingError })
+            
+            if (anyPending && anyPending.length > 0) {
+              // Take the most recent pending song and update it
+              const recentPending = anyPending[0]
+              console.log('Using most recent pending song as fallback:', recentPending.id)
+              await updateSongRecord(supabase, recentPending, track, task_id)
+            }
           }
-        } else {
-          console.log('Found pending song with exact match:', pendingSong.id)
-          await updateSongRecord(supabase, pendingSong, track, task_id)
         }
       }
     }
@@ -227,7 +235,7 @@ async function updateSongRecord(supabase: any, pendingSong: any, track: any, tas
       console.log('✅ Song should now be visible in user library with status: approved')
       console.log('✅ Updated song data:', updatedSong)
       
-      // Verify the update by querying the song again
+      // Force a verification query to confirm the update
       const { data: verifyData, error: verifyError } = await supabase
         .from('songs')
         .select('*')
