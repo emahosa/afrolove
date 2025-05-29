@@ -34,18 +34,23 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const body: SunoGenerateRequest = await req.json()
-    console.log('Suno generate request:', { ...body, userId: body.userId })
+    console.log('=== SUNO GENERATE START ===')
+    console.log('Request body:', { ...body, userId: body.userId })
 
     let userProfile = null;
 
     // Skip credit validation for admin test generations
     if (!body.isAdminTest) {
+      console.log('Checking user profile and credits for user:', body.userId)
+      
       // Validate user has sufficient credits
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('credits')
         .eq('id', body.userId)
         .single()
+
+      console.log('Profile query result:', { profile, profileError })
 
       if (profileError) {
         console.error('Profile error:', profileError)
@@ -63,6 +68,8 @@ serve(async (req) => {
             })
             .select()
             .single()
+
+          console.log('Profile creation result:', { newProfile, createError })
 
           if (createError) {
             console.error('Error creating profile:', createError)
@@ -94,6 +101,8 @@ serve(async (req) => {
         userProfile = profile
       }
 
+      console.log('User profile credits:', userProfile.credits)
+
       if (userProfile.credits < 5) { // Assuming 5 credits per generation
         return new Response(
           JSON.stringify({ 
@@ -108,38 +117,9 @@ serve(async (req) => {
       }
     }
 
-    // Validate prompt length based on mode and model
-    const maxLength = body.model === 'V4_5' ? 5000 : 3000
-    const promptModeMaxLength = 400
-
-    if (!body.customMode && body.prompt.length > promptModeMaxLength) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Prompt mode is limited to ${promptModeMaxLength} characters`,
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      )
-    }
-
-    if (body.customMode && body.prompt.length > maxLength) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Lyric input mode for ${body.model} is limited to ${maxLength} characters`,
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      )
-    }
-
     // Prepare callback URL
     const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+    console.log('Callback URL:', callbackUrl)
 
     // Prepare Suno API request
     const sunoPayload = {
@@ -153,7 +133,7 @@ serve(async (req) => {
       ...(body.negativeTags && { negativeTags: body.negativeTags })
     }
 
-    console.log('Sending request to Suno API:', { ...sunoPayload, callBackUrl: callbackUrl })
+    console.log('Sending request to Suno API with payload:', sunoPayload)
 
     // Call Suno API
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -167,8 +147,11 @@ serve(async (req) => {
 
     const sunoData = await sunoResponse.json()
     console.log('Suno API response:', sunoData)
+    console.log('Suno response status:', sunoResponse.status)
 
     if (!sunoResponse.ok || sunoData.code !== 200) {
+      console.error('Suno API error - Status:', sunoResponse.status, 'Data:', sunoData)
+      
       // Handle specific Suno API errors
       if (sunoData.code === 429) {
         return new Response(
@@ -197,6 +180,7 @@ serve(async (req) => {
 
     const taskId = sunoData.data?.task_id || sunoData.data?.taskId
     if (!taskId) {
+      console.error('No task ID received from Suno API')
       return new Response(
         JSON.stringify({ 
           error: 'No task ID received from Suno API',
@@ -213,7 +197,7 @@ serve(async (req) => {
 
     // Store generation task in database for callback linking
     if (body.requestId) {
-      // This is for a custom song request
+      console.log('=== CUSTOM SONG REQUEST PATH ===')
       console.log('Creating custom song audio record for request:', body.requestId)
       const { error: insertError } = await supabase
         .from('custom_song_audio')
@@ -231,7 +215,7 @@ serve(async (req) => {
         console.log('Successfully created custom song audio record for task:', taskId)
       }
     } else {
-      // This is a general Suno generation - create a pending song record
+      console.log('=== GENERAL SONG GENERATION PATH ===')
       console.log('Creating pending song record for task:', taskId)
       const songData = {
         title: body.title || 'Generating...',
@@ -244,13 +228,15 @@ serve(async (req) => {
         prompt: body.prompt
       }
 
-      console.log('Inserting song with data:', songData)
+      console.log('Song data to insert:', songData)
 
       const { data: insertedSong, error: insertError } = await supabase
         .from('songs')
         .insert(songData)
         .select()
         .single()
+
+      console.log('Song insertion result:', { insertedSong, insertError })
 
       if (insertError) {
         console.error('Error storing pending song:', insertError)
@@ -267,11 +253,14 @@ serve(async (req) => {
         )
       } else {
         console.log('Successfully created pending song record:', insertedSong.id, 'for task:', taskId)
+        console.log('Pending song stored with audio_url:', insertedSong.audio_url)
       }
     }
 
     // Only deduct credits for non-admin test generations
     if (!body.isAdminTest && userProfile) {
+      console.log('Deducting credits from user:', body.userId, 'Current credits:', userProfile.credits)
+      
       // Deduct credits from user
       const { error: creditError } = await supabase
         .from('profiles')
@@ -286,7 +275,7 @@ serve(async (req) => {
       }
 
       // Log credit transaction
-      await supabase
+      const { error: transactionError } = await supabase
         .from('credit_transactions')
         .insert({
           user_id: body.userId,
@@ -294,7 +283,14 @@ serve(async (req) => {
           transaction_type: 'debit',
           description: `Song generation: ${body.title || 'Untitled'}`
         })
+      
+      if (transactionError) {
+        console.error('Error logging credit transaction:', transactionError)
+      }
     }
+
+    console.log('=== SUNO GENERATE SUCCESS ===')
+    console.log('Returning success response with task_id:', taskId)
 
     return new Response(
       JSON.stringify({
@@ -309,6 +305,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
+    console.error('=== SUNO GENERATE ERROR ===')
     console.error('Error in suno-generate:', error)
     return new Response(
       JSON.stringify({ 
