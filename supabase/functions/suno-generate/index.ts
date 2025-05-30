@@ -174,7 +174,8 @@ Deno.serve(async (req) => {
       tags: style
     }
 
-    console.log('Suno request payload:', sunoRequest)
+    console.log('Suno request payload:', JSON.stringify(sunoRequest, null, 2))
+    console.log('API key being used (first 10 chars):', sunoApiKey.substring(0, 10))
 
     const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
       method: 'POST',
@@ -185,43 +186,66 @@ Deno.serve(async (req) => {
       body: JSON.stringify(sunoRequest)
     })
 
-    console.log('Suno response status:', sunoResponse.status)
-    const responseText = await sunoResponse.text()
-    console.log('Suno response text:', responseText)
+    console.log('=== SUNO API RESPONSE DEBUG ===')
+    console.log('Response status:', sunoResponse.status)
+    console.log('Response headers:', Object.fromEntries(sunoResponse.headers.entries()))
     
-    if (!sunoResponse.ok) {
-      console.error('Suno API failed:', sunoResponse.status, responseText)
+    const responseText = await sunoResponse.text()
+    console.log('Raw response text:', responseText)
+    
+    // Try to parse as JSON
+    let sunoData
+    try {
+      sunoData = JSON.parse(responseText)
+      console.log('Parsed response data:', JSON.stringify(sunoData, null, 2))
+    } catch (parseError) {
+      console.error('Failed to parse response as JSON:', parseError)
+      console.error('Response was not valid JSON. Raw text:', responseText)
       
-      // Update song with error
       await supabase
         .from('songs')
         .update({ 
           status: 'rejected',
-          audio_url: `error: ${responseText}`
+          audio_url: `parse_error: ${responseText}`
         })
         .eq('id', song.id)
       
       return new Response(
         JSON.stringify({ 
-          error: `Suno API failed: ${responseText}` 
+          error: 'Invalid response from Suno API',
+          details: responseText,
+          status: sunoResponse.status
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    if (!sunoResponse.ok) {
+      console.error('=== SUNO API ERROR ===')
+      console.error('Status:', sunoResponse.status)
+      console.error('Error data:', sunoData)
+      
+      // Update song with detailed error
+      await supabase
+        .from('songs')
+        .update({ 
+          status: 'rejected',
+          audio_url: `error_${sunoResponse.status}: ${JSON.stringify(sunoData)}`
+        })
+        .eq('id', song.id)
+      
+      // Return detailed error information
+      return new Response(
+        JSON.stringify({ 
+          error: `Suno API Error (${sunoResponse.status})`,
+          details: sunoData,
+          message: sunoData?.msg || sunoData?.message || 'Unknown error'
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    let sunoData
-    try {
-      sunoData = JSON.parse(responseText)
-      console.log('Suno API response data:', sunoData)
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError)
-      return new Response(
-        JSON.stringify({ error: 'Invalid API response format' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Handle response
+    // Handle successful response
     if (sunoData.data && sunoData.data.length > 0) {
       const taskId = sunoData.data[0].id || sunoData.data[0].task_id
       
@@ -249,21 +273,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If we get here, something went wrong
-    console.error('No task ID in response:', sunoData)
+    // If we get here, something went wrong with the response structure
+    console.error('Unexpected response structure:', sunoData)
+    await supabase
+      .from('songs')
+      .update({ 
+        status: 'rejected',
+        audio_url: `unexpected_response: ${JSON.stringify(sunoData)}`
+      })
+      .eq('id', song.id)
+      
     return new Response(
-      JSON.stringify({ error: 'No task ID received from Suno' }),
+      JSON.stringify({ 
+        error: 'Unexpected response structure from Suno',
+        details: sunoData
+      }),
       { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
-    console.error('Unexpected error:', error)
-    console.error('Stack:', error.stack)
+    console.error('=== UNEXPECTED ERROR ===')
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
+    console.error('Error details:', error)
     
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        details: error.message 
+        details: error.message,
+        type: error.name
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
