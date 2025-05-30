@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
     if (!sunoApiKey) {
+      console.error('SUNO_API_KEY not configured')
       return new Response(JSON.stringify({ error: 'SUNO_API_KEY not configured' }), {
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -38,6 +39,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
+      console.error('Auth error:', authError)
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -84,6 +86,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (songError) {
+      console.error('Song creation error:', songError)
       return new Response(JSON.stringify({ error: 'Failed to create song' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -96,12 +99,12 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno request - FIXED: Always include customMode
+    // Prepare Suno request with correct callback URL
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
-      customMode: customMode || false,  // FIXED: Always include this field
+      customMode: customMode || false,
       callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
     }
 
@@ -113,7 +116,7 @@ Deno.serve(async (req) => {
       sunoRequest.title = title.trim()
     }
 
-    console.log('Suno request:', JSON.stringify(sunoRequest, null, 2))
+    console.log('Sending to Suno API:', JSON.stringify(sunoRequest, null, 2))
 
     // Call Suno API
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -126,9 +129,14 @@ Deno.serve(async (req) => {
     })
 
     const responseText = await sunoResponse.text()
-    console.log('Suno response:', responseText)
+    console.log('Suno API response status:', sunoResponse.status)
+    console.log('Suno API response:', responseText)
 
     if (!sunoResponse.ok) {
+      console.error('Suno API error - Status:', sunoResponse.status)
+      console.error('Suno API error - Response:', responseText)
+      
+      // Update song status to rejected
       await supabase
         .from('songs')
         .update({ 
@@ -137,7 +145,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', song.id)
         
-      return new Response(JSON.stringify({ error: 'Suno API error' }), {
+      return new Response(JSON.stringify({ error: `Suno API error: ${responseText}` }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -147,6 +155,7 @@ Deno.serve(async (req) => {
     const taskId = sunoData.data?.taskId || sunoData.taskId
 
     if (!taskId) {
+      console.error('No task ID received from Suno')
       await supabase
         .from('songs')
         .update({ 
@@ -170,7 +179,7 @@ Deno.serve(async (req) => {
       })
       .eq('id', song.id)
 
-    console.log('Song generation started with task:', taskId)
+    console.log('✅ Song generation started with task:', taskId)
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -182,7 +191,7 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Generation error:', error)
+    console.error('❌ Generation error:', error)
     return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

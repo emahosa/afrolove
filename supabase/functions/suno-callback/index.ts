@@ -18,17 +18,27 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const body = await req.json()
     
-    console.log('Suno Callback: Received data:', JSON.stringify(body, null, 2))
+    console.log('Suno Callback: Full payload received:', JSON.stringify(body, null, 2))
 
-    // Extract task ID from various possible locations
-    let taskId = body.task_id || body.taskId || body.data?.task_id || body.data?.taskId
-    
+    // Handle the nested structure from your example: body.data.data[0]
+    const payload = body?.data?.data?.[0]
+    const taskId = body?.data?.task_id
+
+    console.log('Extracted payload:', JSON.stringify(payload, null, 2))
     console.log('Extracted task ID:', taskId)
 
     if (!taskId) {
       console.error('No task_id in callback')
       return new Response(JSON.stringify({ error: 'task_id required' }), {
         status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (!payload || !payload.audio_url) {
+      console.error('Invalid callback payload - no audio data')
+      return new Response(JSON.stringify({ error: 'Invalid Suno callback format' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -58,29 +68,24 @@ Deno.serve(async (req) => {
     const song = songs[0]
     console.log(`Processing song: ${song.id}`)
 
-    // Extract audio URL from callback
-    let audioUrl = body.audio_url || body.data?.audio_url
-    
-    // Handle nested data structure
-    if (body.data?.data && Array.isArray(body.data.data) && body.data.data.length > 0) {
-      audioUrl = body.data.data[0].audio_url
-    }
-
-    console.log('Extracted audio URL:', audioUrl)
-
-    let updateData = {
+    // Extract data from the payload
+    const updateData = {
+      status: 'completed',
+      audio_url: payload.audio_url,
+      lyrics: payload.prompt || song.lyrics,
       updated_at: new Date().toISOString()
     }
 
-    if (audioUrl && audioUrl !== 'null') {
-      updateData.status = 'completed'
-      updateData.audio_url = audioUrl
-      console.log('Song completed successfully')
-    } else {
-      updateData.status = 'rejected'
-      updateData.audio_url = 'error: No audio URL received'
-      console.log('Song failed - no audio URL')
+    // Add optional fields if they exist
+    if (payload.stream_audio_url) {
+      updateData.instrumental_url = payload.stream_audio_url
     }
+    if (payload.image_url) {
+      // You might want to add an image_url column to songs table
+      console.log('Image URL available:', payload.image_url)
+    }
+
+    console.log('Updating song with data:', updateData)
 
     // Update song record
     const { error: updateError } = await supabase
@@ -96,19 +101,19 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log(`Song ${song.id} updated:`, updateData)
+    console.log(`✅ Song ${song.id} updated successfully`)
 
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
-      status: updateData.status
+      status: 'completed'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error('Callback error:', error)
+    console.error('❌ Callback error:', error)
     return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
