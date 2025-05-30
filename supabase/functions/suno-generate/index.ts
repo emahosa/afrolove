@@ -16,19 +16,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get Suno API key from environment and trim any whitespace/newlines
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY')?.trim()
+    // Get all environment variables to debug
+    const allEnvVars = Deno.env.toObject()
+    console.log('All environment variable names:', Object.keys(allEnvVars))
+    
+    // Try multiple possible names for the API key
+    let sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    if (!sunoApiKey) {
+      sunoApiKey = Deno.env.get('SUNO_AI_API_KEY')
+    }
+    if (!sunoApiKey) {
+      sunoApiKey = Deno.env.get('SUNOAI_API_KEY')
+    }
+    
     console.log('Checking for SUNO_API_KEY...')
+    console.log('SUNO_API_KEY exists:', !!sunoApiKey)
     
     if (!sunoApiKey) {
       console.error('SUNO_API_KEY not found in environment variables')
+      console.error('Available secrets:', Object.keys(allEnvVars).filter(key => 
+        key.includes('SUNO') || key.includes('API')
+      ))
       return new Response(
-        JSON.stringify({ error: 'Suno API key not configured' }),
+        JSON.stringify({ error: 'Suno API key not configured in secrets' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Suno API key found, length after trim:', sunoApiKey.length)
+    // Clean the API key
+    sunoApiKey = sunoApiKey.trim()
+    console.log('API key length after trim:', sunoApiKey.length)
+    console.log('API key starts with:', sunoApiKey.substring(0, 10))
 
     // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -159,8 +177,34 @@ Deno.serve(async (req) => {
       console.error('Credit deduction error:', creditError)
     }
 
-    // Call Suno API
-    console.log('Calling Suno API...')
+    // Test API key first with a simple request
+    console.log('Testing Suno API key...')
+    const testResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': sunoApiKey
+      },
+      body: JSON.stringify({
+        prompt: "test",
+        make_instrumental: true,
+        wait_audio: false,
+        model_version: 'chirp-v3-5'
+      })
+    })
+
+    console.log('API test response status:', testResponse.status)
+    
+    if (testResponse.status === 401 || testResponse.status === 403) {
+      console.error('Invalid API key')
+      return new Response(
+        JSON.stringify({ error: 'Invalid Suno API key' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Now make the actual request
+    console.log('Making actual Suno API request...')
     const sunoRequest = {
       prompt: prompt,
       make_instrumental: instrumental || false,
@@ -182,30 +226,40 @@ Deno.serve(async (req) => {
     })
 
     console.log('Suno response status:', sunoResponse.status)
+    const responseText = await sunoResponse.text()
+    console.log('Suno response text:', responseText)
     
     if (!sunoResponse.ok) {
-      const errorText = await sunoResponse.text()
-      console.error('Suno API failed:', sunoResponse.status, errorText)
+      console.error('Suno API failed:', sunoResponse.status, responseText)
       
       // Update song with error
       await supabase
         .from('songs')
         .update({ 
           status: 'rejected',
-          audio_url: `error: ${errorText}`
+          audio_url: `error: ${responseText}`
         })
         .eq('id', song.id)
       
       return new Response(
         JSON.stringify({ 
-          error: `Suno API failed: ${errorText}` 
+          error: `Suno API failed: ${responseText}` 
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const sunoData = await sunoResponse.json()
-    console.log('Suno API response:', sunoData)
+    let sunoData
+    try {
+      sunoData = JSON.parse(responseText)
+      console.log('Suno API response data:', sunoData)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid API response format' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Handle response
     if (sunoData.data && sunoData.data.length > 0) {
