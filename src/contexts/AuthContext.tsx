@@ -233,6 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         setupUserProfile(session.user);
       } else {
+        console.log('AuthContext: No session, setting loading to false');
         setLoading(false);
       }
     });
