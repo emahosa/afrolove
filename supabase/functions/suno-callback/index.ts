@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -7,11 +6,13 @@ const corsHeaders = {
 }
 
 interface SunoCallbackData {
-  code: number;
+  code?: number;
+  msg?: string;
   data?: {
-    callbackType: string;
-    task_id: string;
-    data: Array<{
+    callbackType?: string;
+    task_id?: string;
+    taskId?: string;
+    data?: Array<{
       audio_url?: string;
       stream_audio_url?: string;
       image_url?: string;
@@ -20,9 +21,10 @@ interface SunoCallbackData {
       duration?: number;
       model_name?: string;
       lyric?: string;
+      id?: string;
     }>;
   };
-  // Legacy format support
+  // Direct format support
   task_id?: string;
   taskId?: string;
   status?: string;
@@ -32,6 +34,18 @@ interface SunoCallbackData {
   title?: string;
   tags?: string;
   duration?: number;
+  // Array format for multiple songs
+  songs?: Array<{
+    audio_url?: string;
+    stream_audio_url?: string;
+    image_url?: string;
+    prompt?: string;
+    title?: string;
+    duration?: number;
+    model_name?: string;
+    lyric?: string;
+    id?: string;
+  }>;
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -49,7 +63,7 @@ Deno.serve(async (req) => {
     console.log('Suno Callback: Received webhook data:', JSON.stringify(body, null, 2))
 
     let taskId: string | undefined
-    let status: string
+    let status: string = 'completed'
     let audioUrl: string | undefined
     let videoUrl: string | undefined
     let lyrics: string | undefined
@@ -58,43 +72,58 @@ Deno.serve(async (req) => {
     let imageUrl: string | undefined
     let modelName: string | undefined
 
-    // Handle new callback format - prioritize this format
-    if (body.data && body.data.callbackType === 'complete') {
-      taskId = body.data.task_id
-      status = 'completed'
-      
-      const songData = body.data.data[0] // Get first song data
-      if (songData) {
-        audioUrl = songData.audio_url || songData.stream_audio_url
-        imageUrl = songData.image_url
-        title = songData.title
-        duration = songData.duration
-        modelName = songData.model_name
-        lyrics = songData.lyric
-      }
+    // Try multiple extraction methods for task ID
+    taskId = body.data?.task_id || 
+              body.data?.taskId || 
+              body.task_id || 
+              body.taskId
+
+    console.log('Extracted task ID:', taskId)
+
+    // Handle nested data structure
+    if (body.data?.data && Array.isArray(body.data.data) && body.data.data.length > 0) {
+      const songData = body.data.data[0]
+      audioUrl = songData.audio_url || songData.stream_audio_url
+      imageUrl = songData.image_url
+      title = songData.title
+      duration = songData.duration
+      modelName = songData.model_name
+      lyrics = songData.lyric
+      console.log('Used nested data structure for song data')
     }
-    // Handle direct task completion format
-    else if (body.taskId || body.task_id) {
-      taskId = body.taskId || body.task_id
-      status = body.status || 'completed'
-      audioUrl = body.audio_url
-      videoUrl = body.video_url
-      lyrics = body.lyric
-      title = body.title
-      duration = body.duration
+    // Handle songs array format
+    else if (body.songs && Array.isArray(body.songs) && body.songs.length > 0) {
+      const songData = body.songs[0]
+      audioUrl = songData.audio_url || songData.stream_audio_url
+      imageUrl = songData.image_url
+      title = songData.title
+      duration = songData.duration
+      modelName = songData.model_name
+      lyrics = songData.lyric
+      console.log('Used songs array for song data')
     }
-    // Handle legacy callback format
+    // Handle direct properties
     else {
-      taskId = body.task_id
-      status = body.status || 'unknown'
       audioUrl = body.audio_url
       videoUrl = body.video_url
       lyrics = body.lyric
       title = body.title
       duration = body.duration
+      status = body.status || 'completed'
+      console.log('Used direct properties for song data')
     }
 
-    console.log(`Processing callback for task: ${taskId}, status: ${status}, audioUrl: ${audioUrl}`)
+    console.log('Extracted data:', {
+      taskId,
+      status,
+      audioUrl,
+      videoUrl,
+      lyrics,
+      title,
+      duration,
+      imageUrl,
+      modelName
+    })
 
     if (!taskId) {
       console.error('No task_id provided in webhook')
@@ -104,7 +133,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Find the song with this task ID
+    // Find the song with this task ID in the audio_url field
     const { data: songs, error: findError } = await supabase
       .from('songs')
       .select('*')
@@ -113,33 +142,47 @@ Deno.serve(async (req) => {
     if (findError) {
       console.error('Error finding song:', findError)
       return new Response(
-        JSON.stringify({ error: 'Database error' }),
+        JSON.stringify({ error: 'Database error finding song' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     if (!songs || songs.length === 0) {
       console.log(`No song found with task ID: ${taskId}`)
-      return new Response(
-        JSON.stringify({ message: 'Song not found, might already be processed' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      
+      // Also try to find by any audio_url containing the task ID
+      const { data: altSongs, error: altFindError } = await supabase
+        .from('songs')
+        .select('*')
+        .like('audio_url', `%${taskId}%`)
+
+      if (altFindError) {
+        console.error('Error in alternative song search:', altFindError)
+      } else if (altSongs && altSongs.length > 0) {
+        console.log(`Found song with alternative search: ${altSongs[0].id}`)
+        // Continue with this song
+        songs.push(...altSongs)
+      } else {
+        return new Response(
+          JSON.stringify({ message: 'Song not found, might already be processed' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     const song = songs[0]
-    console.log(`Found song: ${song.id} for task: ${taskId}`)
+    console.log(`Processing song: ${song.id} for task: ${taskId}`)
 
-    // Prepare update data based on status
-    let updateData: any = {}
+    // Prepare update data
+    let updateData: any = {
+      updated_at: new Date().toISOString()
+    }
 
-    if ((status === 'completed' || status === 'SUCCESS' || status === 'complete') && audioUrl) {
-      // Song generation completed successfully
-      updateData = {
-        status: 'completed',
-        audio_url: audioUrl,
-        updated_at: new Date().toISOString()
-      }
-
+    // Check if we have an audio URL (successful completion)
+    if (audioUrl && audioUrl !== 'null' && audioUrl.trim() !== '') {
+      updateData.status = 'completed'
+      updateData.audio_url = audioUrl
+      
       // Add optional fields if available
       if (videoUrl) updateData.video_url = videoUrl
       if (imageUrl) updateData.image_url = imageUrl
@@ -149,50 +192,23 @@ Deno.serve(async (req) => {
       if (modelName) updateData.model_name = modelName
 
       console.log('Song completed successfully, updating with audio URL:', audioUrl)
-
-    } else if (status === 'failed' || status === 'error' || status === 'FAIL') {
-      // Song generation failed
-      updateData = {
-        status: 'rejected',
-        audio_url: `error: Generation failed - ${status}`,
-        updated_at: new Date().toISOString()
-      }
-
+    }
+    // Check for explicit failure status
+    else if (status && ['failed', 'error', 'FAIL', 'ERROR'].includes(status.toUpperCase())) {
+      updateData.status = 'rejected'
+      updateData.audio_url = `error: Generation failed - ${status}`
       console.log('Song generation failed, marking as rejected')
-
-    } else if (status === 'processing' || status === 'queued' || status === 'PENDING' || status === 'TEXT_SUCCESS' || status === 'FIRST_SUCCESS') {
-      // Still processing, just update timestamp
-      updateData = {
-        updated_at: new Date().toISOString()
-      }
-
-      console.log('Song still processing, updating timestamp')
-
-    } else {
-      console.log(`Unknown status: ${status}, will try to handle as completion if audio URL exists`)
-      
-      // If we have an audio URL, treat as completion regardless of status
-      if (audioUrl) {
-        updateData = {
-          status: 'completed',
-          audio_url: audioUrl,
-          updated_at: new Date().toISOString()
-        }
-        
-        if (videoUrl) updateData.video_url = videoUrl
-        if (imageUrl) updateData.image_url = imageUrl
-        if (title && title !== song.title) updateData.title = title
-        if (duration) updateData.duration = duration
-        if (lyrics) updateData.lyrics = lyrics
-        if (modelName) updateData.model_name = modelName
-        
-        console.log('Treating as completion due to audio URL presence')
-      } else {
-        return new Response(
-          JSON.stringify({ message: 'Status not handled and no audio URL' }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
+    }
+    // Check for processing status
+    else if (status && ['processing', 'queued', 'PENDING', 'TEXT_SUCCESS', 'FIRST_SUCCESS'].includes(status.toUpperCase())) {
+      // Just update timestamp, keep current status
+      console.log('Song still processing, updating timestamp only')
+    }
+    // No audio URL and unclear status
+    else {
+      console.log('No clear completion status, marking as failed due to missing audio')
+      updateData.status = 'rejected'
+      updateData.audio_url = 'error: No audio URL received from Suno API'
     }
 
     // Update the song record
@@ -209,7 +225,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Song ${song.id} updated successfully with status: ${updateData.status}`)
+    console.log(`Song ${song.id} updated successfully:`, updateData)
 
     // If song completed, log success
     if (updateData.status === 'completed') {
@@ -220,7 +236,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Song updated successfully',
+        message: 'Callback processed successfully',
         song_id: song.id,
         status: updateData.status,
         audio_url: updateData.audio_url
@@ -230,8 +246,14 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in suno-callback:', error)
+    console.error('Error details:', error.message)
+    console.error('Error stack:', error.stack)
+    
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

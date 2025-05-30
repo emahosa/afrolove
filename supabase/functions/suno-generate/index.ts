@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -166,7 +165,7 @@ Deno.serve(async (req) => {
       model: model || 'V4_5'
     }
 
-    // Set the callback URL to our Supabase edge function
+    // Use the full callback URL with proper domain
     sunoRequest.callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
     console.log('🔗 Callback URL set to:', sunoRequest.callBackUrl)
 
@@ -257,14 +256,6 @@ Deno.serve(async (req) => {
       console.error('❌ Suno API returned error status:', sunoResponse.status)
       console.error('❌ Suno API error response:', JSON.stringify(sunoData, null, 2))
       
-      // Log specific error details
-      if (sunoData.msg) {
-        console.error('❌ Suno API error message:', sunoData.msg)
-      }
-      if (sunoData.code) {
-        console.error('❌ Suno API error code:', sunoData.code)
-      }
-      
       await supabase
         .from('songs')
         .update({ 
@@ -284,11 +275,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Handle successful response - Fix task ID extraction to handle actual API response format
+    // Extract task ID from response
     const taskId = sunoData.data?.taskId || sunoData.data?.task_id || sunoData.task_id || sunoData.data?.id || sunoData.id
     console.log('🎯 Extracted task ID:', taskId)
     
     if (taskId) {
+      // Update song with task ID for callback identification
       await supabase
         .from('songs')
         .update({ 
