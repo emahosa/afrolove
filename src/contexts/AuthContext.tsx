@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -213,14 +212,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log('AuthContext: Initializing auth state');
-    let mounted = true;
     
-    // Listen for auth changes first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthContext: Auth state change:', event, session ? 'session exists' : 'no session');
-        
-        if (!mounted) return;
         
         setSession(session);
         
@@ -231,22 +226,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserRoles([]);
         }
         
-        if (mounted) {
-          setLoading(false);
-        }
+        // Always set loading to false after processing
+        setLoading(false);
       }
     );
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
       console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
       setSession(session);
       
       if (session?.user) {
         setupUserProfile(session.user).finally(() => {
-          if (mounted) setLoading(false);
+          setLoading(false);
         });
       } else {
         console.log('AuthContext: No initial session, setting loading to false');
@@ -255,7 +247,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => {
-      mounted = false;
       console.log('AuthContext: Cleaning up auth listener');
       subscription.unsubscribe();
     };
