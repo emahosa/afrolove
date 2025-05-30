@@ -159,17 +159,16 @@ Deno.serve(async (req) => {
 
     console.log('💳 Credits deducted, new balance:', userCredits - 5)
 
-    // Prepare Suno API request - Fix the payload structure
+    // Prepare Suno API request with proper callback URL
     const sunoRequest: any = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5'
     }
 
-    // Only add callBackUrl if we have a valid Supabase URL
-    if (supabaseUrl) {
-      sunoRequest.callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
-    }
+    // Set the callback URL to our Supabase edge function
+    sunoRequest.callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+    console.log('🔗 Callback URL set to:', sunoRequest.callBackUrl)
 
     if (customMode) {
       if (style?.trim()) {
@@ -299,6 +298,7 @@ Deno.serve(async (req) => {
         .eq('id', song.id)
 
       console.log('✅ Song generation started successfully with task ID:', taskId)
+      console.log('🔗 Callback will be received at:', sunoRequest.callBackUrl)
 
       return new Response(
         JSON.stringify({ 
