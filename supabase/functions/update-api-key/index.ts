@@ -12,112 +12,66 @@ serve(async (req) => {
   }
 
   try {
-    const { keyName, newValue } = await req.json()
-
-    if (!keyName || !newValue) {
-      return new Response(
-        JSON.stringify({ error: 'Missing keyName or newValue' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    // Only allow updating the SUNO_API_KEY for security
-    if (keyName !== 'SUNO_API_KEY') {
-      return new Response(
-        JSON.stringify({ error: 'Only SUNO_API_KEY updates are allowed' }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
-    }
-
-    console.log(`Validating new API key for ${keyName}`)
-
+    // Use the provided API key
+    const newApiKey = "7fc761e1476332e37664a3ef9be8b50c"
+    
+    console.log('Testing Suno API key...')
+    
     // Test the new API key by making a test call
-    try {
-      const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${newValue}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: 'test',
-          style: 'Pop',
-          title: 'API Key Test',
-          instrumental: true,
-          customMode: false,
-          model: 'V3_5',
-          callBackUrl: 'https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback'
-        })
+    const testResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${newApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: 'test',
+        style: 'Pop',
+        title: 'API Key Test',
+        instrumental: true,
+        customMode: false,
+        model: 'V3_5'
       })
+    })
 
-      const testData = await testResponse.json()
-      console.log('API key validation response:', testData)
-      
-      if (testData.code === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'New API key has insufficient credits',
-            success: false
-          }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      } else if (testData.code !== 200) {
-        return new Response(
-          JSON.stringify({ 
-            error: `New API key validation failed: ${testData.msg || 'Invalid key'}`,
-            success: false
-          }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      }
-
-      // Key is valid and has credits - return the validated key for manual update
+    const testData = await testResponse.json()
+    console.log('API key test response:', testData)
+    
+    if (testResponse.ok || testData.code === 200) {
       return new Response(
         JSON.stringify({ 
-          success: true, 
-          message: 'API key validated successfully',
-          validatedKey: newValue,
-          instructions: 'Please update the SUNO_API_KEY secret in your Supabase dashboard under Settings > Edge Functions > Secrets with this validated key'
+          success: true,
+          message: 'API key is valid and ready to use',
+          key: newApiKey
         }),
         { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
         }
       )
-
-    } catch (testError) {
-      console.error('Error testing new API key:', testError)
+    } else {
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to validate new API key',
+          error: `API key validation failed: ${testData.msg || 'Invalid response'}`,
           success: false
         }),
         { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
         }
       )
     }
 
   } catch (error) {
-    console.error('Error updating API key:', error)
+    console.error('Error testing API key:', error)
     return new Response(
-      JSON.stringify({ error: 'Failed to update API key' }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to test API key',
+        success: false
+      }),
       { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
       }
     )
   }
