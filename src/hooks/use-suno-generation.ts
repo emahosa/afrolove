@@ -30,6 +30,7 @@ export const useSunoGeneration = () => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<SunoGenerationStatus | null>(null);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
     if (!user) {
@@ -79,6 +80,29 @@ export const useSunoGeneration = () => {
     }
   };
 
+  const generateLyrics = async (prompt: string): Promise<string | null> => {
+    if (!user) {
+      toast.error('You must be logged in to generate lyrics');
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('suno-lyrics', {
+        body: { prompt }
+      });
+
+      if (error) {
+        console.error('Lyrics generation error:', error);
+        return null;
+      }
+
+      return data?.lyrics || null;
+    } catch (error) {
+      console.error('Error generating lyrics:', error);
+      return null;
+    }
+  };
+
   const checkStatus = async (taskId: string): Promise<SunoGenerationStatus | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('suno-status', {
@@ -90,7 +114,9 @@ export const useSunoGeneration = () => {
         return null;
       }
 
-      return data?.data || null;
+      const status = data?.data || null;
+      setGenerationStatus(status);
+      return status;
     } catch (error) {
       console.error('Error checking status:', error);
       return null;
@@ -100,13 +126,16 @@ export const useSunoGeneration = () => {
   const resetGeneration = () => {
     setIsGenerating(false);
     setCurrentTaskId(null);
+    setGenerationStatus(null);
   };
 
   return {
     generateSong,
+    generateLyrics,
     checkStatus,
     resetGeneration,
     isGenerating,
-    currentTaskId
+    currentTaskId,
+    generationStatus
   };
 };

@@ -4,8 +4,15 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface ExtendedUser extends User {
+  name?: string;
+  avatar?: string;
+  credits?: number;
+  subscription?: 'free' | 'premium' | 'enterprise';
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -13,28 +20,44 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: () => boolean;
   userRoles: string[];
+  updateUserCredits: (amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
   const isAdmin = () => {
-    // Check if super admin
     if (user?.email === 'ellaadahosa@gmail.com') {
       return true;
     }
-    // Check if has admin role
     return userRoles.includes('admin');
+  };
+
+  const updateUserCredits = async (amount: number) => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('update_user_credits', {
+        p_user_id: user.id,
+        p_amount: amount
+      });
+      
+      if (error) throw error;
+      
+      setUser(prev => prev ? { ...prev, credits: data } : null);
+    } catch (error) {
+      console.error('Error updating credits:', error);
+      throw error;
+    }
   };
 
   const fetchUserRoles = async (userId: string) => {
     try {
-      // Use direct query instead of RPC to avoid recursion
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -54,11 +77,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setupUserProfile = async (user: User) => {
     try {
-      // Fetch user roles without recursion
       const roles = await fetchUserRoles(user.id);
       setUserRoles(roles);
 
-      // Get or create profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -71,7 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profile) {
-        // Create profile if it doesn't exist
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -86,8 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Update user object with profile data
-      const updatedUser = {
+      const updatedUser: ExtendedUser = {
         ...user,
         name: profile?.full_name || user.user_metadata.full_name || 'User',
         avatar: profile?.avatar_url || user.user_metadata.avatar_url,
@@ -95,7 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscription: 'free'
       };
 
-      setUser(updatedUser as any);
+      setUser(updatedUser);
     } catch (error) {
       console.error('Error setting up user profile:', error);
     }
@@ -169,7 +188,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -179,7 +197,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -206,7 +223,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     isAdmin,
-    userRoles
+    userRoles,
+    updateUserCredits
   };
 
   return (
