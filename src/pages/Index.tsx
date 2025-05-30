@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Music, Disc, Music2, Wand2, Award } from "lucide-react";
-import { SimpleApiKeyTest } from "@/components/SimpleApiKeyTest";
 
 const Index = () => {
   return (
@@ -24,13 +23,6 @@ const Index = () => {
       </header>
 
       <main>
-        {/* API Key Test Section */}
-        <section className="py-8 px-4 bg-gray-50">
-          <div className="container">
-            <SimpleApiKeyTest />
-          </div>
-        </section>
-
         <section className="py-16 md:py-24 px-4">
           <div className="container">
             <div className="max-w-3xl mx-auto text-center">
