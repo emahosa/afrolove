@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create song record first with pending status and placeholder
+    // Create song record first with pending status
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         prompt: prompt,
         status: 'pending',
-        audio_url: 'pending', // Temporary placeholder
+        audio_url: 'generating', // Temporary placeholder
         credits_used: 5
       })
       .select()
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       instrumental: instrumental || false,
       model: model || 'V4_5',
       customMode: customMode || false,
-      callBackUrl: `https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback`
+      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
     }
 
     // Add custom mode fields if provided

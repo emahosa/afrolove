@@ -20,22 +20,28 @@ Deno.serve(async (req) => {
     const body = await req.json()
     console.log('🔔 Suno Callback received:', JSON.stringify(body, null, 2))
 
-    // Extract data from callback - handle multiple possible structures
+    // Extract task ID and audio URL from the callback
     let taskId = null
     let audioUrl = null
     let status = null
     let title = null
 
-    if (body.data) {
+    // Handle different callback structures
+    if (body.taskId) {
+      taskId = body.taskId
+      audioUrl = body.audioUrl || body.audio_url
+      status = body.status
+      title = body.title
+    } else if (body.data) {
       if (Array.isArray(body.data) && body.data.length > 0) {
         const item = body.data[0]
-        taskId = item.id || item.task_id
-        audioUrl = item.audio_url
+        taskId = item.id || item.taskId || item.task_id
+        audioUrl = item.audio_url || item.audioUrl
         status = item.status
         title = item.title
       } else if (typeof body.data === 'object') {
-        taskId = body.data.id || body.data.task_id
-        audioUrl = body.data.audio_url
+        taskId = body.data.id || body.data.taskId || body.data.task_id
+        audioUrl = body.data.audio_url || body.data.audioUrl
         status = body.data.status
         title = body.data.title
       }
@@ -43,10 +49,10 @@ Deno.serve(async (req) => {
 
     // Fallback to direct properties
     if (!taskId) {
-      taskId = body.id || body.task_id || body.taskId
+      taskId = body.id || body.task_id
     }
     if (!audioUrl) {
-      audioUrl = body.audio_url
+      audioUrl = body.audio_url || body.audioUrl
     }
     if (!status) {
       status = body.status
@@ -62,11 +68,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Find song by task ID stored in audio_url field
+    // Find song by task ID - we stored the task ID in the audio_url field initially
     const { data: songs, error: findError } = await supabase
       .from('songs')
       .select('*')
       .eq('audio_url', taskId)
+      .eq('status', 'pending')
 
     if (findError) {
       console.error('❌ Error finding song:', findError)
@@ -77,7 +84,26 @@ Deno.serve(async (req) => {
     }
 
     if (!songs || songs.length === 0) {
-      console.error('❌ No song found with task ID:', taskId)
+      console.error('❌ No pending song found with task ID:', taskId)
+      // Try to find by any status in case it was already updated
+      const { data: anySongs } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('audio_url', taskId)
+        .limit(1)
+
+      if (anySongs && anySongs.length > 0) {
+        console.log('📋 Song already processed:', anySongs[0].id)
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Song already processed',
+          song_id: anySongs[0].id 
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       return new Response(JSON.stringify({ error: 'No song found for task ID: ' + taskId }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -87,20 +113,20 @@ Deno.serve(async (req) => {
     const song = songs[0]
     console.log(`📋 Found song: ${song.id} for task: ${taskId}`)
 
-    // Only update if we have a valid audio URL and it's not the task ID
-    if (audioUrl && audioUrl !== taskId && audioUrl !== 'generating') {
+    // Update the song based on the callback status
+    if (audioUrl && audioUrl !== taskId && (status === 'completed' || status === 'SUCCESS' || status === 'finished')) {
       const updateData = {
         status: 'completed',
         audio_url: audioUrl,
         updated_at: new Date().toISOString()
       }
 
-      // Update title if provided
-      if (title && title !== song.title) {
+      // Update title if provided and different
+      if (title && title !== song.title && title.trim() !== '') {
         updateData.title = title
       }
 
-      console.log('🔄 Updating song with:', updateData)
+      console.log('🔄 Updating song to completed with:', updateData)
 
       const { error: updateError } = await supabase
         .from('songs')
@@ -116,7 +142,7 @@ Deno.serve(async (req) => {
       }
 
       console.log(`✅ Song ${song.id} updated successfully with audio URL: ${audioUrl}`)
-    } else if (status === 'failed' || status === 'error') {
+    } else if (status === 'failed' || status === 'FAIL' || status === 'error') {
       // Handle failed generation
       const { error: updateError } = await supabase
         .from('songs')
@@ -132,7 +158,7 @@ Deno.serve(async (req) => {
         console.log(`❌ Song ${song.id} marked as failed`)
       }
     } else {
-      console.log('⚠️ No valid audio URL in callback or still processing')
+      console.log('⚠️ No valid audio URL in callback or still processing, status:', status)
     }
 
     return new Response(JSON.stringify({ 
