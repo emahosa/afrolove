@@ -206,9 +206,9 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', JSON.stringify(responseData, null, 2))
 
-    // Check for Suno API success
-    if (responseData.code !== 200 || responseData.msg !== 'success') {
-      const errorMsg = responseData.error || responseData.message || `API returned code: ${responseData.code}, msg: ${responseData.msg}`
+    // Check for Suno API success - be more flexible with response format
+    if (!responseData.data || !responseData.data.taskId) {
+      const errorMsg = responseData.error || responseData.message || 'No task ID received from Suno API'
       
       return new Response(JSON.stringify({ 
         error: errorMsg,
@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const taskId = responseData.data?.taskId
+    const taskId = responseData.data.taskId
     
     if (!taskId) {
       return new Response(JSON.stringify({ 
@@ -273,47 +273,14 @@ Deno.serve(async (req) => {
 
     console.log('✅ Created song record:', newSong.id, 'with task ID:', taskId)
 
-    // Start background polling for this task
-    const backgroundPolling = async () => {
-      console.log(`🔄 Starting background polling for task: ${taskId}`)
-      
-      // Poll every 10 seconds for up to 5 minutes
-      for (let i = 0; i < 30; i++) {
-        try {
-          await new Promise(resolve => setTimeout(resolve, 10000)) // Wait 10 seconds
-          
-          console.log(`📊 Polling attempt ${i + 1}/30 for task: ${taskId}`)
-          
-          const { data, error } = await supabase.functions.invoke('suno-status', {
-            body: { taskId }
-          })
-          
-          if (data?.updated) {
-            console.log(`✅ Task ${taskId} completed via polling!`)
-            break
-          }
-          
-          if (data?.failed) {
-            console.log(`❌ Task ${taskId} failed via polling`)
-            break
-          }
-          
-        } catch (error) {
-          console.error(`❌ Polling error for task ${taskId}:`, error)
-        }
-      }
-      
-      console.log(`🏁 Finished polling for task: ${taskId}`)
-    }
-
-    // Start background task
-    EdgeRuntime.waitUntil(backgroundPolling())
+    // Disable background polling for now - it's causing 404s
+    console.log('🎉 Song generation started successfully without background polling')
 
     const successResponse = { 
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully. Polling in background for completion.'
+      message: 'Song generation started successfully. Please check your library in a few minutes.'
     }
 
     console.log('🎉 Returning success response:', successResponse)

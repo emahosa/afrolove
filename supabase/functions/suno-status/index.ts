@@ -89,56 +89,69 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use Get Details endpoint with retry logic
+    // Use Get Details endpoint with better error handling
     let statusData = null
     let lastError = null
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`🔍 Status check attempt ${attempt}/3 for task: ${taskId}`)
-        
-        const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${sunoApiKey}`,
-            'Accept': 'application/json'
-          }
-        })
-
-        if (statusResponse.ok) {
-          const responseText = await statusResponse.text()
-          console.log('📥 Status API raw response:', responseText)
-          
-          try {
-            statusData = JSON.parse(responseText)
-            console.log('✅ Got status response:', JSON.stringify(statusData, null, 2))
-            break
-          } catch (parseError) {
-            lastError = `Parse error: ${parseError.message}`
-            console.log(`❌ Parse error on attempt ${attempt}:`, parseError)
-          }
-        } else {
-          lastError = `${statusResponse.status} ${statusResponse.statusText}`
-          console.log(`❌ Status API failed on attempt ${attempt}:`, lastError)
-          
-          if (statusResponse.status === 429 || statusResponse.status >= 500) {
-            // Wait before retry for rate limits or server errors
-            await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
-          } else {
-            break // Don't retry client errors
-          }
+    try {
+      console.log(`🔍 Checking status for task: ${taskId}`)
+      
+      const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Accept': 'application/json'
         }
-      } catch (error) {
-        lastError = error.message
-        console.log(`❌ Status check error on attempt ${attempt}:`, error.message)
-        if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+      })
+
+      if (statusResponse.ok) {
+        const responseText = await statusResponse.text()
+        console.log('📥 Status API raw response:', responseText)
+        
+        try {
+          statusData = JSON.parse(responseText)
+          console.log('✅ Got status response:', JSON.stringify(statusData, null, 2))
+        } catch (parseError) {
+          lastError = `Parse error: ${parseError.message}`
+          console.log(`❌ Parse error:`, parseError)
+        }
+      } else {
+        lastError = `${statusResponse.status} ${statusResponse.statusText}`
+        console.log(`❌ Status API failed:`, lastError)
+        
+        // If we get 404, the task doesn't exist on Suno's side
+        if (statusResponse.status === 404) {
+          console.log('❌ Task not found on Suno API, marking as failed')
+          
+          const { data: updatedSong, error: updateError } = await supabase
+            .from('songs')
+            .update({
+              status: 'rejected',
+              audio_url: 'error: Task not found on Suno API - may have expired or failed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingSong.id)
+            .select()
+
+          return new Response(JSON.stringify({ 
+            success: true,
+            updated: true,
+            failed: true,
+            message: 'Task not found on Suno API',
+            song: updatedSong?.[0]
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
         }
       }
+    } catch (error) {
+      lastError = error.message
+      console.log(`❌ Status check error:`, error.message)
     }
 
     if (!statusData) {
-      console.log('❌ All status check attempts failed, last error:', lastError)
+      console.log('❌ Status check failed, last error:', lastError)
       
       return new Response(JSON.stringify({ 
         success: true,
