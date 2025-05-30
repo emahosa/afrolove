@@ -103,12 +103,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request
+    // Prepare the Suno API request WITH callback URL
+    const callBackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
+    
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model
+      model,
+      callBackUrl
     }
 
     // Add optional fields if provided
@@ -123,7 +126,7 @@ Deno.serve(async (req) => {
 
     console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Use the primary endpoint first
+    // Use the primary endpoint
     const endpoint = 'https://api.sunoaiapi.com/api/v1/gateway/generate/music'
     
     console.log(`🔄 Using endpoint: ${endpoint}`)
