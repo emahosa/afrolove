@@ -22,7 +22,8 @@ interface SunoApiResponse {
   code: number;
   msg: string;
   data?: {
-    task_id: string;
+    task_id?: string;
+    taskId?: string;
     id?: string;
   };
   task_id?: string;
@@ -284,8 +285,8 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Handle successful response
-    const taskId = sunoData.task_id || sunoData.data?.task_id || sunoData.id || sunoData.data?.id
+    // Handle successful response - Fix task ID extraction to handle actual API response format
+    const taskId = sunoData.data?.taskId || sunoData.data?.task_id || sunoData.task_id || sunoData.data?.id || sunoData.id
     console.log('🎯 Extracted task ID:', taskId)
     
     if (taskId) {
