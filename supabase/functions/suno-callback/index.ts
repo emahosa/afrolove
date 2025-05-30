@@ -16,24 +16,41 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    const body = await req.json()
     
-    console.log('Suno Callback received:', JSON.stringify(body, null, 2))
+    // Get song_id from URL parameter
+    const url = new URL(req.url)
+    const songId = url.searchParams.get('song_id')
+    
+    const body = await req.json()
+    console.log('Suno Callback received for song ID:', songId)
+    console.log('Callback body:', JSON.stringify(body, null, 2))
 
-    // Extract task ID and audio data from Suno callback
-    const taskId = body?.data?.task_id
-    const audioData = body?.data?.data?.[0]
-
-    console.log('Task ID:', taskId)
-    console.log('Audio data:', audioData)
-
-    if (!taskId) {
-      console.error('No task_id in callback')
-      return new Response(JSON.stringify({ error: 'task_id required' }), {
+    if (!songId) {
+      console.error('No song_id in callback URL')
+      return new Response(JSON.stringify({ error: 'song_id required in URL' }), {
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    // Extract the relevant data from the callback
+    let audioData = null
+    let taskId = null
+
+    // Handle different possible callback structures
+    if (body.data && Array.isArray(body.data) && body.data.length > 0) {
+      audioData = body.data[0]
+      taskId = body.data.task_id || body.task_id
+    } else if (body.data && body.data.audio_url) {
+      audioData = body.data
+      taskId = body.data.task_id || body.task_id
+    } else if (body.audio_url) {
+      audioData = body
+      taskId = body.task_id
+    }
+
+    console.log('Extracted audio data:', audioData)
+    console.log('Task ID:', taskId)
 
     if (!audioData || !audioData.audio_url) {
       console.error('No audio data in callback')
@@ -43,44 +60,38 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Find the song by task ID in the audio_url field
-    const { data: songs, error: findError } = await supabase
+    // Find the song by ID
+    const { data: song, error: findError } = await supabase
       .from('songs')
       .select('*')
-      .eq('audio_url', `task:${taskId}`)
+      .eq('id', songId)
+      .single()
 
-    if (findError) {
+    if (findError || !song) {
       console.error('Error finding song:', findError)
-      return new Response(JSON.stringify({ error: 'Database error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    if (!songs || songs.length === 0) {
-      console.log(`No song found for task: ${taskId}`)
-      return new Response(JSON.stringify({ message: 'Song not found', task_id: taskId }), {
+      return new Response(JSON.stringify({ error: 'Song not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const song = songs[0]
     console.log(`Updating song: ${song.id}`)
 
-    // Update the song with the completed audio data
+    // Prepare update data
     const updateData = {
       status: 'completed',
       audio_url: audioData.audio_url,
-      lyrics: audioData.prompt || song.lyrics,
       updated_at: new Date().toISOString()
     }
 
     // Add optional fields if they exist
+    if (audioData.prompt && !song.lyrics) {
+      updateData.lyrics = audioData.prompt
+    }
     if (audioData.stream_audio_url) {
       updateData.instrumental_url = audioData.stream_audio_url
     }
-    if (audioData.title && !song.title) {
+    if (audioData.title && (!song.title || song.title === 'Generated Song')) {
       updateData.title = audioData.title
     }
 
@@ -105,7 +116,7 @@ Deno.serve(async (req) => {
       success: true, 
       song_id: song.id,
       status: 'completed',
-      task_id: taskId
+      message: 'Song updated successfully'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

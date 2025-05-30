@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create song record first with pending status
+    // Create song record first
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         prompt: prompt,
         status: 'pending',
-        audio_url: 'pending',
+        audio_url: 'generating',
         credits_used: 5
       })
       .select()
@@ -99,21 +99,21 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Use the correct callback URL
-    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
-
+    // Prepare Suno API request with correct callback URL format
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
       customMode: customMode || false,
-      callBackUrl: callbackUrl
+      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback?song_id=${song.id}`
     }
 
-    // Add custom mode fields if needed
-    if (customMode) {
-      if (style?.trim()) sunoRequest.style = style.trim()
-      if (title?.trim()) sunoRequest.title = title.trim()
+    // Add custom mode fields if provided
+    if (customMode && style?.trim()) {
+      sunoRequest.style = style.trim()
+    }
+    if (customMode && title?.trim()) {
+      sunoRequest.title = title.trim()
     }
 
     console.log('Calling Suno API with:', JSON.stringify(sunoRequest, null, 2))
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     if (!sunoResponse.ok) {
       console.error('Suno API error:', responseText)
       
-      // Update song status to rejected
+      // Update song status to failed
       await supabase
         .from('songs')
         .update({ 
@@ -169,7 +169,9 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Extract task ID from Suno response
     const taskId = sunoData.data?.taskId || sunoData.taskId
+    console.log('Received task ID from Suno:', taskId)
 
     if (!taskId) {
       console.error('No task ID received from Suno:', sunoData)
@@ -187,7 +189,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Update song with task ID for callback tracking
+    // Store task ID in audio_url for callback tracking
     await supabase
       .from('songs')
       .update({ 
@@ -196,12 +198,13 @@ Deno.serve(async (req) => {
       })
       .eq('id', song.id)
 
-    console.log('✅ Song generation started with task ID:', taskId)
+    console.log('✅ Song generation started with task ID:', taskId, 'for song ID:', song.id)
 
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
-      task_id: taskId
+      task_id: taskId,
+      message: 'Song generation started successfully'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
