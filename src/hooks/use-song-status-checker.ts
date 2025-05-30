@@ -22,7 +22,20 @@ export const useSongStatusChecker = () => {
       }
 
       console.log('Status check response:', data);
-      return data?.success || false;
+      
+      // Check if the song was updated in the database
+      if (data?.success && data?.data?.data) {
+        const statusData = data.data.data;
+        if (Array.isArray(statusData) && statusData.length > 0) {
+          const item = statusData[0];
+          if (item.status === 'SUCCESS' && item.audio_url) {
+            console.log('Song completed successfully:', item);
+            return true;
+          }
+        }
+      }
+      
+      return false;
     } catch (error) {
       console.error('Status check failed:', error);
       return false;
@@ -42,7 +55,7 @@ export const useSongStatusChecker = () => {
         .select('id, title, audio_url, status')
         .eq('user_id', user.id)
         .eq('status', 'pending')
-        .neq('audio_url', 'generating');
+        .not('audio_url', 'eq', 'generating');
 
       if (error) {
         console.error('Error fetching pending songs:', error);
@@ -60,21 +73,27 @@ export const useSongStatusChecker = () => {
       let updatedCount = 0;
       for (const song of pendingSongs) {
         if (song.audio_url && song.audio_url !== 'generating') {
+          console.log(`Checking song ${song.id} with task ID: ${song.audio_url}`);
           const wasUpdated = await checkSongStatus(song.audio_url);
           if (wasUpdated) {
             updatedCount++;
           }
           // Small delay to avoid overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
       if (updatedCount > 0) {
-        toast.success(`${updatedCount} song(s) updated from Suno!`);
+        toast.success(`${updatedCount} song(s) completed and updated!`);
+        // Trigger a page refresh to show updated songs
+        window.location.reload();
+      } else {
+        console.log('No songs were updated');
       }
 
     } catch (error) {
       console.error('Error checking pending songs:', error);
+      toast.error('Failed to check song status');
     } finally {
       setIsChecking(false);
     }
@@ -84,10 +103,10 @@ export const useSongStatusChecker = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const interval = setInterval(checkAllPendingSongs, 30000);
-    
-    // Also check immediately on mount
+    // Check immediately on mount
     checkAllPendingSongs();
+
+    const interval = setInterval(checkAllPendingSongs, 30000);
 
     return () => clearInterval(interval);
   }, [user?.id, checkAllPendingSongs]);
