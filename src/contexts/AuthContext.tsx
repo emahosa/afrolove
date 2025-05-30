@@ -78,50 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Setting up user profile for:', user.id);
       
-      // Fetch user roles
-      const roles = await fetchUserRoles(user.id);
-      setUserRoles(roles);
-
-      // Fetch or create profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
-      }
-
-      if (!profile && profileError?.code === 'PGRST116') {
-        // Profile doesn't exist, create it
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            full_name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
-            avatar_url: user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata.full_name || 'User')}&background=random`,
-            credits: 5
-          });
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError);
-        }
-      }
-
-      const updatedUser: ExtendedUser = {
-        ...user,
-        name: profile?.full_name || user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
-        avatar: profile?.avatar_url || user.user_metadata.avatar_url || '',
-        credits: profile?.credits || 5,
-        subscription: 'free'
-      };
-
-      console.log('AuthContext: User profile setup complete:', updatedUser.id);
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('Error setting up user profile:', error);
-      // Set basic user data even if profile setup fails
+      // Set basic user data immediately
       const basicUser: ExtendedUser = {
         ...user,
         name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
@@ -130,6 +87,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         subscription: 'free'
       };
       setUser(basicUser);
+
+      // Fetch roles in background
+      const roles = await fetchUserRoles(user.id);
+      setUserRoles(roles);
+
+      // Try to fetch/create profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile && !profileError) {
+        // Profile doesn't exist, create it
+        await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+            avatar_url: user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.user_metadata.full_name || 'User')}&background=random`,
+            credits: 5
+          });
+      }
+
+      if (profile) {
+        const updatedUser: ExtendedUser = {
+          ...user,
+          name: profile.full_name || user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+          avatar: profile.avatar_url || user.user_metadata.avatar_url || '',
+          credits: profile.credits || 5,
+          subscription: 'free'
+        };
+        setUser(updatedUser);
+      }
+
+      console.log('AuthContext: User profile setup complete');
+    } catch (error) {
+      console.error('Error setting up user profile:', error);
+      // Keep basic user data even if profile setup fails
     }
   };
 
@@ -226,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserRoles([]);
         }
         
-        // Always set loading to false after processing
+        // Always set loading to false
         setLoading(false);
       }
     );
