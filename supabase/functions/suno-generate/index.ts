@@ -18,259 +18,253 @@ Deno.serve(async (req) => {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
     if (!sunoApiKey) {
-      console.error('SUNO_API_KEY not configured')
+      console.error('❌ SUNO_API_KEY not configured')
       return new Response(JSON.stringify({ error: 'SUNO_API_KEY not configured' }), {
-        status: 500, 
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const body = await req.json()
     
-    // Verify auth
-    const authorization = req.headers.get('Authorization')
-    if (!authorization) {
-      return new Response(JSON.stringify({ error: 'Authorization required' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+    console.log('🎵 Generating song with request:', JSON.stringify(body, null, 2))
 
-    const token = authorization.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const { 
+      prompt, 
+      style, 
+      title, 
+      instrumental, 
+      customMode,
+      model = 'V3_5',
+      negativeTags,
+      userId
+    } = body
 
-    if (authError || !user) {
-      console.error('Auth error:', authError)
-      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    const requestBody = await req.json()
-    const { prompt, style, title, instrumental, customMode, model } = requestBody
-
-    if (!prompt?.trim()) {
-      return new Response(JSON.stringify({ error: 'Prompt required' }), {
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'User ID required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Check credits
-    const { data: profile } = await supabase
+    // Validate required fields based on mode
+    if (customMode && (!style || !title)) {
+      return new Response(JSON.stringify({ 
+        error: 'Custom mode requires both style and title fields',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (!prompt || prompt.trim() === '') {
+      return new Response(JSON.stringify({ 
+        error: 'Prompt is required',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (prompt.length > 200) {
+      return new Response(JSON.stringify({ 
+        error: 'Prompt too long. Maximum 200 characters allowed.',
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Check user credits
+    const { data: userProfile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
-    if ((profile?.credits || 0) < 5) {
-      return new Response(JSON.stringify({ error: 'Insufficient credits' }), {
+    if (profileError || !userProfile) {
+      console.error('❌ Error fetching user profile:', profileError)
+      return new Response(JSON.stringify({ 
+        error: 'User not found',
+        success: false 
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (userProfile.credits < 5) {
+      return new Response(JSON.stringify({ 
+        error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+        success: false 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Create song record first with pending status
-    const { data: song, error: songError } = await supabase
+    // Prepare the Suno API request with callback URL
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
+    
+    const sunoRequestBody = {
+      prompt: prompt.trim(),
+      customMode,
+      instrumental,
+      model,
+      callBackUrl: callbackUrl  // Add callback URL here
+    }
+
+    // Add optional fields if provided
+    if (customMode) {
+      sunoRequestBody.style = style
+      sunoRequestBody.title = title
+    }
+
+    if (negativeTags) {
+      sunoRequestBody.negativeTags = negativeTags
+    }
+
+    console.log('🚀 Sending request to Suno with callback:', JSON.stringify(sunoRequestBody, null, 2))
+
+    // Make request to Suno API
+    const response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(sunoRequestBody)
+    })
+
+    const responseText = await response.text()
+    console.log('🔍 Suno API raw response:', responseText)
+
+    if (!response.ok) {
+      console.error('❌ Suno API error:', response.status, responseText)
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ 
+          error: 'Suno API credits are insufficient. Please contact support.',
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      return new Response(JSON.stringify({ 
+        error: `Suno API error: ${responseText}`,
+        success: false 
+      }), {
+        status: response.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    let responseData
+    try {
+      responseData = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('❌ Failed to parse Suno response:', parseError)
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response from Suno API',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('📊 Parsed Suno response:', JSON.stringify(responseData, null, 2))
+
+    if (!responseData.success) {
+      const errorMsg = responseData.error || responseData.message || 'Unknown error from Suno API'
+      console.error('❌ Suno API returned error:', errorMsg)
+      
+      return new Response(JSON.stringify({ 
+        error: errorMsg,
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const taskId = responseData.task_id || responseData.data?.task_id
+    
+    if (!taskId) {
+      console.error('❌ No task ID in Suno response')
+      return new Response(JSON.stringify({ 
+        error: 'No task ID received from Suno API',
+        success: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('✅ Got task ID from Suno:', taskId)
+
+    // Deduct credits
+    const { error: creditError } = await supabase.rpc('update_user_credits', {
+      p_user_id: userId,
+      p_amount: -5
+    })
+
+    if (creditError) {
+      console.error('❌ Failed to deduct credits:', creditError)
+    } else {
+      console.log('💰 Deducted 5 credits from user')
+    }
+
+    // Create song record with pending status and task ID stored in audio_url
+    const { data: newSong, error: songError } = await supabase
       .from('songs')
       .insert({
-        title: title || 'Generated Song',
+        user_id: userId,
+        title: title || 'Generating...',
         type: instrumental ? 'instrumental' : 'song',
-        user_id: user.id,
-        prompt: prompt,
+        audio_url: taskId, // Store task ID here temporarily
+        prompt,
         status: 'pending',
-        audio_url: 'generating',
         credits_used: 5
       })
       .select()
       .single()
 
     if (songError) {
-      console.error('Song creation error:', songError)
-      return new Response(JSON.stringify({ error: 'Failed to create song' }), {
+      console.error('❌ Failed to create song record:', songError)
+      return new Response(JSON.stringify({ 
+        error: 'Failed to create song record',
+        success: false 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Deduct credits immediately
-    const { error: creditError } = await supabase
-      .from('profiles')
-      .update({ credits: (profile?.credits || 0) - 5 })
-      .eq('id', user.id)
+    console.log('✅ Created song record:', newSong)
 
-    if (creditError) {
-      console.error('Credit deduction error:', creditError)
-    }
-
-    // Prepare Suno API request - NO CALLBACK URL
-    const sunoRequest = {
-      prompt: prompt.trim(),
-      instrumental: instrumental || false,
-      model: model || 'V4_5',
-      customMode: customMode || false
-    }
-
-    // Add custom mode fields if provided
-    if (customMode && style?.trim()) {
-      sunoRequest.style = style.trim()
-    }
-    if (customMode && title?.trim()) {
-      sunoRequest.title = title.trim()
-    }
-
-    console.log('🎵 Calling Suno API with request:', JSON.stringify(sunoRequest, null, 2))
-
-    // Call Suno API with timeout and retry logic
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
-    try {
-      const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sunoApiKey}`,
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(sunoRequest),
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
-
-      const responseText = await sunoResponse.text()
-      console.log('🎵 Suno API response status:', sunoResponse.status)
-      console.log('🎵 Suno API response body:', responseText)
-
-      if (!sunoResponse.ok) {
-        console.error('❌ Suno API error:', responseText)
-        
-        // Update song status to failed
-        await supabase
-          .from('songs')
-          .update({ 
-            status: 'rejected',
-            audio_url: `API Error: ${responseText.substring(0, 200)}`
-          })
-          .eq('id', song.id)
-          
-        return new Response(JSON.stringify({ 
-          error: `Suno API error (${sunoResponse.status}): ${responseText}` 
-        }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      let sunoData
-      try {
-        sunoData = JSON.parse(responseText)
-      } catch (parseError) {
-        console.error('❌ Failed to parse Suno response:', parseError)
-        await supabase
-          .from('songs')
-          .update({ 
-            status: 'rejected',
-            audio_url: 'Parse Error: Invalid JSON response'
-          })
-          .eq('id', song.id)
-          
-        return new Response(JSON.stringify({ error: 'Invalid response format from Suno API' }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      console.log('🎵 Parsed Suno data:', JSON.stringify(sunoData, null, 2))
-
-      // Extract task ID from various possible response structures
-      let taskId = null
-      
-      if (sunoData.data) {
-        if (Array.isArray(sunoData.data) && sunoData.data.length > 0) {
-          taskId = sunoData.data[0].taskId || sunoData.data[0].id
-        } else if (typeof sunoData.data === 'object') {
-          taskId = sunoData.data.taskId || sunoData.data.id
-        }
-      } else {
-        taskId = sunoData.taskId || sunoData.id
-      }
-
-      console.log('🎵 Extracted task ID:', taskId)
-
-      if (!taskId) {
-        console.error('❌ No task ID found in Suno response')
-        await supabase
-          .from('songs')
-          .update({ 
-            status: 'rejected',
-            audio_url: 'No task ID received from Suno API'
-          })
-          .eq('id', song.id)
-          
-        return new Response(JSON.stringify({ 
-          error: 'No task ID received from Suno API',
-          response: sunoData 
-        }), {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-
-      // Update song with task ID so we can track it
-      const { error: updateError } = await supabase
-        .from('songs')
-        .update({ 
-          audio_url: taskId,
-          status: 'pending'
-        })
-        .eq('id', song.id)
-
-      if (updateError) {
-        console.error('❌ Failed to update song with task ID:', updateError)
-      }
-
-      console.log('✅ Song generation started successfully - Song ID:', song.id, 'Task ID:', taskId)
-
-      return new Response(JSON.stringify({ 
-        success: true, 
-        song_id: song.id,
-        task_id: taskId,
-        message: 'Song generation started successfully. Check back in 1-2 minutes.'
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-
-    } catch (fetchError) {
-      clearTimeout(timeoutId)
-      
-      if (fetchError.name === 'AbortError') {
-        console.error('❌ Suno API request timed out')
-        await supabase
-          .from('songs')
-          .update({ 
-            status: 'rejected',
-            audio_url: 'Request timed out after 30 seconds'
-          })
-          .eq('id', song.id)
-          
-        return new Response(JSON.stringify({ error: 'Suno API request timed out' }), {
-          status: 504,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
-      
-      throw fetchError
-    }
+    return new Response(JSON.stringify({ 
+      success: true,
+      task_id: taskId,
+      song_id: newSong.id,
+      message: 'Song generation started successfully. You will be notified when it completes.'
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
 
   } catch (error) {
     console.error('❌ Generation error:', error)
     return new Response(JSON.stringify({ 
-      error: 'Internal server error: ' + error.message,
-      stack: error.stack 
+      error: 'Internal error: ' + error.message,
+      success: false 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

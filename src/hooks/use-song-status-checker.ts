@@ -68,7 +68,7 @@ export const useSongStatusChecker = () => {
         if (wasUpdated) {
           updatedCount++;
         }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       if (updatedCount > 0) {
@@ -86,12 +86,13 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
+  // Check less frequently since we have webhooks - only check every 2 minutes
   useEffect(() => {
     if (!user?.id) return;
 
     checkAllPendingSongs();
 
-    const interval = setInterval(checkAllPendingSongs, 30000);
+    const interval = setInterval(checkAllPendingSongs, 120000); // 2 minutes
 
     return () => clearInterval(interval);
   }, [user?.id, checkAllPendingSongs]);
