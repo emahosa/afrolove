@@ -89,75 +89,59 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use Get Details endpoint with better error handling
+    // Try multiple status check endpoints
+    const statusEndpoints = [
+      `https://api.sunoaiapi.com/api/v1/gateway/query?taskId=${taskId}`,
+      `https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`
+    ]
+
     let statusData = null
     let lastError = null
+    let usedEndpoint = null
 
-    try {
-      console.log(`🔍 Checking status for task: ${taskId}`)
-      
-      const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${sunoApiKey}`,
-          'Accept': 'application/json'
-        }
-      })
+    for (const endpoint of statusEndpoints) {
+      try {
+        console.log(`🔍 Checking status with endpoint: ${endpoint}`)
+        
+        const statusResponse = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Accept': 'application/json'
+          }
+        })
 
-      if (statusResponse.ok) {
-        const responseText = await statusResponse.text()
-        console.log('📥 Status API raw response:', responseText)
-        
-        try {
-          statusData = JSON.parse(responseText)
-          console.log('✅ Got status response:', JSON.stringify(statusData, null, 2))
-        } catch (parseError) {
-          lastError = `Parse error: ${parseError.message}`
-          console.log(`❌ Parse error:`, parseError)
-        }
-      } else {
-        lastError = `${statusResponse.status} ${statusResponse.statusText}`
-        console.log(`❌ Status API failed:`, lastError)
-        
-        // If we get 404, the task doesn't exist on Suno's side
-        if (statusResponse.status === 404) {
-          console.log('❌ Task not found on Suno API, marking as failed')
+        if (statusResponse.ok) {
+          const responseText = await statusResponse.text()
+          console.log('📥 Status API raw response:', responseText)
           
-          const { data: updatedSong, error: updateError } = await supabase
-            .from('songs')
-            .update({
-              status: 'rejected',
-              audio_url: 'error: Task not found on Suno API - may have expired or failed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingSong.id)
-            .select()
-
-          return new Response(JSON.stringify({ 
-            success: true,
-            updated: true,
-            failed: true,
-            message: 'Task not found on Suno API',
-            song: updatedSong?.[0]
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
+          try {
+            statusData = JSON.parse(responseText)
+            usedEndpoint = endpoint
+            console.log('✅ Got status response from:', endpoint, JSON.stringify(statusData, null, 2))
+            break
+          } catch (parseError) {
+            lastError = `Parse error from ${endpoint}: ${parseError.message}`
+            console.log(`❌ Parse error from ${endpoint}:`, parseError)
+          }
+        } else {
+          lastError = `${endpoint}: ${statusResponse.status} ${statusResponse.statusText}`
+          console.log(`❌ Status API failed for ${endpoint}:`, lastError)
         }
+      } catch (error) {
+        lastError = `${endpoint}: ${error.message}`
+        console.log(`❌ Status check error for ${endpoint}:`, error.message)
       }
-    } catch (error) {
-      lastError = error.message
-      console.log(`❌ Status check error:`, error.message)
     }
 
     if (!statusData) {
-      console.log('❌ Status check failed, last error:', lastError)
+      console.log('❌ All status check endpoints failed, last error:', lastError)
       
       return new Response(JSON.stringify({ 
         success: true,
         updated: false,
         processing: true,
-        message: 'Still checking status - API not responding',
+        message: 'Still checking status - all APIs not responding',
         lastError
       }), {
         status: 200,
@@ -176,9 +160,11 @@ Deno.serve(async (req) => {
       songItems = statusData
     } else if (statusData.status || statusData.audio_url) {
       songItems = [statusData]
+    } else if (statusData.data && (statusData.data.status || statusData.data.audio_url)) {
+      songItems = [statusData.data]
     }
 
-    console.log('🔍 Song items found:', songItems.length)
+    console.log('🔍 Song items found:', songItems.length, 'using endpoint:', usedEndpoint)
 
     if (songItems.length > 0) {
       const item = songItems[0] // Take the first item
@@ -216,6 +202,7 @@ Deno.serve(async (req) => {
           success: true,
           updated: true,
           song: updatedSong?.[0],
+          endpoint_used: usedEndpoint,
           data: statusData 
         }), {
           status: 200,
@@ -240,6 +227,7 @@ Deno.serve(async (req) => {
           updated: true,
           failed: true,
           song: updatedSong?.[0],
+          endpoint_used: usedEndpoint,
           data: statusData 
         }), {
           status: 200,
@@ -249,11 +237,12 @@ Deno.serve(async (req) => {
     }
 
     // Still processing
-    console.log('⏳ Song still processing...')
+    console.log('⏳ Song still processing... using endpoint:', usedEndpoint)
     return new Response(JSON.stringify({ 
       success: true,
       updated: false,
       processing: true,
+      endpoint_used: usedEndpoint,
       data: statusData 
     }), {
       status: 200,

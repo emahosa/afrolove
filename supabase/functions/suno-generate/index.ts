@@ -103,16 +103,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the callback URL
-    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
-
-    // Prepare the Suno API request
+    // Prepare the Suno API request - try the newer endpoint first
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model,
-      callBackUrl: callbackUrl
+      model
     }
 
     // Add optional fields if provided
@@ -127,15 +123,21 @@ Deno.serve(async (req) => {
 
     console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Make request to Suno API with retry logic
+    // Try multiple API endpoints in case one fails
+    const endpoints = [
+      'https://api.sunoaiapi.com/api/v1/gateway/generate/music',
+      'https://apibox.erweima.ai/api/v1/generate'
+    ]
+
     let response
     let lastError
-    
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    let usedEndpoint
+
+    for (const endpoint of endpoints) {
       try {
-        console.log(`🔄 Attempt ${attempt}/3 to Suno API`)
+        console.log(`🔄 Trying endpoint: ${endpoint}`)
         
-        response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${sunoApiKey}`,
@@ -145,42 +147,34 @@ Deno.serve(async (req) => {
           body: JSON.stringify(sunoRequestBody)
         })
 
-        if (response.ok) break
-        
-        const errorText = await response.text()
-        lastError = `Status ${response.status}: ${errorText}`
-        
-        if (response.status === 429) {
-          console.log('⏰ Rate limited, waiting before retry...')
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
-        } else if (response.status >= 500) {
-          console.log('🔧 Server error, retrying...')
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        if (response.ok) {
+          usedEndpoint = endpoint
+          console.log(`✅ Success with endpoint: ${endpoint}`)
+          break
         } else {
-          break // Don't retry client errors
+          const errorText = await response.text()
+          lastError = `${endpoint}: ${response.status} ${errorText}`
+          console.log(`❌ Failed with ${endpoint}: ${response.status} ${errorText}`)
         }
       } catch (error) {
-        lastError = error.message
-        console.log(`❌ Attempt ${attempt} failed:`, error.message)
-        if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
-        }
+        lastError = `${endpoint}: ${error.message}`
+        console.log(`❌ Error with ${endpoint}:`, error.message)
       }
     }
 
     if (!response || !response.ok) {
       if (response?.status === 429) {
         return new Response(JSON.stringify({ 
-          error: 'Suno API credits are insufficient. Please contact support.',
+          error: 'Suno API rate limit exceeded. Please try again later.',
           success: false 
         }), {
-          status: 400,
+          status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
       return new Response(JSON.stringify({ 
-        error: `Suno API error after 3 attempts: ${lastError}`,
+        error: `All Suno API endpoints failed: ${lastError}`,
         success: false 
       }), {
         status: response?.status || 500,
@@ -206,32 +200,31 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', JSON.stringify(responseData, null, 2))
 
-    // Check for Suno API success - be more flexible with response format
-    if (!responseData.data || !responseData.data.taskId) {
+    // Extract task ID from different possible response formats
+    let taskId
+    if (responseData.data?.taskId) {
+      taskId = responseData.data.taskId
+    } else if (responseData.taskId) {
+      taskId = responseData.taskId
+    } else if (responseData.data?.id) {
+      taskId = responseData.data.id
+    } else if (responseData.id) {
+      taskId = responseData.id
+    }
+
+    if (!taskId) {
       const errorMsg = responseData.error || responseData.message || 'No task ID received from Suno API'
-      
       return new Response(JSON.stringify({ 
         error: errorMsg,
-        success: false 
+        success: false,
+        debug: responseData
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const taskId = responseData.data.taskId
-    
-    if (!taskId) {
-      return new Response(JSON.stringify({ 
-        error: 'No task ID received from Suno API',
-        success: false 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    console.log('✅ Got task ID from Suno:', taskId)
+    console.log('✅ Got task ID from Suno:', taskId, 'using endpoint:', usedEndpoint)
 
     // Deduct credits
     const { error: creditError } = await supabase.rpc('update_user_credits', {
@@ -273,14 +266,12 @@ Deno.serve(async (req) => {
 
     console.log('✅ Created song record:', newSong.id, 'with task ID:', taskId)
 
-    // Disable background polling for now - it's causing 404s
-    console.log('🎉 Song generation started successfully without background polling')
-
     const successResponse = { 
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully. Please check your library in a few minutes.'
+      endpoint_used: usedEndpoint,
+      message: 'Song generation started successfully. Check your library in a few minutes.'
     }
 
     console.log('🎉 Returning success response:', successResponse)
