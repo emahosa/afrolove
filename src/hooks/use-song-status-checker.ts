@@ -24,15 +24,9 @@ export const useSongStatusChecker = () => {
       console.log('Status check response:', data);
       
       // Check if the song was updated in the database
-      if (data?.success && data?.data?.data) {
-        const statusData = data.data.data;
-        if (Array.isArray(statusData) && statusData.length > 0) {
-          const item = statusData[0];
-          if (item.status === 'SUCCESS' && item.audio_url) {
-            console.log('Song completed successfully:', item);
-            return true;
-          }
-        }
+      if (data?.success && data?.updated) {
+        console.log('Song was updated in database');
+        return true;
       }
       
       return false;
@@ -49,13 +43,13 @@ export const useSongStatusChecker = () => {
       setIsChecking(true);
       console.log('Checking all pending songs for user:', user.id);
 
-      // Get all pending songs that have task IDs
+      // Get all pending songs that have task IDs stored in audio_url
       const { data: pendingSongs, error } = await supabase
         .from('songs')
-        .select('id, title, audio_url, status')
+        .select('id, title, audio_url, status, created_at')
         .eq('user_id', user.id)
         .eq('status', 'pending')
-        .not('audio_url', 'eq', 'generating');
+        .not('audio_url', 'is', null);
 
       if (error) {
         console.error('Error fetching pending songs:', error);
@@ -63,7 +57,7 @@ export const useSongStatusChecker = () => {
       }
 
       if (!pendingSongs || pendingSongs.length === 0) {
-        console.log('No pending songs with task IDs found');
+        console.log('No pending songs found');
         return;
       }
 
@@ -72,15 +66,14 @@ export const useSongStatusChecker = () => {
       // Check status for each pending song
       let updatedCount = 0;
       for (const song of pendingSongs) {
-        if (song.audio_url && song.audio_url !== 'generating') {
-          console.log(`Checking song ${song.id} with task ID: ${song.audio_url}`);
-          const wasUpdated = await checkSongStatus(song.audio_url);
-          if (wasUpdated) {
-            updatedCount++;
-          }
-          // Small delay to avoid overwhelming the API
-          await new Promise(resolve => setTimeout(resolve, 1000));
+        // The audio_url contains the task ID for pending songs
+        console.log(`Checking song ${song.id} with task ID: ${song.audio_url}`);
+        const wasUpdated = await checkSongStatus(song.audio_url);
+        if (wasUpdated) {
+          updatedCount++;
         }
+        // Small delay to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       if (updatedCount > 0) {
@@ -89,6 +82,7 @@ export const useSongStatusChecker = () => {
         window.location.reload();
       } else {
         console.log('No songs were updated');
+        toast.info('Songs are still processing...');
       }
 
     } catch (error) {

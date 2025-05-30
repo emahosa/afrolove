@@ -18,6 +18,7 @@ Deno.serve(async (req) => {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
     if (!sunoApiKey) {
+      console.error('❌ SUNO_API_KEY not configured')
       return new Response(JSON.stringify({ error: 'SUNO_API_KEY not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -36,6 +37,27 @@ Deno.serve(async (req) => {
       })
     }
 
+    // First, find the song with this task ID
+    const { data: existingSong, error: findError } = await supabase
+      .from('songs')
+      .select('id, title, status')
+      .eq('audio_url', taskId)
+      .eq('status', 'pending')
+      .single()
+
+    if (findError || !existingSong) {
+      console.log('❌ Song not found with task ID:', taskId, findError)
+      return new Response(JSON.stringify({ 
+        error: 'Song not found with this task ID',
+        taskId 
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('✅ Found song to check:', existingSong)
+
     // Check status with Suno API
     const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
       method: 'GET',
@@ -51,10 +73,12 @@ Deno.serve(async (req) => {
     if (!statusResponse.ok) {
       console.error('❌ Suno API error:', statusText)
       return new Response(JSON.stringify({ 
-        error: 'Failed to check status',
-        details: statusText 
+        error: 'Failed to check status with Suno API',
+        details: statusText,
+        success: false,
+        updated: false
       }), {
-        status: 502,
+        status: 200, // Don't fail the whole request
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -64,8 +88,12 @@ Deno.serve(async (req) => {
       statusData = JSON.parse(statusText)
     } catch (parseError) {
       console.error('❌ Failed to parse response:', parseError)
-      return new Response(JSON.stringify({ error: 'Invalid status response' }), {
-        status: 502,
+      return new Response(JSON.stringify({ 
+        error: 'Invalid status response from Suno API',
+        success: false,
+        updated: false
+      }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -80,22 +108,24 @@ Deno.serve(async (req) => {
       if (item.status === 'SUCCESS' && item.audio_url) {
         console.log('✅ Generation completed! Updating database...')
         
-        // Find and update the song
+        // Update the song with the completed audio URL
         const { data: updatedSong, error: updateError } = await supabase
           .from('songs')
           .update({
             status: 'completed',
             audio_url: item.audio_url,
-            title: item.title || 'Generated Song'
+            title: item.title || existingSong.title
           })
-          .eq('audio_url', taskId)
+          .eq('id', existingSong.id)
           .select()
 
         if (updateError) {
           console.error('❌ Failed to update song:', updateError)
           return new Response(JSON.stringify({ 
             error: 'Database update failed',
-            details: updateError.message 
+            details: updateError.message,
+            success: false,
+            updated: false
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -117,18 +147,24 @@ Deno.serve(async (req) => {
       } else if (item.status === 'FAIL' || item.status === 'FAILED') {
         console.log('❌ Generation failed, updating status')
         
-        await supabase
+        const { data: updatedSong, error: updateError } = await supabase
           .from('songs')
           .update({
             status: 'rejected',
             audio_url: `error: ${item.error_message || 'Generation failed'}`
           })
-          .eq('audio_url', taskId)
+          .eq('id', existingSong.id)
+          .select()
+
+        if (updateError) {
+          console.error('❌ Failed to update failed song:', updateError)
+        }
 
         return new Response(JSON.stringify({ 
           success: true,
           updated: true,
           failed: true,
+          song: updatedSong?.[0],
           data: statusData 
         }), {
           status: 200,
@@ -142,6 +178,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true,
       updated: false,
+      processing: true,
       data: statusData 
     }), {
       status: 200,
@@ -151,7 +188,9 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('❌ Status check error:', error)
     return new Response(JSON.stringify({ 
-      error: 'Internal error: ' + error.message 
+      error: 'Internal error: ' + error.message,
+      success: false,
+      updated: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
