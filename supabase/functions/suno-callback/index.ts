@@ -18,14 +18,14 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     const body = await req.json()
     
-    console.log('Suno Callback: Full payload received:', JSON.stringify(body, null, 2))
+    console.log('Suno Callback received:', JSON.stringify(body, null, 2))
 
-    // Handle the Suno webhook format
+    // Extract task ID and audio data from Suno callback
     const taskId = body?.data?.task_id
-    const payload = body?.data?.data?.[0]
+    const audioData = body?.data?.data?.[0]
 
-    console.log('Extracted task ID:', taskId)
-    console.log('Extracted payload:', JSON.stringify(payload, null, 2))
+    console.log('Task ID:', taskId)
+    console.log('Audio data:', audioData)
 
     if (!taskId) {
       console.error('No task_id in callback')
@@ -35,19 +35,19 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (!payload || !payload.audio_url) {
-      console.error('Invalid callback payload - no audio data')
-      return new Response(JSON.stringify({ error: 'Invalid Suno callback format' }), {
+    if (!audioData || !audioData.audio_url) {
+      console.error('No audio data in callback')
+      return new Response(JSON.stringify({ error: 'Invalid callback - no audio data' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Find song by task ID in audio_url field
+    // Find the song by task ID in the audio_url field
     const { data: songs, error: findError } = await supabase
       .from('songs')
       .select('*')
-      .eq('audio_url', `task_pending:${taskId}`)
+      .eq('audio_url', `task:${taskId}`)
 
     if (findError) {
       console.error('Error finding song:', findError)
@@ -66,27 +66,26 @@ Deno.serve(async (req) => {
     }
 
     const song = songs[0]
-    console.log(`Processing song: ${song.id}`)
+    console.log(`Updating song: ${song.id}`)
 
-    // Extract data from the payload
+    // Update the song with the completed audio data
     const updateData = {
       status: 'completed',
-      audio_url: payload.audio_url,
-      lyrics: payload.prompt || song.lyrics,
+      audio_url: audioData.audio_url,
+      lyrics: audioData.prompt || song.lyrics,
       updated_at: new Date().toISOString()
     }
 
     // Add optional fields if they exist
-    if (payload.stream_audio_url) {
-      updateData.instrumental_url = payload.stream_audio_url
+    if (audioData.stream_audio_url) {
+      updateData.instrumental_url = audioData.stream_audio_url
     }
-    if (payload.title && !song.title) {
-      updateData.title = payload.title
+    if (audioData.title && !song.title) {
+      updateData.title = audioData.title
     }
 
-    console.log('Updating song with data:', updateData)
+    console.log('Updating song with:', updateData)
 
-    // Update song record
     const { error: updateError } = await supabase
       .from('songs')
       .update(updateData)
