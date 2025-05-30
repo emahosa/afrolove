@@ -1,119 +1,90 @@
-import { Link } from "react-router-dom";
+
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Music, Disc, Music2, Wand2, Award } from "lucide-react";
+import { Music, Sparkles, Users, Mic } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      console.log("Index: User is authenticated, redirecting to dashboard");
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, loading, navigate]);
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <div className="ml-3">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show landing page for non-authenticated users
   return (
-    <div className="min-h-screen">
-      <header className="bg-melody-dark border-b border-border/30 p-4">
-        <div className="container flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Music className="h-6 w-6 text-melody-secondary" />
-            <span className="font-montserrat font-bold text-xl">Afroverse</span>
+    <div className="min-h-screen bg-gradient-to-br from-melody-primary via-background to-melody-secondary/20">
+      <div className="container mx-auto px-4 py-16">
+        <header className="text-center mb-16">
+          <div className="flex items-center justify-center mb-6">
+            <Music className="h-16 w-16 text-melody-secondary mr-4" />
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-melody-secondary to-melody-accent bg-clip-text text-transparent">
+              Afroverse
+            </h1>
           </div>
-          <div className="flex gap-2">
-            <Link to="/login">
-              <Button variant="ghost">Login</Button>
-            </Link>
-            <Link to="/register">
-              <Button variant="default">Sign Up</Button>
-            </Link>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Create amazing songs and instrumentals with the power of AI. Generate music in various genres with just a few clicks.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+          <div className="text-center p-6 rounded-lg bg-card border">
+            <Sparkles className="h-12 w-12 text-melody-secondary mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">AI Music Generation</h3>
+            <p className="text-muted-foreground">
+              Generate unique songs and instrumentals using advanced AI technology
+            </p>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg bg-card border">
+            <Users className="h-12 w-12 text-melody-accent mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">Community Contests</h3>
+            <p className="text-muted-foreground">
+              Participate in music contests and showcase your AI-generated creations
+            </p>
+          </div>
+          
+          <div className="text-center p-6 rounded-lg bg-card border">
+            <Mic className="h-12 w-12 text-melody-secondary mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2">Voice Cloning</h3>
+            <p className="text-muted-foreground">
+              Clone voices and create personalized music with custom vocals
+            </p>
           </div>
         </div>
-      </header>
 
-      <main>
-        <section className="py-16 md:py-24 px-4">
-          <div className="container">
-            <div className="max-w-3xl mx-auto text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-melody-secondary to-melody-accent bg-clip-text text-transparent">
-                Create Music with AI
-              </h1>
-              <p className="text-xl mb-8">
-                Generate professional songs and instrumentals in seconds with just a text description.
-              </p>
-              <Link to="/register">
-                <Button size="lg" className="bg-melody-secondary hover:bg-melody-secondary/90">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 bg-melody-primary/10">
-          <div className="container">
-            <h2 className="text-3xl font-bold text-center mb-12">How It Works</h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="flex flex-col items-center text-center p-6 rounded-lg bg-card">
-                <div className="h-16 w-16 rounded-full bg-melody-secondary/20 flex items-center justify-center mb-4">
-                  <Music2 className="h-8 w-8 text-melody-secondary" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">1. Choose Your Style</h3>
-                <p className="text-muted-foreground">Select from popular music genres like Afrobeats, R&B, or Pop.</p>
-              </div>
-              <div className="flex flex-col items-center text-center p-6 rounded-lg bg-card">
-                <div className="h-16 w-16 rounded-full bg-melody-secondary/20 flex items-center justify-center mb-4">
-                  <Wand2 className="h-8 w-8 text-melody-secondary" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">2. Describe Your Song</h3>
-                <p className="text-muted-foreground">Tell us what you want your song to be about in a few words.</p>
-              </div>
-              <div className="flex flex-col items-center text-center p-6 rounded-lg bg-card">
-                <div className="h-16 w-16 rounded-full bg-melody-secondary/20 flex items-center justify-center mb-4">
-                  <Disc className="h-8 w-8 text-melody-secondary" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">3. Generate & Enjoy</h3>
-                <p className="text-muted-foreground">Our AI creates your unique song that you can save, share, and download.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4">
-          <div className="container">
-            <div className="max-w-3xl mx-auto text-center">
-              <div className="inline-block p-2 rounded-full bg-melody-accent/20 text-melody-accent mb-4">
-                <Award className="h-6 w-6" />
-              </div>
-              <h2 className="text-3xl font-bold mb-6">Join Our Music Contest</h2>
-              <p className="text-lg mb-8">
-                Showcase your talent in our quarterly music contests. Upload your entries, get votes, and win amazing prizes including record deals!
-              </p>
-              <Link to="/register">
-                <Button variant="outline" size="lg" className="border-melody-secondary text-melody-secondary hover:bg-melody-secondary/10">
-                  Learn More
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 px-4 bg-melody-primary/10">
-          <div className="container text-center">
-            <h2 className="text-3xl font-bold mb-8">Ready to Create Music?</h2>
+        <div className="text-center">
+          <div className="space-x-4">
             <Link to="/register">
               <Button size="lg" className="bg-melody-secondary hover:bg-melody-secondary/90">
-                Sign Up Now
+                Get Started
+              </Button>
+            </Link>
+            <Link to="/login">
+              <Button size="lg" variant="outline">
+                Sign In
               </Button>
             </Link>
           </div>
-        </section>
-      </main>
-
-      <footer className="bg-melody-dark border-t border-border/30 py-8 px-4">
-        <div className="container">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <Music className="h-5 w-5 text-melody-secondary" />
-              <span className="font-montserrat font-bold">Afroverse</span>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              © 2025 Afroverse AI. All rights reserved.
-            </div>
-          </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };

@@ -77,9 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setupUserProfile = async (user: User) => {
     try {
+      console.log('AuthContext: Setting up user profile for:', user.id);
+      
+      // Fetch user roles
       const roles = await fetchUserRoles(user.id);
       setUserRoles(roles);
 
+      // Fetch or create profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -88,10 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError && profileError.code !== 'PGRST116') {
         console.error('Error fetching profile:', profileError);
-        return;
+        // Continue without profile data
       }
 
-      if (!profile) {
+      if (!profile && profileError?.code === 'PGRST116') {
+        // Profile doesn't exist, create it
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -108,46 +113,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const updatedUser: ExtendedUser = {
         ...user,
-        name: profile?.full_name || user.user_metadata.full_name || 'User',
-        avatar: profile?.avatar_url || user.user_metadata.avatar_url,
-        credits: profile?.credits || 0,
+        name: profile?.full_name || user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+        avatar: profile?.avatar_url || user.user_metadata.avatar_url || '',
+        credits: profile?.credits || 5,
         subscription: 'free'
       };
 
+      console.log('AuthContext: User profile setup complete:', updatedUser.id);
       setUser(updatedUser);
     } catch (error) {
       console.error('Error setting up user profile:', error);
+      // Set basic user data even if profile setup fails
+      const basicUser: ExtendedUser = {
+        ...user,
+        name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
+        avatar: user.user_metadata.avatar_url || '',
+        credits: 5,
+        subscription: 'free'
+      };
+      setUser(basicUser);
+    } finally {
+      setLoading(false);
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
+      console.log('AuthContext: Attempting login for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('AuthContext: Login error:', error);
         throw error;
       }
 
       if (data.user) {
+        console.log('AuthContext: Login successful for:', data.user.id);
         await setupUserProfile(data.user);
         return true;
       }
       return false;
     } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 
   const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
+      console.log('AuthContext: Attempting registration for:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -160,24 +182,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        console.error('AuthContext: Registration error:', error);
         throw error;
       }
 
       if (data.user) {
-        toast.success('Registration successful! Please check your email to verify your account.');
-        return true;
+        console.log('AuthContext: Registration successful for:', data.user.id);
+        if (data.session) {
+          // User is automatically logged in
+          await setupUserProfile(data.user);
+          return true;
+        } else {
+          // Email confirmation required
+          toast.success('Registration successful! Please check your email to verify your account.');
+          setLoading(false);
+          return true;
+        }
       }
       return false;
     } catch (error: any) {
       console.error('Registration error:', error);
-      throw error;
-    } finally {
       setLoading(false);
+      throw error;
     }
   };
 
   const logout = async () => {
     try {
+      console.log('AuthContext: Logging out user');
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
@@ -192,7 +224,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    console.log('AuthContext: Initializing auth state');
+    
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('AuthContext: Initial session:', session ? 'found' : 'none');
       setSession(session);
       if (session?.user) {
         setupUserProfile(session.user);
@@ -201,8 +237,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('AuthContext: Auth state change:', event, session ? 'session exists' : 'no session');
         setSession(session);
         
         if (session?.user) {
@@ -210,13 +248,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setUser(null);
           setUserRoles([]);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('AuthContext: Cleaning up auth listener');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const value = {
