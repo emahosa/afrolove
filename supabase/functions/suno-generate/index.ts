@@ -96,18 +96,20 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno request
+    // Prepare Suno request - FIXED: Always include customMode
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
+      customMode: customMode || false,  // FIXED: Always include this field
       callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
     }
 
+    // Only add style and title if customMode is true
     if (customMode && style?.trim()) {
       sunoRequest.style = style.trim()
     }
-    if (title?.trim()) {
+    if (customMode && title?.trim()) {
       sunoRequest.title = title.trim()
     }
 
