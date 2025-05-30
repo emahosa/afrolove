@@ -9,7 +9,19 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+// Add shutdown event listener for logging
+addEventListener('beforeunload', (ev) => {
+  console.log('🔴 SUNO GENERATE FUNCTION SHUTDOWN')
+  console.log('📋 Shutdown reason:', ev.detail?.reason || 'Unknown')
+  console.log('⏰ Shutdown time:', new Date().toISOString())
+})
+
 Deno.serve(async (req) => {
+  console.log('🚀 SUNO GENERATE FUNCTION STARTED')
+  console.log('📋 Request method:', req.method)
+  console.log('📋 Request URL:', req.url)
+  console.log('⏰ Request time:', new Date().toISOString())
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -39,9 +51,18 @@ Deno.serve(async (req) => {
       userId
     } = body
 
-    console.log('📥 Received request:', JSON.stringify({ prompt, style, title, instrumental, customMode, model, userId }, null, 2))
+    console.log('📥 Generation request received:', {
+      userId,
+      prompt: prompt?.substring(0, 100) + '...',
+      style,
+      title,
+      instrumental,
+      customMode,
+      model
+    })
 
     if (!userId) {
+      console.error('❌ User ID missing')
       return new Response(JSON.stringify({ error: 'User ID required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -49,6 +70,7 @@ Deno.serve(async (req) => {
     }
 
     if (!prompt || prompt.trim() === '') {
+      console.error('❌ Prompt missing or empty')
       return new Response(JSON.stringify({ 
         error: 'Prompt is required',
         success: false 
@@ -66,6 +88,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (profileError || !userProfile) {
+      console.error('❌ User profile not found:', profileError)
       return new Response(JSON.stringify({ 
         error: 'User not found',
         success: false 
@@ -76,6 +99,7 @@ Deno.serve(async (req) => {
     }
 
     if (userProfile.credits < 5) {
+      console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
       return new Response(JSON.stringify({ 
         error: 'Insufficient credits. You need at least 5 credits to generate a song.',
         success: false 
@@ -85,14 +109,13 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request body
-    const sunoRequestBody: any = {
+    // Prepare the Suno API request
+    const sunoRequestBody = {
       prompt: prompt.trim(),
       model: model,
       make_instrumental: instrumental
     }
 
-    // Add optional fields based on mode
     if (customMode && style && title) {
       sunoRequestBody.style = style
       sunoRequestBody.title = title
@@ -102,7 +125,7 @@ Deno.serve(async (req) => {
       sunoRequestBody.negative_tags = negativeTags
     }
 
-    console.log('🎵 Suno API request body:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🎵 Sending request to Suno API')
 
     // Make request to Suno API
     const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
@@ -115,13 +138,13 @@ Deno.serve(async (req) => {
       body: JSON.stringify(sunoRequestBody)
     })
 
-    console.log(`📥 Suno API response status: ${sunoResponse.status}`)
+    console.log('📥 Suno API response status:', sunoResponse.status)
     
     const responseText = await sunoResponse.text()
-    console.log('📥 Suno API raw response:', responseText)
+    console.log('📥 Suno API response body:', responseText)
 
     if (!sunoResponse.ok) {
-      console.error(`❌ Suno API error: ${sunoResponse.status} - ${responseText}`)
+      console.error('❌ Suno API error:', sunoResponse.status, responseText)
       
       let errorMessage = 'Suno API request failed'
       
@@ -130,12 +153,6 @@ Deno.serve(async (req) => {
         errorMessage = errorData.msg || errorData.message || errorMessage
       } catch (parseError) {
         errorMessage = responseText || errorMessage
-      }
-
-      if (sunoResponse.status === 429) {
-        errorMessage = 'Suno API rate limit exceeded. Please try again later.'
-      } else if (sunoResponse.status === 401) {
-        errorMessage = 'Invalid Suno API key. Please check your configuration.'
       }
 
       return new Response(JSON.stringify({ 
@@ -161,22 +178,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('📋 Parsed Suno response:', JSON.stringify(responseData, null, 2))
+    console.log('📋 Parsed Suno response:', responseData)
 
-    // Check if the response indicates success
-    if (responseData.code !== 200 && responseData.code !== 0) {
-      const errorMsg = responseData.msg || responseData.message || 'Unknown error from Suno API'
-      console.error('❌ Suno API returned error:', errorMsg)
-      return new Response(JSON.stringify({ 
-        error: errorMsg,
-        success: false 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // Extract task ID from response
+    // Extract task ID
     let taskId = null
     
     if (responseData.data) {
@@ -191,17 +195,16 @@ Deno.serve(async (req) => {
       console.error('❌ No task ID found in response')
       return new Response(JSON.stringify({ 
         error: 'No task ID received from Suno API',
-        success: false,
-        debug: responseData
+        success: false
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log('✅ Got task ID from Suno:', taskId)
+    console.log('✅ Task ID received:', taskId)
 
-    // Deduct credits from user
+    // Deduct credits
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: -5
@@ -209,20 +212,20 @@ Deno.serve(async (req) => {
 
     if (creditError) {
       console.error('❌ Failed to deduct credits:', creditError)
+    } else {
+      console.log('✅ Credits deducted for user:', userId)
     }
 
-    // Create song record in database
+    // Create song record
     const songData = {
       user_id: userId,
       title: title || 'Generating...',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Store task ID temporarily
+      audio_url: taskId,
       prompt,
       status: 'pending',
       credits_used: 5
     }
-
-    console.log('💾 Creating song record:', songData)
 
     const { data: newSong, error: songError } = await supabase
       .from('songs')
@@ -241,7 +244,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('✅ Song record created:', newSong.id)
+    console.log('✅ Song record created with ID:', newSong.id)
+    console.log('🎉 GENERATION REQUEST COMPLETED SUCCESSFULLY')
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -254,7 +258,10 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('💥 Critical error:', error)
+    console.error('💥 CRITICAL ERROR in suno-generate function:', error)
+    console.error('💥 Error stack:', error.stack)
+    console.error('💥 Error occurred at:', new Date().toISOString())
+    
     return new Response(JSON.stringify({ 
       error: 'Internal server error: ' + error.message,
       success: false 
