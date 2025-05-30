@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create song record first with pending status
+    // Create song record first with pending status and placeholder
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         prompt: prompt,
         status: 'pending',
-        audio_url: 'generating',
+        audio_url: 'pending', // Temporary placeholder
         credits_used: 5
       })
       .select()
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
     }
 
     // Extract task ID from Suno response
-    const taskId = sunoData.data?.taskId || sunoData.taskId
+    const taskId = sunoData.data?.taskId || sunoData.taskId || sunoData.data?.id || sunoData.id
     console.log('Received task ID from Suno:', taskId)
 
     if (!taskId) {
@@ -199,7 +199,7 @@ Deno.serve(async (req) => {
       })
       .eq('id', song.id)
 
-    console.log('✅ Song generation started with task ID:', taskId, 'for song ID:', song.id)
+    console.log('✅ Song generation started - Song ID:', song.id, 'Task ID:', taskId)
 
     return new Response(JSON.stringify({ 
       success: true, 
