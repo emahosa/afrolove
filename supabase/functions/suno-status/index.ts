@@ -60,19 +60,65 @@ Deno.serve(async (req) => {
 
     console.log('✅ Found song to check:', existingSong)
 
-    // Check status with Suno API
-    const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-        'Accept': 'application/json'
-      }
-    })
+    // Check status with Suno API - try different endpoint formats
+    let statusResponse
+    let statusData
+    
+    // First try the query endpoint
+    try {
+      statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Accept': 'application/json'
+        }
+      })
 
-    if (!statusResponse.ok) {
-      console.error('❌ Suno API error:', statusResponse.status, statusResponse.statusText)
+      if (statusResponse.ok) {
+        statusData = await statusResponse.json()
+        console.log('🔍 Suno API response:', JSON.stringify(statusData, null, 2))
+      } else {
+        console.error('❌ Suno API error:', statusResponse.status, statusResponse.statusText)
+        
+        // If 404, mark song as failed
+        if (statusResponse.status === 404) {
+          console.log('❌ Task not found, marking as failed')
+          
+          const { data: updatedSong, error: updateError } = await supabase
+            .from('songs')
+            .update({
+              status: 'rejected',
+              audio_url: 'error: Task not found on Suno API',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingSong.id)
+            .select()
+
+          return new Response(JSON.stringify({ 
+            success: true,
+            updated: true,
+            failed: true,
+            message: 'Task not found on Suno API, marked as failed',
+            song: updatedSong?.[0]
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+        
+        return new Response(JSON.stringify({ 
+          error: 'Failed to check status with Suno API',
+          success: false,
+          updated: false
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    } catch (fetchError) {
+      console.error('❌ Fetch error:', fetchError)
       return new Response(JSON.stringify({ 
-        error: 'Failed to check status with Suno API',
+        error: 'Network error checking Suno API',
         success: false,
         updated: false
       }), {
@@ -81,11 +127,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const statusData = await statusResponse.json()
-    console.log('🔍 Suno API response:', JSON.stringify(statusData, null, 2))
-
     // Check if generation is complete
-    if (statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0) {
+    if (statusData && statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0) {
       const item = statusData.data[0]
       console.log('🔍 Song item details:', JSON.stringify(item, null, 2))
       
@@ -98,7 +141,8 @@ Deno.serve(async (req) => {
           .update({
             status: 'completed',
             audio_url: item.audio_url,
-            title: item.title || existingSong.title
+            title: item.title || existingSong.title,
+            updated_at: new Date().toISOString()
           })
           .eq('id', existingSong.id)
           .select()
@@ -134,7 +178,8 @@ Deno.serve(async (req) => {
           .from('songs')
           .update({
             status: 'rejected',
-            audio_url: `error: ${item.error_message || 'Generation failed'}`
+            audio_url: `error: ${item.error_message || 'Generation failed'}`,
+            updated_at: new Date().toISOString()
           })
           .eq('id', existingSong.id)
           .select()

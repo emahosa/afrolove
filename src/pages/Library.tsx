@@ -90,6 +90,7 @@ const Library = () => {
                            !song.audio_url.startsWith('task_pending:') &&
                            !song.audio_url.startsWith('error:') &&
                            song.audio_url !== 'generating' &&
+                           song.audio_url.startsWith('http') && // Must be a valid URL
                            (song.status === 'completed' || song.status === 'approved');
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
         return isCompleted;
@@ -99,7 +100,8 @@ const Library = () => {
         const isPending = song.status === 'pending' || 
                          (song.audio_url && (
                            song.audio_url.startsWith('task_pending:') || 
-                           song.audio_url === 'generating'
+                           song.audio_url === 'generating' ||
+                           (!song.audio_url.startsWith('http') && !song.audio_url.startsWith('error:'))
                          ));
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isPending=${isPending}`);
         return isPending;
@@ -184,9 +186,7 @@ const Library = () => {
           
           if ((payload.new.status === 'completed' || payload.new.status === 'approved') && 
               payload.new.audio_url && 
-              !payload.new.audio_url.startsWith('task_pending:') &&
-              !payload.new.audio_url.startsWith('error:') &&
-              payload.new.audio_url !== 'generating') {
+              payload.new.audio_url.startsWith('http')) {
             console.log('Library: Detected completed song, refreshing...');
             fetchTracks(true);
             toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
@@ -212,10 +212,14 @@ const Library = () => {
     const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffMinutes = Math.ceil(diffTime / (1000 * 60));
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 1) {
-      return "Today";
+    if (diffMinutes < 60) {
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
     } else if (diffDays === 1) {
       return "Yesterday";
     } else if (diffDays < 7) {

@@ -187,13 +187,39 @@ Deno.serve(async (req) => {
       const errorMsg = responseData.error || responseData.message || `API returned code: ${responseData.code}, msg: ${responseData.msg}`
       console.error('❌ Suno API returned error:', errorMsg)
       
-      return new Response(JSON.stringify({ 
-        error: errorMsg,
-        success: false 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      if (errorMsg.includes('Suno API credits are insufficient')) {
+        return new Response(JSON.stringify({ 
+          error: 'Suno API credits are insufficient. Please contact support.',
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } else if (errorMsg.includes('Insufficient credits')) {
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } else if (errorMsg.includes('Prompt too long')) {
+        return new Response(JSON.stringify({ 
+          error: errorMsg,
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } else {
+        return new Response(JSON.stringify({ 
+          error: errorMsg,
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
     }
 
     const taskId = responseData.data?.taskId
