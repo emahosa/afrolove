@@ -228,12 +228,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session:', session ? 'found' : 'none');
+      console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
       setSession(session);
       if (session?.user) {
         setupUserProfile(session.user);
       } else {
-        console.log('AuthContext: No session, setting loading to false');
+        console.log('AuthContext: No initial session, setting loading to false');
         setLoading(false);
       }
     });
