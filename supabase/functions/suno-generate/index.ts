@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🎵 Making Suno API request with webhook:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
 
     // Try multiple API endpoints in case one fails
     const endpoints = [
@@ -151,6 +151,8 @@ Deno.serve(async (req) => {
           body: JSON.stringify(sunoRequestBody)
         })
 
+        console.log(`📥 Response status: ${response.status}`)
+        
         if (response.ok) {
           usedEndpoint = endpoint
           console.log(`✅ Success with endpoint: ${endpoint}`)
