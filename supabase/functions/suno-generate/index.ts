@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -22,8 +25,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
     // Verify auth
@@ -99,13 +100,13 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno API request with correct callback URL format
+    // Prepare Suno API request - FIXED callback URL format
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
       customMode: customMode || false,
-      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback?song_id=${song.id}`
+      callBackUrl: `https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback?song_id=${song.id}`
     }
 
     // Add custom mode fields if provided
@@ -189,11 +190,11 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Store task ID in audio_url for callback tracking
+    // Store task ID for tracking - don't use task: prefix
     await supabase
       .from('songs')
       .update({ 
-        audio_url: `task:${taskId}`,
+        audio_url: taskId,
         status: 'pending'
       })
       .eq('id', song.id)
