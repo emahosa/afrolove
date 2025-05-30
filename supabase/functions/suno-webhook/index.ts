@@ -22,27 +22,57 @@ Deno.serve(async (req) => {
 
     // Handle different callback structures from Suno
     let taskId = null
-    let songsData = []
+    let audioUrl = null
+    let status = null
+    let title = null
 
-    if (payload.data?.task_id) {
-      taskId = payload.data.task_id
-      songsData = payload.data.data || []
-    } else if (payload.task_id) {
-      taskId = payload.task_id
-      songsData = payload.data || []
+    // Try to extract data from various possible structures
+    if (payload.taskId) {
+      taskId = payload.taskId
+      audioUrl = payload.audioUrl || payload.audio_url
+      status = payload.status
+      title = payload.title
+      console.log('📋 Using direct properties')
+    } else if (payload.data) {
+      if (Array.isArray(payload.data) && payload.data.length > 0) {
+        const item = payload.data[0]
+        taskId = item.id || item.taskId
+        audioUrl = item.audio_url || item.audioUrl
+        status = item.status
+        title = item.title
+        console.log('📋 Using data array structure')
+      } else if (typeof payload.data === 'object') {
+        taskId = payload.data.id || payload.data.taskId || payload.data.task_id
+        audioUrl = payload.data.audio_url || payload.data.audioUrl
+        status = payload.data.status
+        title = payload.data.title
+        console.log('📋 Using data object structure')
+      }
+    } else if (payload.id) {
+      taskId = payload.id
+      audioUrl = payload.audio_url || payload.audioUrl
+      status = payload.status
+      title = payload.title
+      console.log('📋 Using ID as taskId')
     }
+
+    console.log('📋 Extracted data:', { taskId, audioUrl, status, title })
 
     if (!taskId) {
       console.error('❌ No task ID found in webhook payload')
-      return new Response(JSON.stringify({ error: 'No task ID found' }), {
+      console.log('❌ Available keys in payload:', Object.keys(payload))
+      return new Response(JSON.stringify({ 
+        error: 'No task ID found in webhook',
+        received: payload,
+        available_keys: Object.keys(payload)
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log(`📋 Processing webhook for task: ${taskId} with ${songsData.length} songs`)
-
     // Find the song with this task ID
+    console.log('🔍 Searching for song with task ID:', taskId)
     const { data: existingSong, error: findError } = await supabase
       .from('songs')
       .select('id, title, status, user_id')
@@ -51,10 +81,11 @@ Deno.serve(async (req) => {
       .single()
 
     if (findError || !existingSong) {
-      console.error('❌ Song not found with task ID:', taskId)
+      console.error('❌ Song not found with task ID:', taskId, findError)
       return new Response(JSON.stringify({ 
         error: 'Song not found',
-        taskId 
+        taskId,
+        debug: findError
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -63,76 +94,63 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Found song: ${existingSong.id} for task: ${taskId}`)
 
-    // Process the completed songs
-    for (const song of songsData) {
-      if (song.audio_url && song.status === 'SUCCESS') {
-        console.log('🎵 Updating song with completed audio:', song.audio_url)
-        
-        const { data: updatedSong, error: updateError } = await supabase
-          .from('songs')
-          .update({
-            status: 'completed',
-            audio_url: song.audio_url,
-            title: song.title || existingSong.title,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSong.id)
-          .select()
-
-        if (updateError) {
-          console.error('❌ Failed to update song:', updateError)
-          return new Response(JSON.stringify({ 
-            error: 'Database update failed',
-            details: updateError.message 
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-
-        console.log('✅ Song updated successfully via webhook:', updatedSong)
-        
-        return new Response(JSON.stringify({ 
-          success: true,
-          message: 'Song updated successfully',
-          song_id: existingSong.id,
-          task_id: taskId
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-
-      } else if (song.status === 'FAIL' || song.status === 'FAILED') {
-        console.log('❌ Song generation failed, updating status')
-        
-        const { data: updatedSong, error: updateError } = await supabase
-          .from('songs')
-          .update({
-            status: 'rejected',
-            audio_url: `error: ${song.error_message || 'Generation failed'}`,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSong.id)
-          .select()
-
-        return new Response(JSON.stringify({ 
-          success: true,
-          message: 'Song marked as failed',
-          song_id: existingSong.id,
-          task_id: taskId
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
+    // Determine the update based on status
+    let updateData = {
+      updated_at: new Date().toISOString()
     }
 
-    // If we get here, the song is still processing
-    console.log('⏳ Song still processing, no update needed')
+    // Check if generation completed successfully
+    if (audioUrl && (status === 'SUCCESS' || status === 'completed' || status === 'finished')) {
+      updateData.status = 'completed'
+      updateData.audio_url = audioUrl
+      
+      // Update title if provided and different
+      if (title && title !== existingSong.title && title.trim() !== '') {
+        updateData.title = title
+      }
+      
+      console.log('✅ Marking song as completed with audio URL:', audioUrl)
+    }
+    // Check if generation failed
+    else if (status === 'FAIL' || status === 'FAILED' || status === 'error' || status === 'failed') {
+      updateData.status = 'rejected'
+      updateData.audio_url = `error: ${payload.error_message || payload.message || 'Generation failed'}`
+      console.log('❌ Marking song as failed')
+    }
+    // Still processing
+    else {
+      console.log('⏳ Song still processing, status:', status)
+      // Don't update status, just timestamp
+    }
+
+    console.log('📝 Update data:', updateData)
+
+    // Update the song record
+    const { data: updatedSong, error: updateError } = await supabase
+      .from('songs')
+      .update(updateData)
+      .eq('id', existingSong.id)
+      .select()
+
+    if (updateError) {
+      console.error('❌ Failed to update song:', updateError)
+      return new Response(JSON.stringify({ 
+        error: 'Database update failed',
+        details: updateError.message 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('✅ Song updated successfully via webhook:', updatedSong)
+    
     return new Response(JSON.stringify({ 
       success: true,
-      message: 'Webhook received, song still processing',
-      task_id: taskId
+      message: 'Webhook processed successfully',
+      song_id: existingSong.id,
+      task_id: taskId,
+      status: updateData.status || 'processing'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

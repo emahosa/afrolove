@@ -107,12 +107,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request - try without callback first
+    // Prepare the Suno API request with callback URL
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
+    
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model
+      model,
+      callbackUrl
     }
 
     // Add optional fields if provided
@@ -253,7 +256,7 @@ Deno.serve(async (req) => {
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully. Check back in a few minutes.'
+      message: 'Song generation started successfully. You will be notified when it\'s ready.'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
