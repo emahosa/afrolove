@@ -103,15 +103,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request WITH callback URL
-    const callBackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
+    // Prepare the Suno API request with proper webhook URL
+    const webhookUrl = `${supabaseUrl}/functions/v1/suno-webhook`
     
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
       model,
-      callBackUrl
+      webhook_url: webhookUrl  // Try webhook_url instead of callBackUrl
     }
 
     // Add optional fields if provided
@@ -146,6 +146,147 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.log(`❌ API Error: ${response.status} ${errorText}`)
+      
+      // Try again without webhook URL if it fails
+      if (errorText.includes('callBackUrl') || errorText.includes('webhook')) {
+        console.log('🔄 Retrying without webhook URL...')
+        
+        const simpleRequestBody = {
+          prompt: prompt.trim(),
+          customMode,
+          instrumental,
+          model
+        }
+
+        if (customMode) {
+          simpleRequestBody.style = style
+          simpleRequestBody.title = title
+        }
+
+        if (negativeTags) {
+          simpleRequestBody.negativeTags = negativeTags
+        }
+
+        console.log('🎵 Retry request:', JSON.stringify(simpleRequestBody, null, 2))
+
+        const retryResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(simpleRequestBody)
+        })
+
+        if (!retryResponse.ok) {
+          const retryErrorText = await retryResponse.text()
+          console.log(`❌ Retry failed: ${retryResponse.status} ${retryErrorText}`)
+          
+          return new Response(JSON.stringify({ 
+            error: `Suno API error: ${retryResponse.status} ${retryErrorText}`,
+            success: false 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        const retryResponseText = await retryResponse.text()
+        console.log('📥 Retry response:', retryResponseText)
+
+        let retryResponseData
+        try {
+          retryResponseData = JSON.parse(retryResponseText)
+        } catch (parseError) {
+          return new Response(JSON.stringify({ 
+            error: 'Invalid response from Suno API',
+            success: false 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // Use retry response data
+        const responseData = retryResponseData
+        
+        // Extract task ID from response
+        let taskId
+        if (responseData.data?.taskId) {
+          taskId = responseData.data.taskId
+        } else if (responseData.taskId) {
+          taskId = responseData.taskId
+        } else if (responseData.data?.id) {
+          taskId = responseData.data.id
+        } else if (responseData.id) {
+          taskId = responseData.id
+        }
+
+        if (!taskId) {
+          const errorMsg = responseData.error || responseData.message || 'No task ID received from Suno API'
+          return new Response(JSON.stringify({ 
+            error: errorMsg,
+            success: false,
+            debug: responseData
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        console.log('✅ Got task ID from Suno (retry):', taskId)
+
+        // Deduct credits
+        const { error: creditError } = await supabase.rpc('update_user_credits', {
+          p_user_id: userId,
+          p_amount: -5
+        })
+
+        if (creditError) {
+          console.error('Failed to deduct credits:', creditError)
+        }
+
+        // Create song record with task ID stored in audio_url field for lookup
+        const songData = {
+          user_id: userId,
+          title: title || 'Generating...',
+          type: instrumental ? 'instrumental' : 'song',
+          audio_url: taskId, // Store task ID here for lookup
+          prompt,
+          status: 'pending',
+          credits_used: 5
+        }
+
+        const { data: newSong, error: songError } = await supabase
+          .from('songs')
+          .insert(songData)
+          .select()
+          .single()
+
+        if (songError) {
+          console.error('❌ Failed to create song record:', songError)
+          return new Response(JSON.stringify({ 
+            error: 'Failed to create song record',
+            success: false 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        console.log('✅ Created song record (retry):', newSong.id, 'with task ID:', taskId)
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          task_id: taskId,
+          song_id: newSong.id,
+          message: 'Song generation started successfully (without webhook).'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
