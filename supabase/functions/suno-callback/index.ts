@@ -18,20 +18,22 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
     const body = await req.json()
-    console.log('Callback received:', JSON.stringify(body, null, 2))
+    console.log('🔔 Callback received:', JSON.stringify(body, null, 2))
 
-    // Handle different possible callback structures from Suno API
+    // Handle different callback stages: text, first, complete
     let taskId = null
     let audioUrl = null
     let status = null
     let title = null
+    let stage = null
 
-    // Extract data from Suno callback
+    // Extract data from different callback structures
     if (body.taskId) {
       taskId = body.taskId
       audioUrl = body.audioUrl || body.audio_url
       status = body.status
       title = body.title
+      stage = body.stage || body.type
     } else if (body.data) {
       if (Array.isArray(body.data) && body.data.length > 0) {
         const item = body.data[0]
@@ -39,21 +41,26 @@ Deno.serve(async (req) => {
         audioUrl = item.audio_url || item.audioUrl
         status = item.status
         title = item.title
+        stage = item.stage || item.type
       } else if (typeof body.data === 'object') {
         taskId = body.data.id || body.data.taskId
         audioUrl = body.data.audio_url || body.data.audioUrl
         status = body.data.status
         title = body.data.title
+        stage = body.data.stage || body.data.type
       }
     } else if (body.id) {
       taskId = body.id
       audioUrl = body.audio_url || body.audioUrl
       status = body.status
       title = body.title
+      stage = body.stage || body.type
     }
 
+    console.log('📋 Extracted callback data:', { taskId, audioUrl, status, title, stage })
+
     if (!taskId) {
-      console.error('No task ID found in callback payload')
+      console.error('❌ No task ID found in callback payload')
       return new Response(JSON.stringify({ 
         error: 'No task ID found in callback',
         received: body
@@ -71,7 +78,7 @@ Deno.serve(async (req) => {
       .eq('status', 'pending')
 
     if (findError) {
-      console.error('Error finding song:', findError)
+      console.error('❌ Error finding song:', findError)
       return new Response(JSON.stringify({ 
         error: 'Database error finding song',
         details: findError.message 
@@ -82,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     if (!songs || songs.length === 0) {
-      console.error('No song found with task ID:', taskId)
+      console.error('❌ No song found with task ID:', taskId)
       return new Response(JSON.stringify({ 
         error: 'No song found for task ID',
         taskId: taskId
@@ -93,36 +100,47 @@ Deno.serve(async (req) => {
     }
 
     const song = songs[0]
-    console.log(`Found song: ${song.id} for task: ${taskId}`)
+    console.log(`✅ Found song: ${song.id} for task: ${taskId}`)
 
-    // Determine the new status and update data
+    // Handle different callback stages
     let updateData = {
       updated_at: new Date().toISOString()
     }
 
-    // Check if generation completed successfully
-    if (audioUrl && (status === 'completed' || status === 'SUCCESS' || status === 'finished')) {
-      updateData.status = 'completed'
-      updateData.audio_url = audioUrl
-      
-      // Update title if provided and different
-      if (title && title !== song.title && title.trim() !== '') {
-        updateData.title = title
+    // Handle different stages of completion
+    if (stage === 'text' || status === 'TEXT_SUCCESS') {
+      console.log('📝 Text generation completed')
+      // Just update timestamp, don't change status yet
+    } else if (stage === 'first' || status === 'FIRST_SUCCESS') {
+      console.log('🎵 First audio generated')
+      // Could store preview URL if provided
+      if (audioUrl) {
+        updateData.audio_url = audioUrl
       }
+    } else if (stage === 'complete' || status === 'SUCCESS' || status === 'completed' || status === 'finished') {
+      console.log('✅ Generation fully completed!')
       
-      console.log('Updating song to completed with audio URL:', audioUrl)
-    }
-    // Check if generation failed
-    else if (status === 'failed' || status === 'FAIL' || status === 'error') {
+      if (audioUrl) {
+        updateData.status = 'completed'
+        updateData.audio_url = audioUrl
+        
+        // Update title if provided and different
+        if (title && title !== song.title && title.trim() !== '') {
+          updateData.title = title
+        }
+        
+        console.log('✅ Marking song as completed with audio URL:', audioUrl)
+      }
+    } else if (status === 'failed' || status === 'FAIL' || status === 'error') {
       updateData.status = 'rejected'
       updateData.audio_url = `error: ${body.error_message || body.message || 'Generation failed'}`
-      console.log('Marking song as failed')
+      console.log('❌ Marking song as failed')
+    } else {
+      console.log('⏳ Processing stage:', stage || status)
+      // Just update timestamp for intermediate stages
     }
-    // Still processing
-    else {
-      console.log('Song still processing, status:', status)
-      // Don't update status if still processing, but update timestamp
-    }
+
+    console.log('📝 Update data:', JSON.stringify(updateData, null, 2))
 
     // Update the song record
     const { data: updatedSong, error: updateError } = await supabase
@@ -132,7 +150,7 @@ Deno.serve(async (req) => {
       .select()
 
     if (updateError) {
-      console.error('Error updating song:', updateError)
+      console.error('❌ Error updating song:', updateError)
       return new Response(JSON.stringify({ 
         error: 'Failed to update song',
         details: updateError.message 
@@ -142,21 +160,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log(`Song ${song.id} updated successfully`)
+    console.log(`✅ Song ${song.id} updated successfully for stage: ${stage || status}`)
 
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
       task_id: taskId,
+      stage: stage || status,
       status: updateData.status || 'processing',
-      message: 'Callback processed successfully'
+      message: `Callback processed successfully for stage: ${stage || status}`
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (error) {
-    console.error('Callback processing error:', error)
+    console.error('💥 Callback processing error:', error)
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
       details: error.message

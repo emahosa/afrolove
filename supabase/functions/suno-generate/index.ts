@@ -103,15 +103,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request with correct callback URL
-    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
-    
+    // Prepare the Suno API request
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model,
-      callbackUrl
+      model
     }
 
     // Add optional fields if provided
@@ -124,21 +121,51 @@ Deno.serve(async (req) => {
       sunoRequestBody.negativeTags = negativeTags
     }
 
-    // Make request to Suno API
-    const response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(sunoRequestBody)
-    })
+    console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
 
-    const responseText = await response.text()
+    // Make request to Suno API with retry logic
+    let response
+    let lastError
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`🔄 Attempt ${attempt}/3 to Suno API`)
+        
+        response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(sunoRequestBody)
+        })
 
-    if (!response.ok) {
-      if (response.status === 429) {
+        if (response.ok) break
+        
+        const errorText = await response.text()
+        lastError = `Status ${response.status}: ${errorText}`
+        
+        if (response.status === 429) {
+          console.log('⏰ Rate limited, waiting before retry...')
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+        } else if (response.status >= 500) {
+          console.log('🔧 Server error, retrying...')
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        } else {
+          break // Don't retry client errors
+        }
+      } catch (error) {
+        lastError = error.message
+        console.log(`❌ Attempt ${attempt} failed:`, error.message)
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        }
+      }
+    }
+
+    if (!response || !response.ok) {
+      if (response?.status === 429) {
         return new Response(JSON.stringify({ 
           error: 'Suno API credits are insufficient. Please contact support.',
           success: false 
@@ -149,13 +176,16 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ 
-        error: `Suno API error: ${responseText}`,
+        error: `Suno API error after 3 attempts: ${lastError}`,
         success: false 
       }), {
-        status: response.status,
+        status: response?.status || 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    const responseText = await response.text()
+    console.log('📥 Suno API raw response:', responseText)
 
     let responseData
     try {
@@ -169,6 +199,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    console.log('📋 Parsed Suno response:', JSON.stringify(responseData, null, 2))
 
     // Check for Suno API success
     if (responseData.code !== 200 || responseData.msg !== 'success') {
@@ -195,6 +227,8 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('✅ Got task ID from Suno:', taskId)
+
     // Deduct credits
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
@@ -205,12 +239,12 @@ Deno.serve(async (req) => {
       console.error('Failed to deduct credits:', creditError)
     }
 
-    // Create song record with task ID stored in a separate field
+    // Create song record with task ID stored in audio_url field for lookup
     const songData = {
       user_id: userId,
       title: title || 'Generating...',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Temporarily store task ID here
+      audio_url: taskId, // Store task ID here for lookup
       prompt,
       status: 'pending',
       credits_used: 5
@@ -223,6 +257,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (songError) {
+      console.error('❌ Failed to create song record:', songError)
       return new Response(JSON.stringify({ 
         error: 'Failed to create song record',
         success: false 
@@ -232,12 +267,52 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('✅ Created song record:', newSong.id, 'with task ID:', taskId)
+
+    // Start background polling for this task
+    const backgroundPolling = async () => {
+      console.log(`🔄 Starting background polling for task: ${taskId}`)
+      
+      // Poll every 10 seconds for up to 5 minutes
+      for (let i = 0; i < 30; i++) {
+        try {
+          await new Promise(resolve => setTimeout(resolve, 10000)) // Wait 10 seconds
+          
+          console.log(`📊 Polling attempt ${i + 1}/30 for task: ${taskId}`)
+          
+          const { data, error } = await supabase.functions.invoke('suno-status', {
+            body: { taskId }
+          })
+          
+          if (data?.updated) {
+            console.log(`✅ Task ${taskId} completed via polling!`)
+            break
+          }
+          
+          if (data?.failed) {
+            console.log(`❌ Task ${taskId} failed via polling`)
+            break
+          }
+          
+        } catch (error) {
+          console.error(`❌ Polling error for task ${taskId}:`, error)
+        }
+      }
+      
+      console.log(`🏁 Finished polling for task: ${taskId}`)
+    }
+
+    // Start background task
+    EdgeRuntime.waitUntil(backgroundPolling())
+
     const successResponse = { 
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully. You will be notified when it\'s ready.'
+      message: 'Song generation started successfully. Polling in background for completion.'
     }
+
+    console.log('🎉 Returning success response:', successResponse)
 
     return new Response(JSON.stringify(successResponse), {
       status: 200,
@@ -245,7 +320,7 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Critical error in generation:', error)
+    console.error('💥 Critical error in generation:', error)
     return new Response(JSON.stringify({ 
       error: 'Internal error: ' + error.message,
       success: false 

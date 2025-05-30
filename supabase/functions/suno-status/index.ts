@@ -89,21 +89,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Try different API endpoints to check status
-    const statusEndpoints = [
-      `https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`,
-      `https://apibox.erweima.ai/api/v1/status/${taskId}`,
-      `https://apibox.erweima.ai/api/v1/task/${taskId}`
-    ]
-
+    // Use Get Details endpoint with retry logic
     let statusData = null
     let lastError = null
 
-    for (const endpoint of statusEndpoints) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        console.log(`🔍 Trying endpoint: ${endpoint}`)
+        console.log(`🔍 Status check attempt ${attempt}/3 for task: ${taskId}`)
         
-        const statusResponse = await fetch(endpoint, {
+        const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${sunoApiKey}`,
@@ -112,28 +106,45 @@ Deno.serve(async (req) => {
         })
 
         if (statusResponse.ok) {
-          statusData = await statusResponse.json()
-          console.log('✅ Got response from:', endpoint, JSON.stringify(statusData, null, 2))
-          break
+          const responseText = await statusResponse.text()
+          console.log('📥 Status API raw response:', responseText)
+          
+          try {
+            statusData = JSON.parse(responseText)
+            console.log('✅ Got status response:', JSON.stringify(statusData, null, 2))
+            break
+          } catch (parseError) {
+            lastError = `Parse error: ${parseError.message}`
+            console.log(`❌ Parse error on attempt ${attempt}:`, parseError)
+          }
         } else {
           lastError = `${statusResponse.status} ${statusResponse.statusText}`
-          console.log(`❌ Endpoint ${endpoint} failed:`, lastError)
+          console.log(`❌ Status API failed on attempt ${attempt}:`, lastError)
+          
+          if (statusResponse.status === 429 || statusResponse.status >= 500) {
+            // Wait before retry for rate limits or server errors
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt))
+          } else {
+            break // Don't retry client errors
+          }
         }
       } catch (error) {
         lastError = error.message
-        console.log(`❌ Endpoint ${endpoint} error:`, error.message)
+        console.log(`❌ Status check error on attempt ${attempt}:`, error.message)
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+        }
       }
     }
 
     if (!statusData) {
-      console.log('❌ All endpoints failed, last error:', lastError)
+      console.log('❌ All status check attempts failed, last error:', lastError)
       
-      // Don't mark as failed immediately - just return processing status
       return new Response(JSON.stringify({ 
         success: true,
         updated: false,
         processing: true,
-        message: 'Still checking status - API endpoints not responding',
+        message: 'Still checking status - API not responding',
         lastError
       }), {
         status: 200,
@@ -160,7 +171,7 @@ Deno.serve(async (req) => {
       const item = songItems[0] // Take the first item
       console.log('🔍 Processing item:', JSON.stringify(item, null, 2))
       
-      if ((item.status === 'SUCCESS' || item.status === 'complete') && item.audio_url) {
+      if ((item.status === 'SUCCESS' || item.status === 'complete' || item.status === 'completed') && item.audio_url) {
         console.log('✅ Generation completed! Updating database...')
         
         const { data: updatedSong, error: updateError } = await supabase
@@ -198,7 +209,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
         
-      } else if (item.status === 'FAIL' || item.status === 'FAILED' || item.status === 'error') {
+      } else if (item.status === 'FAIL' || item.status === 'FAILED' || item.status === 'error' || item.status === 'failed') {
         console.log('❌ Generation failed, updating status')
         
         const { data: updatedSong, error: updateError } = await supabase
