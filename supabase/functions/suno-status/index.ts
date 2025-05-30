@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // First, find the song with this task ID
+    // Find the song with this task ID (stored in audio_url for pending songs)
     const { data: existingSong, error: findError } = await supabase
       .from('songs')
       .select('id, title, status')
@@ -46,12 +46,14 @@ Deno.serve(async (req) => {
       .single()
 
     if (findError || !existingSong) {
-      console.log('❌ Song not found with task ID:', taskId, findError)
+      console.log('❌ Song not found with task ID:', taskId)
       return new Response(JSON.stringify({ 
         error: 'Song not found with this task ID',
-        taskId 
+        taskId,
+        success: false,
+        updated: false
       }), {
-        status: 404,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -67,29 +69,10 @@ Deno.serve(async (req) => {
       }
     })
 
-    const statusText = await statusResponse.text()
-    console.log('🔍 Raw Suno API response:', statusText)
-
     if (!statusResponse.ok) {
-      console.error('❌ Suno API error:', statusText)
+      console.error('❌ Suno API error:', statusResponse.status, statusResponse.statusText)
       return new Response(JSON.stringify({ 
         error: 'Failed to check status with Suno API',
-        details: statusText,
-        success: false,
-        updated: false
-      }), {
-        status: 200, // Don't fail the whole request
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    let statusData
-    try {
-      statusData = JSON.parse(statusText)
-    } catch (parseError) {
-      console.error('❌ Failed to parse response:', parseError)
-      return new Response(JSON.stringify({ 
-        error: 'Invalid status response from Suno API',
         success: false,
         updated: false
       }), {
@@ -98,7 +81,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('🔍 Parsed status data:', JSON.stringify(statusData, null, 2))
+    const statusData = await statusResponse.json()
+    console.log('🔍 Suno API response:', JSON.stringify(statusData, null, 2))
 
     // Check if generation is complete
     if (statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0) {
@@ -123,7 +107,6 @@ Deno.serve(async (req) => {
           console.error('❌ Failed to update song:', updateError)
           return new Response(JSON.stringify({ 
             error: 'Database update failed',
-            details: updateError.message,
             success: false,
             updated: false
           }), {
@@ -155,10 +138,6 @@ Deno.serve(async (req) => {
           })
           .eq('id', existingSong.id)
           .select()
-
-        if (updateError) {
-          console.error('❌ Failed to update failed song:', updateError)
-        }
 
         return new Response(JSON.stringify({ 
           success: true,

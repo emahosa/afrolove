@@ -23,7 +23,6 @@ export const useSongStatusChecker = () => {
 
       console.log('Status check response:', data);
       
-      // Check if the song was updated in the database
       if (data?.success && data?.updated) {
         console.log('Song was updated in database');
         return true;
@@ -43,7 +42,6 @@ export const useSongStatusChecker = () => {
       setIsChecking(true);
       console.log('Checking all pending songs for user:', user.id);
 
-      // Get all pending songs that have task IDs stored in audio_url
       const { data: pendingSongs, error } = await supabase
         .from('songs')
         .select('id, title, audio_url, status, created_at')
@@ -63,26 +61,21 @@ export const useSongStatusChecker = () => {
 
       console.log('Found pending songs to check:', pendingSongs);
 
-      // Check status for each pending song
       let updatedCount = 0;
       for (const song of pendingSongs) {
-        // The audio_url contains the task ID for pending songs
         console.log(`Checking song ${song.id} with task ID: ${song.audio_url}`);
         const wasUpdated = await checkSongStatus(song.audio_url);
         if (wasUpdated) {
           updatedCount++;
         }
-        // Small delay to avoid overwhelming the API
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       if (updatedCount > 0) {
         toast.success(`${updatedCount} song(s) completed and updated!`);
-        // Trigger a page refresh to show updated songs
         window.location.reload();
       } else {
         console.log('No songs were updated');
-        toast.info('Songs are still processing...');
       }
 
     } catch (error) {
@@ -93,11 +86,9 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
-  // Auto-check every 30 seconds if there are pending songs
   useEffect(() => {
     if (!user?.id) return;
 
-    // Check immediately on mount
     checkAllPendingSongs();
 
     const interval = setInterval(checkAllPendingSongs, 30000);
