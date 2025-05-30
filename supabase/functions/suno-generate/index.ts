@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🔗 Webhook URL:', webhookUrl)
 
     // Try multiple API endpoints in case one fails
     const endpoints = [
