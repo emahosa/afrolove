@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    // Use the provided API key
+    // Use your provided API key
     const newApiKey = "7fc761e1476332e37664a3ef9be8b50c"
     
     console.log('Testing Suno API key...')

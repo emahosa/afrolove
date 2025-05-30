@@ -29,7 +29,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      apiKey: "014149ccc3a976f8573e5f29e73c51db",
+      apiKey: "7fc761e1476332e37664a3ef9be8b50c",
     },
   });
 
@@ -49,7 +49,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
       }
 
       if (data.success) {
-        setValidatedKey(data.validatedKey);
+        setValidatedKey(data.key);
         toast.success('✅ API key validated successfully!', {
           description: 'Now follow the instructions below to complete the update.',
           duration: 6000,
