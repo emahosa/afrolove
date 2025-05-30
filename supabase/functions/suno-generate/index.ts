@@ -16,20 +16,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get Suno API key from environment - this should work in Supabase Edge Functions
-    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    // Get Suno API key from environment and trim any whitespace/newlines
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY')?.trim()
     console.log('Checking for SUNO_API_KEY...')
     
     if (!sunoApiKey) {
       console.error('SUNO_API_KEY not found in environment variables')
-      console.error('Available env vars:', Object.keys(Deno.env.toObject()))
       return new Response(
         JSON.stringify({ error: 'Suno API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Suno API key found, length:', sunoApiKey.length)
+    console.log('Suno API key found, length after trim:', sunoApiKey.length)
 
     // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -161,7 +160,7 @@ Deno.serve(async (req) => {
     }
 
     // Call Suno API
-    console.log('Calling Suno API with key:', sunoApiKey.substring(0, 8) + '...')
+    console.log('Calling Suno API...')
     const sunoRequest = {
       prompt: prompt,
       make_instrumental: instrumental || false,
@@ -171,7 +170,7 @@ Deno.serve(async (req) => {
       tags: style
     }
 
-    console.log('Suno request:', sunoRequest)
+    console.log('Suno request payload:', sunoRequest)
 
     const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
       method: 'POST',
@@ -182,41 +181,31 @@ Deno.serve(async (req) => {
       body: JSON.stringify(sunoRequest)
     })
 
-    const responseText = await sunoResponse.text()
     console.log('Suno response status:', sunoResponse.status)
-    console.log('Suno response text:', responseText)
-
+    
     if (!sunoResponse.ok) {
-      console.error('Suno API failed:', sunoResponse.status, responseText)
+      const errorText = await sunoResponse.text()
+      console.error('Suno API failed:', sunoResponse.status, errorText)
       
       // Update song with error
       await supabase
         .from('songs')
         .update({ 
           status: 'rejected',
-          audio_url: `error: ${responseText}`
+          audio_url: `error: ${errorText}`
         })
         .eq('id', song.id)
       
       return new Response(
         JSON.stringify({ 
-          error: `Suno API failed: ${responseText}` 
+          error: `Suno API failed: ${errorText}` 
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    let sunoData
-    try {
-      sunoData = JSON.parse(responseText)
-      console.log('Parsed Suno data:', sunoData)
-    } catch (parseError) {
-      console.error('Parse error:', parseError)
-      return new Response(
-        JSON.stringify({ error: 'Invalid API response' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const sunoData = await sunoResponse.json()
+    console.log('Suno API response:', sunoData)
 
     // Handle response
     if (sunoData.data && sunoData.data.length > 0) {
