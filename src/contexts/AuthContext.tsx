@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const setupInProgress = useRef(false);
+  const initializedRef = useRef(false);
 
   const isAdmin = () => {
     if (user?.email === 'ellaadahosa@gmail.com') {
@@ -76,44 +76,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const setupUserProfile = async (user: User) => {
-    if (setupInProgress.current) {
-      console.log('AuthContext: Profile setup already in progress, skipping');
-      return;
-    }
-
-    setupInProgress.current = true;
+  const processSession = async (session: Session | null) => {
+    console.log('AuthContext: Processing session:', session ? 'exists' : 'null');
     
-    try {
-      console.log('AuthContext: Setting up user profile for:', user.id);
-      
-      const basicUser: ExtendedUser = {
-        ...user,
-        name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
-        avatar: user.user_metadata.avatar_url || '',
-        credits: 5,
-        subscription: 'free'
-      };
-      
-      setUser(basicUser);
-
-      const roles = await fetchUserRoles(user.id);
-      setUserRoles(roles);
-
-      console.log('AuthContext: User profile setup complete');
-    } catch (error) {
-      console.error('Error setting up user profile:', error);
-      const fallbackUser: ExtendedUser = {
-        ...user,
-        name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
-        avatar: user.user_metadata.avatar_url || '',
-        credits: 5,
-        subscription: 'free'
-      };
-      setUser(fallbackUser);
-    } finally {
-      setupInProgress.current = false;
+    if (session?.user) {
+      try {
+        const basicUser: ExtendedUser = {
+          ...session.user,
+          name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
+          avatar: session.user.user_metadata.avatar_url || '',
+          credits: 5,
+          subscription: 'free'
+        };
+        
+        const roles = await fetchUserRoles(session.user.id);
+        
+        setUser(basicUser);
+        setUserRoles(roles);
+        setSession(session);
+        
+        console.log('AuthContext: User setup complete');
+      } catch (error) {
+        console.error('AuthContext: Error processing session:', error);
+        setUser(null);
+        setUserRoles([]);
+        setSession(null);
+      }
+    } else {
+      setUser(null);
+      setUserRoles([]);
+      setSession(null);
     }
+    
+    setLoading(false);
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -187,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRoles([]);
-      setupInProgress.current = false;
+      initializedRef.current = false;
     } catch (error: any) {
       console.error('Logout error:', error);
       throw error;
@@ -197,37 +192,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthContext: Initializing auth state');
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state change:', event, session ? 'session exists' : 'no session');
-        
-        setSession(session);
-        
-        if (session?.user && !setupInProgress.current) {
-          await setupUserProfile(session.user);
-        } else if (!session?.user) {
-          setUser(null);
-          setUserRoles([]);
-          setupInProgress.current = false;
-        }
-        
-        setLoading(false);
-      }
-    );
-
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
-      setSession(session);
-      
-      if (session?.user && !setupInProgress.current) {
-        setupUserProfile(session.user).finally(() => {
-          setLoading(false);
-        });
-      } else {
-        console.log('AuthContext: No initial session, setting loading to false');
-        setLoading(false);
+      if (!initializedRef.current) {
+        initializedRef.current = true;
+        processSession(session);
       }
     });
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('AuthContext: Auth state change:', event);
+        
+        // Only process if we've finished initial setup
+        if (initializedRef.current) {
+          await processSession(session);
+        }
+      }
+    );
 
     return () => {
       console.log('AuthContext: Cleaning up auth listener');
