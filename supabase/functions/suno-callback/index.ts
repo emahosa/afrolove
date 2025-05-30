@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
     const body = await req.json()
-    console.log('🔔 Suno Callback received:', JSON.stringify(body, null, 2))
+    console.log('🔔 Suno Callback received - RAW BODY:', JSON.stringify(body, null, 2))
 
     // Handle different possible callback structures from Suno API
     let taskId = null
@@ -26,36 +26,45 @@ Deno.serve(async (req) => {
     let status = null
     let title = null
 
-    // Check for direct properties first
-    if (body.taskId || body.id) {
-      taskId = body.taskId || body.id
+    // Try to extract data from various possible structures
+    if (body.taskId) {
+      taskId = body.taskId
       audioUrl = body.audioUrl || body.audio_url
       status = body.status
       title = body.title
-    }
-    // Check for data array structure
-    else if (body.data && Array.isArray(body.data) && body.data.length > 0) {
-      const item = body.data[0]
-      taskId = item.id || item.taskId
-      audioUrl = item.audio_url || item.audioUrl
-      status = item.status
-      title = item.title
-    }
-    // Check for single data object
-    else if (body.data && typeof body.data === 'object') {
-      taskId = body.data.id || body.data.taskId
-      audioUrl = body.data.audio_url || body.data.audioUrl
-      status = body.data.status
-      title = body.data.title
+      console.log('📋 Using direct properties')
+    } else if (body.data) {
+      if (Array.isArray(body.data) && body.data.length > 0) {
+        const item = body.data[0]
+        taskId = item.id || item.taskId
+        audioUrl = item.audio_url || item.audioUrl
+        status = item.status
+        title = item.title
+        console.log('📋 Using data array structure')
+      } else if (typeof body.data === 'object') {
+        taskId = body.data.id || body.data.taskId
+        audioUrl = body.data.audio_url || body.data.audioUrl
+        status = body.data.status
+        title = body.data.title
+        console.log('📋 Using data object structure')
+      }
+    } else if (body.id) {
+      taskId = body.id
+      audioUrl = body.audio_url || body.audioUrl
+      status = body.status
+      title = body.title
+      console.log('📋 Using ID as taskId')
     }
 
-    console.log('📋 Parsed callback data:', { taskId, audioUrl, status, title })
+    console.log('📋 Extracted data:', { taskId, audioUrl, status, title })
 
     if (!taskId) {
       console.error('❌ No task ID found in callback payload')
+      console.log('❌ Available keys in body:', Object.keys(body))
       return new Response(JSON.stringify({ 
         error: 'No task ID found in callback',
-        received: body 
+        received: body,
+        available_keys: Object.keys(body)
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -63,6 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // Find the song by task ID stored in audio_url field
+    console.log('🔍 Searching for song with task ID:', taskId)
     const { data: songs, error: findError } = await supabase
       .from('songs')
       .select('*')
@@ -79,11 +89,27 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('🔍 Found songs:', songs?.length || 0)
+    if (songs && songs.length > 0) {
+      console.log('📋 Song details:', songs[0])
+    }
+
     if (!songs || songs.length === 0) {
       console.error('❌ No song found with task ID:', taskId)
+      
+      // Let's also check if there are any songs with this task ID in a different field
+      const { data: allSongs } = await supabase
+        .from('songs')
+        .select('id, title, audio_url, status')
+        .order('created_at', { ascending: false })
+        .limit(10)
+      
+      console.log('📋 Recent songs in database:', allSongs)
+      
       return new Response(JSON.stringify({ 
         error: 'No song found for task ID',
-        taskId: taskId 
+        taskId: taskId,
+        recent_songs: allSongs 
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -118,15 +144,17 @@ Deno.serve(async (req) => {
     // Still processing or unknown status
     else {
       console.log('⏳ Song still processing, status:', status)
-      // Don't update status if still processing
-      delete updateData.status
+      // Don't update status if still processing, but update timestamp
     }
 
+    console.log('📝 Update data:', updateData)
+
     // Update the song record
-    const { error: updateError } = await supabase
+    const { data: updatedSong, error: updateError } = await supabase
       .from('songs')
       .update(updateData)
       .eq('id', song.id)
+      .select()
 
     if (updateError) {
       console.error('❌ Error updating song:', updateError)
@@ -140,13 +168,15 @@ Deno.serve(async (req) => {
     }
 
     console.log(`✅ Song ${song.id} updated successfully`)
+    console.log('📝 Updated song data:', updatedSong)
 
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
       task_id: taskId,
       status: updateData.status || 'processing',
-      message: 'Callback processed successfully'
+      message: 'Callback processed successfully',
+      updated_song: updatedSong
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -154,9 +184,11 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Callback processing error:', error)
+    console.error('❌ Error stack:', error.stack)
     return new Response(JSON.stringify({ 
       error: 'Internal server error',
-      details: error.message 
+      details: error.message,
+      stack: error.stack 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
