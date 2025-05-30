@@ -16,37 +16,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get all environment variables to debug
-    const allEnvVars = Deno.env.toObject()
-    console.log('All environment variable names:', Object.keys(allEnvVars))
-    
-    // Try multiple possible names for the API key
+    // Get the API key and aggressively clean it
     let sunoApiKey = Deno.env.get('SUNO_API_KEY')
-    if (!sunoApiKey) {
-      sunoApiKey = Deno.env.get('SUNO_AI_API_KEY')
-    }
-    if (!sunoApiKey) {
-      sunoApiKey = Deno.env.get('SUNOAI_API_KEY')
+    
+    if (sunoApiKey) {
+      // Remove all whitespace, newlines, carriage returns
+      sunoApiKey = sunoApiKey.replace(/[\r\n\t\s]/g, '')
+      console.log('Cleaned API key length:', sunoApiKey.length)
+      console.log('API key starts with:', sunoApiKey.substring(0, 10))
     }
     
-    console.log('Checking for SUNO_API_KEY...')
-    console.log('SUNO_API_KEY exists:', !!sunoApiKey)
-    
-    if (!sunoApiKey) {
-      console.error('SUNO_API_KEY not found in environment variables')
-      console.error('Available secrets:', Object.keys(allEnvVars).filter(key => 
-        key.includes('SUNO') || key.includes('API')
-      ))
+    if (!sunoApiKey || sunoApiKey.length < 10) {
+      console.error('SUNO_API_KEY not found or invalid')
       return new Response(
-        JSON.stringify({ error: 'Suno API key not configured in secrets' }),
+        JSON.stringify({ error: 'Suno API key not configured properly' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    // Clean the API key
-    sunoApiKey = sunoApiKey.trim()
-    console.log('API key length after trim:', sunoApiKey.length)
-    console.log('API key starts with:', sunoApiKey.substring(0, 10))
 
     // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -177,34 +163,8 @@ Deno.serve(async (req) => {
       console.error('Credit deduction error:', creditError)
     }
 
-    // Test API key first with a simple request
-    console.log('Testing Suno API key...')
-    const testResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': sunoApiKey
-      },
-      body: JSON.stringify({
-        prompt: "test",
-        make_instrumental: true,
-        wait_audio: false,
-        model_version: 'chirp-v3-5'
-      })
-    })
-
-    console.log('API test response status:', testResponse.status)
-    
-    if (testResponse.status === 401 || testResponse.status === 403) {
-      console.error('Invalid API key')
-      return new Response(
-        JSON.stringify({ error: 'Invalid Suno API key' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Now make the actual request
-    console.log('Making actual Suno API request...')
+    // Make the Suno API request
+    console.log('Making Suno API request...')
     const sunoRequest = {
       prompt: prompt,
       make_instrumental: instrumental || false,
