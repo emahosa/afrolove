@@ -47,7 +47,7 @@ const Register = () => {
     setLoading(true);
     try {
       console.log("Register: Registering user:", { email, name });
-      const success = await register(name, email, password, false);
+      const success = await register(name, email, password);
       
       if (success) {
         toast.success("Registration successful! Welcome to Afroverse!");

@@ -48,7 +48,7 @@ const AdminRegister = () => {
     setLoading(true);
     try {
       console.log("Registering admin:", { email, name });
-      const success = await register(name, email, password, true); // true = admin
+      const success = await register(name, email, password);
       if (success) {
         toast.success("Admin account created successfully");
         navigate("/dashboard");

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,6 +11,8 @@ export interface SunoGenerationRequest {
   customMode: boolean;
   model: 'V3_5' | 'V4' | 'V4_5';
   negativeTags?: string;
+  requestId?: string;
+  isAdminTest?: boolean;
 }
 
 export interface SunoGenerationStatus {

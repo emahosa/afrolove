@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -66,7 +65,6 @@ const Login = () => {
     setLoading(true);
     try {
       console.log("Login: Attempting login with:", { email, userType });
-      const isAdminLogin = userType === "admin";
       
       // First attempt to authenticate with email/password
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -112,11 +110,11 @@ const Login = () => {
       }
       
       // If we reach here, MFA was not required or has been completed
-      const success = await login(email, password, isAdminLogin);
+      const success = await login(email, password);
       
       if (success) {
         // Get the intended destination or default to dashboard/admin based on login type
-        let destination = isAdminLogin ? "/admin" : "/dashboard";
+        let destination = userType === "admin" ? "/admin" : "/dashboard";
         if (location.state?.from?.pathname) {
           destination = location.state.from.pathname;
         }
@@ -136,11 +134,10 @@ const Login = () => {
     setShowMFAVerification(false);
     
     // After MFA is verified, complete the login process
-    const isAdminLogin = userType === "admin";
-    const success = await login(email, password, isAdminLogin);
+    const success = await login(email, password);
     
     if (success) {
-      let destination = isAdminLogin ? "/admin" : "/dashboard";
+      let destination = userType === "admin" ? "/admin" : "/dashboard";
       if (location.state?.from?.pathname) {
         destination = location.state.from.pathname;
       }
