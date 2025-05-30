@@ -5,9 +5,10 @@ import SingleTrackView from "@/components/library/SingleTrackView";
 import LibraryFilters from "@/components/library/LibraryFilters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, RefreshCw, Clock } from "lucide-react";
+import { Loader2, RefreshCw, Clock, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSongStatusChecker } from "@/hooks/use-song-status-checker";
 
 interface Track {
   id: string;
@@ -31,6 +32,8 @@ const Library = () => {
   const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+
+  const { checkAllPendingSongs, isChecking } = useSongStatusChecker();
 
   const fetchTracks = async (showRefreshingIndicator = false) => {
     if (!user?.id) {
@@ -86,6 +89,7 @@ const Library = () => {
         const isCompleted = song.audio_url && 
                            !song.audio_url.startsWith('task_pending:') &&
                            !song.audio_url.startsWith('error:') &&
+                           song.audio_url !== 'generating' &&
                            (song.status === 'completed' || song.status === 'approved');
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
         return isCompleted;
@@ -95,7 +99,7 @@ const Library = () => {
         const isPending = song.status === 'pending' || 
                          (song.audio_url && (
                            song.audio_url.startsWith('task_pending:') || 
-                           song.audio_url === 'task_pending:generating'
+                           song.audio_url === 'generating'
                          ));
         console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isPending=${isPending}`);
         return isPending;
@@ -181,7 +185,8 @@ const Library = () => {
           if ((payload.new.status === 'completed' || payload.new.status === 'approved') && 
               payload.new.audio_url && 
               !payload.new.audio_url.startsWith('task_pending:') &&
-              !payload.new.audio_url.startsWith('error:')) {
+              !payload.new.audio_url.startsWith('error:') &&
+              payload.new.audio_url !== 'generating') {
             console.log('Library: Detected completed song, refreshing...');
             fetchTracks(true);
             toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
@@ -253,6 +258,11 @@ const Library = () => {
     fetchTracks(true);
   };
 
+  const handleCheckStatus = () => {
+    console.log('Library: Manual status check triggered');
+    checkAllPendingSongs();
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -281,16 +291,30 @@ const Library = () => {
             <h1 className="text-3xl font-bold mb-2">My Library</h1>
             <p className="text-muted-foreground">All your saved songs and instrumentals</p>
           </div>
-          <Button
-            onClick={handleRefresh}
-            variant="outline"
-            size="sm"
-            disabled={isRefreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {pendingSongs.length > 0 && (
+              <Button
+                onClick={handleCheckStatus}
+                variant="outline"
+                size="sm"
+                disabled={isChecking}
+                className="flex items-center gap-2"
+              >
+                <CheckCircle className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
+                Check Status
+              </Button>
+            )}
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              size="sm"
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -301,6 +325,11 @@ const Library = () => {
             <Clock className="h-5 w-5" />
             <h2 className="text-xl font-semibold">Generating Songs</h2>
             <Badge variant="secondary">{pendingSongs.length}</Badge>
+            {isChecking && (
+              <Badge variant="outline" className="animate-pulse">
+                Checking Status...
+              </Badge>
+            )}
           </div>
           <div className="grid gap-4">
             {pendingSongs.map((song) => (
