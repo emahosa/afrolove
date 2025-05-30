@@ -103,12 +103,16 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Prepare the callback URL
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+
     // Prepare the Suno API request
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model
+      model,
+      callBackUrl: callbackUrl
     }
 
     // Add optional fields if provided
