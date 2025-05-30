@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create song record first
+    // Create song record first with pending status
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -100,13 +100,13 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno API request - FIXED callback URL format
+    // Prepare Suno API request with callback URL
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
       customMode: customMode || false,
-      callBackUrl: `https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback?song_id=${song.id}`
+      callBackUrl: `https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback`
     }
 
     // Add custom mode fields if provided
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Store task ID for tracking - don't use task: prefix
+    // Store task ID in audio_url field so callback can find the song
     await supabase
       .from('songs')
       .update({ 

@@ -17,115 +17,91 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get song_id from URL parameter
-    const url = new URL(req.url)
-    const songId = url.searchParams.get('song_id')
-    
     const body = await req.json()
-    console.log('🔔 Suno Callback received for song ID:', songId)
-    console.log('📦 Callback body:', JSON.stringify(body, null, 2))
+    console.log('🔔 Suno Callback received:', JSON.stringify(body, null, 2))
 
-    if (!songId) {
-      console.error('❌ No song_id in callback URL')
-      return new Response(JSON.stringify({ error: 'song_id required in URL' }), {
-        status: 400, 
+    // Extract task ID from the callback data
+    let taskId = null
+    let audioUrl = null
+    let status = null
+
+    // Handle different callback structures from Suno
+    if (body.data) {
+      if (Array.isArray(body.data) && body.data.length > 0) {
+        taskId = body.data[0].id || body.data[0].taskId
+        audioUrl = body.data[0].audio_url
+        status = body.data[0].status
+      } else if (typeof body.data === 'object') {
+        taskId = body.data.id || body.data.taskId
+        audioUrl = body.data.audio_url
+        status = body.data.status
+      }
+    } else if (body.taskId) {
+      taskId = body.taskId
+      audioUrl = body.audio_url
+      status = body.status
+    }
+
+    console.log('📋 Extracted from callback - taskId:', taskId, 'audioUrl:', audioUrl, 'status:', status)
+
+    if (!taskId) {
+      console.error('❌ No task ID found in callback')
+      return new Response(JSON.stringify({ error: 'No task ID in callback' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Find the song by ID
+    // Find the song by task ID (stored in audio_url field)
     const { data: song, error: findError } = await supabase
       .from('songs')
       .select('*')
-      .eq('id', songId)
+      .eq('audio_url', taskId)
       .single()
 
     if (findError || !song) {
-      console.error('❌ Error finding song:', findError)
-      return new Response(JSON.stringify({ error: 'Song not found' }), {
+      console.error('❌ Error finding song by task ID:', taskId, findError)
+      return new Response(JSON.stringify({ error: 'Song not found for task ID: ' + taskId }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    console.log(`📋 Found song: ${song.id}, current status: ${song.status}`)
+    console.log(`📋 Found song: ${song.id} for task: ${taskId}`)
 
-    // Extract the audio data from different possible callback structures
-    let audioData = null
-    let audioUrl = null
-    let streamUrl = null
-    let songTitle = null
+    // Only update if we have a valid audio URL
+    if (audioUrl && audioUrl !== 'generating') {
+      const updateData = {
+        status: 'completed',
+        audio_url: audioUrl,
+        updated_at: new Date().toISOString()
+      }
 
-    // Check different possible structures
-    if (body.data && Array.isArray(body.data) && body.data.length > 0) {
-      audioData = body.data[0]
-    } else if (body.data && typeof body.data === 'object') {
-      audioData = body.data
-    } else if (body.audio_url) {
-      audioData = body
+      console.log('🔄 Updating song with:', updateData)
+
+      const { error: updateError } = await supabase
+        .from('songs')
+        .update(updateData)
+        .eq('id', song.id)
+
+      if (updateError) {
+        console.error('❌ Error updating song:', updateError)
+        return new Response(JSON.stringify({ error: 'Update failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      console.log(`✅ Song ${song.id} updated successfully with audio URL`)
+    } else {
+      console.log('⚠️ No valid audio URL in callback, not updating')
     }
-
-    if (audioData) {
-      audioUrl = audioData.audio_url
-      streamUrl = audioData.stream_audio_url || audioData.instrumental_url
-      songTitle = audioData.title
-      console.log('🎵 Extracted audio URL:', audioUrl)
-      console.log('🎶 Extracted stream URL:', streamUrl)
-    }
-
-    if (!audioUrl) {
-      console.error('❌ No audio URL in callback data')
-      console.log('📄 Full callback structure:', JSON.stringify(body, null, 2))
-      
-      // Still acknowledge the callback but don't update
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Callback received but no audio URL found',
-        song_id: songId 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // Prepare update data
-    const updateData = {
-      status: 'completed',
-      audio_url: audioUrl,
-      updated_at: new Date().toISOString()
-    }
-
-    // Add optional fields if they exist
-    if (streamUrl) {
-      updateData.instrumental_url = streamUrl
-    }
-    
-    if (songTitle && (!song.title || song.title === 'Generated Song')) {
-      updateData.title = songTitle
-    }
-
-    console.log('🔄 Updating song with:', updateData)
-
-    const { error: updateError } = await supabase
-      .from('songs')
-      .update(updateData)
-      .eq('id', song.id)
-
-    if (updateError) {
-      console.error('❌ Error updating song:', updateError)
-      return new Response(JSON.stringify({ error: 'Update failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    console.log(`✅ Song ${song.id} updated successfully to completed status`)
 
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
-      status: 'completed',
-      message: 'Song updated successfully'
+      task_id: taskId,
+      message: 'Callback processed successfully'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
