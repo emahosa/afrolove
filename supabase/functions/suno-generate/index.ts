@@ -103,12 +103,16 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request - try the newer endpoint first
+    // Prepare the callback URL for webhook notifications
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
+
+    // Prepare the Suno API request with callback URL
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model
+      model,
+      callBackUrl: callbackUrl
     }
 
     // Add optional fields if provided
@@ -121,7 +125,7 @@ Deno.serve(async (req) => {
       sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🎵 Making Suno API request with callback:', JSON.stringify(sunoRequestBody, null, 2))
 
     // Try multiple API endpoints in case one fails
     const endpoints = [
@@ -271,6 +275,7 @@ Deno.serve(async (req) => {
       task_id: taskId,
       song_id: newSong.id,
       endpoint_used: usedEndpoint,
+      callback_url: callbackUrl,
       message: 'Song generation started successfully. Check your library in a few minutes.'
     }
 
