@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Initialize Supabase
+    // Initialize Supabase with service role key to bypass RLS issues
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
@@ -58,10 +58,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify user
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authorization.replace('Bearer ', '')
-    )
+    // Verify user using the service role client to bypass RLS
+    const token = authorization.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
       console.error('Auth error:', authError)
@@ -96,12 +95,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get user profile
+    // Get user profile using service role to bypass RLS
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
       .eq('id', user.id)
-      .maybeSingle()
+      .single()
 
     if (profileError) {
       console.error('Profile error:', profileError)
@@ -175,7 +174,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('Suno request payload:', JSON.stringify(sunoRequest, null, 2))
-    console.log('API key being used (first 10 chars):', sunoApiKey.substring(0, 10))
 
     const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
       method: 'POST',
@@ -188,7 +186,6 @@ Deno.serve(async (req) => {
 
     console.log('=== SUNO API RESPONSE DEBUG ===')
     console.log('Response status:', sunoResponse.status)
-    console.log('Response headers:', Object.fromEntries(sunoResponse.headers.entries()))
     
     const responseText = await sunoResponse.text()
     console.log('Raw response text:', responseText)
@@ -200,7 +197,6 @@ Deno.serve(async (req) => {
       console.log('Parsed response data:', JSON.stringify(sunoData, null, 2))
     } catch (parseError) {
       console.error('Failed to parse response as JSON:', parseError)
-      console.error('Response was not valid JSON. Raw text:', responseText)
       
       await supabase
         .from('songs')
@@ -295,7 +291,6 @@ Deno.serve(async (req) => {
     console.error('=== UNEXPECTED ERROR ===')
     console.error('Error message:', error.message)
     console.error('Error stack:', error.stack)
-    console.error('Error details:', error)
     
     return new Response(
       JSON.stringify({ 
