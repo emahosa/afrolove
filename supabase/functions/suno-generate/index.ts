@@ -22,8 +22,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
     // Verify auth
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create song record
+    // Create song record first
     const { data: song, error: songError } = await supabase
       .from('songs')
       .insert({
@@ -99,13 +99,16 @@ Deno.serve(async (req) => {
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno request with correct callback URL
+    // Prepare Suno request - ensure callback URL is correct
+    const callbackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+    console.log('Using callback URL:', callbackUrl)
+
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
       customMode: customMode || false,
-      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
+      callBackUrl: callbackUrl
     }
 
     // Only add style and title if customMode is true
@@ -151,11 +154,29 @@ Deno.serve(async (req) => {
       })
     }
 
-    const sunoData = JSON.parse(responseText)
+    let sunoData
+    try {
+      sunoData = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Failed to parse Suno response:', parseError)
+      await supabase
+        .from('songs')
+        .update({ 
+          status: 'rejected',
+          audio_url: 'error: Invalid response format'
+        })
+        .eq('id', song.id)
+        
+      return new Response(JSON.stringify({ error: 'Invalid response format from Suno' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const taskId = sunoData.data?.taskId || sunoData.taskId
 
     if (!taskId) {
-      console.error('No task ID received from Suno')
+      console.error('No task ID received from Suno:', sunoData)
       await supabase
         .from('songs')
         .update({ 
@@ -170,7 +191,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Update with task ID
+    // Update with task ID for tracking
     await supabase
       .from('songs')
       .update({ 
@@ -192,7 +213,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Generation error:', error)
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
+    return new Response(JSON.stringify({ error: 'Internal error: ' + error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

@@ -20,12 +20,12 @@ Deno.serve(async (req) => {
     
     console.log('Suno Callback: Full payload received:', JSON.stringify(body, null, 2))
 
-    // Handle the nested structure from your example: body.data.data[0]
-    const payload = body?.data?.data?.[0]
+    // Handle the Suno webhook format
     const taskId = body?.data?.task_id
+    const payload = body?.data?.data?.[0]
 
-    console.log('Extracted payload:', JSON.stringify(payload, null, 2))
     console.log('Extracted task ID:', taskId)
+    console.log('Extracted payload:', JSON.stringify(payload, null, 2))
 
     if (!taskId) {
       console.error('No task_id in callback')
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Find song by task ID
+    // Find song by task ID in audio_url field
     const { data: songs, error: findError } = await supabase
       .from('songs')
       .select('*')
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     if (!songs || songs.length === 0) {
       console.log(`No song found for task: ${taskId}`)
-      return new Response(JSON.stringify({ message: 'Song not found' }), {
+      return new Response(JSON.stringify({ message: 'Song not found', task_id: taskId }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -80,9 +80,8 @@ Deno.serve(async (req) => {
     if (payload.stream_audio_url) {
       updateData.instrumental_url = payload.stream_audio_url
     }
-    if (payload.image_url) {
-      // You might want to add an image_url column to songs table
-      console.log('Image URL available:', payload.image_url)
+    if (payload.title && !song.title) {
+      updateData.title = payload.title
     }
 
     console.log('Updating song with data:', updateData)
@@ -106,7 +105,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       song_id: song.id,
-      status: 'completed'
+      status: 'completed',
+      task_id: taskId
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Callback error:', error)
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
+    return new Response(JSON.stringify({ error: 'Internal error: ' + error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
