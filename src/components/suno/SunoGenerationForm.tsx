@@ -8,60 +8,135 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Music, Mic } from 'lucide-react';
+import { Loader2, Music, Mic, AlertCircle, FileText } from 'lucide-react';
 import { useSunoGeneration, SunoGenerationRequest } from '@/hooks/use-suno-generation';
 import { useGenres } from '@/hooks/use-genres';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface SunoGenerationFormProps {
   onSuccess?: (taskId: string) => void;
   requestId?: string;
 }
 
+type GenerationMode = 'prompt' | 'lyrics';
+type ModelType = 'V3_5' | 'V4' | 'V4_5';
+
+interface FormData {
+  prompt: string;
+  style: string;
+  title: string;
+  instrumental: boolean;
+  model: ModelType;
+  negativeTags: string;
+}
+
 export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormProps) => {
   const { user } = useAuth();
   const { genres } = useGenres();
-  const { generateSong, isGenerating, generationStatus } = useSunoGeneration();
+  const { generateSong, generateLyrics, isGenerating, generationStatus } = useSunoGeneration();
   
-  const [mode, setMode] = useState<'prompt' | 'lyrics'>('prompt');
-  const [formData, setFormData] = useState({
+  const [mode, setMode] = useState<GenerationMode>('prompt');
+  const [formData, setFormData] = useState<FormData>({
     prompt: '',
     style: '',
     title: '',
     instrumental: false,
-    model: 'V4_5' as const,
+    model: 'V4_5',
     negativeTags: ''
   });
+
+  const getCharacterLimits = () => {
+    if (mode === 'prompt') {
+      return { prompt: 400, style: 0, title: 0 };
+    }
+    // Lyric Input Mode
+    const promptLimit = formData.model === 'V4_5' ? 5000 : 3000;
+    const styleLimit = formData.model === 'V4_5' ? 1000 : 200;
+    return { prompt: promptLimit, style: styleLimit, title: 80 };
+  };
+
+  const limits = getCharacterLimits();
+
+  const validateForm = (): string | null => {
+    if (!formData.prompt.trim()) {
+      return 'Prompt is required';
+    }
+
+    if (formData.prompt.length > limits.prompt) {
+      return `Prompt is too long. Maximum ${limits.prompt} characters for ${mode === 'prompt' ? 'Prompt Mode' : 'Lyric Input Mode'} with ${formData.model}`;
+    }
+
+    if (mode === 'lyrics') {
+      if (!formData.style.trim()) {
+        return 'Style is required for Lyric Input Mode';
+      }
+      if (!formData.title.trim()) {
+        return 'Title is required for Lyric Input Mode';
+      }
+      if (formData.style.length > limits.style) {
+        return `Style description is too long. Maximum ${limits.style} characters for ${formData.model}`;
+      }
+      if (formData.title.length > 80) {
+        return 'Title must be 80 characters or less';
+      }
+    }
+
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user) {
+      toast.error('You must be logged in to generate songs');
       return;
     }
 
-    if (!formData.prompt.trim()) {
-      return;
-    }
-
-    if (!formData.style) {
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     const request: SunoGenerationRequest = {
       prompt: formData.prompt,
-      style: formData.style,
-      title: formData.title || undefined,
       instrumental: formData.instrumental,
       customMode: mode === 'lyrics',
       model: formData.model,
-      negativeTags: formData.negativeTags || undefined,
       requestId
     };
+
+    // Add fields based on mode
+    if (mode === 'lyrics') {
+      request.style = formData.style;
+      request.title = formData.title;
+      if (formData.negativeTags) {
+        request.negativeTags = formData.negativeTags;
+      }
+    }
 
     const taskId = await generateSong(request);
     if (taskId && onSuccess) {
       onSuccess(taskId);
+    }
+  };
+
+  const handleGenerateLyrics = async () => {
+    if (!formData.prompt.trim()) {
+      toast.error('Please enter a prompt to generate lyrics');
+      return;
+    }
+
+    try {
+      const result = await generateLyrics(formData.prompt);
+      if (result) {
+        toast.success('Lyrics generated successfully!');
+        // You could handle the generated lyrics here
+        console.log('Generated lyrics:', result);
+      }
+    } catch (error) {
+      console.error('Error generating lyrics:', error);
     }
   };
 
@@ -72,12 +147,10 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
     return 'Paste your full song lyrics here...';
   };
 
-  const getCharacterLimit = () => {
-    if (mode === 'prompt') return 400;
-    return formData.model === 'V4_5' ? 5000 : 3000;
+  const isFormValid = () => {
+    const validationError = validateForm();
+    return !validationError && !isGenerating;
   };
-
-  const isOverLimit = formData.prompt.length > getCharacterLimit();
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -87,7 +160,7 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
           Generate Song with Suno AI
         </CardTitle>
         <CardDescription>
-          Create high-quality songs using advanced AI. Choose between quick prompts or full lyrics.
+          Create high-quality songs using advanced AI. Choose between quick prompts or full lyrics input.
         </CardDescription>
       </CardHeader>
       
@@ -97,7 +170,16 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
           <Label className="text-base font-medium">Generation Mode</Label>
           <RadioGroup 
             value={mode} 
-            onValueChange={(value) => setMode(value as 'prompt' | 'lyrics')}
+            onValueChange={(value) => {
+              setMode(value as GenerationMode);
+              // Reset form data when switching modes
+              setFormData(prev => ({
+                ...prev,
+                prompt: '',
+                style: '',
+                title: ''
+              }));
+            }}
             className="grid grid-cols-2 gap-4"
           >
             <div className="space-y-1">
@@ -135,69 +217,13 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Prompt/Lyrics Input */}
-          <div className="space-y-2">
-            <Label htmlFor="prompt" className="text-base font-medium">
-              {mode === 'prompt' ? 'Song Description' : 'Song Lyrics'}
-            </Label>
-            <Textarea
-              id="prompt"
-              placeholder={getPromptPlaceholder()}
-              value={formData.prompt}
-              onChange={(e) => setFormData(prev => ({ ...prev, prompt: e.target.value }))}
-              className={`min-h-[120px] ${isOverLimit ? 'border-red-500' : ''}`}
-              maxLength={getCharacterLimit()}
-            />
-            <div className="flex justify-between text-sm">
-              <span className={isOverLimit ? 'text-red-500' : 'text-muted-foreground'}>
-                {formData.prompt.length}/{getCharacterLimit()} characters
-              </span>
-              {isOverLimit && (
-                <span className="text-red-500">Character limit exceeded</span>
-              )}
-            </div>
-          </div>
-
-          {/* Genre/Style Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="style" className="text-base font-medium">Genre/Style</Label>
-            <Select value={formData.style} onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a genre..." />
-              </SelectTrigger>
-              <SelectContent>
-                {genres.map((genre) => (
-                  <SelectItem key={genre.id} value={genre.name}>
-                    {genre.name}
-                  </SelectItem>
-                ))}
-                <SelectItem value="Afrobeats">Afrobeats</SelectItem>
-                <SelectItem value="R&B">R&B</SelectItem>
-                <SelectItem value="Pop">Pop</SelectItem>
-                <SelectItem value="Hip Hop">Hip Hop</SelectItem>
-                <SelectItem value="Rock">Rock</SelectItem>
-                <SelectItem value="Electronic">Electronic</SelectItem>
-                <SelectItem value="Jazz">Jazz</SelectItem>
-                <SelectItem value="Country">Country</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Song Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Song Title (Optional)</Label>
-            <Input
-              id="title"
-              placeholder="Enter song title or leave blank for AI to generate"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            />
-          </div>
-
           {/* Model Selection */}
           <div className="space-y-2">
             <Label htmlFor="model" className="text-base font-medium">AI Model</Label>
-            <Select value={formData.model} onValueChange={(value) => setFormData(prev => ({ ...prev, model: value as any }))}>
+            <Select 
+              value={formData.model} 
+              onValueChange={(value: ModelType) => setFormData(prev => ({ ...prev, model: value }))}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -209,6 +235,103 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
             </Select>
           </div>
 
+          {/* Prompt/Lyrics Input */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="prompt" className="text-base font-medium">
+                {mode === 'prompt' ? 'Song Description' : 'Song Lyrics'}
+              </Label>
+              {mode === 'prompt' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateLyrics}
+                  disabled={!formData.prompt.trim() || isGenerating}
+                  className="flex items-center gap-1"
+                >
+                  <FileText className="h-3 w-3" />
+                  Generate Lyrics
+                </Button>
+              )}
+            </div>
+            <Textarea
+              id="prompt"
+              placeholder={getPromptPlaceholder()}
+              value={formData.prompt}
+              onChange={(e) => setFormData(prev => ({ ...prev, prompt: e.target.value }))}
+              className={`min-h-[120px] ${formData.prompt.length > limits.prompt ? 'border-red-500' : ''}`}
+            />
+            <div className="flex justify-between text-sm">
+              <span className={formData.prompt.length > limits.prompt ? 'text-red-500' : 'text-muted-foreground'}>
+                {formData.prompt.length}/{limits.prompt} characters
+              </span>
+              {formData.prompt.length > limits.prompt && (
+                <span className="text-red-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Character limit exceeded
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Genre/Style Selection - Required for Lyric Input Mode */}
+          {mode === 'lyrics' && (
+            <div className="space-y-2">
+              <Label htmlFor="style" className="text-base font-medium">
+                Genre/Style <span className="text-red-500">*</span>
+              </Label>
+              <Select 
+                value={formData.style} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a genre..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {genres.map((genre) => (
+                    <SelectItem key={genre.id} value={genre.name}>
+                      {genre.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Afrobeats">Afrobeats</SelectItem>
+                  <SelectItem value="R&B">R&B</SelectItem>
+                  <SelectItem value="Pop">Pop</SelectItem>
+                  <SelectItem value="Hip Hop">Hip Hop</SelectItem>
+                  <SelectItem value="Rock">Rock</SelectItem>
+                  <SelectItem value="Electronic">Electronic</SelectItem>
+                  <SelectItem value="Jazz">Jazz</SelectItem>
+                  <SelectItem value="Country">Country</SelectItem>
+                </SelectContent>
+              </Select>
+              {formData.style && (
+                <div className="text-sm text-muted-foreground">
+                  {formData.style.length}/{limits.style} characters
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Song Title - Required for Lyric Input Mode */}
+          {mode === 'lyrics' && (
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-base font-medium">
+                Song Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
+                placeholder="Enter song title"
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                maxLength={80}
+                className={formData.title.length > 80 ? 'border-red-500' : ''}
+              />
+              <div className="text-sm text-muted-foreground">
+                {formData.title.length}/80 characters
+              </div>
+            </div>
+          )}
+
           {/* Instrumental Toggle */}
           <div className="flex items-center space-x-2">
             <Switch
@@ -219,19 +342,21 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
             <Label htmlFor="instrumental">Generate instrumental only (no vocals)</Label>
           </div>
 
-          {/* Negative Tags */}
-          <div className="space-y-2">
-            <Label htmlFor="negativeTags">Negative Tags (Optional)</Label>
-            <Input
-              id="negativeTags"
-              placeholder="e.g., no drums, no bass"
-              value={formData.negativeTags}
-              onChange={(e) => setFormData(prev => ({ ...prev, negativeTags: e.target.value }))}
-            />
-            <p className="text-xs text-muted-foreground">
-              Specify elements you don't want in the song
-            </p>
-          </div>
+          {/* Negative Tags - Only for Lyric Input Mode */}
+          {mode === 'lyrics' && (
+            <div className="space-y-2">
+              <Label htmlFor="negativeTags">Negative Tags (Optional)</Label>
+              <Input
+                id="negativeTags"
+                placeholder="e.g., no drums, no bass"
+                value={formData.negativeTags}
+                onChange={(e) => setFormData(prev => ({ ...prev, negativeTags: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Specify elements you don't want in the song
+              </p>
+            </div>
+          )}
 
           {/* Generation Status */}
           {generationStatus && (
@@ -254,7 +379,7 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
 
           <Button
             type="submit"
-            disabled={isGenerating || !formData.prompt.trim() || !formData.style || isOverLimit}
+            disabled={!isFormValid()}
             className="w-full bg-purple-600 hover:bg-purple-700"
           >
             {isGenerating ? (

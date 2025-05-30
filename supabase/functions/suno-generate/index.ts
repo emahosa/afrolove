@@ -6,6 +6,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface SunoGenerateRequest {
+  prompt: string;
+  style?: string;
+  title?: string;
+  instrumental: boolean;
+  customMode: boolean;
+  model: 'V3_5' | 'V4' | 'V4_5';
+  negativeTags?: string;
+  requestId?: string;
+}
+
+interface SunoApiResponse {
+  code: number;
+  msg: string;
+  data?: {
+    task_id: string;
+    id?: string;
+  };
+  task_id?: string;
+  id?: string;
+}
+
 Deno.serve(async (req) => {
   console.log('=== SUNO GENERATE FUNCTION START ===')
   console.log('Method:', req.method)
@@ -16,14 +38,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get the API key and aggressively clean it
+    // Get and validate API key
     let sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
     if (sunoApiKey) {
-      // Remove all whitespace, newlines, carriage returns
       sunoApiKey = sunoApiKey.replace(/[\r\n\t\s]/g, '')
-      console.log('Cleaned API key length:', sunoApiKey.length)
-      console.log('API key starts with:', sunoApiKey.substring(0, 10))
+      console.log('API key length:', sunoApiKey.length)
     }
     
     if (!sunoApiKey || sunoApiKey.length < 10) {
@@ -34,7 +54,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Initialize Supabase with service role key to bypass RLS issues
+    // Initialize Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
@@ -48,7 +68,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    // Get authorization header
+    // Verify authentication
     const authorization = req.headers.get('Authorization')
     if (!authorization) {
       console.error('No authorization header')
@@ -58,7 +78,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify user using the service role client to bypass RLS
     const token = authorization.replace('Bearer ', '')
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
@@ -72,8 +91,8 @@ Deno.serve(async (req) => {
 
     console.log('User authenticated:', user.id)
 
-    // Parse request body
-    let requestBody
+    // Parse and validate request
+    let requestBody: SunoGenerateRequest
     try {
       requestBody = await req.json()
       console.log('Request body received:', requestBody)
@@ -89,7 +108,6 @@ Deno.serve(async (req) => {
 
     // Validate required fields
     if (!prompt) {
-      console.error('Missing prompt field')
       return new Response(
         JSON.stringify({ error: 'Prompt is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,21 +118,27 @@ Deno.serve(async (req) => {
     const validModels = ['V3_5', 'V4', 'V4_5']
     const selectedModel = model || 'V3_5'
     if (!validModels.includes(selectedModel)) {
-      console.error('Invalid model:', selectedModel)
       return new Response(
         JSON.stringify({ error: `Invalid model. Must be one of: ${validModels.join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Validate prompt length based on model
-    const maxLengths = { 'V3_5': 3000, 'V4': 3000, 'V4_5': 5000 }
-    const maxLength = maxLengths[selectedModel as keyof typeof maxLengths]
+    // Validate prompt length based on mode and model
+    let maxLength: number
+    if (customMode) {
+      // Lyric Input Mode
+      maxLength = selectedModel === 'V4_5' ? 5000 : 3000
+    } else {
+      // Prompt Mode
+      maxLength = 400
+    }
+
     if (prompt.length > maxLength) {
-      console.error(`Prompt too long for ${selectedModel}: ${prompt.length} > ${maxLength}`)
+      const mode = customMode ? 'Lyric Input Mode' : 'Prompt Mode'
       return new Response(
         JSON.stringify({ 
-          error: `Prompt too long for ${selectedModel}. Maximum ${maxLength} characters, got ${prompt.length}` 
+          error: `Prompt too long for ${mode} with ${selectedModel}. Maximum ${maxLength} characters, got ${prompt.length}` 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -122,14 +146,34 @@ Deno.serve(async (req) => {
 
     // Validate custom mode requirements
     if (customMode && (!style || !title)) {
-      console.error('Custom mode requires style and title')
       return new Response(
-        JSON.stringify({ error: 'Custom mode requires both style and title' }),
+        JSON.stringify({ error: 'Lyric Input Mode requires both style and title' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Get user profile using service role to bypass RLS
+    // Validate title length if provided
+    if (title && title.length > 80) {
+      return new Response(
+        JSON.stringify({ error: 'Title must be 80 characters or less' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate style length for custom mode
+    if (customMode && style) {
+      const maxStyleLength = selectedModel === 'V4_5' ? 1000 : 200
+      if (style.length > maxStyleLength) {
+        return new Response(
+          JSON.stringify({ 
+            error: `Style description too long for ${selectedModel}. Maximum ${maxStyleLength} characters, got ${style.length}` 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
+    // Check user credits
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
@@ -147,15 +191,42 @@ Deno.serve(async (req) => {
     const userCredits = profile?.credits || 0
     console.log('User credits:', userCredits)
 
-    // Check credits
     if (userCredits < 5) {
-      console.error('Insufficient credits:', userCredits)
       return new Response(
         JSON.stringify({ 
           error: 'Insufficient credits. You need 5 credits to generate a song.' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
+    }
+
+    // Check Suno API credits
+    console.log('Checking Suno API credits...')
+    try {
+      const creditResponse = await fetch('https://apibox.erweima.ai/api/v1/generate/credit', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`
+        }
+      })
+
+      if (!creditResponse.ok) {
+        console.error('Credit check failed:', creditResponse.status)
+      } else {
+        const creditData = await creditResponse.json()
+        console.log('Suno API credits:', creditData)
+        
+        if (creditData.data <= 0) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Suno API credits are insufficient. Please contact the administrator to top up the Suno account.' 
+            }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      }
+    } catch (error) {
+      console.warn('Could not check Suno credits:', error)
     }
 
     // Create song record
@@ -196,22 +267,33 @@ Deno.serve(async (req) => {
       console.error('Credit deduction error:', creditError)
     }
 
-    // Prepare the correct Suno API request payload
-    const sunoRequest = {
+    // Prepare Suno API request payload
+    const sunoRequest: any = {
       prompt: prompt,
-      style: style || undefined,
-      title: songTitle,
       instrumental: instrumental || false,
-      customMode: customMode || false,
       model: selectedModel,
-      negativeTags: negativeTags || undefined,
       callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
+    }
+
+    // Add fields based on mode
+    if (customMode) {
+      // Lyric Input Mode
+      sunoRequest.style = style
+      sunoRequest.title = songTitle
+      sunoRequest.customMode = true
+      if (negativeTags) {
+        sunoRequest.negativeTags = negativeTags
+      }
+    } else {
+      // Prompt Mode
+      sunoRequest.customMode = false
+      // Don't set style, title, or negativeTags for prompt mode
     }
 
     console.log('Suno request payload:', JSON.stringify(sunoRequest, null, 2))
 
-    // Make the correct Suno API request to the right endpoint
-    console.log('Making Suno API request to correct endpoint...')
+    // Make Suno API request
+    console.log('Making Suno API request...')
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -228,8 +310,7 @@ Deno.serve(async (req) => {
     const responseText = await sunoResponse.text()
     console.log('Raw response text:', responseText)
     
-    // Try to parse as JSON
-    let sunoData
+    let sunoData: SunoApiResponse
     try {
       sunoData = JSON.parse(responseText)
       console.log('Parsed response data:', JSON.stringify(sunoData, null, 2))
@@ -258,9 +339,7 @@ Deno.serve(async (req) => {
       console.error('=== SUNO API ERROR ===')
       console.error('Status:', sunoResponse.status)
       console.error('Error data:', sunoData)
-      console.error('Error message:', sunoData?.msg || sunoData?.message || 'Unknown error')
       
-      // Update song with detailed error
       await supabase
         .from('songs')
         .update({ 
@@ -269,16 +348,19 @@ Deno.serve(async (req) => {
         })
         .eq('id', song.id)
       
-      // Return detailed error information with specific debugging
-      const errorMessage = sunoData?.msg || sunoData?.message || 'Unknown error'
+      let errorMessage = 'Unknown error'
       let debugHint = ''
       
+      if (sunoData.msg) {
+        errorMessage = sunoData.msg
+      }
+      
       if (sunoResponse.status === 401) {
-        debugHint = 'Check API key validity'
+        debugHint = 'API key is invalid or expired'
       } else if (sunoResponse.status === 413) {
-        debugHint = 'Prompt too long for selected model'
+        debugHint = 'Prompt is too long for the selected model'
       } else if (sunoResponse.status === 429) {
-        debugHint = 'Insufficient credits on Suno account'
+        debugHint = 'Suno API has insufficient credits'
       } else if (sunoResponse.status === 400) {
         debugHint = 'Invalid request format or missing required fields'
       }
@@ -295,31 +377,28 @@ Deno.serve(async (req) => {
     }
 
     // Handle successful response
-    if (sunoData && (sunoData.data || sunoData.task_id || sunoData.id)) {
-      const taskId = sunoData.task_id || sunoData.id || sunoData.data?.task_id || sunoData.data?.id
-      
-      if (taskId) {
-        // Update song with task ID
-        await supabase
-          .from('songs')
-          .update({ 
-            audio_url: `task_pending:${taskId}`,
-            status: 'pending'
-          })
-          .eq('id', song.id)
+    const taskId = sunoData.task_id || sunoData.data?.task_id || sunoData.id || sunoData.data?.id
+    
+    if (taskId) {
+      await supabase
+        .from('songs')
+        .update({ 
+          audio_url: `task_pending:${taskId}`,
+          status: 'pending'
+        })
+        .eq('id', song.id)
 
-        console.log('Success! Task ID:', taskId)
-        
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            song_id: song.id,
-            task_id: taskId,
-            message: 'Song generation started successfully'
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
+      console.log('Success! Task ID:', taskId)
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          song_id: song.id,
+          task_id: taskId,
+          message: 'Song generation started successfully'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // If we get here, something went wrong with the response structure
@@ -344,7 +423,6 @@ Deno.serve(async (req) => {
     console.error('=== UNEXPECTED ERROR ===')
     console.error('Error message:', error.message)
     console.error('Error stack:', error.stack)
-    console.error('Full error object:', error)
     
     return new Response(
       JSON.stringify({ 

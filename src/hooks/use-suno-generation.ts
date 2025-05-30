@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export interface SunoGenerationRequest {
   prompt: string;
-  style: string;
+  style?: string;
   title?: string;
   instrumental: boolean;
   customMode: boolean;
@@ -24,6 +24,12 @@ export interface SunoGenerationStatus {
   image_url?: string;
   title?: string;
   duration?: number;
+  model_name?: string;
+  prompt?: string;
+}
+
+export interface SunoCredits {
+  data: number;
 }
 
 export const useSunoGeneration = () => {
@@ -31,6 +37,7 @@ export const useSunoGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [generationStatus, setGenerationStatus] = useState<SunoGenerationStatus | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
     if (!user) {
@@ -64,6 +71,16 @@ export const useSunoGeneration = () => {
             description: 'You need at least 5 credits to generate a song. Please purchase more credits.',
             duration: 5000,
           });
+        } else if (error.message?.includes('Prompt too long')) {
+          toast.error('Prompt Too Long', {
+            description: error.message,
+            duration: 5000,
+          });
+        } else if (error.message?.includes('requires both style and title')) {
+          toast.error('Missing Required Fields', {
+            description: 'Lyric Input Mode requires both style and title fields.',
+            duration: 5000,
+          });
         } else {
           toast.error('Generation failed: ' + (error.message || 'Unknown error'));
         }
@@ -82,6 +99,11 @@ export const useSunoGeneration = () => {
         } else if (errorMsg.includes('Insufficient credits')) {
           toast.error('Insufficient Credits', {
             description: 'You need at least 5 credits to generate a song. Please purchase more credits.',
+            duration: 5000,
+          });
+        } else if (errorMsg.includes('Prompt too long')) {
+          toast.error('Prompt Too Long', {
+            description: errorMsg,
             duration: 5000,
           });
         } else {
@@ -136,18 +158,110 @@ export const useSunoGeneration = () => {
     }
   };
 
+  const generateLyrics = async (prompt: string): Promise<any> => {
+    if (!user) {
+      toast.error('You must be logged in to generate lyrics');
+      return null;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('suno-lyrics', {
+        body: { prompt }
+      });
+
+      if (error) {
+        console.error('Lyrics generation error:', error);
+        toast.error('Failed to generate lyrics: ' + error.message);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error generating lyrics:', error);
+      return null;
+    }
+  };
+
+  const convertToWav = async (taskId: string, audioId: string): Promise<any> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('suno-wav-convert', {
+        body: { taskId, audioId }
+      });
+
+      if (error) {
+        console.error('WAV conversion error:', error);
+        toast.error('Failed to convert to WAV: ' + error.message);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error converting to WAV:', error);
+      return null;
+    }
+  };
+
+  const removeVocals = async (taskId: string, audioId: string): Promise<any> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('suno-vocal-removal', {
+        body: { taskId, audioId }
+      });
+
+      if (error) {
+        console.error('Vocal removal error:', error);
+        toast.error('Failed to remove vocals: ' + error.message);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error removing vocals:', error);
+      return null;
+    }
+  };
+
+  const startPolling = (taskId: string, onUpdate: (status: SunoGenerationStatus) => void) => {
+    if (isPolling) return;
+    
+    setIsPolling(true);
+    const pollInterval = setInterval(async () => {
+      const status = await checkStatus(taskId);
+      if (status) {
+        onUpdate(status);
+        setGenerationStatus(status);
+        
+        if (status.status === 'SUCCESS' || status.status === 'FAIL') {
+          clearInterval(pollInterval);
+          setIsPolling(false);
+        }
+      }
+    }, 5000); // Poll every 5 seconds
+
+    // Stop polling after 5 minutes
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      setIsPolling(false);
+    }, 300000);
+  };
+
   const resetGeneration = () => {
     setIsGenerating(false);
     setCurrentTaskId(null);
     setGenerationStatus(null);
+    setIsPolling(false);
   };
 
   return {
     generateSong,
     checkStatus,
+    generateLyrics,
+    convertToWav,
+    removeVocals,
+    startPolling,
     resetGeneration,
     isGenerating,
     currentTaskId,
-    generationStatus
+    generationStatus,
+    isPolling
   };
 };
