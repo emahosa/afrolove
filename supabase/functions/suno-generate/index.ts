@@ -15,6 +15,7 @@ interface SunoGenerateRequest {
   model: 'V3_5' | 'V4' | 'V4_5';
   negativeTags?: string;
   requestId?: string;
+  userId?: string;
 }
 
 interface SunoApiResponse {
@@ -38,18 +39,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get and validate API key
-    let sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    // Get API key and log its status
+    const sunoApiKey = Deno.env.get('SUNO_API_KEY')
+    console.log('API Key check:')
+    console.log('- Key exists:', !!sunoApiKey)
+    console.log('- Key length:', sunoApiKey?.length || 0)
+    console.log('- Key preview:', sunoApiKey ? `${sunoApiKey.substring(0, 10)}...` : 'null')
     
-    if (sunoApiKey) {
-      sunoApiKey = sunoApiKey.replace(/[\r\n\t\s]/g, '')
-      console.log('API key length:', sunoApiKey.length)
-    }
-    
-    if (!sunoApiKey || sunoApiKey.length < 10) {
-      console.error('SUNO_API_KEY not found or invalid')
+    if (!sunoApiKey) {
+      console.error('❌ SUNO_API_KEY environment variable is not set')
       return new Response(
-        JSON.stringify({ error: 'Suno API key not configured properly' }),
+        JSON.stringify({ error: 'SUNO_API_KEY not configured in environment variables' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (sunoApiKey.length < 10) {
+      console.error('❌ SUNO_API_KEY appears to be invalid (too short)')
+      return new Response(
+        JSON.stringify({ error: 'SUNO_API_KEY appears to be invalid' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -59,9 +67,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase environment variables')
+      console.error('❌ Missing Supabase environment variables')
       return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
+        JSON.stringify({ error: 'Server configuration error - missing Supabase config' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -71,7 +79,7 @@ Deno.serve(async (req) => {
     // Verify authentication
     const authorization = req.headers.get('Authorization')
     if (!authorization) {
-      console.error('No authorization header')
+      console.error('❌ No authorization header')
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -82,22 +90,22 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
 
     if (authError || !user) {
-      console.error('Auth error:', authError)
+      console.error('❌ Auth error:', authError)
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('User authenticated:', user.id)
+    console.log('✅ User authenticated:', user.id)
 
-    // Parse and validate request
+    // Parse request body
     let requestBody: SunoGenerateRequest
     try {
       requestBody = await req.json()
-      console.log('Request body received:', requestBody)
+      console.log('✅ Request body parsed:', JSON.stringify(requestBody, null, 2))
     } catch (error) {
-      console.error('Invalid JSON:', error)
+      console.error('❌ Invalid JSON:', error)
       return new Response(
         JSON.stringify({ error: 'Invalid request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -107,7 +115,7 @@ Deno.serve(async (req) => {
     const { prompt, style, title, instrumental, customMode, model, negativeTags } = requestBody
 
     // Validate required fields
-    if (!prompt) {
+    if (!prompt?.trim()) {
       return new Response(
         JSON.stringify({ error: 'Prompt is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -127,10 +135,8 @@ Deno.serve(async (req) => {
     // Validate prompt length based on mode and model
     let maxLength: number
     if (customMode) {
-      // Lyric Input Mode
       maxLength = selectedModel === 'V4_5' ? 5000 : 3000
     } else {
-      // Prompt Mode
       maxLength = 400
     }
 
@@ -145,35 +151,14 @@ Deno.serve(async (req) => {
     }
 
     // Validate custom mode requirements
-    if (customMode && (!style || !title)) {
+    if (customMode && (!style?.trim() || !title?.trim())) {
       return new Response(
         JSON.stringify({ error: 'Lyric Input Mode requires both style and title' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Validate title length if provided
-    if (title && title.length > 80) {
-      return new Response(
-        JSON.stringify({ error: 'Title must be 80 characters or less' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Validate style length for custom mode
-    if (customMode && style) {
-      const maxStyleLength = selectedModel === 'V4_5' ? 1000 : 200
-      if (style.length > maxStyleLength) {
-        return new Response(
-          JSON.stringify({ 
-            error: `Style description too long for ${selectedModel}. Maximum ${maxStyleLength} characters, got ${style.length}` 
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-    }
-
-    // Check user credits
+    // Check user credits (using service role to bypass RLS)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
@@ -181,7 +166,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (profileError) {
-      console.error('Profile error:', profileError)
+      console.error('❌ Profile error:', profileError)
       return new Response(
         JSON.stringify({ error: 'Failed to get user profile' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -189,7 +174,7 @@ Deno.serve(async (req) => {
     }
 
     const userCredits = profile?.credits || 0
-    console.log('User credits:', userCredits)
+    console.log('✅ User credits:', userCredits)
 
     if (userCredits < 5) {
       return new Response(
@@ -200,38 +185,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check Suno API credits
-    console.log('Checking Suno API credits...')
-    try {
-      const creditResponse = await fetch('https://apibox.erweima.ai/api/v1/generate/credit', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${sunoApiKey}`
-        }
-      })
-
-      if (!creditResponse.ok) {
-        console.error('Credit check failed:', creditResponse.status)
-      } else {
-        const creditData = await creditResponse.json()
-        console.log('Suno API credits:', creditData)
-        
-        if (creditData.data <= 0) {
-          return new Response(
-            JSON.stringify({ 
-              error: 'Suno API credits are insufficient. Please contact the administrator to top up the Suno account.' 
-            }),
-            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          )
-        }
-      }
-    } catch (error) {
-      console.warn('Could not check Suno credits:', error)
-    }
-
-    // Create song record
+    // Create song record first
     const songTitle = title || `Generated ${style || 'AI'} Song`
-    console.log('Creating song record:', songTitle)
+    console.log('✅ Creating song record:', songTitle)
     
     const { data: song, error: songError } = await supabase
       .from('songs')
@@ -248,14 +204,14 @@ Deno.serve(async (req) => {
       .single()
 
     if (songError) {
-      console.error('Song creation error:', songError)
+      console.error('❌ Song creation error:', songError)
       return new Response(
         JSON.stringify({ error: 'Failed to create song record' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Song created with ID:', song.id)
+    console.log('✅ Song created with ID:', song.id)
 
     // Deduct credits
     const { error: creditError } = await supabase
@@ -264,12 +220,14 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
 
     if (creditError) {
-      console.error('Credit deduction error:', creditError)
+      console.error('⚠️ Credit deduction error:', creditError)
+    } else {
+      console.log('✅ Credits deducted successfully')
     }
 
     // Prepare Suno API request payload
     const sunoRequest: any = {
-      prompt: prompt,
+      prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: selectedModel,
       callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
@@ -277,23 +235,20 @@ Deno.serve(async (req) => {
 
     // Add fields based on mode
     if (customMode) {
-      // Lyric Input Mode
-      sunoRequest.style = style
+      sunoRequest.style = style?.trim()
       sunoRequest.title = songTitle
       sunoRequest.customMode = true
-      if (negativeTags) {
-        sunoRequest.negativeTags = negativeTags
+      if (negativeTags?.trim()) {
+        sunoRequest.negativeTags = negativeTags.trim()
       }
     } else {
-      // Prompt Mode
       sunoRequest.customMode = false
-      // Don't set style, title, or negativeTags for prompt mode
     }
 
-    console.log('Suno request payload:', JSON.stringify(sunoRequest, null, 2))
+    console.log('✅ Suno request payload:', JSON.stringify(sunoRequest, null, 2))
 
     // Make Suno API request
-    console.log('Making Suno API request...')
+    console.log('🚀 Making Suno API request...')
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -303,19 +258,18 @@ Deno.serve(async (req) => {
       body: JSON.stringify(sunoRequest)
     })
 
-    console.log('=== SUNO API RESPONSE DEBUG ===')
-    console.log('Response status:', sunoResponse.status)
-    console.log('Response ok:', sunoResponse.ok)
+    console.log('📡 Suno API response status:', sunoResponse.status)
+    console.log('📡 Suno API response ok:', sunoResponse.ok)
     
     const responseText = await sunoResponse.text()
-    console.log('Raw response text:', responseText)
+    console.log('📡 Suno API raw response:', responseText)
     
     let sunoData: SunoApiResponse
     try {
       sunoData = JSON.parse(responseText)
-      console.log('Parsed response data:', JSON.stringify(sunoData, null, 2))
+      console.log('✅ Parsed Suno response:', JSON.stringify(sunoData, null, 2))
     } catch (parseError) {
-      console.error('Failed to parse response as JSON:', parseError)
+      console.error('❌ Failed to parse Suno response as JSON:', parseError)
       
       await supabase
         .from('songs')
@@ -336,9 +290,7 @@ Deno.serve(async (req) => {
     }
     
     if (!sunoResponse.ok) {
-      console.error('=== SUNO API ERROR ===')
-      console.error('Status:', sunoResponse.status)
-      console.error('Error data:', sunoData)
+      console.error('❌ Suno API error:', sunoResponse.status, sunoData)
       
       await supabase
         .from('songs')
@@ -349,28 +301,15 @@ Deno.serve(async (req) => {
         .eq('id', song.id)
       
       let errorMessage = 'Unknown error'
-      let debugHint = ''
       
       if (sunoData.msg) {
         errorMessage = sunoData.msg
       }
       
-      if (sunoResponse.status === 401) {
-        debugHint = 'API key is invalid or expired'
-      } else if (sunoResponse.status === 413) {
-        debugHint = 'Prompt is too long for the selected model'
-      } else if (sunoResponse.status === 429) {
-        debugHint = 'Suno API has insufficient credits'
-      } else if (sunoResponse.status === 400) {
-        debugHint = 'Invalid request format or missing required fields'
-      }
-      
       return new Response(
         JSON.stringify({ 
           error: `Suno API Error (${sunoResponse.status}): ${errorMessage}`,
-          details: sunoData,
-          debugHint: debugHint,
-          payload: sunoRequest
+          details: sunoData
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -388,7 +327,7 @@ Deno.serve(async (req) => {
         })
         .eq('id', song.id)
 
-      console.log('Success! Task ID:', taskId)
+      console.log('🎉 Success! Task ID:', taskId)
       
       return new Response(
         JSON.stringify({ 
@@ -402,7 +341,7 @@ Deno.serve(async (req) => {
     }
 
     // If we get here, something went wrong with the response structure
-    console.error('Unexpected response structure:', sunoData)
+    console.error('❌ Unexpected response structure:', sunoData)
     await supabase
       .from('songs')
       .update({ 
@@ -420,9 +359,7 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('=== UNEXPECTED ERROR ===')
-    console.error('Error message:', error.message)
-    console.error('Error stack:', error.stack)
+    console.error('❌ Unexpected error:', error)
     
     return new Response(
       JSON.stringify({ 
