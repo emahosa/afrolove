@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       customMode,
       instrumental,
       model,
-      callBackUrl: callbackUrl  // Add callback URL here
+      callBackUrl: callbackUrl
     }
 
     // Add optional fields if provided
@@ -182,8 +182,9 @@ Deno.serve(async (req) => {
 
     console.log('📊 Parsed Suno response:', JSON.stringify(responseData, null, 2))
 
-    if (!responseData.success) {
-      const errorMsg = responseData.error || responseData.message || 'Unknown error from Suno API'
+    // Check for Suno API success - they use code: 200 and msg: "success"
+    if (responseData.code !== 200 || responseData.msg !== 'success') {
+      const errorMsg = responseData.error || responseData.message || `API returned code: ${responseData.code}, msg: ${responseData.msg}`
       console.error('❌ Suno API returned error:', errorMsg)
       
       return new Response(JSON.stringify({ 
@@ -195,7 +196,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const taskId = responseData.task_id || responseData.data?.task_id
+    const taskId = responseData.data?.taskId
     
     if (!taskId) {
       console.error('❌ No task ID in Suno response')
