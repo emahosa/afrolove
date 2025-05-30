@@ -85,12 +85,46 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { prompt, style, title, instrumental } = requestBody
+    const { prompt, style, title, instrumental, customMode, model, negativeTags } = requestBody
 
-    if (!prompt || !style) {
-      console.error('Missing required fields')
+    // Validate required fields
+    if (!prompt) {
+      console.error('Missing prompt field')
       return new Response(
-        JSON.stringify({ error: 'Prompt and style are required' }),
+        JSON.stringify({ error: 'Prompt is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate model
+    const validModels = ['V3_5', 'V4', 'V4_5']
+    const selectedModel = model || 'V3_5'
+    if (!validModels.includes(selectedModel)) {
+      console.error('Invalid model:', selectedModel)
+      return new Response(
+        JSON.stringify({ error: `Invalid model. Must be one of: ${validModels.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate prompt length based on model
+    const maxLengths = { 'V3_5': 3000, 'V4': 3000, 'V4_5': 5000 }
+    const maxLength = maxLengths[selectedModel as keyof typeof maxLengths]
+    if (prompt.length > maxLength) {
+      console.error(`Prompt too long for ${selectedModel}: ${prompt.length} > ${maxLength}`)
+      return new Response(
+        JSON.stringify({ 
+          error: `Prompt too long for ${selectedModel}. Maximum ${maxLength} characters, got ${prompt.length}` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Validate custom mode requirements
+    if (customMode && (!style || !title)) {
+      console.error('Custom mode requires style and title')
+      return new Response(
+        JSON.stringify({ error: 'Custom mode requires both style and title' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -125,7 +159,7 @@ Deno.serve(async (req) => {
     }
 
     // Create song record
-    const songTitle = title || `Generated ${style} Song`
+    const songTitle = title || `Generated ${style || 'AI'} Song`
     console.log('Creating song record:', songTitle)
     
     const { data: song, error: songError } = await supabase
@@ -162,30 +196,34 @@ Deno.serve(async (req) => {
       console.error('Credit deduction error:', creditError)
     }
 
-    // Make the Suno API request
-    console.log('Making Suno API request...')
+    // Prepare the correct Suno API request payload
     const sunoRequest = {
       prompt: prompt,
-      make_instrumental: instrumental || false,
-      wait_audio: false,
-      model_version: 'chirp-v3-5',
+      style: style || undefined,
       title: songTitle,
-      tags: style
+      instrumental: instrumental || false,
+      customMode: customMode || false,
+      model: selectedModel,
+      negativeTags: negativeTags || undefined,
+      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
     }
 
     console.log('Suno request payload:', JSON.stringify(sunoRequest, null, 2))
 
-    const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
+    // Make the correct Suno API request to the right endpoint
+    console.log('Making Suno API request to correct endpoint...')
+    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': sunoApiKey
+        'Authorization': `Bearer ${sunoApiKey}`
       },
       body: JSON.stringify(sunoRequest)
     })
 
     console.log('=== SUNO API RESPONSE DEBUG ===')
     console.log('Response status:', sunoResponse.status)
+    console.log('Response ok:', sunoResponse.ok)
     
     const responseText = await sunoResponse.text()
     console.log('Raw response text:', responseText)
@@ -202,7 +240,7 @@ Deno.serve(async (req) => {
         .from('songs')
         .update({ 
           status: 'rejected',
-          audio_url: `parse_error: ${responseText}`
+          audio_url: `parse_error_${sunoResponse.status}: ${responseText}`
         })
         .eq('id', song.id)
       
@@ -220,6 +258,7 @@ Deno.serve(async (req) => {
       console.error('=== SUNO API ERROR ===')
       console.error('Status:', sunoResponse.status)
       console.error('Error data:', sunoData)
+      console.error('Error message:', sunoData?.msg || sunoData?.message || 'Unknown error')
       
       // Update song with detailed error
       await supabase
@@ -230,20 +269,34 @@ Deno.serve(async (req) => {
         })
         .eq('id', song.id)
       
-      // Return detailed error information
+      // Return detailed error information with specific debugging
+      const errorMessage = sunoData?.msg || sunoData?.message || 'Unknown error'
+      let debugHint = ''
+      
+      if (sunoResponse.status === 401) {
+        debugHint = 'Check API key validity'
+      } else if (sunoResponse.status === 413) {
+        debugHint = 'Prompt too long for selected model'
+      } else if (sunoResponse.status === 429) {
+        debugHint = 'Insufficient credits on Suno account'
+      } else if (sunoResponse.status === 400) {
+        debugHint = 'Invalid request format or missing required fields'
+      }
+      
       return new Response(
         JSON.stringify({ 
-          error: `Suno API Error (${sunoResponse.status})`,
+          error: `Suno API Error (${sunoResponse.status}): ${errorMessage}`,
           details: sunoData,
-          message: sunoData?.msg || sunoData?.message || 'Unknown error'
+          debugHint: debugHint,
+          payload: sunoRequest
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Handle successful response
-    if (sunoData.data && sunoData.data.length > 0) {
-      const taskId = sunoData.data[0].id || sunoData.data[0].task_id
+    if (sunoData && (sunoData.data || sunoData.task_id || sunoData.id)) {
+      const taskId = sunoData.task_id || sunoData.id || sunoData.data?.task_id || sunoData.data?.id
       
       if (taskId) {
         // Update song with task ID
@@ -262,7 +315,7 @@ Deno.serve(async (req) => {
             success: true, 
             song_id: song.id,
             task_id: taskId,
-            message: 'Song generation started'
+            message: 'Song generation started successfully'
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
@@ -291,6 +344,7 @@ Deno.serve(async (req) => {
     console.error('=== UNEXPECTED ERROR ===')
     console.error('Error message:', error.message)
     console.error('Error stack:', error.stack)
+    console.error('Full error object:', error)
     
     return new Response(
       JSON.stringify({ 
