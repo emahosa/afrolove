@@ -107,15 +107,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request with callback URL
-    const callbackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
-    
+    // Prepare the Suno API request - try without callback first
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
       instrumental,
-      model,
-      callBackUrl: callbackUrl
+      model
     }
 
     // Add optional fields if provided
@@ -128,7 +125,7 @@ Deno.serve(async (req) => {
       sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🚀 Sending request to Suno with callback:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🚀 Sending request to Suno API:', JSON.stringify(sunoRequestBody, null, 2))
 
     // Make request to Suno API
     const response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -187,39 +184,13 @@ Deno.serve(async (req) => {
       const errorMsg = responseData.error || responseData.message || `API returned code: ${responseData.code}, msg: ${responseData.msg}`
       console.error('❌ Suno API returned error:', errorMsg)
       
-      if (errorMsg.includes('Suno API credits are insufficient')) {
-        return new Response(JSON.stringify({ 
-          error: 'Suno API credits are insufficient. Please contact support.',
-          success: false 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      } else if (errorMsg.includes('Insufficient credits')) {
-        return new Response(JSON.stringify({ 
-          error: 'Insufficient credits. You need at least 5 credits to generate a song.',
-          success: false 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      } else if (errorMsg.includes('Prompt too long')) {
-        return new Response(JSON.stringify({ 
-          error: errorMsg,
-          success: false 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      } else {
-        return new Response(JSON.stringify({ 
-          error: errorMsg,
-          success: false 
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
-      }
+      return new Response(JSON.stringify({ 
+        error: errorMsg,
+        success: false 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     const taskId = responseData.data?.taskId
@@ -237,7 +208,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ Got task ID from Suno:', taskId)
 
-    // Deduct credits
+    // Deduct credits first before creating the song
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: -5
@@ -245,18 +216,19 @@ Deno.serve(async (req) => {
 
     if (creditError) {
       console.error('❌ Failed to deduct credits:', creditError)
+      // Continue anyway, we already got the task ID
     } else {
       console.log('💰 Deducted 5 credits from user')
     }
 
-    // Create song record with pending status and task ID stored in audio_url
+    // Create song record with pending status and clean task ID
     const { data: newSong, error: songError } = await supabase
       .from('songs')
       .insert({
         user_id: userId,
         title: title || 'Generating...',
         type: instrumental ? 'instrumental' : 'song',
-        audio_url: taskId, // Store task ID here temporarily
+        audio_url: taskId, // Store clean task ID
         prompt,
         status: 'pending',
         credits_used: 5
@@ -281,7 +253,7 @@ Deno.serve(async (req) => {
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully. You will be notified when it completes.'
+      message: 'Song generation started successfully. Check back in a few minutes.'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
