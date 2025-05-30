@@ -29,6 +29,11 @@ Deno.serve(async (req) => {
   try {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
+    console.log('🔑 Checking SUNO_API_KEY...')
+    console.log('🔑 API Key exists:', !!sunoApiKey)
+    console.log('🔑 API Key length:', sunoApiKey?.length || 0)
+    console.log('🔑 API Key prefix:', sunoApiKey?.substring(0, 10) + '...' || 'undefined')
+    
     if (!sunoApiKey) {
       console.error('❌ SUNO_API_KEY not configured')
       return new Response(JSON.stringify({ error: 'SUNO_API_KEY not configured' }), {
@@ -126,6 +131,8 @@ Deno.serve(async (req) => {
     }
 
     console.log('🎵 Sending request to Suno API')
+    console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
+    console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
     // Make request to Suno API
     const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
@@ -139,6 +146,7 @@ Deno.serve(async (req) => {
     })
 
     console.log('📥 Suno API response status:', sunoResponse.status)
+    console.log('📥 Suno API response headers:', Object.fromEntries(sunoResponse.headers.entries()))
     
     const responseText = await sunoResponse.text()
     console.log('📥 Suno API response body:', responseText)
@@ -147,16 +155,30 @@ Deno.serve(async (req) => {
       console.error('❌ Suno API error:', sunoResponse.status, responseText)
       
       let errorMessage = 'Suno API request failed'
+      let errorCode = 'SUNO_API_ERROR'
       
       try {
         const errorData = JSON.parse(responseText)
-        errorMessage = errorData.msg || errorData.message || errorMessage
+        errorMessage = errorData.msg || errorData.message || errorData.detail || errorMessage
+        
+        if (sunoResponse.status === 401) {
+          errorCode = 'SUNO_API_UNAUTHORIZED'
+          errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
+        } else if (sunoResponse.status === 403) {
+          errorCode = 'SUNO_API_FORBIDDEN'
+          errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
+        } else if (sunoResponse.status === 429) {
+          errorCode = 'SUNO_API_RATE_LIMIT'
+          errorMessage = 'Suno API rate limit exceeded. Please try again later.'
+        }
       } catch (parseError) {
+        console.error('❌ Failed to parse error response:', parseError)
         errorMessage = responseText || errorMessage
       }
 
       return new Response(JSON.stringify({ 
         error: errorMessage,
+        errorCode: errorCode,
         success: false 
       }), {
         status: sunoResponse.status,
