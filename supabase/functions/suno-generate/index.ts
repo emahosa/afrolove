@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request WITHOUT callback URL first
+    // Prepare the Suno API request
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode,
@@ -123,49 +123,28 @@ Deno.serve(async (req) => {
 
     console.log('🎵 Making Suno API request:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Try multiple API endpoints in case one fails
-    const endpoints = [
-      'https://api.sunoaiapi.com/api/v1/gateway/generate/music',
-      'https://apibox.erweima.ai/api/v1/generate'
-    ]
+    // Use the primary endpoint first
+    const endpoint = 'https://api.sunoaiapi.com/api/v1/gateway/generate/music'
+    
+    console.log(`🔄 Using endpoint: ${endpoint}`)
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sunoApiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(sunoRequestBody)
+    })
 
-    let response
-    let lastError
-    let usedEndpoint
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🔄 Trying endpoint: ${endpoint}`)
-        
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sunoApiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(sunoRequestBody)
-        })
-
-        console.log(`📥 Response status: ${response.status}`)
-        
-        if (response.ok) {
-          usedEndpoint = endpoint
-          console.log(`✅ Success with endpoint: ${endpoint}`)
-          break
-        } else {
-          const errorText = await response.text()
-          lastError = `${endpoint}: ${response.status} ${errorText}`
-          console.log(`❌ Failed with ${endpoint}: ${response.status} ${errorText}`)
-        }
-      } catch (error) {
-        lastError = `${endpoint}: ${error.message}`
-        console.log(`❌ Error with ${endpoint}:`, error.message)
-      }
-    }
-
-    if (!response || !response.ok) {
-      if (response?.status === 429) {
+    console.log(`📥 Response status: ${response.status}`)
+    
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.log(`❌ API Error: ${response.status} ${errorText}`)
+      
+      if (response.status === 429) {
         return new Response(JSON.stringify({ 
           error: 'Suno API rate limit exceeded. Please try again later.',
           success: false 
@@ -176,7 +155,7 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ 
-        error: `All Suno API endpoints failed: ${lastError}`,
+        error: `Suno API error: ${response.status} ${errorText}`,
         success: false 
       }), {
         status: 500,
@@ -202,7 +181,7 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', JSON.stringify(responseData, null, 2))
 
-    // Extract task ID from different possible response formats
+    // Extract task ID from response
     let taskId
     if (responseData.data?.taskId) {
       taskId = responseData.data.taskId
@@ -226,7 +205,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('✅ Got task ID from Suno:', taskId, 'using endpoint:', usedEndpoint)
+    console.log('✅ Got task ID from Suno:', taskId)
 
     // Deduct credits
     const { error: creditError } = await supabase.rpc('update_user_credits', {
@@ -272,7 +251,6 @@ Deno.serve(async (req) => {
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      endpoint_used: usedEndpoint,
       message: 'Song generation started successfully.'
     }
 
