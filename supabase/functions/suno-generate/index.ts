@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
         user_id: user.id,
         prompt: prompt,
         status: 'pending',
-        audio_url: 'generating', // Temporary placeholder
+        audio_url: 'generating',
         credits_used: 5
       })
       .select()
@@ -94,19 +94,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Deduct credits
-    await supabase
+    // Deduct credits immediately
+    const { error: creditError } = await supabase
       .from('profiles')
       .update({ credits: (profile?.credits || 0) - 5 })
       .eq('id', user.id)
 
-    // Prepare Suno API request with callback URL
+    if (creditError) {
+      console.error('Credit deduction error:', creditError)
+    }
+
+    // Prepare Suno API request - NO CALLBACK URL
     const sunoRequest = {
       prompt: prompt.trim(),
       instrumental: instrumental || false,
       model: model || 'V4_5',
-      customMode: customMode || false,
-      callBackUrl: `${supabaseUrl}/functions/v1/suno-callback`
+      customMode: customMode || false
     }
 
     // Add custom mode fields if provided
@@ -117,103 +120,158 @@ Deno.serve(async (req) => {
       sunoRequest.title = title.trim()
     }
 
-    console.log('Calling Suno API with:', JSON.stringify(sunoRequest, null, 2))
+    console.log('🎵 Calling Suno API with request:', JSON.stringify(sunoRequest, null, 2))
 
-    // Call Suno API
-    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sunoApiKey}`
-      },
-      body: JSON.stringify(sunoRequest)
-    })
+    // Call Suno API with timeout and retry logic
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-    const responseText = await sunoResponse.text()
-    console.log('Suno API response status:', sunoResponse.status)
-    console.log('Suno API response:', responseText)
-
-    if (!sunoResponse.ok) {
-      console.error('Suno API error:', responseText)
-      
-      // Update song status to failed
-      await supabase
-        .from('songs')
-        .update({ 
-          status: 'rejected',
-          audio_url: `error: ${responseText}`
-        })
-        .eq('id', song.id)
-        
-      return new Response(JSON.stringify({ error: `Suno API error: ${responseText}` }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    let sunoData
     try {
-      sunoData = JSON.parse(responseText)
-    } catch (parseError) {
-      console.error('Failed to parse Suno response:', parseError)
-      await supabase
+      const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(sunoRequest),
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
+
+      const responseText = await sunoResponse.text()
+      console.log('🎵 Suno API response status:', sunoResponse.status)
+      console.log('🎵 Suno API response body:', responseText)
+
+      if (!sunoResponse.ok) {
+        console.error('❌ Suno API error:', responseText)
+        
+        // Update song status to failed
+        await supabase
+          .from('songs')
+          .update({ 
+            status: 'rejected',
+            audio_url: `API Error: ${responseText.substring(0, 200)}`
+          })
+          .eq('id', song.id)
+          
+        return new Response(JSON.stringify({ 
+          error: `Suno API error (${sunoResponse.status}): ${responseText}` 
+        }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      let sunoData
+      try {
+        sunoData = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('❌ Failed to parse Suno response:', parseError)
+        await supabase
+          .from('songs')
+          .update({ 
+            status: 'rejected',
+            audio_url: 'Parse Error: Invalid JSON response'
+          })
+          .eq('id', song.id)
+          
+        return new Response(JSON.stringify({ error: 'Invalid response format from Suno API' }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      console.log('🎵 Parsed Suno data:', JSON.stringify(sunoData, null, 2))
+
+      // Extract task ID from various possible response structures
+      let taskId = null
+      
+      if (sunoData.data) {
+        if (Array.isArray(sunoData.data) && sunoData.data.length > 0) {
+          taskId = sunoData.data[0].taskId || sunoData.data[0].id
+        } else if (typeof sunoData.data === 'object') {
+          taskId = sunoData.data.taskId || sunoData.data.id
+        }
+      } else {
+        taskId = sunoData.taskId || sunoData.id
+      }
+
+      console.log('🎵 Extracted task ID:', taskId)
+
+      if (!taskId) {
+        console.error('❌ No task ID found in Suno response')
+        await supabase
+          .from('songs')
+          .update({ 
+            status: 'rejected',
+            audio_url: 'No task ID received from Suno API'
+          })
+          .eq('id', song.id)
+          
+        return new Response(JSON.stringify({ 
+          error: 'No task ID received from Suno API',
+          response: sunoData 
+        }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // Update song with task ID so we can track it
+      const { error: updateError } = await supabase
         .from('songs')
         .update({ 
-          status: 'rejected',
-          audio_url: 'error: Invalid response format'
+          audio_url: taskId,
+          status: 'pending'
         })
         .eq('id', song.id)
-        
-      return new Response(JSON.stringify({ error: 'Invalid response format from Suno' }), {
-        status: 502,
+
+      if (updateError) {
+        console.error('❌ Failed to update song with task ID:', updateError)
+      }
+
+      console.log('✅ Song generation started successfully - Song ID:', song.id, 'Task ID:', taskId)
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        song_id: song.id,
+        task_id: taskId,
+        message: 'Song generation started successfully. Check back in 1-2 minutes.'
+      }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
-    }
 
-    // Extract task ID from Suno response
-    const taskId = sunoData.data?.taskId || sunoData.taskId || sunoData.data?.id || sunoData.id
-    console.log('Received task ID from Suno:', taskId)
-
-    if (!taskId) {
-      console.error('No task ID received from Suno:', sunoData)
-      await supabase
-        .from('songs')
-        .update({ 
-          status: 'rejected',
-          audio_url: 'error: No task ID received'
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+      
+      if (fetchError.name === 'AbortError') {
+        console.error('❌ Suno API request timed out')
+        await supabase
+          .from('songs')
+          .update({ 
+            status: 'rejected',
+            audio_url: 'Request timed out after 30 seconds'
+          })
+          .eq('id', song.id)
+          
+        return new Response(JSON.stringify({ error: 'Suno API request timed out' }), {
+          status: 504,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
-        .eq('id', song.id)
-        
-      return new Response(JSON.stringify({ error: 'No task ID received' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      }
+      
+      throw fetchError
     }
-
-    // Store task ID in audio_url field so callback can find the song
-    await supabase
-      .from('songs')
-      .update({ 
-        audio_url: taskId,
-        status: 'pending'
-      })
-      .eq('id', song.id)
-
-    console.log('✅ Song generation started - Song ID:', song.id, 'Task ID:', taskId)
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      song_id: song.id,
-      task_id: taskId,
-      message: 'Song generation started successfully'
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
 
   } catch (error) {
     console.error('❌ Generation error:', error)
-    return new Response(JSON.stringify({ error: 'Internal error: ' + error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error: ' + error.message,
+      stack: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
