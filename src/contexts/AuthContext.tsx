@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const setupInProgress = useRef(false);
 
   const isAdmin = () => {
     if (user?.email === 'ellaadahosa@gmail.com') {
@@ -75,6 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setupUserProfile = async (user: User) => {
+    if (setupInProgress.current) {
+      console.log('AuthContext: Profile setup already in progress, skipping');
+      return;
+    }
+
+    setupInProgress.current = true;
+    
     try {
       console.log('AuthContext: Setting up user profile for:', user.id);
       
@@ -85,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credits: 5,
         subscription: 'free'
       };
+      
       setUser(basicUser);
 
       const roles = await fetchUserRoles(user.id);
@@ -93,14 +103,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: User profile setup complete');
     } catch (error) {
       console.error('Error setting up user profile:', error);
-      const basicUser: ExtendedUser = {
+      const fallbackUser: ExtendedUser = {
         ...user,
         name: user.user_metadata.full_name || user.email?.split('@')[0] || 'User',
         avatar: user.user_metadata.avatar_url || '',
         credits: 5,
         subscription: 'free'
       };
-      setUser(basicUser);
+      setUser(fallbackUser);
+    } finally {
+      setupInProgress.current = false;
     }
   };
 
@@ -175,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRoles([]);
+      setupInProgress.current = false;
     } catch (error: any) {
       console.error('Logout error:', error);
       throw error;
@@ -190,11 +203,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         setSession(session);
         
-        if (session?.user) {
+        if (session?.user && !setupInProgress.current) {
           await setupUserProfile(session.user);
-        } else {
+        } else if (!session?.user) {
           setUser(null);
           setUserRoles([]);
+          setupInProgress.current = false;
         }
         
         setLoading(false);
@@ -205,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
       setSession(session);
       
-      if (session?.user) {
+      if (session?.user && !setupInProgress.current) {
         setupUserProfile(session.user).finally(() => {
           setLoading(false);
         });
