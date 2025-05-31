@@ -164,13 +164,13 @@ const Create = () => {
                               />
                               <Label
                                 htmlFor={genre.id}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary [&:has([data-state=checked])]:text-primary-foreground cursor-pointer transition-all duration-200 hover:scale-105"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-blue-900 [&:has([data-state=checked])]:border-blue-500 [&:has([data-state=checked])]:bg-blue-50 [&:has([data-state=checked])]:text-blue-900 cursor-pointer transition-all duration-200 hover:scale-105"
                               >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-primary-foreground/20 mb-2 transition-colors duration-200">
-                                  <Music className="h-5 w-5 peer-data-[state=checked]:text-primary-foreground" />
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-blue-200 mb-2 transition-colors duration-200">
+                                  <Music className="h-5 w-5 peer-data-[state=checked]:text-blue-900" />
                                 </div>
                                 <div className="font-medium">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-primary-foreground/80 text-center">
+                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-blue-700 text-center">
                                   {genre.description}
                                 </div>
                               </Label>
@@ -318,13 +318,13 @@ const Create = () => {
                               />
                               <Label
                                 htmlFor={`${genre.id}-inst`}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary peer-data-[state=checked]:text-primary-foreground [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary [&:has([data-state=checked])]:text-primary-foreground cursor-pointer transition-all duration-200 hover:scale-105"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-blue-500 peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-blue-900 [&:has([data-state=checked])]:border-blue-500 [&:has([data-state=checked])]:bg-blue-50 [&:has([data-state=checked])]:text-blue-900 cursor-pointer transition-all duration-200 hover:scale-105"
                               >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-primary-foreground/20 mb-2 transition-colors duration-200">
-                                  <Disc className="h-5 w-5 peer-data-[state=checked]:text-primary-foreground" />
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-blue-200 mb-2 transition-colors duration-200">
+                                  <Disc className="h-5 w-5 peer-data-[state=checked]:text-blue-900" />
                                 </div>
                                 <div className="font-medium">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-primary-foreground/80 text-center">
+                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-blue-700 text-center">
                                   {genre.description}
                                 </div>
                               </Label>
