@@ -185,13 +185,13 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
               <RadioGroupItem value="prompt" id="prompt" className="peer sr-only" />
               <Label
                 htmlFor="prompt"
-                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 cursor-pointer transition-all duration-500 ease-out transform hover:scale-105 hover:shadow-xl hover:border-yellow-400 hover:bg-yellow-50 peer-data-[state=checked]:border-yellow-500 peer-data-[state=checked]:bg-yellow-100 peer-data-[state=checked]:text-yellow-900 peer-data-[state=checked]:scale-110 peer-data-[state=checked]:shadow-2xl peer-data-[state=checked]:shadow-yellow-300"
+                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 cursor-pointer transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:border-purple-400 hover:bg-purple-50 peer-data-[state=checked]:border-purple-500 peer-data-[state=checked]:bg-purple-100 peer-data-[state=checked]:text-purple-900 peer-data-[state=checked]:scale-105 peer-data-[state=checked]:shadow-lg"
               >
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 mb-2 transition-all duration-500 peer-data-[state=checked]:bg-yellow-200 peer-data-[state=checked]:scale-125 hover:bg-yellow-100">
-                  <Mic className="h-5 w-5 text-blue-600 transition-colors duration-500 peer-data-[state=checked]:text-yellow-700 hover:text-yellow-600" />
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 mb-2 transition-all duration-300 peer-data-[state=checked]:bg-purple-200">
+                  <Mic className="h-5 w-5 text-blue-600 transition-colors duration-300 peer-data-[state=checked]:text-purple-700" />
                 </div>
-                <div className="font-medium transition-all duration-500 peer-data-[state=checked]:font-bold peer-data-[state=checked]:text-yellow-900">🎨 Prompt Mode</div>
-                <div className="text-xs text-muted-foreground text-center transition-colors duration-500 peer-data-[state=checked]:text-yellow-700">
+                <div className="font-medium transition-all duration-300 peer-data-[state=checked]:font-bold">🎨 Prompt Mode</div>
+                <div className="text-xs text-muted-foreground text-center transition-colors duration-300 peer-data-[state=checked]:text-purple-700">
                   Short creative prompt (max 400 chars)
                 </div>
               </Label>
@@ -201,13 +201,13 @@ export const SunoGenerationForm = ({ onSuccess, requestId }: SunoGenerationFormP
               <RadioGroupItem value="lyrics" id="lyrics" className="peer sr-only" />
               <Label
                 htmlFor="lyrics"
-                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 cursor-pointer transition-all duration-500 ease-out transform hover:scale-105 hover:shadow-xl hover:border-yellow-400 hover:bg-yellow-50 peer-data-[state=checked]:border-yellow-500 peer-data-[state=checked]:bg-yellow-100 peer-data-[state=checked]:text-yellow-900 peer-data-[state=checked]:scale-110 peer-data-[state=checked]:shadow-2xl peer-data-[state=checked]:shadow-yellow-300"
+                className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 cursor-pointer transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-lg hover:border-purple-400 hover:bg-purple-50 peer-data-[state=checked]:border-purple-500 peer-data-[state=checked]:bg-purple-100 peer-data-[state=checked]:text-purple-900 peer-data-[state=checked]:scale-105 peer-data-[state=checked]:shadow-lg"
               >
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 mb-2 transition-all duration-500 peer-data-[state=checked]:bg-yellow-200 peer-data-[state=checked]:scale-125 hover:bg-yellow-100">
-                  <Music className="h-5 w-5 text-purple-600 transition-colors duration-500 peer-data-[state=checked]:text-yellow-700 hover:text-yellow-600" />
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 mb-2 transition-all duration-300 peer-data-[state=checked]:bg-purple-200">
+                  <Music className="h-5 w-5 text-purple-600 transition-colors duration-300 peer-data-[state=checked]:text-purple-700" />
                 </div>
-                <div className="font-medium transition-all duration-500 peer-data-[state=checked]:font-bold peer-data-[state=checked]:text-yellow-900">✍️ Lyric Input Mode</div>
-                <div className="text-xs text-muted-foreground text-center transition-colors duration-500 peer-data-[state=checked]:text-yellow-700">
+                <div className="font-medium transition-all duration-300 peer-data-[state=checked]:font-bold">✍️ Lyric Input Mode</div>
+                <div className="text-xs text-muted-foreground text-center transition-colors duration-300 peer-data-[state=checked]:text-purple-700">
                   Full song lyrics (max {formData.model === 'V4_5' ? '5000' : '3000'} chars)
                 </div>
               </Label>
