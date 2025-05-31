@@ -164,13 +164,13 @@ const Create = () => {
                               />
                               <Label
                                 htmlFor={genre.id}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-yellow-500 peer-data-[state=checked]:bg-yellow-100 peer-data-[state=checked]:text-yellow-900 cursor-pointer transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg peer-data-[state=checked]:scale-105 peer-data-[state=checked]:shadow-lg transform-gpu"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground hover:border-primary/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg peer-data-[state=checked]:scale-110 peer-data-[state=checked]:shadow-xl peer-data-[state=checked]:shadow-primary/20 transform-gpu"
                               >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-yellow-200 mb-2 transition-all duration-300 ease-out">
-                                  <Music className="h-5 w-5 peer-data-[state=checked]:text-yellow-900 transition-colors duration-300" />
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-primary/20 mb-2 transition-all duration-300 ease-out peer-data-[state=checked]:scale-110">
+                                  <Music className="h-5 w-5 peer-data-[state=checked]:text-primary transition-colors duration-300" />
                                 </div>
-                                <div className="font-medium transition-all duration-300">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-yellow-700 text-center transition-colors duration-300">
+                                <div className="font-medium transition-all duration-300 peer-data-[state=checked]:font-bold">{genre.name}</div>
+                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-primary/80 text-center transition-colors duration-300">
                                   {genre.description}
                                 </div>
                               </Label>
@@ -318,13 +318,13 @@ const Create = () => {
                               />
                               <Label
                                 htmlFor={`${genre.id}-inst`}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-yellow-500 peer-data-[state=checked]:bg-yellow-100 peer-data-[state=checked]:text-yellow-900 cursor-pointer transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg peer-data-[state=checked]:scale-105 peer-data-[state=checked]:shadow-lg transform-gpu"
+                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground hover:border-primary/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary cursor-pointer transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg peer-data-[state=checked]:scale-110 peer-data-[state=checked]:shadow-xl peer-data-[state=checked]:shadow-primary/20 transform-gpu"
                               >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-yellow-200 mb-2 transition-all duration-300 ease-out">
-                                  <Disc className="h-5 w-5 peer-data-[state=checked]:text-yellow-900 transition-colors duration-300" />
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted peer-data-[state=checked]:bg-primary/20 mb-2 transition-all duration-300 ease-out peer-data-[state=checked]:scale-110">
+                                  <Disc className="h-5 w-5 peer-data-[state=checked]:text-primary transition-colors duration-300" />
                                 </div>
-                                <div className="font-medium transition-all duration-300">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-yellow-700 text-center transition-colors duration-300">
+                                <div className="font-medium transition-all duration-300 peer-data-[state=checked]:font-bold">{genre.name}</div>
+                                <div className="text-xs text-muted-foreground peer-data-[state=checked]:text-primary/80 text-center transition-colors duration-300">
                                   {genre.description}
                                 </div>
                               </Label>
