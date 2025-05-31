@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -62,13 +63,13 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Updated melody theme colors for better readability
+				// Original melody theme colors restored
 				melody: {
-					primary: '#8B7AB8', // Lighter purple for better contrast
-					secondary: '#B68CB8', // Lighter pink-purple
-					accent: '#E8D4F1', // Very light purple
-					light: '#F8F6FB', // Almost white with purple tint
-					dark: '#2D2438', // Dark purple instead of black
+					primary: '#583D72',
+					secondary: '#9A5EB8',
+					accent: '#E8D4F1',
+					light: '#F8F6FB',
+					dark: '#1A1A1A',
 				}
 			},
 			fontFamily: {
