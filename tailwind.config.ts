@@ -63,12 +63,12 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Updated melody theme colors to remove pink/purple
+				// Custom theme colors
 				melody: {
-					primary: '#000000',
-					secondary: '#333333',
-					accent: '#666666',
-					light: '#F8F6FB',
+					primary: '#583D72',
+					secondary: '#9F5F80',
+					accent: '#FFCBDD',
+					light: '#F1F1F1',
 					dark: '#1A1A1A',
 				}
 			},

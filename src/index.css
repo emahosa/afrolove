@@ -16,24 +16,24 @@
     --popover: 260 15% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 0 0% 0%;
+    --primary: 260 33% 34%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 0%;
+    --secondary: 330 25% 50%;
     --secondary-foreground: 0 0% 98%;
 
     --muted: 260 10% 25%;
     --muted-foreground: 0 0% 80%;
 
-    --accent: 0 0% 20%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 340 100% 90%;
+    --accent-foreground: 340 50% 30%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 260 15% 25%;
     --input: 260 15% 25%;
-    --ring: 0 0% 0%;
+    --ring: 260 33% 34%;
 
     --radius: 0.75rem;
   }
@@ -68,7 +68,7 @@
 }
 
 .grid-pattern {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(88, 61, 114, 0.1);
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
     linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
