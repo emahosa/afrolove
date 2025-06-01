@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare request for Suno API according to documentation
+    // Prepare request body according to the API documentation
     const sunoRequestBody = {
       prompt: prompt.trim(),
       customMode: customMode,
@@ -114,12 +114,13 @@ Deno.serve(async (req) => {
     }
 
     // Add conditional fields based on customMode
-    if (customMode && title) {
-      sunoRequestBody.title = title
-    }
-    
-    if (customMode && style) {
-      sunoRequestBody.style = style
+    if (customMode) {
+      if (title) {
+        sunoRequestBody.title = title
+      }
+      if (style) {
+        sunoRequestBody.style = style
+      }
     }
 
     if (negativeTags) {
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     console.log('🎵 Calling Suno API /api/v1/generate')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Call Suno API
+    // Call Suno API with the correct endpoint
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
         error: errorMessage,
         success: false 
       }), {
-        status: sunoResponse.status,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -182,7 +183,7 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID from response
+    // Extract task ID from response (according to API docs, it should be in data.task_id)
     let taskId = null
     
     if (responseData.code === 200 && responseData.data && responseData.data.task_id) {
@@ -203,7 +204,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ Task ID received:', taskId)
 
-    // Only NOW deduct credits after successful API call
+    // Deduct credits AFTER successful API call
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: -5
@@ -216,14 +217,14 @@ Deno.serve(async (req) => {
       console.log('✅ Credits deducted for user:', userId)
     }
 
-    // Create song record with a temporary reference to track the task
+    // Create song record with pending status
     const songData = {
       user_id: userId,
       title: title || 'AI Generated Song',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: `pending:${taskId}`, // Use prefix to indicate pending status
+      audio_url: `pending:${taskId}`, // Store with pending prefix for tracking
       prompt,
-      lyrics: null, // Will be updated when generation completes
+      lyrics: null,
       status: 'pending',
       credits_used: 5,
       vocal_url: null,

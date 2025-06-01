@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Call the correct status endpoint
+    // Call the status endpoint according to API documentation
     const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
       method: 'GET',
       headers: {
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
         error: 'Failed to check task status',
         success: false 
       }), {
-        status: statusResponse.status,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -112,14 +112,14 @@ Deno.serve(async (req) => {
 
     console.log('📋 Found song record:', songRecord.id, songRecord.title)
 
-    // Check if the task is completed
+    // Check if the task is completed according to API documentation
     if (statusData.code === 200 && statusData.data) {
       const taskData = statusData.data
       console.log('🎵 Task data received:', taskData)
 
-      // Check different completion statuses
-      if (taskData.status === 'SUCCESS' && taskData.response && taskData.response.sunoData && taskData.response.sunoData.length > 0) {
-        const audioTrack = taskData.response.sunoData[0] // Get first track
+      // Check for successful completion
+      if (taskData.status === 'SUCCESS' && taskData.response && Array.isArray(taskData.response) && taskData.response.length > 0) {
+        const audioTrack = taskData.response[0] // Get first track
         console.log('✅ Song generation completed!', audioTrack)
         
         const updateData = {
@@ -141,7 +141,6 @@ Deno.serve(async (req) => {
         // Set vocal and instrumental URLs based on type
         if (songRecord.type === 'song') {
           updateData.vocal_url = audioTrack.audio_url || audioTrack.audioUrl
-          // For now, use the same URL for instrumental until we implement proper splitting
           updateData.instrumental_url = audioTrack.audio_url || audioTrack.audioUrl
         } else {
           updateData.instrumental_url = audioTrack.audio_url || audioTrack.audioUrl
@@ -176,8 +175,8 @@ Deno.serve(async (req) => {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
-      } else if (taskData.status === 'CREATE_TASK_FAILED' || taskData.status === 'GENERATE_AUDIO_FAILED' || taskData.status === 'CALLBACK_EXCEPTION' || taskData.status === 'SENSITIVE_WORD_ERROR') {
-        console.log('❌ Song generation failed')
+      } else if (['CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'CALLBACK_EXCEPTION', 'SENSITIVE_WORD_ERROR'].includes(taskData.status)) {
+        console.log('❌ Song generation failed with status:', taskData.status)
         
         const { error: updateError } = await supabase
           .from('songs')
