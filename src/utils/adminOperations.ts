@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -158,7 +157,14 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     
     // Process profiles into user list format
     const users = profiles.map(profile => {
-      const userRole = rolesMap.get(profile.id) || 'user';
+      // Special handling for super admin
+      let userRole = 'user';
+      if (profile.username === 'ellaadahosa@gmail.com' || profile.id === '1a7e4d46-b4f2-464e-a1f4-2766836286c1') {
+        userRole = 'admin';
+        console.log('Admin: Setting super admin role for:', profile.username || profile.id);
+      } else {
+        userRole = rolesMap.get(profile.id) || 'user';
+      }
       
       return {
         id: profile.id,
