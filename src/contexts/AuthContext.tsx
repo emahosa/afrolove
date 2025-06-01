@@ -35,11 +35,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = () => {
     console.log('AuthContext: Checking admin status for user:', user?.email);
     
+    // Check if super admin first
     if (user?.email === 'ellaadahosa@gmail.com') {
       console.log('AuthContext: Super admin detected');
       return true;
     }
     
+    // Check if user has admin role
     const hasAdminRole = userRoles.includes('admin');
     console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
     return hasAdminRole;
@@ -74,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('AuthContext: Error fetching roles:', error);
-        return ['user'];
+        return ['user']; // Default fallback
       }
       
       const roles = userRoleData?.map(r => r.role) || ['user'];
@@ -82,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return roles;
     } catch (error) {
       console.error('AuthContext: Error in fetchUserRoles:', error);
-      return ['user'];
+      return ['user']; // Default fallback
     }
   };
 
@@ -91,38 +93,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       if (session?.user) {
+        // First set up the basic user object
+        let basicUser: ExtendedUser = {
+          ...session.user,
+          name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
+          avatar: session.user.user_metadata.avatar_url || '',
+          credits: 5, // Default credits
+          subscription: 'free'
+        };
+
+        // Try to get profile data
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
         
-        let basicUser: ExtendedUser;
-        
         if (profile && !profileError) {
           console.log('AuthContext: Using profile data:', profile);
           basicUser = {
-            ...session.user,
-            name: profile.full_name || session.user.user_metadata.full_name || 'User',
-            avatar: profile.avatar_url || session.user.user_metadata.avatar_url || '',
-            credits: profile.credits || 0,
-            subscription: 'free'
-          };
-        } else {
-          console.log('AuthContext: Using fallback user data');
-          basicUser = {
-            ...session.user,
-            name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-            avatar: session.user.user_metadata.avatar_url || '',
-            credits: 5,
-            subscription: 'free'
+            ...basicUser,
+            name: profile.full_name || basicUser.name,
+            avatar: profile.avatar_url || basicUser.avatar,
+            credits: profile.credits || 5,
           };
         }
         
         setUser(basicUser);
         setSession(session);
         
-        // Fetch roles in background
+        // Fetch roles after setting user
         const roles = await fetchUserRoles(session.user.id);
         setUserRoles(roles);
         
