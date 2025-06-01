@@ -1,12 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { Music, Disc, Trophy, Plus, Clock, Star, Play, Pause, Download } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAudioPlayer } from "@/hooks/use-audio-player";
 import { toast } from "sonner";
 
 interface Song {
@@ -20,9 +18,10 @@ interface Song {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { handlePlay } = useAudioPlayer();
   const [recentSongs, setRecentSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+  const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
 
   const fetchRecentSongs = async () => {
     if (!user) return;
@@ -71,17 +70,102 @@ const Dashboard = () => {
 
     return () => {
       supabase.removeChannel(channel);
+      // Clean up audio elements
+      audioElements.forEach(audio => {
+        audio.pause();
+        audio.src = '';
+      });
     };
   }, [user]);
 
-  const handlePlaySong = (song: Song) => {
-    if (song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http')) {
-      handlePlay({
-        id: song.id,
-        title: song.title
-      });
-    } else {
+  const handlePlaySong = async (song: Song) => {
+    if (song.status !== 'completed' || !song.audio_url || !song.audio_url.startsWith('http')) {
       toast.error('Song is not ready for playback yet');
+      return;
+    }
+
+    try {
+      // Stop any currently playing audio
+      if (currentlyPlaying && audioElements.has(currentlyPlaying)) {
+        const currentAudio = audioElements.get(currentlyPlaying);
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+      }
+
+      // If clicking the same song that's playing, just pause it
+      if (currentlyPlaying === song.id) {
+        setCurrentlyPlaying(null);
+        return;
+      }
+
+      let audio = audioElements.get(song.id);
+      
+      if (!audio) {
+        audio = new Audio(song.audio_url);
+        audio.addEventListener('ended', () => {
+          setCurrentlyPlaying(null);
+        });
+        audio.addEventListener('error', (e) => {
+          console.error('Audio error:', e);
+          toast.error('Failed to play audio - file may be corrupted or inaccessible');
+          setCurrentlyPlaying(null);
+        });
+        
+        setAudioElements(prev => new Map(prev.set(song.id, audio!)));
+      }
+
+      await audio.play();
+      setCurrentlyPlaying(song.id);
+      toast.success(`Playing: ${song.title}`);
+    } catch (error: any) {
+      console.error('Error playing song:', error);
+      toast.error('Failed to play audio: ' + error.message);
+      setCurrentlyPlaying(null);
+    }
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    if (song.status !== 'completed' || !song.audio_url || !song.audio_url.startsWith('http')) {
+      toast.error('Song is not ready for download yet');
+      return;
+    }
+
+    try {
+      toast.info('Starting download...');
+      
+      const response = await fetch(song.audio_url);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
+      const sanitizedTitle = song.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+      const fileName = `${sanitizedTitle}_${song.type}.mp3`;
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+
+      toast.success('Audio file downloaded successfully!');
+    } catch (error: any) {
+      console.error('Download error:', error);
+      toast.error('Failed to download audio file: ' + error.message);
     }
   };
 
@@ -228,17 +312,34 @@ const Dashboard = () => {
                     <Disc className="h-12 w-12 text-melody-secondary/70" />
                     
                     {song.status === 'completed' && song.audio_url?.startsWith('http') && (
-                      <Button
-                        variant="secondary"
-                        size="lg"
-                        className="absolute inset-0 m-auto h-14 w-14 rounded-full bg-white/90 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handlePlaySong(song);
-                        }}
-                      >
-                        <Play className="h-6 w-6 ml-1" />
-                      </Button>
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          className="h-12 w-12 rounded-full bg-white/90 hover:bg-white"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePlaySong(song);
+                          }}
+                        >
+                          {currentlyPlaying === song.id ? (
+                            <Pause className="h-5 w-5" />
+                          ) : (
+                            <Play className="h-5 w-5 ml-1" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          className="h-12 w-12 rounded-full bg-white/90 hover:bg-white"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDownloadSong(song);
+                          }}
+                        >
+                          <Download className="h-5 w-5" />
+                        </Button>
+                      </div>
                     )}
                   </div>
                   <div className="p-4">
@@ -265,6 +366,11 @@ const Dashboard = () => {
                         <div className="audio-wave-bar h-4 animate-wave4"></div>
                         <div className="audio-wave-bar h-2 animate-wave1"></div>
                         <div className="audio-wave-bar h-5 animate-wave2"></div>
+                      </div>
+                    )}
+                    {currentlyPlaying === song.id && (
+                      <div className="mt-2 text-xs text-melody-primary font-medium">
+                        ♪ Now Playing
                       </div>
                     )}
                   </div>
