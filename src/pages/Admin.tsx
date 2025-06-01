@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug, Key } from 'lucide-react';
@@ -18,7 +17,7 @@ import { SupportManagement } from '@/components/admin/SupportManagement';
 import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
 import { SettingsManagement } from '@/components/admin/SettingsManagement';
 import { GenreManagement } from '@/components/admin/GenreManagement';
-import { fetchUsersFromDatabase } from '@/utils/adminOperations';
+import { fetchUsersFromDatabase, ensureAdminUserExists } from '@/utils/adminOperations';
 import { debugCreditsSystem } from '@/utils/supabaseDebug';
 
 // Mock data for other sections
@@ -116,30 +115,68 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDebugging, setIsDebugging] = useState(false);
+  const [adminInitialized, setAdminInitialized] = useState(false);
+
+  // Initialize admin setup on component mount
+  useEffect(() => {
+    const initializeAdmin = async () => {
+      if (!user || !isAdmin()) return;
+      
+      try {
+        console.log("Admin: Initializing admin setup...");
+        const initialized = await ensureAdminUserExists();
+        setAdminInitialized(initialized);
+        console.log("Admin: Initialization result:", initialized);
+        
+        if (initialized) {
+          toast.success("Admin setup verified");
+        }
+      } catch (error) {
+        console.error("Admin: Failed to initialize admin:", error);
+        toast.error("Failed to initialize admin panel");
+      }
+    };
+
+    if (user && isAdmin()) {
+      initializeAdmin();
+    }
+  }, [user, isAdmin]);
 
   useEffect(() => {
     const loadUsers = async () => {
+      if (!adminInitialized) {
+        console.log("Admin: Waiting for admin initialization...");
+        return;
+      }
+
       try {
         console.log("Admin component: Loading users...");
         setLoading(true);
         const fetchedUsers = await fetchUsersFromDatabase();
         console.log("Admin component: Fetched users:", fetchedUsers);
         setUsers(fetchedUsers);
-      } catch (error) {
+        
+        if (fetchedUsers.length === 0) {
+          toast.info("No users found. You may need to create user profiles first.");
+        } else {
+          toast.success(`Loaded ${fetchedUsers.length} users successfully`);
+        }
+      } catch (error: any) {
         console.error("Failed to load users:", error);
         toast.error("Failed to load users", {
-          description: "There was an error loading user data"
+          description: error.message || "There was an error loading user data"
         });
+        setUsers([]);
       } finally {
         setLoading(false);
       }
     };
     
     // Load users when the component mounts or the active tab changes to 'users'
-    if (activeTab === 'users') {
+    if (activeTab === 'users' && adminInitialized) {
       loadUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, adminInitialized]);
 
   useEffect(() => {
     const pathSegments = location.pathname.split('/');
@@ -233,6 +270,15 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     return <Navigate to="/dashboard" />;
   }
 
+  if (!adminInitialized && loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <div className="ml-3">Initializing admin panel...</div>
+      </div>
+    );
+  }
+
   const renderStatusLabel = (status: string): React.ReactNode => {
     const statusClasses: Record<string, string> = {
       active: "text-green-500",
@@ -303,6 +349,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </Button>
         </div>
       </div>
+
+      {!adminInitialized && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
+          <p className="font-medium">Admin Setup Required</p>
+          <p className="text-sm mt-1">The admin panel is still initializing. Please wait...</p>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="border-b">

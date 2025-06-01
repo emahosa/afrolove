@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -118,6 +119,11 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       console.log('Admin: Regular admin access confirmed');
     }
     
+    // First ensure the super admin profile exists if this is the super admin
+    if (isSuperAdmin) {
+      await ensureAdminUserExists();
+    }
+    
     // Fetch user profiles and user roles separately to avoid relationship issues
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
@@ -128,62 +134,86 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
     }
     
+    console.log("Admin: Raw profiles from database:", profiles);
+    
     if (!profiles || profiles.length === 0) {
-      console.log("Admin: No profiles found in the database");
+      console.log("Admin: No profiles found in the database, attempting to create admin profile");
+      
+      // If no profiles exist and this is the super admin, create the profile
+      if (isSuperAdmin) {
+        const profileCreated = await ensureAdminUserExists();
+        if (profileCreated) {
+          // Try fetching again after creating the profile
+          const { data: newProfiles, error: newProfilesError } = await supabase
+            .from('profiles')
+            .select('*');
+          
+          if (!newProfilesError && newProfiles && newProfiles.length > 0) {
+            console.log("Admin: Found profiles after creating admin profile:", newProfiles);
+            return processProfiles(newProfiles);
+          }
+        }
+      }
+      
+      console.log("Admin: Still no profiles found after attempting to create admin");
       return [];
     }
     
-    // Fetch all user roles
-    const { data: userRoles, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
-      
-    if (rolesError) {
-      console.error("Admin: Error fetching user roles:", rolesError);
-      // Don't throw error here, just log it and continue with empty roles
-      console.log("Admin: Continuing without roles data");
-    }
-    
-    // Create a map of user roles for quick lookup
-    const rolesMap = new Map<string, string>();
-    if (userRoles) {
-      userRoles.forEach(roleRecord => {
-        rolesMap.set(roleRecord.user_id, roleRecord.role);
-      });
-    }
-    
-    console.log("Admin: Fetched profiles:", profiles);
-    console.log("Admin: Roles map:", rolesMap);
-    
-    // Process profiles into user list format
-    const users = profiles.map(profile => {
-      // Special handling for super admin
-      let userRole = 'user';
-      if (profile.username === 'ellaadahosa@gmail.com' || profile.id === '1a7e4d46-b4f2-464e-a1f4-2766836286c1') {
-        userRole = 'admin';
-        console.log('Admin: Setting super admin role for:', profile.username || profile.id);
-      } else {
-        userRole = rolesMap.get(profile.id) || 'user';
-      }
-      
-      return {
-        id: profile.id,
-        name: profile.full_name || 'No Name',
-        email: profile.username || 'No Email', 
-        status: profile.is_suspended ? 'suspended' : 'active',
-        role: userRole,
-        credits: profile.credits || 0,
-        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
-      };
-    });
-    
-    console.log("Admin: Processed users:", users);
-    return users;
+    return processProfiles(profiles);
     
   } catch (error: any) {
     console.error("Admin: Error in fetchUsersFromDatabase:", error);
     throw new Error(`Failed to load users: ${error.message}`);
   }
+};
+
+const processProfiles = async (profiles: any[]): Promise<any[]> => {
+  // Fetch all user roles
+  const { data: userRoles, error: rolesError } = await supabase
+    .from('user_roles')
+    .select('user_id, role');
+    
+  if (rolesError) {
+    console.error("Admin: Error fetching user roles:", rolesError);
+    // Don't throw error here, just log it and continue with empty roles
+    console.log("Admin: Continuing without roles data");
+  }
+  
+  // Create a map of user roles for quick lookup
+  const rolesMap = new Map<string, string>();
+  if (userRoles) {
+    userRoles.forEach(roleRecord => {
+      rolesMap.set(roleRecord.user_id, roleRecord.role);
+    });
+  }
+  
+  console.log("Admin: Fetched profiles:", profiles);
+  console.log("Admin: Roles map:", rolesMap);
+  
+  // Process profiles into user list format
+  const users = profiles.map(profile => {
+    // Special handling for super admin
+    let userRole = 'user';
+    if (profile.username === 'ellaadahosa@gmail.com' || profile.id === '1a7e4d46-b4f2-464e-a1f4-2766836286c1') {
+      userRole = 'admin';
+      console.log('Admin: Setting super admin role for:', profile.username || profile.id);
+    } else {
+      userRole = rolesMap.get(profile.id) || 'user';
+    }
+    
+    return {
+      id: profile.id,
+      name: profile.full_name || 'No Name',
+      email: profile.username || 'No Email', 
+      status: profile.is_suspended ? 'suspended' : 'active',
+      role: userRole,
+      credits: profile.credits || 0,
+      joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
+    };
+  });
+  
+  console.log("Admin: Processed users:", users);
+  return users;
 };
 
 export const toggleUserBanStatus = async (userId: string, currentStatus: string): Promise<boolean> => {
@@ -350,7 +380,7 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
             role: 'admin'
           });
         
-        if (roleError) {
+        if (roleError && !roleError.message.includes('duplicate key')) {
           console.error('Error creating admin role:', roleError);
           return false;
         }
