@@ -38,68 +38,97 @@ export const BottomAudioPlayer = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchAudioUrl = async () => {
-    if (audioUrl) return audioUrl;
-    
     try {
       setLoadingAudio(true);
-      console.log('🎵 BottomAudioPlayer: Fetching audio URL for:', { requestId, type });
+      console.log('🎵 BottomAudioPlayer: Starting fetchAudioUrl for:', { requestId, type, title });
 
       if (type === 'suno') {
-        // For Suno songs, look directly in the songs table using the song ID
-        console.log('🎵 BottomAudioPlayer: Fetching Suno song with ID:', requestId);
+        console.log('🎵 BottomAudioPlayer: Fetching Suno song from songs table with ID:', requestId);
+        
         const { data: songData, error: songError } = await supabase
           .from('songs')
           .select('*')
           .eq('id', requestId)
           .single();
 
-        if (!songError && songData) {
-          console.log('🎵 BottomAudioPlayer: Found Suno song data:', songData);
-          
-          // Check if song is completed and has a valid audio URL
-          if (songData.status === 'completed' && songData.audio_url && songData.audio_url.startsWith('http')) {
-            console.log('✅ BottomAudioPlayer: Found valid Suno audio URL:', songData.audio_url);
-            setAudioUrl(songData.audio_url);
-            return songData.audio_url;
-          } else {
-            console.log('❌ BottomAudioPlayer: Suno song not ready. Status:', songData.status, 'URL:', songData.audio_url);
-            toast.error('Song is not ready for playback yet. Please wait for generation to complete.');
-            return null;
-          }
-        } else {
-          console.log('❌ BottomAudioPlayer: Suno song not found:', songError);
+        console.log('🎵 BottomAudioPlayer: Supabase query result:', { songData, songError });
+
+        if (songError) {
+          console.error('❌ BottomAudioPlayer: Error fetching Suno song:', songError);
+          toast.error('Failed to load song: ' + songError.message);
+          return null;
+        }
+
+        if (!songData) {
+          console.error('❌ BottomAudioPlayer: No song data found for ID:', requestId);
           toast.error('Song not found');
           return null;
         }
+
+        console.log('🎵 BottomAudioPlayer: Song data retrieved:', {
+          id: songData.id,
+          title: songData.title,
+          status: songData.status,
+          audio_url: songData.audio_url,
+          type: songData.type
+        });
+
+        if (songData.status !== 'completed') {
+          console.log('❌ BottomAudioPlayer: Song not completed. Status:', songData.status);
+          toast.error(`Song is not ready for playback. Status: ${songData.status}`);
+          return null;
+        }
+
+        if (!songData.audio_url) {
+          console.log('❌ BottomAudioPlayer: No audio URL found in song data');
+          toast.error('Audio file not available');
+          return null;
+        }
+
+        if (!songData.audio_url.startsWith('http')) {
+          console.log('❌ BottomAudioPlayer: Invalid audio URL format:', songData.audio_url);
+          toast.error('Invalid audio file URL');
+          return null;
+        }
+
+        console.log('✅ BottomAudioPlayer: Valid Suno audio URL found:', songData.audio_url);
+        setAudioUrl(songData.audio_url);
+        return songData.audio_url;
+
       } else {
-        // For custom songs, use the existing logic with custom_song_audio table
+        // Custom song logic
         console.log('🎵 BottomAudioPlayer: Fetching custom song audio for request:', requestId);
+        
         const { data: audioData, error: audioError } = await supabase
           .from('custom_song_audio')
           .select('*')
           .eq('request_id', requestId)
           .order('created_at', { ascending: false });
 
-        if (!audioError && audioData && audioData.length > 0) {
-          let audioRecord = audioData.find(record => record.is_selected === true);
-          if (!audioRecord) {
-            audioRecord = audioData[0];
-          }
-
-          if (audioRecord?.audio_url) {
-            console.log('✅ BottomAudioPlayer: Found custom audio URL:', audioRecord.audio_url);
-            setAudioUrl(audioRecord.audio_url);
-            return audioRecord.audio_url;
-          }
+        if (audioError || !audioData || audioData.length === 0) {
+          console.error('❌ BottomAudioPlayer: Error fetching custom audio:', audioError);
+          toast.error('No audio file found for this song');
+          return null;
         }
 
-        console.log('❌ BottomAudioPlayer: No custom audio found for request:', requestId);
-        toast.error('No audio file found for this song');
-        return null;
+        let audioRecord = audioData.find(record => record.is_selected === true);
+        if (!audioRecord) {
+          audioRecord = audioData[0];
+        }
+
+        if (!audioRecord?.audio_url) {
+          console.error('❌ BottomAudioPlayer: No audio URL in custom audio record');
+          toast.error('Audio file URL is missing');
+          return null;
+        }
+
+        console.log('✅ BottomAudioPlayer: Custom audio URL found:', audioRecord.audio_url);
+        setAudioUrl(audioRecord.audio_url);
+        return audioRecord.audio_url;
       }
 
     } catch (error: any) {
-      console.error('💥 BottomAudioPlayer: Error fetching audio URL:', error);
+      console.error('💥 BottomAudioPlayer: Unexpected error in fetchAudioUrl:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
     } finally {
@@ -107,87 +136,110 @@ export const BottomAudioPlayer = ({
     }
   };
 
-  const handleAudioEnd = () => {
-    console.log('BottomAudioPlayer: Audio ended, repeat mode:', repeatMode);
-    
-    if (repeatMode === 'one' || repeatMode === 'all') {
-      // Repeat current song (both 'one' and 'all' do the same thing for a single song)
-      if (audioRef.current) {
-        console.log('BottomAudioPlayer: Repeating song');
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(error => {
-          console.error('BottomAudioPlayer: Error repeating song:', error);
+  const setupAudioListeners = (audio: HTMLAudioElement) => {
+    const handleLoadedMetadata = () => {
+      console.log('🎵 BottomAudioPlayer: Audio metadata loaded, duration:', audio.duration);
+      setDuration(audio.duration);
+    };
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+    };
+
+    const handleAudioEnd = () => {
+      console.log('🎵 BottomAudioPlayer: Audio ended, repeat mode:', repeatMode);
+      
+      if (repeatMode === 'one' || repeatMode === 'all') {
+        console.log('🎵 BottomAudioPlayer: Repeating song');
+        audio.currentTime = 0;
+        audio.play().catch(error => {
+          console.error('❌ BottomAudioPlayer: Error repeating song:', error);
           setIsPlaying(false);
         });
         setCurrentTime(0);
         return;
       }
-    }
-    
-    // No repeat - stop playing
-    console.log('BottomAudioPlayer: No repeat, stopping playback');
-    setIsPlaying(false);
-    setCurrentTime(0);
-  };
+      
+      console.log('🎵 BottomAudioPlayer: No repeat, stopping playback');
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
 
-  const setupAudioListeners = (audio: HTMLAudioElement) => {
-    // Remove any existing listeners first
-    audio.removeEventListener('loadedmetadata', () => {});
-    audio.removeEventListener('timeupdate', () => {});
-    audio.removeEventListener('ended', handleAudioEnd);
-    audio.removeEventListener('error', () => {});
-
-    audio.addEventListener('loadedmetadata', () => {
-      console.log('BottomAudioPlayer: Audio metadata loaded, duration:', audio.duration);
-      setDuration(audio.duration);
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      setCurrentTime(audio.currentTime);
-    });
-
-    audio.addEventListener('ended', handleAudioEnd);
-
-    audio.addEventListener('error', (e) => {
-      console.error('BottomAudioPlayer: Audio error:', e);
+    const handleAudioError = (e: Event) => {
+      console.error('❌ BottomAudioPlayer: Audio error:', e);
       toast.error('Failed to play audio - file may be corrupted or inaccessible');
       setIsPlaying(false);
-    });
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleAudioEnd);
+    audio.addEventListener('error', handleAudioError);
+
+    // Return cleanup function
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleAudioEnd);
+      audio.removeEventListener('error', handleAudioError);
+    };
   };
 
   const handlePlayPause = async () => {
     try {
+      console.log('🎵 BottomAudioPlayer: handlePlayPause called, isPlaying:', isPlaying, 'audioRef.current:', !!audioRef.current);
+
+      // If currently playing, pause
       if (isPlaying && audioRef.current) {
+        console.log('🎵 BottomAudioPlayer: Pausing current audio');
         audioRef.current.pause();
         setIsPlaying(false);
         return;
       }
 
+      // If we have an audio instance with a source, resume playing
       if (!isPlaying && audioRef.current && audioRef.current.src) {
+        console.log('🎵 BottomAudioPlayer: Resuming existing audio');
         await audioRef.current.play();
         setIsPlaying(true);
         return;
       }
 
+      // Need to fetch audio URL and create new audio instance
+      console.log('🎵 BottomAudioPlayer: Fetching audio URL for new playback');
       const url = await fetchAudioUrl();
-      if (!url) return;
+      
+      if (!url) {
+        console.log('❌ BottomAudioPlayer: No URL returned from fetchAudioUrl');
+        return;
+      }
 
+      console.log('🎵 BottomAudioPlayer: Creating new audio instance with URL:', url);
+
+      // Clean up existing audio if any
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
 
+      // Create new audio instance
       const audio = new Audio(url);
       audioRef.current = audio;
 
-      setupAudioListeners(audio);
+      // Setup event listeners
+      const cleanup = setupAudioListeners(audio);
 
+      // Set volume and play
       audio.volume = volume / 100;
+      
+      console.log('🎵 BottomAudioPlayer: Starting audio playback');
       await audio.play();
       setIsPlaying(true);
-      console.log('BottomAudioPlayer: Audio started playing, repeat mode:', repeatMode);
+      
+      console.log('✅ BottomAudioPlayer: Audio playback started successfully');
+
     } catch (error: any) {
-      console.error('BottomAudioPlayer: Error in handlePlayPause:', error);
+      console.error('💥 BottomAudioPlayer: Error in handlePlayPause:', error);
       toast.error('Failed to play audio: ' + error.message);
       setIsPlaying(false);
     }
@@ -201,7 +253,6 @@ export const BottomAudioPlayer = ({
     setRepeatMode(newMode);
     console.log('BottomAudioPlayer: Repeat mode changed to:', newMode);
     
-    // Show feedback to user
     const modeNames = {
       'none': 'Repeat Off',
       'all': 'Repeat All',
@@ -254,13 +305,18 @@ export const BottomAudioPlayer = ({
 
   // Auto-play when player becomes visible
   useEffect(() => {
+    console.log('🎵 BottomAudioPlayer: useEffect triggered, isVisible:', isVisible, 'audioUrl:', audioUrl, 'loadingAudio:', loadingAudio);
+    
     if (isVisible && !audioUrl && !loadingAudio) {
+      console.log('🎵 BottomAudioPlayer: Auto-triggering playback');
       handlePlayPause();
     }
   }, [isVisible]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('🎵 BottomAudioPlayer: Cleaning up audio on unmount');
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
@@ -269,6 +325,8 @@ export const BottomAudioPlayer = ({
   }, []);
 
   if (!isVisible) return null;
+
+  console.log('🎵 BottomAudioPlayer: Rendering player for:', { title, type, requestId, isPlaying, loadingAudio });
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50">
