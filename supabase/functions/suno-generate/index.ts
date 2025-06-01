@@ -107,16 +107,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create a callback URL for the Suno API
-    const callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
-
-    // Prepare the Suno API request using the correct format from documentation
-    const sunoRequestBody = {
+    // Prepare the Suno API request using the correct format
+    const sunoRequestBody: any = {
       prompt: prompt.trim(),
       customMode: customMode,
       instrumental: instrumental,
-      model: model,
-      callBackUrl: callBackUrl
+      model: model
     }
 
     // Add optional fields based on mode
@@ -247,15 +243,18 @@ Deno.serve(async (req) => {
       console.log('✅ Credits deducted for user:', userId)
     }
 
-    // Create song record
+    // Create song record with proper initial values
     const songData = {
       user_id: userId,
-      title: title || 'Generating...',
+      title: title || (customMode ? 'Custom Song' : 'AI Generated Song'),
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Store task ID temporarily
+      audio_url: taskId, // Store task ID temporarily for status checking
       prompt,
+      lyrics: customMode ? prompt : null, // Store lyrics if in custom mode
       status: 'pending',
-      credits_used: 5
+      credits_used: 5,
+      vocal_url: null,
+      instrumental_url: null
     }
 
     const { data: newSong, error: songError } = await supabase

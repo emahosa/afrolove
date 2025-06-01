@@ -106,7 +106,7 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
-  // Enhanced polling: Check every 20 seconds
+  // Enhanced polling: Check every 30 seconds initially, then every 60 seconds
   useEffect(() => {
     if (!user?.id) return;
 
@@ -117,11 +117,11 @@ export const useSongStatusChecker = () => {
       checkAllPendingSongs();
     }, 5000);
 
-    // Set up regular interval for checking
+    // Set up regular interval for checking - start with 30 seconds
     const interval = setInterval(() => {
       console.log('⏰ Periodic status check triggered');
       checkAllPendingSongs();
-    }, 20000); // 20 seconds
+    }, 30000); // 30 seconds
 
     return () => {
       console.log('🛑 Cleaning up status checker');
