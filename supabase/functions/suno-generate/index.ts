@@ -9,13 +9,6 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-// Add shutdown event listener for logging
-addEventListener('beforeunload', (ev) => {
-  console.log('🔴 SUNO GENERATE FUNCTION SHUTDOWN')
-  console.log('📋 Shutdown reason:', ev.detail?.reason || 'Unknown')
-  console.log('⏰ Shutdown time:', new Date().toISOString())
-})
-
 Deno.serve(async (req) => {
   console.log('🚀 SUNO GENERATE FUNCTION STARTED')
   console.log('📋 Request method:', req.method)
@@ -114,11 +107,13 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request
+    // Prepare the Suno API request using the correct endpoint and format
     const sunoRequestBody = {
+      taskType: "musicGenerate",
+      taskUUID: crypto.randomUUID(),
       prompt: prompt.trim(),
       model: model,
-      make_instrumental: instrumental
+      isInstrumental: instrumental
     }
 
     if (customMode && style && title) {
@@ -127,22 +122,22 @@ Deno.serve(async (req) => {
     }
 
     if (negativeTags) {
-      sunoRequestBody.negative_tags = negativeTags
+      sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🎵 Sending request to Suno API')
+    console.log('🎵 Sending request to Suno API (apibox.erweima.ai)')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
     console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
-    // Make request to Suno API
-    const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
+    // Make request to the correct Suno API endpoint
+    const sunoResponse = await fetch('https://apibox.erweima.ai/v1', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(sunoRequestBody)
+      body: JSON.stringify([sunoRequestBody])
     })
 
     console.log('📥 Suno API response status:', sunoResponse.status)
@@ -159,7 +154,7 @@ Deno.serve(async (req) => {
       
       try {
         const errorData = JSON.parse(responseText)
-        errorMessage = errorData.msg || errorData.message || errorData.detail || errorMessage
+        errorMessage = errorData.error?.message || errorData.message || errorData.detail || errorMessage
         
         if (sunoResponse.status === 401) {
           errorCode = 'SUNO_API_UNAUTHORIZED'
@@ -202,15 +197,16 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID
+    // Extract task ID from the new API response format
     let taskId = null
     
-    if (responseData.data) {
-      if (Array.isArray(responseData.data) && responseData.data.length > 0) {
-        taskId = responseData.data[0].task_id || responseData.data[0].id
-      } else if (typeof responseData.data === 'object') {
-        taskId = responseData.data.task_id || responseData.data.id
-      }
+    if (Array.isArray(responseData) && responseData.length > 0) {
+      const firstItem = responseData[0]
+      taskId = firstItem.taskUUID || firstItem.id
+    } else if (responseData.taskUUID) {
+      taskId = responseData.taskUUID
+    } else if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
+      taskId = responseData.data[0].taskUUID || responseData.data[0].id
     }
 
     if (!taskId) {
