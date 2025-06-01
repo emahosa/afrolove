@@ -121,7 +121,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Ensure admin user setup if this is the super admin
         if (session.user.email === 'ellaadahosa@gmail.com') {
           console.log('AuthContext: Setting up super admin...');
-          await ensureAdminUserExists();
+          try {
+            await ensureAdminUserExists();
+          } catch (error) {
+            console.error('AuthContext: Error setting up admin user:', error);
+          }
         }
         
         // Fetch roles after setting user
@@ -226,13 +230,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthContext: Initializing auth state');
     
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        processSession(session);
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
+        
+        if (!initializedRef.current) {
+          initializedRef.current = true;
+          await processSession(session);
+        }
+      } catch (error) {
+        console.error('AuthContext: Error initializing auth:', error);
+        setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
