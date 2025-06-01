@@ -78,10 +78,15 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   });
 
   useEffect(() => {
+    console.log("UserManagement: Received users prop:", initialUsers);
     if (initialUsers && initialUsers.length > 0) {
       console.log("Setting user list from props:", initialUsers);
       setUsersList(initialUsers);
       setLoadingError(null);
+    } else if (initialUsers && initialUsers.length === 0) {
+      console.log("Empty users array received");
+      setUsersList([]);
+      setLoadingError("No users found in the system");
     }
   }, [initialUsers]);
 
@@ -95,12 +100,15 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       setUsersList(loadedUsers);
       
       if (loadedUsers.length === 0) {
-        setLoadingError("No users found. Please use the 'Add New User' button to create your first user.");
+        setLoadingError("No users found. The database might be empty or there might be permission issues.");
+        toast.info("No users found in the database");
+      } else {
+        toast.success(`Loaded ${loadedUsers.length} users`);
       }
     } catch (error: any) {
       console.error("UserManagement: Failed to load users:", error);
-      setLoadingError(error.message || "Failed to load users. Make sure your Supabase configuration is correct.");
-      toast.error("Failed to load users");
+      setLoadingError(error.message || "Failed to load users. Please check your connection and permissions.");
+      toast.error("Failed to load users", { description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -208,7 +216,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         setIsAddDialogOpen(false);
         
         // Refresh the user list to ensure we have the latest data
-        loadUsers();
+        setTimeout(() => loadUsers(), 1000);
       } else {
         toast.error("Failed to add user");
       }
@@ -232,8 +240,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         </div>
       </div>
       
-      {isLoading && (
-        <div className="flex justify-center p-4">
+      {isLoading && !usersList.length && (
+        <div className="flex justify-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
           <span className="ml-2">Loading users...</span>
         </div>
@@ -241,13 +249,21 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       
       {loadingError && !isLoading && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
-          <p>{loadingError}</p>
+          <p className="font-medium">Unable to load users</p>
+          <p className="text-sm mt-1">{loadingError}</p>
+          <Button onClick={loadUsers} className="mt-2" size="sm">
+            Try Again
+          </Button>
         </div>
       )}
       
       {!isLoading && usersList.length === 0 && !loadingError && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md">
-          <p>No users found. You can add a new user using the button above.</p>
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-center">
+          <p className="font-medium">No users found</p>
+          <p className="text-sm mt-1">Get started by adding your first user</p>
+          <Button onClick={handleAddUser} className="mt-2" size="sm">
+            Add First User
+          </Button>
         </div>
       )}
       
@@ -268,18 +284,27 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
             <TableBody>
               {usersList.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
+                  <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{renderStatusLabel(user.status)}</TableCell>
-                  <TableCell>{user.role}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      user.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      user.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.role}
+                    </span>
+                  </TableCell>
                   <TableCell>{user.credits}</TableCell>
                   <TableCell>{user.joinDate}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-1">
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       className="h-8 px-2"
                       onClick={() => handleEdit(user.id)}
+                      disabled={isLoading}
                     >
                       Edit
                     </Button>
@@ -288,6 +313,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       size="sm" 
                       className="h-8 px-2"
                       onClick={() => handleToggleBan(user.id, user.status)}
+                      disabled={isLoading}
                     >
                       {user.status === 'suspended' ? 'Unban' : 'Ban'}
                     </Button>

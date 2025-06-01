@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -118,13 +119,10 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       console.log('Admin: Regular admin access confirmed');
     }
     
-    // Fetch user profiles with auth.users data for better email information
+    // Fetch user profiles and user roles separately to avoid relationship issues
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        user_roles(role)
-      `);
+      .select('*');
       
     if (profilesError) {
       console.error("Admin: Error fetching user profiles:", profilesError);
@@ -136,11 +134,31 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       return [];
     }
     
+    // Fetch all user roles
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+      
+    if (rolesError) {
+      console.error("Admin: Error fetching user roles:", rolesError);
+      // Don't throw error here, just log it and continue with empty roles
+      console.log("Admin: Continuing without roles data");
+    }
+    
+    // Create a map of user roles for quick lookup
+    const rolesMap = new Map<string, string>();
+    if (userRoles) {
+      userRoles.forEach(roleRecord => {
+        rolesMap.set(roleRecord.user_id, roleRecord.role);
+      });
+    }
+    
     console.log("Admin: Fetched profiles:", profiles);
+    console.log("Admin: Roles map:", rolesMap);
     
     // Process profiles into user list format
     const users = profiles.map(profile => {
-      const userRole = profile.user_roles?.[0]?.role || 'user';
+      const userRole = rolesMap.get(profile.id) || 'user';
       
       return {
         id: profile.id,
@@ -159,70 +177,6 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   } catch (error: any) {
     console.error("Admin: Error in fetchUsersFromDatabase:", error);
     throw new Error(`Failed to load users: ${error.message}`);
-  }
-};
-
-// Helper function to process profiles into user list format
-const processProfilesToUsersList = (profiles: any[], rolesMap: Map<string, string>): any[] => {
-  console.log(`Processing ${profiles.length} profiles to user list format`);
-  
-  return profiles.map(profile => {
-    const userRole = rolesMap.get(profile.id) || 'user';
-    
-    return {
-      id: profile.id,
-      name: profile.full_name || 'No Name',
-      email: profile.username || 'No Email', 
-      status: profile.is_suspended ? 'suspended' : 'active',
-      role: userRole,
-      credits: profile.credits || 0,
-      joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
-    };
-  });
-};
-
-// Helper function to create a profile for a user
-export const createProfileForUser = async (user: any): Promise<boolean> => {
-  try {
-    console.log("Creating profile for user:", user.id);
-    
-    if (!user || !user.id) {
-      throw new Error("Invalid user object provided");
-    }
-    
-    // Check if profile already exists
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .maybeSingle();
-      
-    if (existingProfile) {
-      console.log("Profile already exists for user:", user.id);
-      return true;
-    }
-    
-    // Create new profile
-    const { error: insertError } = await supabase
-      .from('profiles')
-      .insert({
-        id: user.id,
-        full_name: user.user_metadata?.name || user.user_metadata?.full_name || 'New User',
-        username: user.email,
-        avatar_url: user.user_metadata?.avatar_url,
-        credits: 5 // Default starting credits
-      });
-        
-    if (insertError) {
-      console.error("Error creating profile for user:", insertError);
-      throw insertError;
-    }
-    
-    console.log("Successfully created profile for user:", user.id);
-    return true;
-  } catch (error) {
-    console.error("Error in createProfileForUser:", error);
-    return false;
   }
 };
 
