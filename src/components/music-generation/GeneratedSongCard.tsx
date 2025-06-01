@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAudioPlayer } from '@/hooks/use-audio-player';
 
 interface Song {
   id: string;
@@ -36,12 +37,12 @@ interface Song {
 
 interface GeneratedSongCardProps {
   song: Song;
-  onPlay?: (song: Song) => void;
   isPlaying?: boolean;
 }
 
-const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) => {
+const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
+  const { handlePlay } = useAudioPlayer();
 
   console.log('🎵 Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
 
@@ -92,6 +93,22 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
       navigator.clipboard.writeText(song.audio_url);
       toast.success('Song link copied to clipboard!');
       console.log('✅ Link copied to clipboard');
+    }
+  };
+
+  const handlePlayClick = () => {
+    console.log('🎵 Play button clicked for:', song.title, 'ID:', song.id);
+    
+    if (isPlayable) {
+      // Use the existing audio player system
+      handlePlay({
+        id: song.id,
+        title: song.title
+      });
+      console.log('🎵 Triggered audio player for song:', song.title);
+    } else {
+      console.log('❌ Song not playable:', song.status, song.audio_url);
+      toast.error('Song is not ready for playback yet');
     }
   };
 
@@ -184,10 +201,7 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
             <Button
               variant="default"
               size="sm"
-              onClick={() => {
-                console.log('🎵 Play button clicked for:', song.title);
-                onPlay?.(song);
-              }}
+              onClick={handlePlayClick}
               disabled={!isPlayable}
               className="flex items-center gap-2"
             >

@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -43,37 +42,56 @@ export const BottomAudioPlayer = ({
       setLoadingAudio(true);
       console.log('BottomAudioPlayer: Fetching audio URL for request:', requestId);
 
+      // First try to get from custom_song_audio table (existing functionality)
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
         .eq('request_id', requestId)
         .order('created_at', { ascending: false });
 
-      if (audioError) {
-        console.error('BottomAudioPlayer: Database error:', audioError);
-        toast.error('Failed to load audio: ' + audioError.message);
+      if (!audioError && audioData && audioData.length > 0) {
+        let audioRecord = audioData.find(record => record.is_selected === true);
+        if (!audioRecord) {
+          audioRecord = audioData[0];
+        }
+
+        if (audioRecord?.audio_url) {
+          console.log('BottomAudioPlayer: Found audio URL in custom_song_audio:', audioRecord.audio_url);
+          setAudioUrl(audioRecord.audio_url);
+          return audioRecord.audio_url;
+        }
+      }
+
+      // If not found in custom_song_audio, try songs table (Suno-generated songs)
+      console.log('BottomAudioPlayer: Trying songs table for requestId:', requestId);
+      const { data: songData, error: songError } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (songError) {
+        console.error('BottomAudioPlayer: Songs table error:', songError);
+        toast.error('Failed to load audio: ' + songError.message);
         return null;
       }
 
-      if (!audioData || audioData.length === 0) {
-        console.log('BottomAudioPlayer: No audio records found for request:', requestId);
-        toast.error('No audio files found for this request');
+      if (!songData) {
+        console.log('BottomAudioPlayer: No song found with ID:', requestId);
+        toast.error('No audio file found for this song');
         return null;
       }
 
-      let audioRecord = audioData.find(record => record.is_selected === true);
-      if (!audioRecord) {
-        audioRecord = audioData[0];
-      }
-
-      if (!audioRecord?.audio_url) {
-        console.error('BottomAudioPlayer: Audio record missing URL:', audioRecord);
-        toast.error('Audio file URL is missing');
+      if (!songData.audio_url || !songData.audio_url.startsWith('http')) {
+        console.error('BottomAudioPlayer: Invalid audio URL in songs table:', songData.audio_url);
+        toast.error('Audio file URL is invalid or not ready');
         return null;
       }
 
-      setAudioUrl(audioRecord.audio_url);
-      return audioRecord.audio_url;
+      console.log('BottomAudioPlayer: Found audio URL in songs table:', songData.audio_url);
+      setAudioUrl(songData.audio_url);
+      return songData.audio_url;
+
     } catch (error: any) {
       console.error('BottomAudioPlayer: Error fetching audio URL:', error);
       toast.error('Failed to load audio: ' + error.message);

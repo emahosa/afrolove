@@ -42,7 +42,6 @@ const SongLibrary = () => {
   const [sortBy, setSortBy] = useState('created_at');
   const [filterStatus, setFilterStatus] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -97,19 +96,6 @@ const SongLibrary = () => {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
     });
-
-  const handlePlay = (song: Song) => {
-    console.log('▶️ Playing song:', song.title, song.id);
-    
-    if (currentlyPlaying === song.id) {
-      setCurrentlyPlaying(null);
-      console.log('⏸️ Paused song:', song.title);
-    } else {
-      setCurrentlyPlaying(song.id);
-      console.log('🎵 Started playing:', song.title);
-      toast.success(`Playing: ${song.title}`);
-    }
-  };
 
   const getStatusCounts = () => {
     return {
@@ -261,8 +247,6 @@ const SongLibrary = () => {
             <GeneratedSongCard
               key={song.id}
               song={song}
-              onPlay={handlePlay}
-              isPlaying={currentlyPlaying === song.id}
             />
           ))}
         </div>
