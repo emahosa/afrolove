@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -102,15 +101,16 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   };
 
   const handlePlayClick = () => {
-    console.log('🎵 Play button clicked for:', song.title, 'ID:', song.id, 'Status:', song.status);
+    console.log('🎵 Play button clicked for Suno song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
-      // Use the existing audio player system
+      // Pass the song with type 'suno' to distinguish it from custom songs
       handlePlay({
         id: song.id,
-        title: song.title
+        title: song.title,
+        type: 'suno'
       });
-      console.log('🎵 Triggered audio player for song:', song.title);
+      console.log('🎵 Triggered audio player for Suno song:', song.title);
     } else {
       console.log('❌ Song not playable:', song.status, song.audio_url);
       

@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 interface PlayingRequest {
   id: string;
   title: string;
+  type?: 'suno' | 'custom'; // Add type to distinguish between song types
 }
 
 export const useAudioPlayer = () => {
