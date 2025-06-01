@@ -12,7 +12,7 @@ import { toast } from "sonner";
 interface Song {
   id: string;
   title: string;
-  status: 'pending' | 'completed' | 'rejected';
+  status: 'pending' | 'completed' | 'rejected' | 'approved';
   created_at: string;
   audio_url?: string;
   type: 'song' | 'instrumental';
