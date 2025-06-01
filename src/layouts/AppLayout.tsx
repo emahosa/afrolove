@@ -31,17 +31,21 @@ const AppLayout = () => {
 
   // Listen for audio player events from child components
   useEffect(() => {
-    const handleAudioPlayerPlay = (event: CustomEvent<PlayingRequest>) => {
-      console.log('AppLayout: Received audio player event:', event.detail);
-      handlePlay(event.detail);
+    const handleAudioPlayerPlay = (event: Event) => {
+      console.log('AppLayout: Received audio player event:', event);
+      const customEvent = event as CustomEvent<PlayingRequest>;
+      console.log('AppLayout: Event detail:', customEvent.detail);
+      if (customEvent.detail) {
+        handlePlay(customEvent.detail);
+      }
     };
 
     console.log('AppLayout: Adding event listener for audioPlayerPlay');
-    window.addEventListener('audioPlayerPlay', handleAudioPlayerPlay as EventListener);
+    window.addEventListener('audioPlayerPlay', handleAudioPlayerPlay);
 
     return () => {
       console.log('AppLayout: Removing event listener for audioPlayerPlay');
-      window.removeEventListener('audioPlayerPlay', handleAudioPlayerPlay as EventListener);
+      window.removeEventListener('audioPlayerPlay', handleAudioPlayerPlay);
     };
   }, []);
 
@@ -175,7 +179,7 @@ const AppLayout = () => {
         </main>
       </div>
       
-      {currentPlayingRequest && (
+      {showBottomPlayer && currentPlayingRequest && (
         <BottomAudioPlayer
           requestId={currentPlayingRequest.id}
           title={currentPlayingRequest.title}

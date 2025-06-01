@@ -303,15 +303,18 @@ export const BottomAudioPlayer = ({
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // Auto-play when player becomes visible
+  // Auto-play when player becomes visible - THIS IS THE KEY FIX
   useEffect(() => {
-    console.log('🎵 BottomAudioPlayer: useEffect triggered, isVisible:', isVisible, 'audioUrl:', audioUrl, 'loadingAudio:', loadingAudio);
+    console.log('🎵 BottomAudioPlayer: useEffect triggered, isVisible:', isVisible, 'requestId:', requestId);
     
-    if (isVisible && !audioUrl && !loadingAudio) {
-      console.log('🎵 BottomAudioPlayer: Auto-triggering playback');
-      handlePlayPause();
+    if (isVisible && requestId) {
+      console.log('🎵 BottomAudioPlayer: Auto-starting playback for visible player');
+      // Small delay to ensure component is fully mounted
+      setTimeout(() => {
+        handlePlayPause();
+      }, 100);
     }
-  }, [isVisible]);
+  }, [isVisible, requestId]);
 
   // Cleanup on unmount
   useEffect(() => {
