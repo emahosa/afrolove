@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     // Find the song with this task ID
     const { data: existingSong, error: findError } = await supabase
       .from('songs')
-      .select('id, title, status, created_at, type')
+      .select('id, title, status, created_at, type, user_id')
       .eq('audio_url', taskId)
       .eq('status', 'pending')
       .single()
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     }
 
     // Check status using the correct API endpoint
-    console.log(`🔍 Checking status with Suno API`)
+    console.log(`🔍 Checking status with Suno API for task: ${taskId}`)
     
     const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
       method: 'GET',
@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('🔍 Status data received:', JSON.stringify(statusData, null, 2))
+    console.log('🔍 Full status data received:', JSON.stringify(statusData, null, 2))
 
     // Check if API returned error
     if (statusData.code !== 200) {
@@ -170,53 +170,98 @@ Deno.serve(async (req) => {
     }
 
     console.log('🔍 Task status:', taskData.status)
+    console.log('🔍 Task response data:', JSON.stringify(taskData.response, null, 2))
 
-    // Check if generation completed successfully - look for actual audio URLs
+    // Check if generation completed successfully
     if (taskData.status === 'SUCCESS' && taskData.response && taskData.response.sunoData) {
-      const sunoTracks = taskData.response.sunoData
+      const sunoTracks = Array.isArray(taskData.response.sunoData) ? taskData.response.sunoData : [taskData.response.sunoData]
       console.log('🎵 Found Suno tracks:', sunoTracks.length)
+      console.log('🎵 Full Suno tracks data:', JSON.stringify(sunoTracks, null, 2))
       
-      // Look for a track with a proper audio URL
-      const completedTrack = sunoTracks.find(track => 
-        track.audioUrl && track.audioUrl.startsWith('http')
-      )
-      
-      if (completedTrack) {
-        console.log('✅ Found completed track with audio URL:', completedTrack.audioUrl)
+      if (sunoTracks.length > 0) {
+        // Get the first track (main song)
+        const mainTrack = sunoTracks[0]
+        console.log('🎵 Processing main track:', JSON.stringify(mainTrack, null, 2))
         
-        // Prepare update data with all available fields
-        const updateData = {
+        // Prepare update data with comprehensive field mapping
+        const updateData: any = {
           status: 'completed',
-          audio_url: completedTrack.audioUrl,
-          title: completedTrack.title || existingSong.title,
           updated_at: new Date().toISOString()
         }
 
-        // Add lyrics if available
-        if (completedTrack.lyric || completedTrack.lyrics) {
-          updateData.lyrics = completedTrack.lyric || completedTrack.lyrics
+        // Extract audio URL - try multiple possible field names
+        const audioUrl = mainTrack.audio_url || mainTrack.audioUrl || mainTrack.url || mainTrack.audio
+        if (audioUrl && audioUrl.startsWith('http')) {
+          updateData.audio_url = audioUrl
+          console.log('✅ Found main audio URL:', audioUrl)
+        } else {
+          console.log('❌ No valid audio URL found in main track')
+          return new Response(JSON.stringify({ 
+            success: true,
+            updated: false,
+            processing: true,
+            status: 'Generating audio...',
+            data: statusData 
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
         }
 
-        // For songs (not instrumentals), try to get vocal and instrumental URLs
+        // Extract title
+        const title = mainTrack.title || mainTrack.name || existingSong.title
+        if (title) {
+          updateData.title = title
+          console.log('✅ Using title:', title)
+        }
+
+        // Extract lyrics - try multiple possible field names
+        const lyrics = mainTrack.lyric || mainTrack.lyrics || mainTrack.text
+        if (lyrics && lyrics.trim() !== '') {
+          updateData.lyrics = lyrics
+          console.log('✅ Found lyrics:', lyrics.substring(0, 100) + '...')
+        }
+
+        // For songs (not instrumentals), try to extract vocal and instrumental URLs
         if (existingSong.type === 'song') {
-          // Look for vocal-only version
-          const vocalTrack = sunoTracks.find(track => 
-            track.type === 'vocal' || track.audioUrl?.includes('vocal')
-          )
-          if (vocalTrack && vocalTrack.audioUrl) {
-            updateData.vocal_url = vocalTrack.audioUrl
+          // Look for tracks with different types or URL patterns
+          for (const track of sunoTracks) {
+            console.log('🔍 Examining track for vocal/instrumental:', JSON.stringify(track, null, 2))
+            
+            // Check for vocal track
+            if (track.type === 'vocal' || track.track_type === 'vocal' || 
+                (track.audio_url && track.audio_url.includes('vocal'))) {
+              const vocalUrl = track.audio_url || track.audioUrl
+              if (vocalUrl && vocalUrl.startsWith('http')) {
+                updateData.vocal_url = vocalUrl
+                console.log('✅ Found vocal URL:', vocalUrl)
+              }
+            }
+            
+            // Check for instrumental track
+            if (track.type === 'instrumental' || track.track_type === 'instrumental' || 
+                (track.audio_url && track.audio_url.includes('instrumental'))) {
+              const instrumentalUrl = track.audio_url || track.audioUrl
+              if (instrumentalUrl && instrumentalUrl.startsWith('http')) {
+                updateData.instrumental_url = instrumentalUrl
+                console.log('✅ Found instrumental URL:', instrumentalUrl)
+              }
+            }
           }
 
-          // Look for instrumental version
-          const instrumentalTrack = sunoTracks.find(track => 
-            track.type === 'instrumental' || track.audioUrl?.includes('instrumental')
-          )
-          if (instrumentalTrack && instrumentalTrack.audioUrl) {
-            updateData.instrumental_url = instrumentalTrack.audioUrl
+          // If we have multiple tracks but no explicit vocal/instrumental designation,
+          // use the first as main audio and second as instrumental (common Suno pattern)
+          if (!updateData.vocal_url && !updateData.instrumental_url && sunoTracks.length >= 2) {
+            const secondTrack = sunoTracks[1]
+            const secondAudioUrl = secondTrack.audio_url || secondTrack.audioUrl
+            if (secondAudioUrl && secondAudioUrl.startsWith('http')) {
+              updateData.instrumental_url = secondAudioUrl
+              console.log('✅ Using second track as instrumental:', secondAudioUrl)
+            }
           }
         }
 
-        console.log('📝 Update data:', updateData)
+        console.log('📝 Final update data:', JSON.stringify(updateData, null, 2))
         
         const { data: updatedSong, error: updateError } = await supabase
           .from('songs')
@@ -236,7 +281,7 @@ Deno.serve(async (req) => {
           })
         }
 
-        console.log('✅ Song updated successfully:', updatedSong)
+        console.log('✅ Song updated successfully:', JSON.stringify(updatedSong, null, 2))
         
         return new Response(JSON.stringify({ 
           success: true,
@@ -248,12 +293,12 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       } else {
-        console.log('⏳ Tracks found but no audio URLs yet')
+        console.log('❌ No tracks found in response')
         return new Response(JSON.stringify({ 
           success: true,
           updated: false,
           processing: true,
-          status: 'Generating audio...',
+          status: 'No tracks available yet...',
           data: statusData 
         }), {
           status: 200,
@@ -263,7 +308,8 @@ Deno.serve(async (req) => {
       
     } else if (taskData.status === 'CREATE_TASK_FAILED' || 
                taskData.status === 'GENERATE_AUDIO_FAILED' || 
-               taskData.status === 'SENSITIVE_WORD_ERROR') {
+               taskData.status === 'SENSITIVE_WORD_ERROR' ||
+               taskData.status === 'FAILED') {
       console.log('❌ Generation failed, updating status')
       
       const { data: updatedSong, error: updateError } = await supabase
@@ -296,7 +342,7 @@ Deno.serve(async (req) => {
       statusMessage = 'First track completed, generating second track...'
     }
     
-    console.log('⏳ Song still processing...')
+    console.log('⏳ Song still processing with status:', taskData.status)
     return new Response(JSON.stringify({ 
       success: true,
       updated: false,

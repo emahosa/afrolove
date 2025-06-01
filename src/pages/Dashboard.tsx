@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +16,9 @@ interface Song {
   created_at: string;
   audio_url?: string;
   type: 'song' | 'instrumental';
+  lyrics?: string;
+  vocal_url?: string;
+  instrumental_url?: string;
 }
 
 const Dashboard = () => {
@@ -36,7 +38,7 @@ const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from('songs')
-        .select('id, title, status, created_at, audio_url, type')
+        .select('id, title, status, created_at, audio_url, type, lyrics, vocal_url, instrumental_url')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(6);
@@ -97,9 +99,15 @@ const Dashboard = () => {
       return;
     }
 
+    // Check if audio_url is an error message
+    if (song.audio_url.startsWith('error:')) {
+      toast.error('This song failed to generate. Please try creating a new one.');
+      return;
+    }
+
     // For Suno songs, audio_url should be a direct HTTP URL after completion
     if (!song.audio_url.startsWith('http')) {
-      toast.error('Audio file is not available yet');
+      toast.error('Audio file is not ready yet. Please wait for generation to complete.');
       return;
     }
 
@@ -128,12 +136,13 @@ const Dashboard = () => {
         // Set up event listeners
         audio.addEventListener('ended', () => {
           setCurrentlyPlaying(null);
+          toast.success('Song finished playing');
         });
         
         audio.addEventListener('error', (e) => {
           console.error('Audio error:', e);
           console.error('Failed audio URL:', song.audio_url);
-          toast.error('Failed to play audio - file may be corrupted or inaccessible');
+          toast.error('Failed to play audio - the file may be corrupted or temporarily unavailable');
           setCurrentlyPlaying(null);
         });
 
@@ -144,6 +153,10 @@ const Dashboard = () => {
         audio.addEventListener('canplay', () => {
           console.log('Audio can play:', song.title);
         });
+
+        audio.addEventListener('loadeddata', () => {
+          console.log('Audio data loaded for:', song.title);
+        });
         
         setAudioElements(prev => new Map(prev.set(song.id, audio!)));
       }
@@ -152,14 +165,27 @@ const Dashboard = () => {
       audio.src = song.audio_url;
       console.log('Playing audio from URL:', song.audio_url);
       
+      // Add crossOrigin attribute to handle CORS
+      audio.crossOrigin = 'anonymous';
+      
       await audio.play();
       setCurrentlyPlaying(song.id);
-      toast.success(`Playing: ${song.title}`);
+      toast.success(`Now playing: ${song.title}`);
       
     } catch (error: any) {
       console.error('Error playing song:', error);
       console.error('Song details:', song);
-      toast.error('Failed to play audio: ' + error.message);
+      
+      // Provide more specific error messages
+      if (error.name === 'NotAllowedError') {
+        toast.error('Please interact with the page first, then try playing the song again');
+      } else if (error.name === 'NotSupportedError') {
+        toast.error('This audio format is not supported by your browser');
+      } else if (error.name === 'AbortError') {
+        toast.error('Audio playback was interrupted');
+      } else {
+        toast.error('Failed to play audio: ' + error.message);
+      }
       setCurrentlyPlaying(null);
     }
   };
@@ -172,6 +198,11 @@ const Dashboard = () => {
 
     if (!song.audio_url || !song.audio_url.startsWith('http')) {
       toast.error('Audio file is not available for download');
+      return;
+    }
+
+    if (song.audio_url.startsWith('error:')) {
+      toast.error('Cannot download failed song');
       return;
     }
 
@@ -192,6 +223,7 @@ const Dashboard = () => {
         headers: {
           'Accept': 'audio/*',
         },
+        mode: 'cors'
       });
       
       if (!response.ok) {
@@ -207,7 +239,7 @@ const Dashboard = () => {
       console.log('Download successful, blob size:', blob.size);
 
       // Create download link
-      const sanitizedTitle = song.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+      const sanitizedTitle = song.title.replace(/[^a-zA-Z0-9\s\-_]/g, '').replace(/\s+/g, '_');
       const fileName = `${sanitizedTitle}_${song.type}.mp3`;
       
       const url = window.URL.createObjectURL(blob);
@@ -229,7 +261,15 @@ const Dashboard = () => {
       
     } catch (error: any) {
       console.error('Download error:', error);
-      toast.error('Failed to download: ' + error.message);
+      
+      // Provide more specific error messages
+      if (error.message.includes('CORS')) {
+        toast.error('Download blocked by CORS policy. The audio provider may not allow direct downloads.');
+      } else if (error.message.includes('NetworkError')) {
+        toast.error('Network error during download. Please check your connection and try again.');
+      } else {
+        toast.error('Failed to download: ' + error.message);
+      }
     } finally {
       setDownloadingIds(prev => {
         const newSet = new Set(prev);
@@ -275,6 +315,26 @@ const Dashboard = () => {
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading your library...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Welcome to MelodyMagic</h1>
+          <p className="text-muted-foreground">Please log in to view your songs</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -416,6 +476,15 @@ const Dashboard = () => {
                         </Button>
                       </div>
                     )}
+
+                    {song.status === 'rejected' && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-red-500 text-center">
+                          <div className="text-2xl mb-1">❌</div>
+                          <div className="text-xs">Failed</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -433,6 +502,16 @@ const Dashboard = () => {
                         {getStatusText(song.status)}
                       </span>
                     </div>
+                    
+                    {/* Show lyrics preview if available */}
+                    {song.lyrics && song.status === 'completed' && (
+                      <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                        <div className="font-medium mb-1">Lyrics:</div>
+                        <div className="text-muted-foreground line-clamp-2">
+                          {song.lyrics.substring(0, 100)}...
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Split Audio Control */}
                     {song.status === 'completed' && song.audio_url?.startsWith('http') && (
@@ -454,9 +533,16 @@ const Dashboard = () => {
                         <div className="audio-wave-bar h-5 animate-wave2"></div>
                       </div>
                     )}
+                    
                     {currentlyPlaying === song.id && (
                       <div className="mt-2 text-xs text-melody-primary font-medium">
                         ♪ Now Playing
+                      </div>
+                    )}
+
+                    {song.status === 'rejected' && (
+                      <div className="mt-2 text-xs text-red-500">
+                        Generation failed. Please try again.
                       </div>
                     )}
                   </div>

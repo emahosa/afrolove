@@ -17,7 +17,6 @@ Deno.serve(async (req) => {
   try {
     console.log('🔔 WEBHOOK CALLED - Method:', req.method)
     console.log('🔔 WEBHOOK CALLED - URL:', req.url)
-    console.log('🔔 WEBHOOK CALLED - Headers:', JSON.stringify([...req.headers.entries()], null, 2))
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
@@ -26,41 +25,36 @@ Deno.serve(async (req) => {
 
     // Handle different callback structures from Suno
     let taskId = null
-    let audioUrl = null
+    let audioData = null
     let status = null
-    let title = null
 
     // Try to extract data from various possible structures
     if (payload.taskId) {
       taskId = payload.taskId
-      audioUrl = payload.audioUrl || payload.audio_url
+      audioData = payload.data || payload.tracks || payload.sunoData
       status = payload.status
-      title = payload.title
       console.log('📋 Using direct properties from payload')
     } else if (payload.data) {
       if (Array.isArray(payload.data) && payload.data.length > 0) {
         const item = payload.data[0]
-        taskId = item.id || item.taskId
-        audioUrl = item.audio_url || item.audioUrl
+        taskId = item.id || item.taskId || item.task_id
+        audioData = item.tracks || item.sunoData || [item]
         status = item.status
-        title = item.title
         console.log('📋 Using data array structure - first item:', JSON.stringify(item, null, 2))
       } else if (typeof payload.data === 'object') {
         taskId = payload.data.id || payload.data.taskId || payload.data.task_id
-        audioUrl = payload.data.audio_url || payload.data.audioUrl
+        audioData = payload.data.tracks || payload.data.sunoData || [payload.data]
         status = payload.data.status
-        title = payload.data.title
         console.log('📋 Using data object structure:', JSON.stringify(payload.data, null, 2))
       }
     } else if (payload.id) {
       taskId = payload.id
-      audioUrl = payload.audio_url || payload.audioUrl
+      audioData = payload.tracks || payload.sunoData || [payload]
       status = payload.status
-      title = payload.title
       console.log('📋 Using ID as taskId from root payload')
     }
 
-    console.log('📋 EXTRACTED DATA:', { taskId, audioUrl, status, title })
+    console.log('📋 EXTRACTED DATA:', { taskId, status, audioDataCount: audioData?.length || 0 })
 
     if (!taskId) {
       console.error('❌ NO TASK ID FOUND in webhook payload')
@@ -79,7 +73,7 @@ Deno.serve(async (req) => {
     console.log('🔍 SEARCHING for song with task ID:', taskId)
     const { data: existingSong, error: findError } = await supabase
       .from('songs')
-      .select('id, title, status, user_id, audio_url, created_at')
+      .select('id, title, status, user_id, audio_url, created_at, type')
       .eq('audio_url', taskId)
       .eq('status', 'pending')
       .single()
@@ -131,21 +125,83 @@ Deno.serve(async (req) => {
     console.log('📋 Song details:', JSON.stringify(existingSong, null, 2))
 
     // Determine the update based on status
-    let updateData = {
+    let updateData: any = {
       updated_at: new Date().toISOString()
     }
 
     // Check if generation completed successfully
-    if (audioUrl && (status === 'SUCCESS' || status === 'completed' || status === 'finished')) {
-      updateData.status = 'completed'
-      updateData.audio_url = audioUrl
+    if ((status === 'SUCCESS' || status === 'completed' || status === 'finished') && audioData && audioData.length > 0) {
+      console.log('✅ GENERATION COMPLETED! Processing audio data...')
+      console.log('🎵 Audio data received:', JSON.stringify(audioData, null, 2))
       
-      // Update title if provided and different
-      if (title && title !== existingSong.title && title.trim() !== '') {
-        updateData.title = title
+      // Get the first track (main song)
+      const mainTrack = audioData[0]
+      
+      // Extract audio URL
+      const audioUrl = mainTrack.audio_url || mainTrack.audioUrl || mainTrack.url
+      if (audioUrl && audioUrl.startsWith('http')) {
+        updateData.status = 'completed'
+        updateData.audio_url = audioUrl
+        console.log('✅ MARKING SONG AS COMPLETED with audio URL:', audioUrl)
+      } else {
+        console.log('❌ No valid audio URL in completed track')
+        return new Response(JSON.stringify({ 
+          success: true,
+          message: 'Completion received but no valid audio URL',
+          processing: true
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
       
-      console.log('✅ MARKING SONG AS COMPLETED with audio URL:', audioUrl)
+      // Update title if provided and different
+      const title = mainTrack.title || mainTrack.name
+      if (title && title !== existingSong.title && title.trim() !== '') {
+        updateData.title = title
+        console.log('✅ Updating title to:', title)
+      }
+
+      // Extract lyrics
+      const lyrics = mainTrack.lyric || mainTrack.lyrics || mainTrack.text
+      if (lyrics && lyrics.trim() !== '') {
+        updateData.lyrics = lyrics
+        console.log('✅ Adding lyrics:', lyrics.substring(0, 100) + '...')
+      }
+
+      // For songs (not instrumentals), try to extract vocal and instrumental URLs
+      if (existingSong.type === 'song') {
+        // Look for tracks with different types
+        for (const track of audioData) {
+          // Check for vocal track
+          if (track.type === 'vocal' || track.track_type === 'vocal') {
+            const vocalUrl = track.audio_url || track.audioUrl
+            if (vocalUrl && vocalUrl.startsWith('http')) {
+              updateData.vocal_url = vocalUrl
+              console.log('✅ Found vocal URL:', vocalUrl)
+            }
+          }
+          
+          // Check for instrumental track
+          if (track.type === 'instrumental' || track.track_type === 'instrumental') {
+            const instrumentalUrl = track.audio_url || track.audioUrl
+            if (instrumentalUrl && instrumentalUrl.startsWith('http')) {
+              updateData.instrumental_url = instrumentalUrl
+              console.log('✅ Found instrumental URL:', instrumentalUrl)
+            }
+          }
+        }
+
+        // If we have multiple tracks but no explicit designation, use second as instrumental
+        if (!updateData.vocal_url && !updateData.instrumental_url && audioData.length >= 2) {
+          const secondTrack = audioData[1]
+          const secondAudioUrl = secondTrack.audio_url || secondTrack.audioUrl
+          if (secondAudioUrl && secondAudioUrl.startsWith('http')) {
+            updateData.instrumental_url = secondAudioUrl
+            console.log('✅ Using second track as instrumental:', secondAudioUrl)
+          }
+        }
+      }
     }
     // Check if generation failed
     else if (status === 'FAIL' || status === 'FAILED' || status === 'error' || status === 'failed') {
