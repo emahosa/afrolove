@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -64,7 +65,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingError, setLoadingError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof userFormSchema>>({
     resolver: zodResolver(userFormSchema),
@@ -79,20 +79,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   useEffect(() => {
     console.log("UserManagement: Received users prop:", initialUsers);
-    if (initialUsers && initialUsers.length > 0) {
-      console.log("Setting user list from props:", initialUsers);
-      setUsersList(initialUsers);
-      setLoadingError(null);
-    } else if (initialUsers && initialUsers.length === 0) {
-      console.log("Empty users array received");
-      setUsersList([]);
-      setLoadingError("No users found in the system");
-    }
+    setUsersList(initialUsers);
   }, [initialUsers]);
 
   const loadUsers = async () => {
     setIsLoading(true);
-    setLoadingError(null);
     try {
       console.log("UserManagement: Loading users directly...");
       const loadedUsers = await fetchUsersFromDatabase();
@@ -100,14 +91,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       setUsersList(loadedUsers);
       
       if (loadedUsers.length === 0) {
-        setLoadingError("No users found. The database might be empty or there might be permission issues.");
         toast.info("No users found in the database");
       } else {
         toast.success(`Loaded ${loadedUsers.length} users`);
       }
     } catch (error: any) {
       console.error("UserManagement: Failed to load users:", error);
-      setLoadingError(error.message || "Failed to load users. Please check your connection and permissions.");
       toast.error("Failed to load users", { description: error.message });
     } finally {
       setIsLoading(false);
@@ -200,7 +189,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       if (newUserId) {
         toast.success("New user added successfully");
         
-        // Create a new user object to add to the list
         const newUser: User = {
           id: newUserId,
           name: values.name,
@@ -211,7 +199,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           joinDate: new Date().toISOString().split('T')[0]
         };
         
-        // Add the new user to the list and close the dialog
         setUsersList([...usersList, newUser]);
         setIsAddDialogOpen(false);
         
@@ -240,24 +227,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         </div>
       </div>
       
-      {isLoading && !usersList.length && (
-        <div className="flex justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
-          <span className="ml-2">Loading users...</span>
-        </div>
-      )}
-      
-      {loadingError && !isLoading && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
-          <p className="font-medium">Unable to load users</p>
-          <p className="text-sm mt-1">{loadingError}</p>
-          <Button onClick={loadUsers} className="mt-2" size="sm">
-            Try Again
-          </Button>
-        </div>
-      )}
-      
-      {!isLoading && usersList.length === 0 && !loadingError && (
+      {usersList.length === 0 && !isLoading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-center">
           <p className="font-medium">No users found</p>
           <p className="text-sm mt-1">Get started by adding your first user</p>

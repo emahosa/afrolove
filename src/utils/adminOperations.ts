@@ -79,52 +79,39 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
-    console.log("Admin: Fetching users from database with admin check");
+    console.log("Admin: Fetching users from database");
     
-    // Get current user and verify admin status
+    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (userError) {
+    if (userError || !user) {
       console.error('Admin: Error getting current user:', userError);
-      throw new Error('Authentication error: ' + userError.message);
-    }
-    
-    if (!user) {
-      throw new Error('User not authenticated');
+      throw new Error('Authentication required');
     }
 
     console.log('Admin: Current user:', user.email, user.id);
 
-    // Super admin bypass for ellaadahosa@gmail.com
+    // Super admin bypass
     const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     console.log('Admin: Is super admin:', isSuperAdmin);
     
     if (!isSuperAdmin) {
-      // For non-super admins, check if they have admin role using the security definer function
-      console.log('Admin: Checking admin role for non-super admin...');
-      
+      // Check if they have admin role
       const { data: hasAdminRole, error: roleError } = await supabase
         .rpc('has_role', { _user_id: user.id, _role: 'admin' });
 
       if (roleError) {
         console.error('Admin: Error checking admin role:', roleError);
-        throw new Error('Failed to verify admin access: ' + roleError.message);
+        throw new Error('Failed to verify admin access');
       }
 
       if (!hasAdminRole) {
         console.warn('Admin: User does not have admin role');
         throw new Error('Access denied: Admin role required');
       }
-      
-      console.log('Admin: Regular admin access confirmed');
     }
     
-    // First ensure the super admin profile exists if this is the super admin
-    if (isSuperAdmin) {
-      await ensureAdminUserExists();
-    }
-    
-    // Fetch user profiles and user roles separately to avoid relationship issues
+    // Fetch user profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
@@ -137,83 +124,60 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     console.log("Admin: Raw profiles from database:", profiles);
     
     if (!profiles || profiles.length === 0) {
-      console.log("Admin: No profiles found in the database, attempting to create admin profile");
-      
-      // If no profiles exist and this is the super admin, create the profile
-      if (isSuperAdmin) {
-        const profileCreated = await ensureAdminUserExists();
-        if (profileCreated) {
-          // Try fetching again after creating the profile
-          const { data: newProfiles, error: newProfilesError } = await supabase
-            .from('profiles')
-            .select('*');
-          
-          if (!newProfilesError && newProfiles && newProfiles.length > 0) {
-            console.log("Admin: Found profiles after creating admin profile:", newProfiles);
-            return processProfiles(newProfiles);
-          }
-        }
-      }
-      
-      console.log("Admin: Still no profiles found after attempting to create admin");
+      console.log("Admin: No profiles found");
       return [];
     }
     
-    return processProfiles(profiles);
+    // Fetch all user roles
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+      
+    if (rolesError) {
+      console.error("Admin: Error fetching user roles:", rolesError);
+    }
+    
+    // Create a map of user roles for quick lookup
+    const rolesMap = new Map<string, string>();
+    if (userRoles) {
+      userRoles.forEach(roleRecord => {
+        rolesMap.set(roleRecord.user_id, roleRecord.role);
+      });
+    }
+    
+    console.log("Admin: Roles map:", rolesMap);
+    
+    // Process profiles into user list format
+    const users = profiles.map(profile => {
+      // Determine user role
+      let userRole = 'user';
+      
+      // Special handling for super admin
+      if (profile.username === 'ellaadahosa@gmail.com' || profile.id === user.id) {
+        userRole = 'admin';
+        console.log('Admin: Setting admin role for super admin:', profile.username || profile.id);
+      } else {
+        userRole = rolesMap.get(profile.id) || 'user';
+      }
+      
+      return {
+        id: profile.id,
+        name: profile.full_name || 'No Name',
+        email: profile.username || 'No Email', 
+        status: profile.is_suspended ? 'suspended' : 'active',
+        role: userRole,
+        credits: profile.credits || 0,
+        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
+      };
+    });
+    
+    console.log("Admin: Processed users:", users);
+    return users;
     
   } catch (error: any) {
     console.error("Admin: Error in fetchUsersFromDatabase:", error);
     throw new Error(`Failed to load users: ${error.message}`);
   }
-};
-
-const processProfiles = async (profiles: any[]): Promise<any[]> => {
-  // Fetch all user roles
-  const { data: userRoles, error: rolesError } = await supabase
-    .from('user_roles')
-    .select('user_id, role');
-    
-  if (rolesError) {
-    console.error("Admin: Error fetching user roles:", rolesError);
-    // Don't throw error here, just log it and continue with empty roles
-    console.log("Admin: Continuing without roles data");
-  }
-  
-  // Create a map of user roles for quick lookup
-  const rolesMap = new Map<string, string>();
-  if (userRoles) {
-    userRoles.forEach(roleRecord => {
-      rolesMap.set(roleRecord.user_id, roleRecord.role);
-    });
-  }
-  
-  console.log("Admin: Fetched profiles:", profiles);
-  console.log("Admin: Roles map:", rolesMap);
-  
-  // Process profiles into user list format
-  const users = profiles.map(profile => {
-    // Special handling for super admin
-    let userRole = 'user';
-    if (profile.username === 'ellaadahosa@gmail.com' || profile.id === '1a7e4d46-b4f2-464e-a1f4-2766836286c1') {
-      userRole = 'admin';
-      console.log('Admin: Setting super admin role for:', profile.username || profile.id);
-    } else {
-      userRole = rolesMap.get(profile.id) || 'user';
-    }
-    
-    return {
-      id: profile.id,
-      name: profile.full_name || 'No Name',
-      email: profile.username || 'No Email', 
-      status: profile.is_suspended ? 'suspended' : 'active',
-      role: userRole,
-      credits: profile.credits || 0,
-      joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
-    };
-  });
-  
-  console.log("Admin: Processed users:", users);
-  return users;
 };
 
 export const toggleUserBanStatus = async (userId: string, currentStatus: string): Promise<boolean> => {
@@ -281,7 +245,6 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
       
     if (roleError) {
       console.error("Error adding user role:", roleError);
-      // If role creation fails, we should still return the user ID since the profile was created
       toast.warning("User created but role assignment failed", { description: roleError.message });
     } else {
       console.log("Added role successfully:", roleToAdd);
@@ -295,7 +258,6 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
   }
 };
 
-// Function to ensure admin user exists and is properly configured
 export const ensureAdminUserExists = async (): Promise<boolean> => {
   try {
     console.log("Ensuring admin user exists...");
@@ -328,7 +290,6 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
       
       if (!profile) {
         console.log('Creating profile for super admin...');
-        // Create profile for super admin with distinct admin data
         const { error: createProfileError } = await supabase
           .from('profiles')
           .insert({
@@ -336,28 +297,11 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
             full_name: 'Admin User',
             username: user.email,
             avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
-            credits: 1000 // Give admin lots of credits
+            credits: 1000
           });
         
         if (createProfileError) {
           console.error('Error creating admin profile:', createProfileError);
-          return false;
-        }
-      } else {
-        console.log('Updating existing profile with admin data...');
-        // Update existing profile to ensure it has admin-specific data
-        const { error: updateProfileError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: 'Admin User',
-            username: user.email,
-            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
-            credits: Math.max(profile.credits || 0, 1000) // Ensure admin has at least 1000 credits
-          })
-          .eq('id', user.id);
-        
-        if (updateProfileError) {
-          console.error('Error updating admin profile:', updateProfileError);
           return false;
         }
       }
