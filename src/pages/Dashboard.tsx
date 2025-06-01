@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,6 +7,8 @@ import { Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import SplitAudioControl from "@/components/SplitAudioControl";
+import { useSongStatusChecker } from "@/hooks/use-song-status-checker";
 
 interface Song {
   id: string;
@@ -22,6 +25,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [audioElements, setAudioElements] = useState<Map<string, HTMLAudioElement>>(new Map());
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+
+  // Use the enhanced status checker
+  useSongStatusChecker();
 
   const fetchRecentSongs = async () => {
     if (!user) return;
@@ -79,8 +86,20 @@ const Dashboard = () => {
   }, [user]);
 
   const handlePlaySong = async (song: Song) => {
-    if (song.status !== 'completed' || !song.audio_url || !song.audio_url.startsWith('http')) {
+    // Check if song is ready for playback
+    if (song.status !== 'completed') {
       toast.error('Song is not ready for playback yet');
+      return;
+    }
+
+    if (!song.audio_url) {
+      toast.error('No audio URL available');
+      return;
+    }
+
+    // For Suno songs, audio_url should be a direct HTTP URL after completion
+    if (!song.audio_url.startsWith('http')) {
+      toast.error('Audio file is not available yet');
       return;
     }
 
@@ -103,48 +122,91 @@ const Dashboard = () => {
       let audio = audioElements.get(song.id);
       
       if (!audio) {
-        audio = new Audio(song.audio_url);
+        console.log('Creating new audio element for:', song.audio_url);
+        audio = new Audio();
+        
+        // Set up event listeners
         audio.addEventListener('ended', () => {
           setCurrentlyPlaying(null);
         });
+        
         audio.addEventListener('error', (e) => {
           console.error('Audio error:', e);
+          console.error('Failed audio URL:', song.audio_url);
           toast.error('Failed to play audio - file may be corrupted or inaccessible');
           setCurrentlyPlaying(null);
+        });
+
+        audio.addEventListener('loadstart', () => {
+          console.log('Audio loading started for:', song.title);
+        });
+
+        audio.addEventListener('canplay', () => {
+          console.log('Audio can play:', song.title);
         });
         
         setAudioElements(prev => new Map(prev.set(song.id, audio!)));
       }
 
+      // Set the source and play
+      audio.src = song.audio_url;
+      console.log('Playing audio from URL:', song.audio_url);
+      
       await audio.play();
       setCurrentlyPlaying(song.id);
       toast.success(`Playing: ${song.title}`);
+      
     } catch (error: any) {
       console.error('Error playing song:', error);
+      console.error('Song details:', song);
       toast.error('Failed to play audio: ' + error.message);
       setCurrentlyPlaying(null);
     }
   };
 
   const handleDownloadSong = async (song: Song) => {
-    if (song.status !== 'completed' || !song.audio_url || !song.audio_url.startsWith('http')) {
+    if (song.status !== 'completed') {
       toast.error('Song is not ready for download yet');
       return;
     }
 
+    if (!song.audio_url || !song.audio_url.startsWith('http')) {
+      toast.error('Audio file is not available for download');
+      return;
+    }
+
+    if (downloadingIds.has(song.id)) {
+      toast.info('Download already in progress');
+      return;
+    }
+
     try {
+      setDownloadingIds(prev => new Set(prev.add(song.id)));
       toast.info('Starting download...');
       
-      const response = await fetch(song.audio_url);
+      console.log('Downloading from URL:', song.audio_url);
+      
+      // Use fetch with proper headers to download the file
+      const response = await fetch(song.audio_url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'audio/*',
+        },
+      });
+      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const blob = await response.blob();
+      
       if (blob.size === 0) {
         throw new Error('Downloaded file is empty');
       }
 
+      console.log('Download successful, blob size:', blob.size);
+
+      // Create download link
       const sanitizedTitle = song.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
       const fileName = `${sanitizedTitle}_${song.type}.mp3`;
       
@@ -158,14 +220,22 @@ const Dashboard = () => {
       link.click();
       document.body.removeChild(link);
       
+      // Clean up the blob URL
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 1000);
 
-      toast.success('Audio file downloaded successfully!');
+      toast.success(`Downloaded: ${fileName}`);
+      
     } catch (error: any) {
       console.error('Download error:', error);
-      toast.error('Failed to download audio file: ' + error.message);
+      toast.error('Failed to download: ' + error.message);
+    } finally {
+      setDownloadingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(song.id);
+        return newSet;
+      });
     }
   };
 
@@ -336,8 +406,13 @@ const Dashboard = () => {
                             e.preventDefault();
                             handleDownloadSong(song);
                           }}
+                          disabled={downloadingIds.has(song.id)}
                         >
-                          <Download className="h-5 w-5" />
+                          {downloadingIds.has(song.id) ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Download className="h-5 w-5" />
+                          )}
                         </Button>
                       </div>
                     )}
@@ -350,7 +425,7 @@ const Dashboard = () => {
                         {formatTimeAgo(song.created_at)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                       <div className="text-xs text-muted-foreground">
                         {song.type === 'instrumental' ? 'Instrumental' : 'Song'} • AI Generated
                       </div>
@@ -358,6 +433,17 @@ const Dashboard = () => {
                         {getStatusText(song.status)}
                       </span>
                     </div>
+                    
+                    {/* Split Audio Control */}
+                    {song.status === 'completed' && song.audio_url?.startsWith('http') && (
+                      <div className="mt-2">
+                        <SplitAudioControl 
+                          songName={song.title}
+                          songUrl={song.audio_url}
+                        />
+                      </div>
+                    )}
+                    
                     {song.status === 'pending' && (
                       <div className="audio-wave mt-2">
                         <div className="audio-wave-bar h-3 animate-wave1"></div>
