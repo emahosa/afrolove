@@ -1,0 +1,231 @@
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Play, 
+  Pause, 
+  Download, 
+  Share2, 
+  Heart, 
+  MoreHorizontal,
+  Music,
+  Clock,
+  User,
+  Calendar
+} from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
+
+interface Song {
+  id: string;
+  title: string;
+  audio_url: string;
+  status: 'pending' | 'completed' | 'rejected';
+  created_at: string;
+  prompt?: string;
+  credits_used: number;
+  duration?: number;
+}
+
+interface GeneratedSongCardProps {
+  song: Song;
+  onPlay?: (song: Song) => void;
+  isPlaying?: boolean;
+}
+
+const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) => {
+  const [isLiked, setIsLiked] = useState(false);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800">Processing</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const handleDownload = () => {
+    if (song.audio_url && song.audio_url.startsWith('http')) {
+      const link = document.createElement('a');
+      link.href = song.audio_url;
+      link.download = `${song.title}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Download started!');
+    } else {
+      toast.error('Download not available yet');
+    }
+  };
+
+  const handleShare = () => {
+    if (navigator.share && song.audio_url.startsWith('http')) {
+      navigator.share({
+        title: song.title,
+        text: `Check out this AI-generated song: ${song.title}`,
+        url: song.audio_url,
+      });
+    } else {
+      navigator.clipboard.writeText(song.audio_url);
+      toast.success('Song link copied to clipboard!');
+    }
+  };
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '--:--';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <Card className="group hover:shadow-lg transition-all duration-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-lg font-semibold line-clamp-1">
+              {song.title}
+            </CardTitle>
+            <div className="flex items-center gap-2 mt-1">
+              {getStatusBadge(song.status)}
+              {song.duration && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {formatDuration(song.duration)}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => toast.info('Add to playlist feature coming soon!')}>
+                Add to Playlist
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info('Remix feature coming soon!')}>
+                Create Remix
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info('Vocal separation coming soon!')}>
+                Extract Vocals
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Waveform placeholder */}
+        <div className="h-20 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 40 }, (_, i) => (
+              <div
+                key={i}
+                className="w-1 bg-purple-400 rounded-full"
+                style={{
+                  height: `${Math.random() * 50 + 10}px`,
+                  opacity: isPlaying ? Math.random() * 0.8 + 0.2 : 0.6,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Song metadata */}
+        {song.prompt && (
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {song.prompt}
+          </p>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onPlay?.(song)}
+              disabled={song.status !== 'completed' || !song.audio_url.startsWith('http')}
+              className="flex items-center gap-2"
+            >
+              {isPlaying ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              {isPlaying ? 'Pause' : 'Play'}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsLiked(!isLiked)}
+              className={isLiked ? 'text-red-500' : ''}
+            >
+              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              disabled={song.status !== 'completed'}
+            >
+              <Share2 className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownload}
+              disabled={song.status !== 'completed' || !song.audio_url.startsWith('http')}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {formatDate(song.created_at)}
+          </div>
+          <div className="flex items-center gap-1">
+            <Music className="h-3 w-3" />
+            {song.credits_used} credits
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default GeneratedSongCard;
