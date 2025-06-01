@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug, Key } from 'lucide-react';
@@ -19,89 +20,6 @@ import { SettingsManagement } from '@/components/admin/SettingsManagement';
 import { GenreManagement } from '@/components/admin/GenreManagement';
 import { fetchUsersFromDatabase, ensureAdminUserExists } from '@/utils/adminOperations';
 
-// Mock data for other sections
-const admins = [
-  { id: 101, name: 'Admin User', email: 'admin@example.com', role: 'admin', permissions: 'full', lastActive: '2025-04-27' },
-  { id: 102, name: 'Support Admin', email: 'support@example.com', role: 'moderator', permissions: 'limited', lastActive: '2025-04-25' },
-];
-
-// Mock data
-const apiKeys = [
-  { 
-    id: 1, 
-    provider: 'suno', 
-    name: 'Suno Music Generation', 
-    key: 'suno_prod_3bea4912aefg01234567890', 
-    status: 'active',
-    lastVerified: '2025-04-27T14:30:00Z'
-  },
-  { 
-    id: 2, 
-    provider: 'elevenlabs', 
-    name: 'ElevenLabs Voice Cloning', 
-    key: 'el_11b234a56cd7890abcdef123456', 
-    status: 'inactive' 
-  },
-];
-
-const contestEntries = [
-  { id: 1, user: 'John Doe', title: 'Summer Vibes', votes: 124, status: 'approved' },
-  { id: 2, user: 'Jane Smith', title: 'Midnight Dreams', votes: 89, status: 'pending' },
-  { id: 3, user: 'Robert Johnson', title: 'Elevation', votes: 201, status: 'approved' },
-];
-
-const pricingPlans = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: 9.99,
-    credits: 20,
-    features: [
-      { label: 'Generate up to 20 songs', included: true },
-      { label: 'Standard audio quality', included: true },
-      { label: 'Download MP3 files', included: true },
-      { label: 'Voice cloning (1 voice)', included: false },
-      { label: 'Split vocals and instruments', included: false },
-      { label: 'Priority support', included: false },
-    ],
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: 19.99,
-    credits: 50,
-    popular: true,
-    features: [
-      { label: 'Generate up to 50 songs', included: true },
-      { label: 'High audio quality', included: true },
-      { label: 'Download MP3 & WAV files', included: true },
-      { label: 'Voice cloning (3 voices)', included: true },
-      { label: 'Split vocals and instruments', included: true },
-      { label: 'Priority support', included: false },
-    ],
-  },
-  {
-    id: 'pro',
-    name: 'Professional',
-    price: 39.99,
-    credits: 120,
-    features: [
-      { label: 'Generate up to 120 songs', included: true },
-      { label: 'Studio audio quality', included: true },
-      { label: 'Download all file formats', included: true },
-      { label: 'Unlimited voice cloning', included: true },
-      { label: 'Split vocals and instruments', included: true },
-      { label: 'Priority support', included: true },
-    ],
-  },
-];
-
-const creditPackages = [
-  { id: 'small', name: 'Small Pack', credits: 20, price: 9.99, status: 'active' },
-  { id: 'medium', name: 'Medium Pack', credits: 50, price: 19.99, status: 'active' },
-  { id: 'large', name: 'Large Pack', credits: 120, price: 39.99, status: 'active' },
-];
-
 interface AdminProps {
   tab?: string;
 }
@@ -117,7 +35,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
 
   // Check admin access first
   if (!isAdmin()) {
-    console.log("Admin: User is not admin, redirecting");
+    console.log("User is not admin, redirecting");
     toast.error("You don't have admin permissions");
     return <Navigate to="/dashboard" />;
   }
@@ -128,17 +46,17 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       if (!user) return;
       
       try {
-        console.log("Admin: Initializing admin setup...");
+        console.log("Initializing admin setup...");
         const initialized = await ensureAdminUserExists();
         setAdminInitialized(true);
-        console.log("Admin: Initialization result:", initialized);
+        console.log("Initialization result:", initialized);
         
         if (initialized) {
           toast.success("Admin setup verified");
         }
       } catch (error) {
-        console.error("Admin: Failed to initialize admin:", error);
-        setAdminInitialized(true); // Set to true anyway to proceed
+        console.error("Failed to initialize admin:", error);
+        setAdminInitialized(true);
         toast.error("Admin initialization completed with warnings");
       }
     };
@@ -151,15 +69,15 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   useEffect(() => {
     const loadUsers = async () => {
       if (!adminInitialized) {
-        console.log("Admin: Waiting for admin initialization...");
+        console.log("Waiting for admin initialization...");
         return;
       }
 
       try {
-        console.log("Admin component: Loading users...");
+        console.log("Loading users...");
         setLoading(true);
         const fetchedUsers = await fetchUsersFromDatabase();
-        console.log("Admin component: Fetched users:", fetchedUsers);
+        console.log("Fetched users:", fetchedUsers);
         setUsers(fetchedUsers);
         
         if (fetchedUsers.length === 0) {
@@ -178,7 +96,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       }
     };
     
-    // Load users when the component mounts or the active tab changes to 'users'
     if (activeTab === 'users' && adminInitialized) {
       loadUsers();
     } else if (adminInitialized) {
@@ -194,7 +111,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'admin': 'users',
       'users': 'users',
       'admins': 'admins',
-      'api-keys': 'suno-api', // Redirect old API keys route to Suno API
+      'api-keys': 'suno-api',
       'suno-api': 'suno-api',
       'contest': 'contest',
       'content': 'content',
@@ -210,7 +127,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     if (newTab !== activeTab) {
       setActiveTab(newTab);
       
-      // If coming from the old api-keys route, redirect to suno-api
       if (lastSegment === 'api-keys') {
         navigate('/admin/suno-api', { replace: true });
       }
@@ -250,53 +166,15 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   }
 
   const renderStatusLabel = (status: string): React.ReactNode => {
-    const statusClasses: Record<string, string> = {
-      active: "text-green-500",
-      suspended: "text-amber-500",
-      pending: "text-blue-500",
-      approved: "text-green-500",
-    };
-    
-    const statusClass = statusClasses[status] || "text-gray-500";
-    
-    return <span className={statusClass}>{status}</span>;
-  };
-
-  const renderPlanFeatures = (features: { label: string; included: boolean }[]): React.ReactNode => {
-    return features.map((feature, index) => (
-      <div key={index} className="flex items-center gap-2 py-1">
-        {feature.included ? (
-          <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
-            <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        ) : (
-          <div className="h-5 w-5 rounded-full border border-muted-foreground" />
-        )}
-        <span className={feature.included ? 'text-foreground' : 'text-muted-foreground'}>
-          {feature.label}
-        </span>
-      </div>
-    ));
-  };
-
-  const getButtonContent = (status: string): React.ReactNode => {
-    if (status === 'active') {
-      return (
-        <>
-          <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-          Active
-        </>
-      );
-    } else {
-      return (
-        <>
-          <span className="h-2 w-2 rounded-full bg-gray-400 mr-2"></span>
-          Inactive
-        </>
-      );
-    }
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium ${
+        status === 'active' ? 'bg-green-100 text-green-800' :
+        status === 'suspended' ? 'bg-red-100 text-red-800' :
+        'bg-gray-100 text-gray-800'
+      }`}>
+        {status}
+      </span>
+    );
   };
 
   return (
@@ -368,15 +246,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                 <span className="ml-2">Loading users...</span>
               </div>
             ) : (
-              <UserManagement users={users} renderStatusLabel={(status: string) => (
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  status === 'active' ? 'bg-green-100 text-green-800' :
-                  status === 'suspended' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {status}
-                </span>
-              )} />
+              <UserManagement 
+                users={users} 
+                renderStatusLabel={renderStatusLabel}
+              />
             )}
           </TabsContent>
 
@@ -388,15 +261,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
               contestEntries={[]}
               pricingPlans={[]}
               creditPackages={[]}
-              renderStatusLabel={(status: string) => (
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  status === 'active' ? 'bg-green-100 text-green-800' :
-                  status === 'suspended' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {status}
-                </span>
-              )}
+              renderStatusLabel={renderStatusLabel}
               renderPlanFeatures={() => null}
               getButtonContent={(status: string) => status}
             />
@@ -415,15 +280,10 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="contest" className="mt-0">
-            <ContestManagement contestEntries={[]} renderStatusLabel={(status: string) => (
-              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                status === 'active' ? 'bg-green-100 text-green-800' :
-                status === 'suspended' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {status}
-              </span>
-            )} />
+            <ContestManagement 
+              contestEntries={[]} 
+              renderStatusLabel={renderStatusLabel}
+            />
           </TabsContent>
 
           <TabsContent value="content" className="mt-0">
@@ -435,15 +295,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
               pricingPlans={[]}
               creditPackages={[]}
               renderPlanFeatures={() => null}
-              renderStatusLabel={(status: string) => (
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  status === 'active' ? 'bg-green-100 text-green-800' :
-                  status === 'suspended' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {status}
-                </span>
-              )}
+              renderStatusLabel={renderStatusLabel}
             />
           </TabsContent>
 

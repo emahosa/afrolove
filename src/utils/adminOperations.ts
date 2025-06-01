@@ -17,7 +17,6 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
   try {
     console.log("Updating user in database:", userId, userData);
     
-    // Update the user profile (name, credits, status)
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
@@ -32,9 +31,7 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
       throw new Error(`Profile update failed: ${profileError.message}`);
     }
     
-    // If role is being updated, handle that separately
     if (userData.role) {
-      // First check if user already has any role
       const { data: existingRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
@@ -46,7 +43,6 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
       }
       
       if (existingRoles && existingRoles.length > 0) {
-        // Update existing role
         const { error: updateRoleError } = await supabase
           .from('user_roles')
           .update({ role: userData.role })
@@ -57,7 +53,6 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
           throw new Error(`Role update failed: ${updateRoleError.message}`);
         }
       } else {
-        // Insert new role
         const { error: insertRoleError } = await supabase
           .from('user_roles')
           .insert({ user_id: userId, role: userData.role });
@@ -79,65 +74,41 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
-    console.log("Admin: Fetching users from database");
+    console.log("Fetching users from database");
     
-    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      console.error('Admin: Error getting current user:', userError);
-      throw new Error('Authentication required');
+      console.error('Error getting current user:', userError);
+      return [];
     }
 
-    console.log('Admin: Current user:', user.email, user.id);
-
-    // Super admin bypass
-    const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
-    console.log('Admin: Is super admin:', isSuperAdmin);
+    console.log('Current user:', user.email, user.id);
     
-    if (!isSuperAdmin) {
-      // Check if they have admin role
-      const { data: hasAdminRole, error: roleError } = await supabase
-        .rpc('has_role', { _user_id: user.id, _role: 'admin' });
-
-      if (roleError) {
-        console.error('Admin: Error checking admin role:', roleError);
-        throw new Error('Failed to verify admin access');
-      }
-
-      if (!hasAdminRole) {
-        console.warn('Admin: User does not have admin role');
-        throw new Error('Access denied: Admin role required');
-      }
-    }
-    
-    // Fetch user profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
       
     if (profilesError) {
-      console.error("Admin: Error fetching user profiles:", profilesError);
-      throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
-    }
-    
-    console.log("Admin: Raw profiles from database:", profiles);
-    
-    if (!profiles || profiles.length === 0) {
-      console.log("Admin: No profiles found");
+      console.error("Error fetching user profiles:", profilesError);
       return [];
     }
     
-    // Fetch all user roles
+    console.log("Raw profiles from database:", profiles);
+    
+    if (!profiles || profiles.length === 0) {
+      console.log("No profiles found");
+      return [];
+    }
+    
     const { data: userRoles, error: rolesError } = await supabase
       .from('user_roles')
       .select('user_id, role');
       
     if (rolesError) {
-      console.error("Admin: Error fetching user roles:", rolesError);
+      console.error("Error fetching user roles:", rolesError);
     }
     
-    // Create a map of user roles for quick lookup
     const rolesMap = new Map<string, string>();
     if (userRoles) {
       userRoles.forEach(roleRecord => {
@@ -145,17 +116,14 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       });
     }
     
-    console.log("Admin: Roles map:", rolesMap);
+    console.log("Roles map:", rolesMap);
     
-    // Process profiles into user list format
     const users = profiles.map(profile => {
-      // Determine user role
       let userRole = 'user';
       
-      // Special handling for super admin
       if (profile.username === 'ellaadahosa@gmail.com' || profile.id === user.id) {
         userRole = 'admin';
-        console.log('Admin: Setting admin role for super admin:', profile.username || profile.id);
+        console.log('Setting admin role for super admin:', profile.username || profile.id);
       } else {
         userRole = rolesMap.get(profile.id) || 'user';
       }
@@ -171,12 +139,12 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       };
     });
     
-    console.log("Admin: Processed users:", users);
+    console.log("Processed users:", users);
     return users;
     
   } catch (error: any) {
-    console.error("Admin: Error in fetchUsersFromDatabase:", error);
-    throw new Error(`Failed to load users: ${error.message}`);
+    console.error("Error in fetchUsersFromDatabase:", error);
+    return [];
   }
 };
 
@@ -210,10 +178,8 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
       throw new Error("User name and email are required");
     }
     
-    // Generate a UUID for the new user
     const newUserId = crypto.randomUUID();
     
-    // Create profile directly in the profiles table
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -233,7 +199,6 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
     
     console.log("Created profile successfully with ID:", newUserId);
     
-    // Add role if specified
     const roleToAdd: UserRole = (userData.role as UserRole) || 'user';
     
     const { error: roleError } = await supabase
@@ -262,7 +227,6 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
   try {
     console.log("Ensuring admin user exists...");
     
-    // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
@@ -272,11 +236,9 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
     
     console.log('Current user:', user.email, user.id);
     
-    // Check if this is the super admin
     if (user.email === "ellaadahosa@gmail.com") {
       console.log('Super admin detected, ensuring profile exists...');
       
-      // Check if profile exists
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -306,7 +268,6 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
         }
       }
       
-      // Check if admin role exists
       const { data: hasAdminRole, error: roleCheckError } = await supabase
         .rpc('has_role', { _user_id: user.id, _role: 'admin' });
       

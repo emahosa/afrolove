@@ -67,7 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Fetching roles for user:', userId);
       
-      // Use the security definer function to avoid RLS issues
       const { data: hasAdminRole, error: adminError } = await supabase
         .rpc('has_role', { _user_id: userId, _role: 'admin' });
       
@@ -81,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         roles.push('admin');
       }
       
-      // Check for other roles if needed
       const { data: hasModeratorRole, error: modError } = await supabase
         .rpc('has_role', { _user_id: userId, _role: 'moderator' });
       
@@ -89,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         roles.push('moderator');
       }
       
-      // Default to user role
       if (roles.length === 0) {
         roles.push('user');
       }
@@ -98,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return roles;
     } catch (error) {
       console.error('AuthContext: Error fetching user roles:', error);
-      return ['user']; // Default fallback
+      return ['user'];
     }
   };
 
@@ -106,7 +103,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Ensuring admin profile for:', userId);
       
-      // Check if profile exists
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -127,33 +123,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: 'Admin User',
             username: 'ellaadahosa@gmail.com',
             avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
-            credits: 1000 // Give admin lots of credits
+            credits: 1000
           });
         
         if (createError) {
           console.error('AuthContext: Error creating admin profile:', createError);
           return false;
         }
-      } else {
-        // Update existing profile to ensure it has admin-specific data
-        console.log('AuthContext: Updating existing profile to admin profile...');
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: 'Admin User',
-            username: 'ellaadahosa@gmail.com',
-            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
-            credits: Math.max(existingProfile.credits || 0, 1000) // Ensure admin has at least 1000 credits
-          })
-          .eq('id', userId);
-        
-        if (updateError) {
-          console.error('AuthContext: Error updating admin profile:', updateError);
-          return false;
-        }
       }
       
-      // Ensure admin role exists
       const { data: hasAdminRole } = await supabase
         .rpc('has_role', { _user_id: userId, _role: 'admin' });
       
@@ -185,7 +163,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (session?.user) {
       try {
-        // Check if this is the super admin
         const isSuperAdmin = session.user.email === 'ellaadahosa@gmail.com';
         
         if (isSuperAdmin) {
@@ -193,7 +170,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await ensureAdminProfile(session.user.id);
         }
         
-        // Fetch the user's profile from the database
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -225,7 +201,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(basicUser);
         setSession(session);
         
-        // Fetch roles after setting user
         const roles = await fetchUserRoles(session.user.id);
         setUserRoles(roles);
         
@@ -326,7 +301,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthContext: Initializing auth state');
     
-    // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -351,12 +325,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthContext: Auth state change:', event);
         
-        // Only process if we've finished initial setup
         if (initializedRef.current) {
           await processSession(session);
         }
