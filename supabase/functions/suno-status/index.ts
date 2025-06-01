@@ -39,20 +39,18 @@ Deno.serve(async (req) => {
     console.log('🔍 Checking status for task:', taskId)
 
     if (!taskId || taskId === 'test') {
-      // This is an API key test
       console.log('🧪 API Key test request detected')
       return new Response(JSON.stringify({ 
-        code: 200,
-        msg: 'success',
-        success: true 
+        success: true,
+        message: 'API key test successful'
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Query the Suno API for task status
-    const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/query?taskId=${taskId}`, {
+    // Use the correct Suno API v2 status endpoint
+    const statusResponse = await fetch(`https://api.sunoaiapi.com/api/v1/gateway/query?ids=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -115,114 +113,107 @@ Deno.serve(async (req) => {
     console.log('📋 Found song record:', songRecord.id, songRecord.title)
 
     // Check if the task is completed
-    if (statusData.code === 200 && statusData.data) {
-      const taskData = statusData.data
-      console.log('📊 Task data received:', taskData)
+    if (statusData.success && statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0) {
+      const taskData = statusData.data[0]
+      console.log('🎵 Task data received:', taskData)
 
-      // Check if we have completed audio files
-      if (taskData.length > 0) {
-        const firstTrack = taskData[0]
-        console.log('🎵 First track data:', firstTrack)
+      // Check if the track is completed
+      if (taskData.status === 'complete' && taskData.audio_url) {
+        console.log('✅ Song generation completed!')
+        
+        const updateData = {
+          status: 'completed',
+          audio_url: taskData.audio_url,
+          updated_at: new Date().toISOString()
+        }
 
-        // Check if the track is completed and has audio
-        if (firstTrack.status === 'complete' && firstTrack.audio_url) {
-          console.log('✅ Song generation completed!')
-          
-          // Update the song record with the actual audio data
-          const updateData: any = {
-            status: 'completed',
-            audio_url: firstTrack.audio_url,
-            updated_at: new Date().toISOString()
-          }
+        // Add lyrics if available
+        if (taskData.lyric) {
+          updateData.lyrics = taskData.lyric
+        }
 
-          // Add lyrics if available
-          if (firstTrack.lyric) {
-            updateData.lyrics = firstTrack.lyric
-          }
+        // Add title if available and not already set
+        if (taskData.title && (!songRecord.title || songRecord.title.includes('Generated'))) {
+          updateData.title = taskData.title
+        }
 
-          // Add title if available and not already set
-          if (firstTrack.title && (!songRecord.title || songRecord.title.includes('Generated'))) {
-            updateData.title = firstTrack.title
-          }
+        // Add image URL if available
+        if (taskData.image_url) {
+          updateData.image_url = taskData.image_url
+        }
 
-          // Add image URL if available
-          if (firstTrack.image_url) {
-            updateData.image_url = firstTrack.image_url
-          }
-
-          // For now, we'll use the same audio_url for vocal and instrumental
-          // This will be improved when we implement proper splitting
-          if (songRecord.type === 'song') {
-            updateData.vocal_url = firstTrack.audio_url
-          } else {
-            updateData.instrumental_url = firstTrack.audio_url
-          }
-
-          console.log('📝 Updating song with data:', updateData)
-
-          const { error: updateError } = await supabase
-            .from('songs')
-            .update(updateData)
-            .eq('id', songRecord.id)
-
-          if (updateError) {
-            console.error('❌ Failed to update song:', updateError)
-            return new Response(JSON.stringify({ 
-              error: 'Failed to update song record',
-              success: false 
-            }), {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            })
-          }
-
-          console.log('✅ Song updated successfully!')
-          
-          return new Response(JSON.stringify({ 
-            success: true,
-            updated: true,
-            status: 'completed',
-            data: firstTrack
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        } else if (firstTrack.status === 'failed') {
-          console.log('❌ Song generation failed')
-          
-          // Update the song record to failed status
-          const { error: updateError } = await supabase
-            .from('songs')
-            .update({
-              status: 'rejected',
-              audio_url: 'error: Generation failed',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', songRecord.id)
-
-          if (updateError) {
-            console.error('❌ Failed to update failed song:', updateError)
-          }
-
-          return new Response(JSON.stringify({ 
-            success: true,
-            updated: true,
-            status: 'failed'
-          }), {
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
+        // Set vocal and instrumental URLs based on type
+        if (songRecord.type === 'song') {
+          updateData.vocal_url = taskData.audio_url
+          // For now, use the same URL for instrumental until we implement proper splitting
+          updateData.instrumental_url = taskData.audio_url
         } else {
-          console.log('⏳ Song still in progress, status:', firstTrack.status)
+          updateData.instrumental_url = taskData.audio_url
+        }
+
+        console.log('📝 Updating song with data:', updateData)
+
+        const { error: updateError } = await supabase
+          .from('songs')
+          .update(updateData)
+          .eq('id', songRecord.id)
+
+        if (updateError) {
+          console.error('❌ Failed to update song:', updateError)
           return new Response(JSON.stringify({ 
-            success: true,
-            updated: false,
-            status: firstTrack.status || 'pending'
+            error: 'Failed to update song record',
+            success: false 
           }), {
-            status: 200,
+            status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
+
+        console.log('✅ Song updated successfully!')
+        
+        return new Response(JSON.stringify({ 
+          success: true,
+          updated: true,
+          status: 'completed',
+          data: taskData
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } else if (taskData.status === 'failed' || taskData.status === 'error') {
+        console.log('❌ Song generation failed')
+        
+        const { error: updateError } = await supabase
+          .from('songs')
+          .update({
+            status: 'rejected',
+            audio_url: 'error: Generation failed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', songRecord.id)
+
+        if (updateError) {
+          console.error('❌ Failed to update failed song:', updateError)
+        }
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          updated: true,
+          status: 'failed'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } else {
+        console.log('⏳ Song still in progress, status:', taskData.status)
+        return new Response(JSON.stringify({ 
+          success: true,
+          updated: false,
+          status: taskData.status || 'pending'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
     }
 
@@ -239,7 +230,6 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('💥 CRITICAL ERROR in suno-status function:', error)
-    console.error('💥 Error stack:', error.stack)
     
     return new Response(JSON.stringify({ 
       error: 'Internal server error: ' + error.message,

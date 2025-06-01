@@ -12,7 +12,6 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 Deno.serve(async (req) => {
   console.log('🚀 SUNO GENERATE FUNCTION STARTED')
   console.log('📋 Request method:', req.method)
-  console.log('📋 Request URL:', req.url)
   console.log('⏰ Request time:', new Date().toISOString())
 
   if (req.method === 'OPTIONS') {
@@ -22,14 +21,12 @@ Deno.serve(async (req) => {
   try {
     const sunoApiKey = Deno.env.get('SUNO_API_KEY')
     
-    console.log('🔑 Checking SUNO_API_KEY...')
-    console.log('🔑 API Key exists:', !!sunoApiKey)
-    console.log('🔑 API Key length:', sunoApiKey?.length || 0)
-    console.log('🔑 API Key prefix:', sunoApiKey?.substring(0, 10) + '...' || 'undefined')
-    
     if (!sunoApiKey) {
       console.error('❌ SUNO_API_KEY not configured')
-      return new Response(JSON.stringify({ error: 'SUNO_API_KEY not configured' }), {
+      return new Response(JSON.stringify({ 
+        error: 'SUNO_API_KEY not configured',
+        success: false 
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -49,7 +46,7 @@ Deno.serve(async (req) => {
       userId
     } = body
 
-    console.log('📥 Generation request received:', {
+    console.log('📥 Generation request:', {
       userId,
       prompt: prompt?.substring(0, 100) + '...',
       style,
@@ -60,15 +57,16 @@ Deno.serve(async (req) => {
     })
 
     if (!userId) {
-      console.error('❌ User ID missing')
-      return new Response(JSON.stringify({ error: 'User ID required' }), {
+      return new Response(JSON.stringify({ 
+        error: 'User ID required',
+        success: false 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    if (!prompt || prompt.trim() === '') {
-      console.error('❌ Prompt missing or empty')
+    if (!prompt?.trim()) {
       return new Response(JSON.stringify({ 
         error: 'Prompt is required',
         success: false 
@@ -97,7 +95,6 @@ Deno.serve(async (req) => {
     }
 
     if (userProfile.credits < 5) {
-      console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
       return new Response(JSON.stringify({ 
         error: 'Insufficient credits. You need at least 5 credits to generate a song.',
         success: false 
@@ -107,30 +104,28 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request using the correct format
-    const sunoRequestBody: any = {
+    // Prepare request for Suno API v2 endpoint
+    const sunoRequestBody = {
       prompt: prompt.trim(),
-      customMode: customMode,
+      custom_mode: customMode,
       instrumental: instrumental,
-      model: model
+      model_name: model,
+      wait_audio: false
     }
 
-    // Add optional fields based on mode
-    if (customMode) {
-      if (style) sunoRequestBody.style = style
-      if (title) sunoRequestBody.title = title
+    if (customMode && style) {
+      sunoRequestBody.tags = style
     }
 
-    if (negativeTags) {
-      sunoRequestBody.negativeTags = negativeTags
+    if (title) {
+      sunoRequestBody.title = title
     }
 
-    console.log('🎵 Sending request to Suno API')
+    console.log('🎵 Calling Suno API v2/generate')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
-    console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
-    // Use the correct endpoint from documentation
-    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+    // Use the correct Suno API v2 endpoint
+    const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -141,7 +136,6 @@ Deno.serve(async (req) => {
     })
 
     console.log('📥 Suno API response status:', sunoResponse.status)
-    console.log('📥 Suno API response headers:', Object.fromEntries(sunoResponse.headers.entries()))
     
     const responseText = await sunoResponse.text()
     console.log('📥 Suno API response body:', responseText)
@@ -150,30 +144,16 @@ Deno.serve(async (req) => {
       console.error('❌ Suno API error:', sunoResponse.status, responseText)
       
       let errorMessage = 'Suno API request failed'
-      let errorCode = 'SUNO_API_ERROR'
       
       try {
         const errorData = JSON.parse(responseText)
-        errorMessage = errorData.msg || errorData.message || errorData.error?.message || errorMessage
-        
-        if (sunoResponse.status === 401) {
-          errorCode = 'SUNO_API_UNAUTHORIZED'
-          errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
-        } else if (sunoResponse.status === 403) {
-          errorCode = 'SUNO_API_FORBIDDEN'
-          errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
-        } else if (sunoResponse.status === 429) {
-          errorCode = 'SUNO_API_RATE_LIMIT'
-          errorMessage = 'Suno API rate limit exceeded or insufficient credits. Please try again later.'
-        }
+        errorMessage = errorData.message || errorData.error || errorMessage
       } catch (parseError) {
-        console.error('❌ Failed to parse error response:', parseError)
         errorMessage = responseText || errorMessage
       }
 
       return new Response(JSON.stringify({ 
         error: errorMessage,
-        errorCode: errorCode,
         success: false 
       }), {
         status: sunoResponse.status,
@@ -197,25 +177,16 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Check if the API returned success
-    if (responseData.code !== 200) {
-      console.error('❌ Suno API returned error code:', responseData.code, responseData.msg)
-      return new Response(JSON.stringify({ 
-        error: responseData.msg || 'Suno API returned an error',
-        success: false
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    // Extract task ID from the response
+    // Extract task ID from response
     let taskId = null
     
-    if (responseData.data && responseData.data.taskId) {
-      taskId = responseData.data.taskId
-    } else if (responseData.data && typeof responseData.data === 'string') {
-      taskId = responseData.data
+    if (responseData.success && responseData.data) {
+      // Check if data is array or object
+      if (Array.isArray(responseData.data) && responseData.data.length > 0) {
+        taskId = responseData.data[0].song_id || responseData.data[0].id
+      } else if (responseData.data.song_id || responseData.data.id) {
+        taskId = responseData.data.song_id || responseData.data.id
+      }
     }
 
     if (!taskId) {
@@ -243,14 +214,14 @@ Deno.serve(async (req) => {
       console.log('✅ Credits deducted for user:', userId)
     }
 
-    // Create song record with proper initial values
+    // Create song record
     const songData = {
       user_id: userId,
-      title: title || (customMode ? 'Custom Song' : 'AI Generated Song'),
+      title: title || 'AI Generated Song',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Store task ID temporarily for status checking
+      audio_url: taskId, // Store task ID for status checking
       prompt,
-      lyrics: customMode ? prompt : null, // Store lyrics if in custom mode
+      lyrics: customMode ? prompt : null,
       status: 'pending',
       credits_used: 5,
       vocal_url: null,
@@ -275,7 +246,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ Song record created with ID:', newSong.id)
-    console.log('🎉 GENERATION REQUEST COMPLETED SUCCESSFULLY')
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -289,8 +259,6 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('💥 CRITICAL ERROR in suno-generate function:', error)
-    console.error('💥 Error stack:', error.stack)
-    console.error('💥 Error occurred at:', new Date().toISOString())
     
     return new Response(JSON.stringify({ 
       error: 'Internal server error: ' + error.message,

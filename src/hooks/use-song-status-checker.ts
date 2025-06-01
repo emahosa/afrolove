@@ -64,10 +64,9 @@ export const useSongStatusChecker = () => {
       let anyUpdated = false;
       
       for (const song of pendingSongs) {
-        // The audio_url field contains the task ID for pending songs
         const taskId = song.audio_url;
         
-        // Skip if not a valid task ID
+        // Skip if not a valid task ID (should not start with http or error)
         if (!taskId || taskId.startsWith('http') || taskId.startsWith('error:')) {
           console.log(`⏭️ Skipping song ${song.id} - invalid task ID: ${taskId}`);
           continue;
@@ -82,8 +81,8 @@ export const useSongStatusChecker = () => {
           console.log(`✅ Song "${song.title}" was updated!`);
         }
         
-        // Wait 1 second between checks to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait between checks to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       if (anyUpdated) {
@@ -106,22 +105,22 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
-  // Enhanced polling: Check every 30 seconds initially, then every 60 seconds
+  // Improved polling: Check every 45 seconds
   useEffect(() => {
     if (!user?.id) return;
 
-    console.log('🚀 Setting up enhanced status checker for user:', user.id);
+    console.log('🚀 Setting up status checker for user:', user.id);
 
-    // Initial check after 5 seconds
+    // Initial check after 10 seconds
     const initialTimeout = setTimeout(() => {
       checkAllPendingSongs();
-    }, 5000);
+    }, 10000);
 
-    // Set up regular interval for checking - start with 30 seconds
+    // Set up regular interval for checking
     const interval = setInterval(() => {
       console.log('⏰ Periodic status check triggered');
       checkAllPendingSongs();
-    }, 30000); // 30 seconds
+    }, 45000); // 45 seconds
 
     return () => {
       console.log('🛑 Cleaning up status checker');

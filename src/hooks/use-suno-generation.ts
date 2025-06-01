@@ -81,7 +81,7 @@ export const useSunoGeneration = () => {
 
       setCurrentTaskId(taskId);
       console.log('✅ Generation started with task ID:', taskId);
-      toast.success('🎵 Song generation started! Check your library for progress.');
+      toast.success('🎵 Song generation started! Your song will appear in your library shortly.');
       return taskId;
 
     } catch (error: any) {
