@@ -24,6 +24,7 @@ const AppLayout = () => {
   };
 
   const handleClosePlayer = () => {
+    console.log('AppLayout: Closing audio player');
     setShowBottomPlayer(false);
     setCurrentPlayingRequest(null);
   };
@@ -35,9 +36,11 @@ const AppLayout = () => {
       handlePlay(event.detail);
     };
 
+    console.log('AppLayout: Adding event listener for audioPlayerPlay');
     window.addEventListener('audioPlayerPlay', handleAudioPlayerPlay as EventListener);
 
     return () => {
+      console.log('AppLayout: Removing event listener for audioPlayerPlay');
       window.removeEventListener('audioPlayerPlay', handleAudioPlayerPlay as EventListener);
     };
   }, []);

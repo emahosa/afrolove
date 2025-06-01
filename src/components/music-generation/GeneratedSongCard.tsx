@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,8 @@ import {
   Music,
   Clock,
   User,
-  Calendar
+  Calendar,
+  Trash
 } from 'lucide-react';
 import { 
   DropdownMenu,
@@ -104,13 +106,14 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
     console.log('🎵 Play button clicked for Suno song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
+      console.log('🎵 Dispatching audioPlayerPlay event for song:', song.title);
       // Pass the song with type 'suno' to distinguish it from custom songs
       handlePlay({
         id: song.id,
         title: song.title,
         type: 'suno'
       });
-      console.log('🎵 Triggered audio player for Suno song:', song.title);
+      console.log('🎵 Event dispatched for Suno song:', song.title);
     } else {
       console.log('❌ Song not playable:', song.status, song.audio_url);
       
@@ -122,6 +125,11 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
         toast.error('Song is not ready for playback yet');
       }
     }
+  };
+
+  const handleDelete = () => {
+    console.log('🗑️ Delete requested for:', song.title);
+    toast.info('Delete feature coming soon!');
   };
 
   const formatDuration = (seconds?: number) => {
@@ -208,8 +216,8 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
           </p>
         )}
 
-        {/* Action buttons */}
-        <div className="flex items-center justify-between">
+        {/* Primary Action buttons - Always visible */}
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
               variant="default"
@@ -227,37 +235,48 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
             </Button>
 
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => {
-                setIsLiked(!isLiked);
-                console.log('❤️ Like toggled for:', song.title, 'New state:', !isLiked);
-              }}
-              className={isLiked ? 'text-red-500' : ''}
+              onClick={handleDownload}
+              disabled={!isPlayable}
+              title="Download song"
             >
-              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+              <Download className="h-4 w-4" />
             </Button>
-          </div>
 
-          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleShare}
               disabled={!isPlayable}
+              title="Share song"
             >
               <Share2 className="h-4 w-4" />
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
-              onClick={handleDownload}
-              disabled={!isPlayable}
+              onClick={handleDelete}
+              title="Delete song"
+              className="text-red-600 hover:text-red-700"
             >
-              <Download className="h-4 w-4" />
+              <Trash className="h-4 w-4" />
             </Button>
           </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsLiked(!isLiked);
+              console.log('❤️ Like toggled for:', song.title, 'New state:', !isLiked);
+            }}
+            className={isLiked ? 'text-red-500' : ''}
+            title="Like song"
+          >
+            <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+          </Button>
         </div>
 
         {/* Footer info */}
