@@ -104,28 +104,37 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare request for Suno API v2 endpoint
+    // Prepare request for Suno API according to documentation
     const sunoRequestBody = {
       prompt: prompt.trim(),
-      custom_mode: customMode,
+      customMode: customMode,
       instrumental: instrumental,
-      model_name: model,
-      wait_audio: false
+      model: model,
+      callBackUrl: `${supabaseUrl}/functions/v1/suno-webhook`
     }
 
-    if (customMode && style) {
-      sunoRequestBody.tags = style
+    // Add conditional fields based on customMode
+    if (customMode) {
+      if (!instrumental && style) {
+        sunoRequestBody.style = style
+      }
+      if (style) {
+        sunoRequestBody.style = style
+      }
+      if (title) {
+        sunoRequestBody.title = title
+      }
     }
 
-    if (title) {
-      sunoRequestBody.title = title
+    if (negativeTags) {
+      sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🎵 Calling Suno API v2/generate')
+    console.log('🎵 Calling Suno API /api/v1/generate')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Use the correct Suno API v2 endpoint
-    const sunoResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
+    // Use the correct Suno API endpoint from documentation
+    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -147,7 +156,7 @@ Deno.serve(async (req) => {
       
       try {
         const errorData = JSON.parse(responseText)
-        errorMessage = errorData.message || errorData.error || errorMessage
+        errorMessage = errorData.msg || errorData.message || errorData.error || errorMessage
       } catch (parseError) {
         errorMessage = responseText || errorMessage
       }
@@ -177,23 +186,19 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID from response
+    // Extract task ID from response according to documentation format
     let taskId = null
     
-    if (responseData.success && responseData.data) {
-      // Check if data is array or object
-      if (Array.isArray(responseData.data) && responseData.data.length > 0) {
-        taskId = responseData.data[0].song_id || responseData.data[0].id
-      } else if (responseData.data.song_id || responseData.data.id) {
-        taskId = responseData.data.song_id || responseData.data.id
-      }
+    if (responseData.code === 200 && responseData.data && responseData.data.task_id) {
+      taskId = responseData.data.task_id
     }
 
     if (!taskId) {
       console.error('❌ No task ID found in response')
       return new Response(JSON.stringify({ 
         error: 'No task ID received from Suno API',
-        success: false
+        success: false,
+        debug: responseData
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -221,7 +226,7 @@ Deno.serve(async (req) => {
       type: instrumental ? 'instrumental' : 'song',
       audio_url: taskId, // Store task ID for status checking
       prompt,
-      lyrics: customMode ? prompt : null,
+      lyrics: customMode && !instrumental ? prompt : null,
       status: 'pending',
       credits_used: 5,
       vocal_url: null,

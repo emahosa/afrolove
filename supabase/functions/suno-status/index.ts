@@ -49,8 +49,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use the correct Suno API v2 status endpoint
-    const statusResponse = await fetch(`https://api.sunoaiapi.com/api/v1/gateway/query?ids=${taskId}`, {
+    // Use the correct Suno API status endpoint from documentation
+    const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -112,43 +112,44 @@ Deno.serve(async (req) => {
 
     console.log('📋 Found song record:', songRecord.id, songRecord.title)
 
-    // Check if the task is completed
-    if (statusData.success && statusData.data && Array.isArray(statusData.data) && statusData.data.length > 0) {
-      const taskData = statusData.data[0]
+    // Check if the task is completed according to documentation status values
+    if (statusData.code === 200 && statusData.data) {
+      const taskData = statusData.data
       console.log('🎵 Task data received:', taskData)
 
-      // Check if the track is completed
-      if (taskData.status === 'complete' && taskData.audio_url) {
-        console.log('✅ Song generation completed!')
+      // Check if the task status is SUCCESS (completed)
+      if (taskData.status === 'SUCCESS' && taskData.data && Array.isArray(taskData.data) && taskData.data.length > 0) {
+        const audioTrack = taskData.data[0] // Get first track
+        console.log('✅ Song generation completed!', audioTrack)
         
         const updateData = {
           status: 'completed',
-          audio_url: taskData.audio_url,
+          audio_url: audioTrack.audio_url,
           updated_at: new Date().toISOString()
         }
 
         // Add lyrics if available
-        if (taskData.lyric) {
-          updateData.lyrics = taskData.lyric
+        if (audioTrack.prompt && !songRecord.lyrics) {
+          updateData.lyrics = audioTrack.prompt
         }
 
         // Add title if available and not already set
-        if (taskData.title && (!songRecord.title || songRecord.title.includes('Generated'))) {
-          updateData.title = taskData.title
+        if (audioTrack.title && (!songRecord.title || songRecord.title.includes('Generated'))) {
+          updateData.title = audioTrack.title
         }
 
         // Add image URL if available
-        if (taskData.image_url) {
-          updateData.image_url = taskData.image_url
+        if (audioTrack.image_url) {
+          updateData.image_url = audioTrack.image_url
         }
 
         // Set vocal and instrumental URLs based on type
         if (songRecord.type === 'song') {
-          updateData.vocal_url = taskData.audio_url
+          updateData.vocal_url = audioTrack.audio_url
           // For now, use the same URL for instrumental until we implement proper splitting
-          updateData.instrumental_url = taskData.audio_url
+          updateData.instrumental_url = audioTrack.audio_url
         } else {
-          updateData.instrumental_url = taskData.audio_url
+          updateData.instrumental_url = audioTrack.audio_url
         }
 
         console.log('📝 Updating song with data:', updateData)
@@ -175,19 +176,19 @@ Deno.serve(async (req) => {
           success: true,
           updated: true,
           status: 'completed',
-          data: taskData
+          data: audioTrack
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
-      } else if (taskData.status === 'failed' || taskData.status === 'error') {
+      } else if (taskData.status === 'CREATE_TASK_FAILED' || taskData.status === 'GENERATE_AUDIO_FAILED' || taskData.status === 'CALLBACK_EXCEPTION' || taskData.status === 'SENSITIVE_WORD_ERROR') {
         console.log('❌ Song generation failed')
         
         const { error: updateError } = await supabase
           .from('songs')
           .update({
             status: 'rejected',
-            audio_url: 'error: Generation failed',
+            audio_url: `error: ${taskData.status}`,
             updated_at: new Date().toISOString()
           })
           .eq('id', songRecord.id)
