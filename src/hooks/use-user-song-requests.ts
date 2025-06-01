@@ -29,6 +29,7 @@ export const useUserSongRequests = () => {
   const fetchUserRequests = async () => {
     if (!user) {
       setLoading(false);
+      setUserRequests([]);
       return;
     }
 
@@ -56,6 +57,7 @@ export const useUserSongRequests = () => {
     } catch (error: any) {
       console.error('User: Error in fetchUserRequests:', error);
       setError(error.message || 'Failed to load requests');
+      toast.error('Failed to load custom song requests');
     } finally {
       setLoading(false);
     }
