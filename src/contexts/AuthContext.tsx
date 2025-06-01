@@ -1,8 +1,8 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { ensureAdminUserExists } from '@/utils/adminOperations';
 
 interface ExtendedUser extends User {
   name?: string;
@@ -102,37 +102,134 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const ensureAdminProfile = async (userId: string) => {
+    try {
+      console.log('AuthContext: Ensuring admin profile for:', userId);
+      
+      // Check if profile exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (profileError) {
+        console.error('AuthContext: Error checking profile:', profileError);
+        return false;
+      }
+      
+      if (!existingProfile) {
+        console.log('AuthContext: Creating admin profile...');
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            full_name: 'Admin User',
+            username: 'ellaadahosa@gmail.com',
+            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
+            credits: 1000 // Give admin lots of credits
+          });
+        
+        if (createError) {
+          console.error('AuthContext: Error creating admin profile:', createError);
+          return false;
+        }
+      } else {
+        // Update existing profile to ensure it has admin-specific data
+        console.log('AuthContext: Updating existing profile to admin profile...');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: 'Admin User',
+            username: 'ellaadahosa@gmail.com',
+            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
+            credits: Math.max(existingProfile.credits || 0, 1000) // Ensure admin has at least 1000 credits
+          })
+          .eq('id', userId);
+        
+        if (updateError) {
+          console.error('AuthContext: Error updating admin profile:', updateError);
+          return false;
+        }
+      }
+      
+      // Ensure admin role exists
+      const { data: hasAdminRole } = await supabase
+        .rpc('has_role', { _user_id: userId, _role: 'admin' });
+      
+      if (!hasAdminRole) {
+        console.log('AuthContext: Creating admin role...');
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: 'admin'
+          });
+        
+        if (roleError) {
+          console.error('AuthContext: Error creating admin role:', roleError);
+          return false;
+        }
+      }
+      
+      console.log('AuthContext: Admin profile setup complete');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error ensuring admin profile:', error);
+      return false;
+    }
+  };
+
   const processSession = async (session: Session | null) => {
     console.log('AuthContext: Processing session:', session ? 'exists' : 'null');
     
     if (session?.user) {
       try {
-        const basicUser: ExtendedUser = {
-          ...session.user,
-          name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-          avatar: session.user.user_metadata.avatar_url || '',
-          credits: 5,
-          subscription: 'free'
-        };
+        // Check if this is the super admin
+        const isSuperAdmin = session.user.email === 'ellaadahosa@gmail.com';
+        
+        if (isSuperAdmin) {
+          console.log('AuthContext: Processing super admin session...');
+          await ensureAdminProfile(session.user.id);
+        }
+        
+        // Fetch the user's profile from the database
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        let basicUser: ExtendedUser;
+        
+        if (profile && !profileError) {
+          console.log('AuthContext: Using profile data:', profile);
+          basicUser = {
+            ...session.user,
+            name: profile.full_name || session.user.user_metadata.full_name || 'User',
+            avatar: profile.avatar_url || session.user.user_metadata.avatar_url || '',
+            credits: profile.credits || 0,
+            subscription: 'free'
+          };
+        } else {
+          console.log('AuthContext: Using fallback user data');
+          basicUser = {
+            ...session.user,
+            name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
+            avatar: session.user.user_metadata.avatar_url || '',
+            credits: 5,
+            subscription: 'free'
+          };
+        }
         
         setUser(basicUser);
         setSession(session);
-        
-        // Ensure admin user setup if this is the super admin
-        if (session.user.email === 'ellaadahosa@gmail.com') {
-          console.log('AuthContext: Setting up super admin...');
-          try {
-            await ensureAdminUserExists();
-          } catch (error) {
-            console.error('AuthContext: Error setting up admin user:', error);
-          }
-        }
         
         // Fetch roles after setting user
         const roles = await fetchUserRoles(session.user.id);
         setUserRoles(roles);
         
-        console.log('AuthContext: User setup complete');
+        console.log('AuthContext: User setup complete for:', basicUser.name);
       } catch (error) {
         console.error('AuthContext: Error processing session:', error);
         setUser(null);

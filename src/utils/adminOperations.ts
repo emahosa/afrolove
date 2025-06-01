@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -119,10 +118,13 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       console.log('Admin: Regular admin access confirmed');
     }
     
-    // Fetch user profiles
+    // Fetch user profiles with auth.users data for better email information
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*');
+      .select(`
+        *,
+        user_roles(role)
+      `);
       
     if (profilesError) {
       console.error("Admin: Error fetching user profiles:", profilesError);
@@ -136,24 +138,23 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     
     console.log("Admin: Fetched profiles:", profiles);
     
-    // Fetch user roles separately to avoid RLS issues
-    const { data: userRoles, error: userRolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
+    // Process profiles into user list format
+    const users = profiles.map(profile => {
+      const userRole = profile.user_roles?.[0]?.role || 'user';
+      
+      return {
+        id: profile.id,
+        name: profile.full_name || 'No Name',
+        email: profile.username || 'No Email', 
+        status: profile.is_suspended ? 'suspended' : 'active',
+        role: userRole,
+        credits: profile.credits || 0,
+        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
+      };
+    });
     
-    if (userRolesError) {
-      console.warn("Admin: Could not fetch user roles:", userRolesError);
-    }
-    
-    // Create a map of user roles
-    const rolesMap = new Map();
-    if (userRoles) {
-      userRoles.forEach(userRole => {
-        rolesMap.set(userRole.user_id, userRole.role);
-      });
-    }
-    
-    return processProfilesToUsersList(profiles, rolesMap);
+    console.log("Admin: Processed users:", users);
+    return users;
     
   } catch (error: any) {
     console.error("Admin: Error in fetchUsersFromDatabase:", error);
@@ -304,7 +305,7 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
   }
 };
 
-// Function to ensure admin user exists
+// Function to ensure admin user exists and is properly configured
 export const ensureAdminUserExists = async (): Promise<boolean> => {
   try {
     console.log("Ensuring admin user exists...");
@@ -326,7 +327,7 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
       // Check if profile exists
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -337,19 +338,36 @@ export const ensureAdminUserExists = async (): Promise<boolean> => {
       
       if (!profile) {
         console.log('Creating profile for super admin...');
-        // Create profile for super admin
+        // Create profile for super admin with distinct admin data
         const { error: createProfileError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
-            full_name: user.user_metadata?.full_name || 'Admin User',
+            full_name: 'Admin User',
             username: user.email,
-            avatar_url: user.user_metadata?.avatar_url,
+            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
             credits: 1000 // Give admin lots of credits
           });
         
         if (createProfileError) {
           console.error('Error creating admin profile:', createProfileError);
+          return false;
+        }
+      } else {
+        console.log('Updating existing profile with admin data...');
+        // Update existing profile to ensure it has admin-specific data
+        const { error: updateProfileError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: 'Admin User',
+            username: user.email,
+            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
+            credits: Math.max(profile.credits || 0, 1000) // Ensure admin has at least 1000 credits
+          })
+          .eq('id', user.id);
+        
+        if (updateProfileError) {
+          console.error('Error updating admin profile:', updateProfileError);
           return false;
         }
       }
