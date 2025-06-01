@@ -67,94 +67,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Fetching roles for user:', userId);
       
-      const { data: hasAdminRole, error: adminError } = await supabase
-        .rpc('has_role', { _user_id: userId, _role: 'admin' });
+      // Simple direct query to avoid recursion issues
+      const { data: userRoleData, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
       
-      if (adminError) {
-        console.error('AuthContext: Error checking admin role:', adminError);
-        return [];
+      if (error) {
+        console.error('AuthContext: Error fetching roles:', error);
+        return ['user'];
       }
       
-      const roles = [];
-      if (hasAdminRole) {
-        roles.push('admin');
-      }
-      
-      const { data: hasModeratorRole, error: modError } = await supabase
-        .rpc('has_role', { _user_id: userId, _role: 'moderator' });
-      
-      if (!modError && hasModeratorRole) {
-        roles.push('moderator');
-      }
-      
-      if (roles.length === 0) {
-        roles.push('user');
-      }
-      
+      const roles = userRoleData?.map(r => r.role) || ['user'];
       console.log('AuthContext: Fetched roles:', roles);
       return roles;
     } catch (error) {
-      console.error('AuthContext: Error fetching user roles:', error);
+      console.error('AuthContext: Error in fetchUserRoles:', error);
       return ['user'];
-    }
-  };
-
-  const ensureAdminProfile = async (userId: string) => {
-    try {
-      console.log('AuthContext: Ensuring admin profile for:', userId);
-      
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (profileError) {
-        console.error('AuthContext: Error checking profile:', profileError);
-        return false;
-      }
-      
-      if (!existingProfile) {
-        console.log('AuthContext: Creating admin profile...');
-        const { error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            full_name: 'Admin User',
-            username: 'ellaadahosa@gmail.com',
-            avatar_url: 'https://ui-avatars.com/api/?name=Admin+User&background=dc2626&color=ffffff',
-            credits: 1000
-          });
-        
-        if (createError) {
-          console.error('AuthContext: Error creating admin profile:', createError);
-          return false;
-        }
-      }
-      
-      const { data: hasAdminRole } = await supabase
-        .rpc('has_role', { _user_id: userId, _role: 'admin' });
-      
-      if (!hasAdminRole) {
-        console.log('AuthContext: Creating admin role...');
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userId,
-            role: 'admin'
-          });
-        
-        if (roleError) {
-          console.error('AuthContext: Error creating admin role:', roleError);
-          return false;
-        }
-      }
-      
-      console.log('AuthContext: Admin profile setup complete');
-      return true;
-    } catch (error) {
-      console.error('AuthContext: Error ensuring admin profile:', error);
-      return false;
     }
   };
 
@@ -163,13 +92,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (session?.user) {
       try {
-        const isSuperAdmin = session.user.email === 'ellaadahosa@gmail.com';
-        
-        if (isSuperAdmin) {
-          console.log('AuthContext: Processing super admin session...');
-          await ensureAdminProfile(session.user.id);
-        }
-        
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -201,8 +123,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(basicUser);
         setSession(session);
         
-        const roles = await fetchUserRoles(session.user.id);
-        setUserRoles(roles);
+        // Fetch roles separately to avoid blocking the UI
+        setTimeout(async () => {
+          const roles = await fetchUserRoles(session.user.id);
+          setUserRoles(roles);
+        }, 100);
         
         console.log('AuthContext: User setup complete for:', basicUser.name);
       } catch (error) {
@@ -303,6 +228,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const initializeAuth = async () => {
       try {
+        // Set up the auth state listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('AuthContext: Auth state change:', event);
+            if (initializedRef.current || event === 'INITIAL_SESSION') {
+              await processSession(session);
+            }
+          }
+        );
+
+        // Get the initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -313,10 +249,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
         
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          await processSession(session);
-        }
+        initializedRef.current = true;
+        await processSession(session);
+
+        return () => {
+          console.log('AuthContext: Cleaning up auth listener');
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('AuthContext: Error initializing auth:', error);
         setLoading(false);
@@ -324,21 +263,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state change:', event);
-        
-        if (initializedRef.current) {
-          await processSession(session);
-        }
-      }
-    );
-
-    return () => {
-      console.log('AuthContext: Cleaning up auth listener');
-      subscription.unsubscribe();
-    };
   }, []);
 
   const value = {
