@@ -8,10 +8,9 @@ import {
   Pause, 
   Download, 
   Share2, 
-  Heart, 
+  Heart,
   Music,
   Clock,
-  User,
   Calendar,
   Trash
 } from 'lucide-react';
@@ -31,12 +30,11 @@ interface Song {
 
 interface GeneratedSongCardProps {
   song: Song;
-  isPlaying?: boolean;
 }
 
-const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
+const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
-  const { handlePlay } = useAudioPlayer();
+  const { handlePlay, isPlaying, currentTrack } = useAudioPlayer();
 
   console.log('🎵 GeneratedSongCard: Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
 
@@ -96,7 +94,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   };
 
   const handlePlayClick = () => {
-    console.log('🎵 GeneratedSongCard: Play button clicked for Suno song:', song.title, 'ID:', song.id, 'Status:', song.status);
+    console.log('🎵 GeneratedSongCard: Play button clicked for song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
       console.log('🎵 GeneratedSongCard: Song is playable, calling handlePlay');
@@ -142,6 +140,8 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
 
   // A song is playable if it's completed and has a valid HTTP URL
   const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
+  const isCurrentlyPlaying = isPlaying && currentTrack?.id === song.id;
+
   console.log('🎮 GeneratedSongCard: Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url && song.audio_url.startsWith('http'));
 
   return (
@@ -175,7 +175,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
                 className="w-1 bg-purple-400 rounded-full"
                 style={{
                   height: `${Math.random() * 50 + 10}px`,
-                  opacity: isPlaying ? Math.random() * 0.8 + 0.2 : 0.6,
+                  opacity: isCurrentlyPlaying ? Math.random() * 0.8 + 0.2 : 0.6,
                 }}
               />
             ))}
@@ -189,7 +189,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
           </p>
         )}
 
-        {/* Always visible audio controls */}
+        {/* Audio controls */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
@@ -199,12 +199,12 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
               disabled={!isPlayable}
               className="flex items-center gap-2"
             >
-              {isPlaying ? (
+              {isCurrentlyPlaying ? (
                 <Pause className="h-4 w-4" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
-              {isPlaying ? 'Pause' : 'Play'}
+              {isCurrentlyPlaying ? 'Pause' : 'Play'}
             </Button>
 
             <Button
