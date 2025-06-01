@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request using the correct endpoint and format
+    // Prepare the Suno API request using the correct format based on documentation
     const sunoRequestBody = {
       taskType: "musicGenerate",
       taskUUID: crypto.randomUUID(),
@@ -125,19 +125,19 @@ Deno.serve(async (req) => {
       sunoRequestBody.negativeTags = negativeTags
     }
 
-    console.log('🎵 Sending request to Suno API (apibox.erweima.ai)')
+    console.log('🎵 Sending request to Suno API')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
     console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
-    // Make request to the correct Suno API endpoint
-    const sunoResponse = await fetch('https://apibox.erweima.ai/v1', {
+    // Try the base API endpoint first
+    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/music/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify([sunoRequestBody])
+      body: JSON.stringify(sunoRequestBody)
     })
 
     console.log('📥 Suno API response status:', sunoResponse.status)
@@ -149,55 +149,66 @@ Deno.serve(async (req) => {
     if (!sunoResponse.ok) {
       console.error('❌ Suno API error:', sunoResponse.status, responseText)
       
-      let errorMessage = 'Suno API request failed'
-      let errorCode = 'SUNO_API_ERROR'
+      // If the specific endpoint fails, try the generic v1 endpoint with array format
+      console.log('🔄 Trying alternative endpoint format...')
       
-      try {
-        const errorData = JSON.parse(responseText)
-        errorMessage = errorData.error?.message || errorData.message || errorData.detail || errorMessage
+      const altResponse = await fetch('https://apibox.erweima.ai/v1', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify([sunoRequestBody])
+      })
+
+      console.log('📥 Alternative API response status:', altResponse.status)
+      const altResponseText = await altResponse.text()
+      console.log('📥 Alternative API response body:', altResponseText)
+
+      if (!altResponse.ok) {
+        let errorMessage = 'Suno API request failed'
+        let errorCode = 'SUNO_API_ERROR'
         
-        if (sunoResponse.status === 401) {
-          errorCode = 'SUNO_API_UNAUTHORIZED'
-          errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
-        } else if (sunoResponse.status === 403) {
-          errorCode = 'SUNO_API_FORBIDDEN'
-          errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
-        } else if (sunoResponse.status === 429) {
-          errorCode = 'SUNO_API_RATE_LIMIT'
-          errorMessage = 'Suno API rate limit exceeded. Please try again later.'
+        try {
+          const errorData = JSON.parse(altResponseText)
+          errorMessage = errorData.error?.message || errorData.message || errorData.detail || errorMessage
+          
+          if (altResponse.status === 401) {
+            errorCode = 'SUNO_API_UNAUTHORIZED'
+            errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
+          } else if (altResponse.status === 403) {
+            errorCode = 'SUNO_API_FORBIDDEN'
+            errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
+          } else if (altResponse.status === 429) {
+            errorCode = 'SUNO_API_RATE_LIMIT'
+            errorMessage = 'Suno API rate limit exceeded. Please try again later.'
+          }
+        } catch (parseError) {
+          console.error('❌ Failed to parse error response:', parseError)
+          errorMessage = altResponseText || errorMessage
         }
-      } catch (parseError) {
-        console.error('❌ Failed to parse error response:', parseError)
-        errorMessage = responseText || errorMessage
+
+        return new Response(JSON.stringify({ 
+          error: errorMessage,
+          errorCode: errorCode,
+          success: false 
+        }), {
+          status: altResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
-      return new Response(JSON.stringify({ 
-        error: errorMessage,
-        errorCode: errorCode,
-        success: false 
-      }), {
-        status: sunoResponse.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
-    let responseData
-    try {
+      // Use the successful alternative response
+      responseData = JSON.parse(altResponseText)
+    } else {
+      // Use the successful primary response
       responseData = JSON.parse(responseText)
-    } catch (parseError) {
-      console.error('❌ Failed to parse Suno response:', parseError)
-      return new Response(JSON.stringify({ 
-        error: 'Invalid response from Suno API',
-        success: false 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
     }
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID from the new API response format
+    // Extract task ID from the response format
     let taskId = null
     
     if (Array.isArray(responseData) && responseData.length > 0) {
