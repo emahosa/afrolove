@@ -9,18 +9,22 @@ interface PlayingRequest {
 
 export const useAudioPlayer = () => {
   const handlePlay = useCallback((request: PlayingRequest) => {
-    console.log('useAudioPlayer: Triggering play for:', request);
+    console.log('🔥 useAudioPlayer: handlePlay function called with:', request);
+    console.log('🔥 useAudioPlayer: About to create custom event');
     
     // Trigger a custom event to communicate with the AppLayout
     const event = new CustomEvent('audioPlayerPlay', { 
       detail: request,
       bubbles: true 
     });
-    console.log('useAudioPlayer: Dispatching event with detail:', request);
+    console.log('🔥 useAudioPlayer: Custom event created:', event);
+    console.log('🔥 useAudioPlayer: Event detail:', event.detail);
     
+    console.log('🔥 useAudioPlayer: About to dispatch event to window');
     window.dispatchEvent(event);
-    console.log('useAudioPlayer: Event dispatched successfully');
+    console.log('🔥 useAudioPlayer: Event dispatched to window successfully');
   }, []);
 
+  console.log('🔥 useAudioPlayer: Hook initialized, returning handlePlay function');
   return { handlePlay };
 };

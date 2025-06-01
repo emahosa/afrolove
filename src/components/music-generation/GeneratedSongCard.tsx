@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,7 +44,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
   const { handlePlay } = useAudioPlayer();
 
-  console.log('🎵 Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
+  console.log('🎵 GeneratedSongCard: Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -103,19 +102,19 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   };
 
   const handlePlayClick = () => {
-    console.log('🎵 Play button clicked for Suno song:', song.title, 'ID:', song.id, 'Status:', song.status);
+    console.log('🎵 GeneratedSongCard: Play button clicked for Suno song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
-      console.log('🎵 Dispatching audioPlayerPlay event for song:', song.title);
+      console.log('🎵 GeneratedSongCard: Song is playable, calling handlePlay');
       // Pass the song with type 'suno' to distinguish it from custom songs
       handlePlay({
         id: song.id,
         title: song.title,
         type: 'suno'
       });
-      console.log('🎵 Event dispatched for Suno song:', song.title);
+      console.log('🎵 GeneratedSongCard: handlePlay called successfully');
     } else {
-      console.log('❌ Song not playable:', song.status, song.audio_url);
+      console.log('❌ GeneratedSongCard: Song not playable:', song.status, song.audio_url);
       
       if (song.status === 'pending') {
         toast.error('Song is still being generated. Please wait...');
@@ -150,7 +149,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
 
   // A song is playable if it's completed and has a valid HTTP URL
   const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
-  console.log('🎮 Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url && song.audio_url.startsWith('http'));
+  console.log('🎮 GeneratedSongCard: Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url && song.audio_url.startsWith('http'));
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200">
@@ -222,7 +221,10 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
             <Button
               variant="default"
               size="sm"
-              onClick={handlePlayClick}
+              onClick={() => {
+                console.log('🎵 GeneratedSongCard: Play button clicked - direct onClick');
+                handlePlayClick();
+              }}
               disabled={!isPlayable}
               className="flex items-center gap-2"
             >

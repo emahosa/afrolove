@@ -18,9 +18,10 @@ const AppLayout = () => {
   const [downloadingAudio, setDownloadingAudio] = useState(false);
 
   const handlePlay = (request: PlayingRequest) => {
-    console.log('AppLayout: Handling play request:', request);
+    console.log('🔥 AppLayout: handlePlay called with request:', request);
     setCurrentPlayingRequest(request);
     setShowBottomPlayer(true);
+    console.log('🔥 AppLayout: State updated - showBottomPlayer:', true, 'currentPlayingRequest:', request);
   };
 
   const handleClosePlayer = () => {
@@ -32,19 +33,26 @@ const AppLayout = () => {
   // Listen for audio player events from child components
   useEffect(() => {
     const handleAudioPlayerPlay = (event: Event) => {
-      console.log('AppLayout: Received audio player event:', event);
+      console.log('🔥 AppLayout: Audio player event received!', event);
+      console.log('🔥 AppLayout: Event type:', event.type);
       const customEvent = event as CustomEvent<PlayingRequest>;
-      console.log('AppLayout: Event detail:', customEvent.detail);
+      console.log('🔥 AppLayout: Custom event detail:', customEvent.detail);
       if (customEvent.detail) {
+        console.log('🔥 AppLayout: Calling handlePlay with detail:', customEvent.detail);
         handlePlay(customEvent.detail);
+      } else {
+        console.log('❌ AppLayout: No detail found in event');
       }
     };
 
-    console.log('AppLayout: Adding event listener for audioPlayerPlay');
+    console.log('🔥 AppLayout: Adding event listener for audioPlayerPlay');
     window.addEventListener('audioPlayerPlay', handleAudioPlayerPlay);
+    
+    // Test if the event listener is working
+    console.log('🔥 AppLayout: Testing event listener setup');
 
     return () => {
-      console.log('AppLayout: Removing event listener for audioPlayerPlay');
+      console.log('🔥 AppLayout: Removing event listener for audioPlayerPlay');
       window.removeEventListener('audioPlayerPlay', handleAudioPlayerPlay);
     };
   }, []);
