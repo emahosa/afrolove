@@ -11,6 +11,9 @@ import SongLibrary from "@/components/music-generation/SongLibrary";
 const Dashboard = () => {
   const { user } = useAuth();
 
+  console.log('🏠 Dashboard rendered for user:', user?.id);
+  console.log('👤 User data:', user);
+
   const stats = [
     {
       title: "Available Credits",
@@ -42,12 +45,29 @@ const Dashboard = () => {
     }
   ];
 
+  // Safely get user display name
+  const getUserDisplayName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    if (user?.user_metadata?.username) {
+      return user.user_metadata.username;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Music Creator';
+  };
+
+  const displayName = getUserDisplayName();
+  console.log('📛 Display name:', displayName);
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">
-          Welcome back, {user?.full_name || user?.username || 'Music Creator'}! 
+          Welcome back, {displayName}! 
         </h1>
         <p className="text-muted-foreground">
           Create amazing music with AI-powered generation tools

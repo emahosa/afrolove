@@ -27,7 +27,7 @@ interface Song {
   id: string;
   title: string;
   audio_url: string;
-  status: 'pending' | 'completed' | 'rejected';
+  status: 'pending' | 'completed' | 'rejected' | 'approved';
   created_at: string;
   prompt?: string;
   credits_used: number;
@@ -53,6 +53,8 @@ const SongLibrary = () => {
   const fetchSongs = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching songs for user:', user?.id);
+      
       const { data, error } = await supabase
         .from('songs')
         .select('*')
@@ -60,14 +62,16 @@ const SongLibrary = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching songs:', error);
+        console.error('❌ Error fetching songs:', error);
         toast.error('Failed to load songs');
         return;
       }
 
+      console.log('✅ Songs fetched successfully:', data?.length || 0, 'songs');
+      console.log('📋 Songs data:', data);
       setSongs(data || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('💥 Error in fetchSongs:', error);
       toast.error('Failed to load songs');
     } finally {
       setLoading(false);
@@ -95,11 +99,14 @@ const SongLibrary = () => {
     });
 
   const handlePlay = (song: Song) => {
+    console.log('▶️ Playing song:', song.title, song.id);
+    
     if (currentlyPlaying === song.id) {
       setCurrentlyPlaying(null);
+      console.log('⏸️ Paused song:', song.title);
     } else {
       setCurrentlyPlaying(song.id);
-      // Here you would integrate with an actual audio player
+      console.log('🎵 Started playing:', song.title);
       toast.success(`Playing: ${song.title}`);
     }
   };
@@ -114,8 +121,10 @@ const SongLibrary = () => {
   };
 
   const statusCounts = getStatusCounts();
+  console.log('📊 Status counts:', statusCounts);
 
   if (loading) {
+    console.log('⏳ Loading songs...');
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
@@ -128,6 +137,8 @@ const SongLibrary = () => {
     );
   }
 
+  console.log('🎵 Rendering SongLibrary with', songs.length, 'songs');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -137,7 +148,7 @@ const SongLibrary = () => {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Music className="h-5 w-5" />
-                Your Music Library
+                Your Music Library ({songs.length} songs)
               </CardTitle>
               <CardDescription>
                 Manage and play your AI-generated songs

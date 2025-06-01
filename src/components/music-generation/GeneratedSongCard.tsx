@@ -27,7 +27,7 @@ interface Song {
   id: string;
   title: string;
   audio_url: string;
-  status: 'pending' | 'completed' | 'rejected';
+  status: 'pending' | 'completed' | 'rejected' | 'approved';
   created_at: string;
   prompt?: string;
   credits_used: number;
@@ -43,6 +43,8 @@ interface GeneratedSongCardProps {
 const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
 
+  console.log('🎵 Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -51,12 +53,16 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
         return <Badge className="bg-yellow-100 text-yellow-800">Processing</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      case 'approved':
+        return <Badge className="bg-blue-100 text-blue-800">Approved</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const handleDownload = () => {
+    console.log('⬇️ Download requested for:', song.title, 'URL:', song.audio_url);
+    
     if (song.audio_url && song.audio_url.startsWith('http')) {
       const link = document.createElement('a');
       link.href = song.audio_url;
@@ -65,21 +71,27 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
       link.click();
       document.body.removeChild(link);
       toast.success('Download started!');
+      console.log('✅ Download initiated for:', song.title);
     } else {
+      console.log('❌ Download not available - invalid URL:', song.audio_url);
       toast.error('Download not available yet');
     }
   };
 
   const handleShare = () => {
+    console.log('📤 Share requested for:', song.title);
+    
     if (navigator.share && song.audio_url.startsWith('http')) {
       navigator.share({
         title: song.title,
         text: `Check out this AI-generated song: ${song.title}`,
         url: song.audio_url,
       });
+      console.log('✅ Native share triggered');
     } else {
       navigator.clipboard.writeText(song.audio_url);
       toast.success('Song link copied to clipboard!');
+      console.log('✅ Link copied to clipboard');
     }
   };
 
@@ -98,6 +110,9 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
       minute: '2-digit'
     });
   };
+
+  const isPlayable = song.status === 'completed' && song.audio_url.startsWith('http');
+  console.log('🎮 Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url.startsWith('http'));
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200">
@@ -169,8 +184,11 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
             <Button
               variant="default"
               size="sm"
-              onClick={() => onPlay?.(song)}
-              disabled={song.status !== 'completed' || !song.audio_url.startsWith('http')}
+              onClick={() => {
+                console.log('🎵 Play button clicked for:', song.title);
+                onPlay?.(song);
+              }}
+              disabled={!isPlayable}
               className="flex items-center gap-2"
             >
               {isPlaying ? (
@@ -184,7 +202,10 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setIsLiked(!isLiked)}
+              onClick={() => {
+                setIsLiked(!isLiked);
+                console.log('❤️ Like toggled for:', song.title, 'New state:', !isLiked);
+              }}
               className={isLiked ? 'text-red-500' : ''}
             >
               <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -205,7 +226,7 @@ const GeneratedSongCard = ({ song, onPlay, isPlaying }: GeneratedSongCardProps) 
               variant="outline"
               size="sm"
               onClick={handleDownload}
-              disabled={song.status !== 'completed' || !song.audio_url.startsWith('http')}
+              disabled={!isPlayable}
             >
               <Download className="h-4 w-4" />
             </Button>
