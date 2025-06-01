@@ -33,10 +33,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const initialized = useRef(false);
 
   const isAdmin = () => {
+    console.log('AuthContext: Checking admin status for user:', user?.email);
+    
     if (user?.email === 'ellaadahosa@gmail.com') {
+      console.log('AuthContext: Super admin detected');
       return true;
     }
-    return userRoles.includes('admin');
+    
+    const hasAdminRole = userRoles.includes('admin');
+    console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
+    return hasAdminRole;
   };
 
   const updateUserCredits = async (amount: number) => {
@@ -61,27 +67,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthContext: Fetching roles for user:', userId);
       
-      // Try to use the security definer function first, fall back to direct query
-      let roles: string[] = ['user'];
+      const { data: userRoleData, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
       
-      try {
-        const { data, error } = await supabase.rpc('get_user_role', { 
-          user_id_param: userId 
-        });
-        
-        if (error) {
-          console.log('AuthContext: RPC function failed, trying direct query:', error);
-          throw error;
-        }
-        
-        roles = data ? [data] : ['user'];
-      } catch (rpcError) {
-        console.log('AuthContext: Falling back to direct query due to RPC error');
-        // Fallback: just assign default role to avoid infinite recursion
-        roles = userId === user?.id && user?.email === 'ellaadahosa@gmail.com' ? ['admin'] : ['user'];
+      if (error) {
+        console.error('AuthContext: Error fetching roles:', error);
+        return ['user'];
       }
       
-      console.log('AuthContext: Final roles:', roles);
+      const roles = userRoleData?.map(r => r.role) || ['user'];
+      console.log('AuthContext: Fetched roles:', roles);
       return roles;
     } catch (error) {
       console.error('AuthContext: Error in fetchUserRoles:', error);
@@ -94,7 +91,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       if (session?.user) {
-        // Get basic profile data
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -104,6 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let basicUser: ExtendedUser;
         
         if (profile && !profileError) {
+          console.log('AuthContext: Using profile data:', profile);
           basicUser = {
             ...session.user,
             name: profile.full_name || session.user.user_metadata.full_name || 'User',
@@ -112,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             subscription: 'free'
           };
         } else {
+          console.log('AuthContext: Using fallback user data');
           basicUser = {
             ...session.user,
             name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
@@ -124,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(basicUser);
         setSession(session);
         
-        // Fetch roles using the new function
+        // Fetch roles in background
         const roles = await fetchUserRoles(session.user.id);
         setUserRoles(roles);
         
@@ -273,53 +271,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
-    login: async (email: string, password: string): Promise<boolean> => {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-        return !!data.user;
-      } catch (error: any) {
-        console.error('Login error:', error);
-        throw error;
-      }
-    },
-    register: async (fullName: string, email: string, password: string): Promise<boolean> => {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`
-            }
-          }
-        });
-
-        if (error) throw error;
-        return !!data.user;
-      } catch (error: any) {
-        console.error('Registration error:', error);
-        throw error;
-      }
-    },
-    logout: async () => {
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        setUser(null);
-        setSession(null);
-        setUserRoles([]);
-        initialized.current = false;
-      } catch (error: any) {
-        console.error('Logout error:', error);
-        throw error;
-      }
-    },
+    login,
+    register,
+    logout,
     isAdmin,
     userRoles,
     updateUserCredits
