@@ -78,47 +78,70 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
 
 export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
-    console.log("Fetching users from database");
+    console.log("Admin: Fetching users from database with admin check");
     
-    // First check if we have authenticated users in auth.users through profiles table
+    // Get current user and verify admin status
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Admin: Error getting current user:', userError);
+      throw new Error('Authentication error: ' + userError.message);
+    }
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log('Admin: Current user:', user.email, user.id);
+
+    // Super admin bypass for ellaadahosa@gmail.com
+    const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
+    console.log('Admin: Is super admin:', isSuperAdmin);
+    
+    if (!isSuperAdmin) {
+      // For non-super admins, check if they have admin role
+      console.log('Admin: Checking admin role for non-super admin...');
+      
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError) {
+        console.error('Admin: Error checking admin role:', roleError);
+        throw new Error('Failed to verify admin access: ' + roleError.message);
+      }
+
+      if (!roleData) {
+        console.warn('Admin: User does not have admin role');
+        throw new Error('Access denied: Admin role required');
+      }
+      
+      console.log('Admin: Regular admin access confirmed');
+    }
+    
+    // Fetch user profiles
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
       
     if (profilesError) {
-      console.error("Error fetching user profiles:", profilesError);
+      console.error("Admin: Error fetching user profiles:", profilesError);
       throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
     }
     
     if (!profiles || profiles.length === 0) {
-      console.log("No profiles found in the database");
-      
-      // Check if current user exists and add their profile if needed
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (session?.session?.user) {
-        try {
-          await createProfileForUser(session.session.user);
-          // Try fetching again after creating profile
-          const { data: newProfiles, error } = await supabase
-            .from('profiles')
-            .select('*');
-            
-          if (error) throw error;
-          if (newProfiles) return processProfilesToUsersList(newProfiles);
-        } catch (err) {
-          console.error("Failed to create profile for current user:", err);
-        }
-      }
-      
-      return []; // Return empty list if no profiles exist
+      console.log("Admin: No profiles found in the database");
+      return [];
     }
     
-    console.log("Fetched profiles:", profiles);
+    console.log("Admin: Fetched profiles:", profiles);
     return processProfilesToUsersList(profiles);
     
   } catch (error: any) {
-    console.error("Error in fetchUsersFromDatabase:", error);
+    console.error("Admin: Error in fetchUsersFromDatabase:", error);
     throw new Error(`Failed to load users: ${error.message}`);
   }
 };

@@ -36,7 +36,15 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
   const { handlePlay, isPlaying, currentTrack } = useAudioPlayer();
 
-  console.log('🎵 GeneratedSongCard: Rendering song card:', song.title, 'Status:', song.status, 'URL:', song.audio_url);
+  console.log('🎵 GeneratedSongCard: Rendering song:', {
+    title: song.title,
+    id: song.id,
+    status: song.status,
+    audio_url: song.audio_url,
+    url_length: song.audio_url?.length,
+    url_starts_with_http: song.audio_url?.startsWith('http'),
+    full_song_object: song
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -189,7 +197,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </p>
         )}
 
-        {/* Audio controls */}
+        {/* Audio controls - DIRECTLY VISIBLE, NOT IN DROPDOWN */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button

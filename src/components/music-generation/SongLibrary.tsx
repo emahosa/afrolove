@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -60,14 +59,31 @@ const SongLibrary = () => {
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
+      console.log('📊 Raw songs data from database:', data);
+      console.log('❌ Database error (if any):', error);
+
       if (error) {
         console.error('❌ Error fetching songs:', error);
-        toast.error('Failed to load songs');
+        toast.error('Failed to load songs: ' + error.message);
         return;
       }
 
       console.log('✅ Songs fetched successfully:', data?.length || 0, 'songs');
-      console.log('📋 Songs data:', data);
+      
+      // Log each song's details for debugging
+      data?.forEach((song, index) => {
+        console.log(`🎵 Song ${index + 1}:`, {
+          id: song.id,
+          title: song.title,
+          status: song.status,
+          audio_url: song.audio_url,
+          url_length: song.audio_url?.length,
+          url_valid: song.audio_url?.startsWith('http'),
+          created_at: song.created_at,
+          prompt: song.prompt?.substring(0, 50) + '...'
+        });
+      });
+
       setSongs(data || []);
     } catch (error) {
       console.error('💥 Error in fetchSongs:', error);
@@ -222,6 +238,23 @@ const SongLibrary = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Debug Information */}
+      {songs.length > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-blue-800">Debug Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm space-y-1 text-blue-700">
+              <p>Total songs in database: {songs.length}</p>
+              <p>Completed songs: {statusCounts.completed}</p>
+              <p>Songs with valid URLs: {songs.filter(s => s.audio_url && s.audio_url.startsWith('http')).length}</p>
+              <p>First song URL: {songs[0]?.audio_url || 'None'}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Songs Grid/List */}
       {filteredAndSortedSongs.length === 0 ? (
