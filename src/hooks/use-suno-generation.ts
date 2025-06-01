@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -35,57 +34,83 @@ export const useSunoGeneration = () => {
   const [generationStatus, setGenerationStatus] = useState<SunoGenerationStatus | null>(null);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
+    console.log('🎵 Starting song generation process...');
+    console.log('👤 User check:', user ? 'User logged in' : 'No user');
+    
     if (!user) {
+      console.error('❌ No user logged in');
       toast.error('You must be logged in to generate songs');
       return null;
     }
 
+    console.log('💳 User credits:', user.credits);
+    
     // Check user credits first
     if (user.credits < 5) {
+      console.error('❌ Insufficient credits:', user.credits);
       toast.error('Insufficient credits. You need at least 5 credits to generate a song.');
       return null;
     }
 
     try {
       setIsGenerating(true);
-      console.log('🎵 Starting song generation:', request);
+      console.log('🎵 Generation request:', request);
+
+      const requestBody = {
+        ...request,
+        userId: user.id
+      };
+
+      console.log('📤 Calling supabase function with body:', requestBody);
 
       const { data, error } = await supabase.functions.invoke('suno-generate', {
-        body: {
-          ...request,
-          userId: user.id
-        }
+        body: requestBody
       });
 
-      console.log('📤 Generation function response:', { data, error });
+      console.log('📤 Supabase function response:', { 
+        data, 
+        error,
+        hasData: !!data,
+        hasError: !!error
+      });
 
       if (error) {
-        console.error('❌ Generation error:', error);
+        console.error('❌ Supabase function error:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          status: error.status,
+          statusText: error.statusText
+        });
         toast.error('Generation failed: ' + (error.message || 'Unknown error'));
         return null;
       }
 
       if (!data?.success) {
         const errorMsg = data?.error || 'Generation failed';
-        console.error('❌ Generation failed:', errorMsg);
+        console.error('❌ Generation failed with data:', data);
         toast.error(errorMsg);
         return null;
       }
 
       const taskId = data.task_id;
       if (!taskId) {
-        console.error('❌ No task ID received');
+        console.error('❌ No task ID in successful response:', data);
         toast.error('No task ID received');
         return null;
       }
 
       setCurrentTaskId(taskId);
-      console.log('✅ Generation started with task ID:', taskId);
+      console.log('✅ Generation started successfully with task ID:', taskId);
       toast.success('🎵 Song generation started! Your song will appear in your library shortly.');
       return taskId;
 
     } catch (error: any) {
-      console.error('💥 Error generating song:', error);
+      console.error('💥 Unexpected error in generateSong:', error);
+      console.error('💥 Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       toast.error('Generation failed: ' + error.message);
       return null;
     } finally {
