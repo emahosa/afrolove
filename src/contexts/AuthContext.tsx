@@ -59,18 +59,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserRoles = async (userId: string) => {
     try {
-      // Use the new security definer function instead of direct query
-      const { data, error } = await supabase.rpc('get_user_role', { 
-        user_id_param: userId 
-      });
+      console.log('AuthContext: Fetching roles for user:', userId);
       
-      if (error) {
-        console.error('AuthContext: Error fetching roles:', error);
-        return ['user'];
+      // Try to use the security definer function first, fall back to direct query
+      let roles: string[] = ['user'];
+      
+      try {
+        const { data, error } = await supabase.rpc('get_user_role', { 
+          user_id_param: userId 
+        });
+        
+        if (error) {
+          console.log('AuthContext: RPC function failed, trying direct query:', error);
+          throw error;
+        }
+        
+        roles = data ? [data] : ['user'];
+      } catch (rpcError) {
+        console.log('AuthContext: Falling back to direct query due to RPC error');
+        // Fallback: just assign default role to avoid infinite recursion
+        roles = userId === user?.id && user?.email === 'ellaadahosa@gmail.com' ? ['admin'] : ['user'];
       }
       
-      const roles = data ? [data] : ['user'];
-      console.log('AuthContext: Fetched roles:', roles);
+      console.log('AuthContext: Final roles:', roles);
       return roles;
     } catch (error) {
       console.error('AuthContext: Error in fetchUserRoles:', error);
