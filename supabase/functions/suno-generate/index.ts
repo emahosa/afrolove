@@ -107,18 +107,22 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Prepare the Suno API request using the correct format based on documentation
+    // Create a callback URL for the Suno API
+    const callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+
+    // Prepare the Suno API request using the correct format from documentation
     const sunoRequestBody = {
-      taskType: "musicGenerate",
-      taskUUID: crypto.randomUUID(),
       prompt: prompt.trim(),
+      customMode: customMode,
+      instrumental: instrumental,
       model: model,
-      isInstrumental: instrumental
+      callBackUrl: callBackUrl
     }
 
-    if (customMode && style && title) {
-      sunoRequestBody.style = style
-      sunoRequestBody.title = title
+    // Add optional fields based on mode
+    if (customMode) {
+      if (style) sunoRequestBody.style = style
+      if (title) sunoRequestBody.title = title
     }
 
     if (negativeTags) {
@@ -129,8 +133,8 @@ Deno.serve(async (req) => {
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
     console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
-    // Try the base API endpoint first
-    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/music/generate', {
+    // Use the correct endpoint from documentation
+    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`,
@@ -149,75 +153,73 @@ Deno.serve(async (req) => {
     if (!sunoResponse.ok) {
       console.error('❌ Suno API error:', sunoResponse.status, responseText)
       
-      // If the specific endpoint fails, try the generic v1 endpoint with array format
-      console.log('🔄 Trying alternative endpoint format...')
+      let errorMessage = 'Suno API request failed'
+      let errorCode = 'SUNO_API_ERROR'
       
-      const altResponse = await fetch('https://apibox.erweima.ai/v1', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sunoApiKey}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify([sunoRequestBody])
-      })
-
-      console.log('📥 Alternative API response status:', altResponse.status)
-      const altResponseText = await altResponse.text()
-      console.log('📥 Alternative API response body:', altResponseText)
-
-      if (!altResponse.ok) {
-        let errorMessage = 'Suno API request failed'
-        let errorCode = 'SUNO_API_ERROR'
+      try {
+        const errorData = JSON.parse(responseText)
+        errorMessage = errorData.msg || errorData.message || errorData.error?.message || errorMessage
         
-        try {
-          const errorData = JSON.parse(altResponseText)
-          errorMessage = errorData.error?.message || errorData.message || errorData.detail || errorMessage
-          
-          if (altResponse.status === 401) {
-            errorCode = 'SUNO_API_UNAUTHORIZED'
-            errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
-          } else if (altResponse.status === 403) {
-            errorCode = 'SUNO_API_FORBIDDEN'
-            errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
-          } else if (altResponse.status === 429) {
-            errorCode = 'SUNO_API_RATE_LIMIT'
-            errorMessage = 'Suno API rate limit exceeded. Please try again later.'
-          }
-        } catch (parseError) {
-          console.error('❌ Failed to parse error response:', parseError)
-          errorMessage = altResponseText || errorMessage
+        if (sunoResponse.status === 401) {
+          errorCode = 'SUNO_API_UNAUTHORIZED'
+          errorMessage = 'Suno API key is invalid or expired. Please check your API key configuration.'
+        } else if (sunoResponse.status === 403) {
+          errorCode = 'SUNO_API_FORBIDDEN'
+          errorMessage = 'Suno API access forbidden. Your account may have insufficient credits or permissions.'
+        } else if (sunoResponse.status === 429) {
+          errorCode = 'SUNO_API_RATE_LIMIT'
+          errorMessage = 'Suno API rate limit exceeded or insufficient credits. Please try again later.'
         }
-
-        return new Response(JSON.stringify({ 
-          error: errorMessage,
-          errorCode: errorCode,
-          success: false 
-        }), {
-          status: altResponse.status,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
+      } catch (parseError) {
+        console.error('❌ Failed to parse error response:', parseError)
+        errorMessage = responseText || errorMessage
       }
 
-      // Use the successful alternative response
-      responseData = JSON.parse(altResponseText)
-    } else {
-      // Use the successful primary response
+      return new Response(JSON.stringify({ 
+        error: errorMessage,
+        errorCode: errorCode,
+        success: false 
+      }), {
+        status: sunoResponse.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    let responseData
+    try {
       responseData = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('❌ Failed to parse success response:', parseError)
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response format from Suno API',
+        success: false
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID from the response format
+    // Check if the API returned success
+    if (responseData.code !== 200) {
+      console.error('❌ Suno API returned error code:', responseData.code, responseData.msg)
+      return new Response(JSON.stringify({ 
+        error: responseData.msg || 'Suno API returned an error',
+        success: false
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Extract task ID from the response
     let taskId = null
     
-    if (Array.isArray(responseData) && responseData.length > 0) {
-      const firstItem = responseData[0]
-      taskId = firstItem.taskUUID || firstItem.id
-    } else if (responseData.taskUUID) {
-      taskId = responseData.taskUUID
-    } else if (responseData.data && Array.isArray(responseData.data) && responseData.data.length > 0) {
-      taskId = responseData.data[0].taskUUID || responseData.data[0].id
+    if (responseData.data && responseData.data.taskId) {
+      taskId = responseData.data.taskId
+    } else if (responseData.data && typeof responseData.data === 'string') {
+      taskId = responseData.data
     }
 
     if (!taskId) {
@@ -250,7 +252,7 @@ Deno.serve(async (req) => {
       user_id: userId,
       title: title || 'Generating...',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId,
+      audio_url: taskId, // Store task ID temporarily
       prompt,
       status: 'pending',
       credits_used: 5
