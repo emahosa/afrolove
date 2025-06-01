@@ -40,9 +40,33 @@ export const BottomAudioPlayer = ({
     
     try {
       setLoadingAudio(true);
-      console.log('BottomAudioPlayer: Fetching audio URL for request:', requestId);
+      console.log('🎵 BottomAudioPlayer: Fetching audio URL for request:', requestId);
 
-      // First try to get from custom_song_audio table (existing functionality)
+      // First, try to get from songs table (Suno-generated songs)
+      console.log('🎵 BottomAudioPlayer: Checking songs table for requestId:', requestId);
+      const { data: songData, error: songError } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      if (!songError && songData) {
+        console.log('🎵 BottomAudioPlayer: Found song data:', songData);
+        
+        // Check if song is completed and has a valid audio URL
+        if (songData.status === 'completed' && songData.audio_url && songData.audio_url.startsWith('http')) {
+          console.log('✅ BottomAudioPlayer: Found valid audio URL in songs table:', songData.audio_url);
+          setAudioUrl(songData.audio_url);
+          return songData.audio_url;
+        } else {
+          console.log('❌ BottomAudioPlayer: Song not ready or invalid URL. Status:', songData.status, 'URL:', songData.audio_url);
+          toast.error('Song is not ready for playback yet. Please wait for generation to complete.');
+          return null;
+        }
+      }
+
+      // If not found in songs table, try custom_song_audio table (existing functionality)
+      console.log('🎵 BottomAudioPlayer: Checking custom_song_audio table for request:', requestId);
       const { data: audioData, error: audioError } = await supabase
         .from('custom_song_audio')
         .select('*')
@@ -56,44 +80,18 @@ export const BottomAudioPlayer = ({
         }
 
         if (audioRecord?.audio_url) {
-          console.log('BottomAudioPlayer: Found audio URL in custom_song_audio:', audioRecord.audio_url);
+          console.log('✅ BottomAudioPlayer: Found audio URL in custom_song_audio:', audioRecord.audio_url);
           setAudioUrl(audioRecord.audio_url);
           return audioRecord.audio_url;
         }
       }
 
-      // If not found in custom_song_audio, try songs table (Suno-generated songs)
-      console.log('BottomAudioPlayer: Trying songs table for requestId:', requestId);
-      const { data: songData, error: songError } = await supabase
-        .from('songs')
-        .select('*')
-        .eq('id', requestId)
-        .single();
-
-      if (songError) {
-        console.error('BottomAudioPlayer: Songs table error:', songError);
-        toast.error('Failed to load audio: ' + songError.message);
-        return null;
-      }
-
-      if (!songData) {
-        console.log('BottomAudioPlayer: No song found with ID:', requestId);
-        toast.error('No audio file found for this song');
-        return null;
-      }
-
-      if (!songData.audio_url || !songData.audio_url.startsWith('http')) {
-        console.error('BottomAudioPlayer: Invalid audio URL in songs table:', songData.audio_url);
-        toast.error('Audio file URL is invalid or not ready');
-        return null;
-      }
-
-      console.log('BottomAudioPlayer: Found audio URL in songs table:', songData.audio_url);
-      setAudioUrl(songData.audio_url);
-      return songData.audio_url;
+      console.log('❌ BottomAudioPlayer: No audio found in either table for request:', requestId);
+      toast.error('No audio file found for this song');
+      return null;
 
     } catch (error: any) {
-      console.error('BottomAudioPlayer: Error fetching audio URL:', error);
+      console.error('💥 BottomAudioPlayer: Error fetching audio URL:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
     } finally {

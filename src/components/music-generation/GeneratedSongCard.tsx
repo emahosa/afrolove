@@ -64,7 +64,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
   const handleDownload = () => {
     console.log('⬇️ Download requested for:', song.title, 'URL:', song.audio_url);
     
-    if (song.audio_url && song.audio_url.startsWith('http')) {
+    if (song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http')) {
       const link = document.createElement('a');
       link.href = song.audio_url;
       link.download = `${song.title}.mp3`;
@@ -74,30 +74,35 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
       toast.success('Download started!');
       console.log('✅ Download initiated for:', song.title);
     } else {
-      console.log('❌ Download not available - invalid URL:', song.audio_url);
-      toast.error('Download not available yet');
+      console.log('❌ Download not available - song not ready or invalid URL:', song.audio_url);
+      toast.error('Song is not ready for download yet');
     }
   };
 
   const handleShare = () => {
     console.log('📤 Share requested for:', song.title);
     
-    if (navigator.share && song.audio_url.startsWith('http')) {
-      navigator.share({
-        title: song.title,
-        text: `Check out this AI-generated song: ${song.title}`,
-        url: song.audio_url,
-      });
-      console.log('✅ Native share triggered');
+    if (song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http')) {
+      if (navigator.share) {
+        navigator.share({
+          title: song.title,
+          text: `Check out this AI-generated song: ${song.title}`,
+          url: song.audio_url,
+        });
+        console.log('✅ Native share triggered');
+      } else {
+        navigator.clipboard.writeText(song.audio_url);
+        toast.success('Song link copied to clipboard!');
+        console.log('✅ Link copied to clipboard');
+      }
     } else {
-      navigator.clipboard.writeText(song.audio_url);
-      toast.success('Song link copied to clipboard!');
-      console.log('✅ Link copied to clipboard');
+      console.log('❌ Share not available - song not ready');
+      toast.error('Song is not ready for sharing yet');
     }
   };
 
   const handlePlayClick = () => {
-    console.log('🎵 Play button clicked for:', song.title, 'ID:', song.id);
+    console.log('🎵 Play button clicked for:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
       // Use the existing audio player system
@@ -108,7 +113,14 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
       console.log('🎵 Triggered audio player for song:', song.title);
     } else {
       console.log('❌ Song not playable:', song.status, song.audio_url);
-      toast.error('Song is not ready for playback yet');
+      
+      if (song.status === 'pending') {
+        toast.error('Song is still being generated. Please wait...');
+      } else if (song.status === 'rejected') {
+        toast.error('Song generation failed. Cannot play this song.');
+      } else {
+        toast.error('Song is not ready for playback yet');
+      }
     }
   };
 
@@ -128,8 +140,9 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
     });
   };
 
-  const isPlayable = song.status === 'completed' && song.audio_url.startsWith('http');
-  console.log('🎮 Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url.startsWith('http'));
+  // A song is playable if it's completed and has a valid HTTP URL
+  const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
+  console.log('🎮 Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url && song.audio_url.startsWith('http'));
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200">
@@ -231,7 +244,7 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
               variant="outline"
               size="sm"
               onClick={handleShare}
-              disabled={song.status !== 'completed'}
+              disabled={!isPlayable}
             >
               <Share2 className="h-4 w-4" />
             </Button>
