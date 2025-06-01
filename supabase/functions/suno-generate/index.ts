@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       title, 
       instrumental = false, 
       customMode = false,
-      model = 'V3_5',
+      model = 'V4',
       negativeTags,
       userId
     } = body
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Check user credits
+    // Check user credits BEFORE attempting generation
     const { data: userProfile, error: profileError } = await supabase
       .from('profiles')
       .select('credits')
@@ -114,16 +114,12 @@ Deno.serve(async (req) => {
     }
 
     // Add conditional fields based on customMode
-    if (customMode) {
-      if (!instrumental && style) {
-        sunoRequestBody.style = style
-      }
-      if (style) {
-        sunoRequestBody.style = style
-      }
-      if (title) {
-        sunoRequestBody.title = title
-      }
+    if (customMode && title) {
+      sunoRequestBody.title = title
+    }
+    
+    if (customMode && style) {
+      sunoRequestBody.style = style
     }
 
     if (negativeTags) {
@@ -133,7 +129,7 @@ Deno.serve(async (req) => {
     console.log('🎵 Calling Suno API /api/v1/generate')
     console.log('🎵 Request body:', JSON.stringify(sunoRequestBody, null, 2))
 
-    // Use the correct Suno API endpoint from documentation
+    // Call Suno API
     const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -186,7 +182,7 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Extract task ID from response according to documentation format
+    // Extract task ID from response
     let taskId = null
     
     if (responseData.code === 200 && responseData.data && responseData.data.task_id) {
@@ -207,7 +203,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ Task ID received:', taskId)
 
-    // Deduct credits
+    // Only NOW deduct credits after successful API call
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: -5
@@ -215,18 +211,19 @@ Deno.serve(async (req) => {
 
     if (creditError) {
       console.error('❌ Failed to deduct credits:', creditError)
+      // Don't fail the whole operation, but log it
     } else {
       console.log('✅ Credits deducted for user:', userId)
     }
 
-    // Create song record
+    // Create song record with a temporary reference to track the task
     const songData = {
       user_id: userId,
       title: title || 'AI Generated Song',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Store task ID for status checking
+      audio_url: `pending:${taskId}`, // Use prefix to indicate pending status
       prompt,
-      lyrics: customMode && !instrumental ? prompt : null,
+      lyrics: null, // Will be updated when generation completes
       status: 'pending',
       credits_used: 5,
       vocal_url: null,

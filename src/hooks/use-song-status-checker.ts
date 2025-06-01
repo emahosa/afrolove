@@ -42,11 +42,13 @@ export const useSongStatusChecker = () => {
       setIsChecking(true);
       console.log('🔍 Checking all pending songs for user:', user.id);
 
+      // Look for songs with pending: prefix in audio_url
       const { data: pendingSongs, error } = await supabase
         .from('songs')
         .select('id, title, audio_url, status, created_at')
         .eq('user_id', user.id)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .like('audio_url', 'pending:%');
 
       if (error) {
         console.error('❌ Error fetching pending songs:', error);
@@ -64,11 +66,11 @@ export const useSongStatusChecker = () => {
       let anyUpdated = false;
       
       for (const song of pendingSongs) {
-        const taskId = song.audio_url;
+        // Extract task ID from pending:taskId format
+        const taskId = song.audio_url.replace('pending:', '');
         
-        // Skip if not a valid task ID (should not start with http or error)
-        if (!taskId || taskId.startsWith('http') || taskId.startsWith('error:')) {
-          console.log(`⏭️ Skipping song ${song.id} - invalid task ID: ${taskId}`);
+        if (!taskId) {
+          console.log(`⏭️ Skipping song ${song.id} - invalid task ID format: ${song.audio_url}`);
           continue;
         }
         
@@ -105,22 +107,22 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
-  // Improved polling: Check every 45 seconds
+  // Check every 30 seconds for pending songs
   useEffect(() => {
     if (!user?.id) return;
 
     console.log('🚀 Setting up status checker for user:', user.id);
 
-    // Initial check after 10 seconds
+    // Initial check after 5 seconds
     const initialTimeout = setTimeout(() => {
       checkAllPendingSongs();
-    }, 10000);
+    }, 5000);
 
     // Set up regular interval for checking
     const interval = setInterval(() => {
       console.log('⏰ Periodic status check triggered');
       checkAllPendingSongs();
-    }, 45000); // 45 seconds
+    }, 30000); // 30 seconds
 
     return () => {
       console.log('🛑 Cleaning up status checker');

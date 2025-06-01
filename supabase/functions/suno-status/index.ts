@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use the correct Suno API status endpoint from documentation
+    // Call the correct status endpoint
     const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
       method: 'GET',
       headers: {
@@ -90,11 +90,11 @@ Deno.serve(async (req) => {
 
     console.log('📊 Parsed status data:', statusData)
 
-    // Find the song record in our database
+    // Find the song record that's pending with this task ID
     const { data: songRecord, error: findError } = await supabase
       .from('songs')
       .select('*')
-      .eq('audio_url', taskId)
+      .eq('audio_url', `pending:${taskId}`)
       .eq('status', 'pending')
       .single()
 
@@ -112,19 +112,19 @@ Deno.serve(async (req) => {
 
     console.log('📋 Found song record:', songRecord.id, songRecord.title)
 
-    // Check if the task is completed according to documentation status values
+    // Check if the task is completed
     if (statusData.code === 200 && statusData.data) {
       const taskData = statusData.data
       console.log('🎵 Task data received:', taskData)
 
-      // Check if the task status is SUCCESS (completed)
-      if (taskData.status === 'SUCCESS' && taskData.data && Array.isArray(taskData.data) && taskData.data.length > 0) {
-        const audioTrack = taskData.data[0] // Get first track
+      // Check different completion statuses
+      if (taskData.status === 'SUCCESS' && taskData.response && taskData.response.sunoData && taskData.response.sunoData.length > 0) {
+        const audioTrack = taskData.response.sunoData[0] // Get first track
         console.log('✅ Song generation completed!', audioTrack)
         
         const updateData = {
           status: 'completed',
-          audio_url: audioTrack.audio_url,
+          audio_url: audioTrack.audio_url || audioTrack.audioUrl,
           updated_at: new Date().toISOString()
         }
 
@@ -138,18 +138,13 @@ Deno.serve(async (req) => {
           updateData.title = audioTrack.title
         }
 
-        // Add image URL if available
-        if (audioTrack.image_url) {
-          updateData.image_url = audioTrack.image_url
-        }
-
         // Set vocal and instrumental URLs based on type
         if (songRecord.type === 'song') {
-          updateData.vocal_url = audioTrack.audio_url
+          updateData.vocal_url = audioTrack.audio_url || audioTrack.audioUrl
           // For now, use the same URL for instrumental until we implement proper splitting
-          updateData.instrumental_url = audioTrack.audio_url
+          updateData.instrumental_url = audioTrack.audio_url || audioTrack.audioUrl
         } else {
-          updateData.instrumental_url = audioTrack.audio_url
+          updateData.instrumental_url = audioTrack.audio_url || audioTrack.audioUrl
         }
 
         console.log('📝 Updating song with data:', updateData)
