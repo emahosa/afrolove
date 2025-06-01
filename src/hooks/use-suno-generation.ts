@@ -34,83 +34,46 @@ export const useSunoGeneration = () => {
   const [generationStatus, setGenerationStatus] = useState<SunoGenerationStatus | null>(null);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
-    console.log('🎵 Starting song generation process...');
-    console.log('👤 User check:', user ? 'User logged in' : 'No user');
-    
     if (!user) {
-      console.error('❌ No user logged in');
       toast.error('You must be logged in to generate songs');
-      return null;
-    }
-
-    console.log('💳 User credits:', user.credits);
-    
-    // Check user credits first
-    if (user.credits < 5) {
-      console.error('❌ Insufficient credits:', user.credits);
-      toast.error('Insufficient credits. You need at least 5 credits to generate a song.');
       return null;
     }
 
     try {
       setIsGenerating(true);
-      console.log('🎵 Generation request:', request);
-
-      const requestBody = {
-        ...request,
-        userId: user.id
-      };
-
-      console.log('📤 Calling supabase function with body:', requestBody);
+      console.log('Starting song generation:', request);
 
       const { data, error } = await supabase.functions.invoke('suno-generate', {
-        body: requestBody
-      });
-
-      console.log('📤 Supabase function response:', { 
-        data, 
-        error,
-        hasData: !!data,
-        hasError: !!error
+        body: {
+          ...request,
+          userId: user.id
+        }
       });
 
       if (error) {
-        console.error('❌ Supabase function error:', error);
-        console.error('❌ Error details:', {
-          message: error.message,
-          status: error.status,
-          statusText: error.statusText
-        });
+        console.error('Generation error:', error);
         toast.error('Generation failed: ' + (error.message || 'Unknown error'));
         return null;
       }
 
       if (!data?.success) {
         const errorMsg = data?.error || 'Generation failed';
-        console.error('❌ Generation failed with data:', data);
         toast.error(errorMsg);
         return null;
       }
 
       const taskId = data.task_id;
       if (!taskId) {
-        console.error('❌ No task ID in successful response:', data);
         toast.error('No task ID received');
         return null;
       }
 
       setCurrentTaskId(taskId);
-      console.log('✅ Generation started successfully with task ID:', taskId);
-      toast.success('🎵 Song generation started! Your song will appear in your library shortly.');
+      toast.success('🎵 Song generation started! Check your library for progress.');
       return taskId;
 
     } catch (error: any) {
-      console.error('💥 Unexpected error in generateSong:', error);
-      console.error('💥 Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      console.error('Error generating song:', error);
       toast.error('Generation failed: ' + error.message);
       return null;
     } finally {
@@ -125,46 +88,38 @@ export const useSunoGeneration = () => {
     }
 
     try {
-      console.log('📝 Generating lyrics for prompt:', prompt.substring(0, 50) + '...');
-      
       const { data, error } = await supabase.functions.invoke('suno-lyrics', {
         body: { prompt }
       });
 
       if (error) {
-        console.error('❌ Lyrics generation error:', error);
-        toast.error('Failed to generate lyrics: ' + error.message);
+        console.error('Lyrics generation error:', error);
         return null;
       }
 
-      console.log('✅ Lyrics generated successfully');
       return data?.lyrics || null;
-    } catch (error: any) {
-      console.error('💥 Error generating lyrics:', error);
-      toast.error('Failed to generate lyrics: ' + error.message);
+    } catch (error) {
+      console.error('Error generating lyrics:', error);
       return null;
     }
   };
 
   const checkStatus = async (taskId: string): Promise<SunoGenerationStatus | null> => {
     try {
-      console.log('🔍 Checking status for task:', taskId);
-      
       const { data, error } = await supabase.functions.invoke('suno-status', {
         body: { taskId }
       });
 
       if (error) {
-        console.error('❌ Status check error:', error);
+        console.error('Status check error:', error);
         return null;
       }
 
       const status = data?.data || null;
       setGenerationStatus(status);
-      console.log('📊 Status check result:', status);
       return status;
-    } catch (error: any) {
-      console.error('💥 Error checking status:', error);
+    } catch (error) {
+      console.error('Error checking status:', error);
       return null;
     }
   };
@@ -173,7 +128,6 @@ export const useSunoGeneration = () => {
     setIsGenerating(false);
     setCurrentTaskId(null);
     setGenerationStatus(null);
-    console.log('🔄 Generation state reset');
   };
 
   return {

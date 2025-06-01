@@ -42,13 +42,11 @@ export const useSongStatusChecker = () => {
       setIsChecking(true);
       console.log('🔍 Checking all pending songs for user:', user.id);
 
-      // Look for songs with pending: prefix in audio_url
       const { data: pendingSongs, error } = await supabase
         .from('songs')
         .select('id, title, audio_url, status, created_at')
         .eq('user_id', user.id)
-        .eq('status', 'pending')
-        .like('audio_url', 'pending:%');
+        .eq('status', 'pending');
 
       if (error) {
         console.error('❌ Error fetching pending songs:', error);
@@ -63,14 +61,13 @@ export const useSongStatusChecker = () => {
       console.log(`📋 Found ${pendingSongs.length} pending songs to check`);
 
       let updatedCount = 0;
-      let anyUpdated = false;
-      
       for (const song of pendingSongs) {
-        // Extract task ID from pending:taskId format
-        const taskId = song.audio_url.replace('pending:', '');
+        // The audio_url field contains the task ID for pending songs
+        const taskId = song.audio_url;
         
-        if (!taskId) {
-          console.log(`⏭️ Skipping song ${song.id} - invalid task ID format: ${song.audio_url}`);
+        // Skip if not a valid task ID
+        if (!taskId || taskId.startsWith('http') || taskId.startsWith('error:')) {
+          console.log(`⏭️ Skipping song ${song.id} - invalid task ID: ${taskId}`);
           continue;
         }
         
@@ -79,22 +76,18 @@ export const useSongStatusChecker = () => {
         const wasUpdated = await checkSongStatus(taskId);
         if (wasUpdated) {
           updatedCount++;
-          anyUpdated = true;
           console.log(`✅ Song "${song.title}" was updated!`);
         }
         
-        // Wait between checks to avoid rate limiting
+        // Wait 2 seconds between checks to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
-      if (anyUpdated) {
+      if (updatedCount > 0) {
         console.log(`🎉 ${updatedCount} song(s) completed!`);
-        toast.success(`${updatedCount} song(s) completed and ready to play!`);
-        
-        // Trigger a page refresh to show updated songs
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        toast.success(`${updatedCount} song(s) completed and updated!`);
+        // Force reload to see the changes
+        window.location.reload();
       } else {
         console.log('⏳ No songs completed yet, still processing...');
       }
@@ -107,26 +100,23 @@ export const useSongStatusChecker = () => {
     }
   }, [user?.id, isChecking, checkSongStatus]);
 
-  // Check every 30 seconds for pending songs
+  // Enhanced polling: Check every 30 seconds instead of 2 minutes
   useEffect(() => {
     if (!user?.id) return;
 
-    console.log('🚀 Setting up status checker for user:', user.id);
+    console.log('🚀 Setting up enhanced status checker for user:', user.id);
 
-    // Initial check after 5 seconds
-    const initialTimeout = setTimeout(() => {
-      checkAllPendingSongs();
-    }, 5000);
+    // Initial check
+    checkAllPendingSongs();
 
-    // Set up regular interval for checking
+    // Set up more frequent interval for checking
     const interval = setInterval(() => {
       console.log('⏰ Periodic status check triggered');
       checkAllPendingSongs();
-    }, 30000); // 30 seconds
+    }, 30000); // 30 seconds instead of 2 minutes
 
     return () => {
       console.log('🛑 Cleaning up status checker');
-      clearTimeout(initialTimeout);
       clearInterval(interval);
     };
   }, [user?.id, checkAllPendingSongs]);

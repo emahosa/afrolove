@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Music, Calendar, Clock, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Music, Calendar, Clock } from "lucide-react";
 import { useUserSongRequests } from "@/hooks/use-user-song-requests";
 import { UserLyricsViewer } from "@/components/song-management/UserLyricsViewer";
 
@@ -40,11 +39,6 @@ const UserCustomSongs = () => {
     });
   };
 
-  const handleRefresh = () => {
-    console.log('UserCustomSongs: Manual refresh triggered');
-    refetch();
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -56,17 +50,11 @@ const UserCustomSongs = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">My Custom Songs</h1>
-          <p className="text-muted-foreground mt-2">
-            Track the progress of your custom song requests and review proposed lyrics.
-          </p>
-        </div>
-        <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">My Custom Songs</h1>
+        <p className="text-muted-foreground mt-2">
+          Track the progress of your custom song requests and review proposed lyrics.
+        </p>
       </div>
 
       {error && (

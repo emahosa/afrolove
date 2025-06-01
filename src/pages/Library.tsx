@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TracksList from "@/components/library/TracksList";
@@ -72,8 +71,6 @@ const Library = () => {
       if (songsError) {
         console.error('Library: Error fetching user songs:', songsError);
         toast.error('Failed to load songs: ' + songsError.message);
-        setTracks([]);
-        setPendingSongs([]);
         return;
       }
       
@@ -83,6 +80,7 @@ const Library = () => {
         console.log('Library: No songs found for user');
         setTracks([]);
         setPendingSongs([]);
+        toast.info("No songs found. Create your first song to get started!");
         return;
       }
       
@@ -148,17 +146,15 @@ const Library = () => {
       }
       
       if (formattedTracks.length === 0 && formattedPendingSongs.length === 0 && failedSongs.length === 0) {
-        console.log('Library: No songs found in library');
+        toast.info("No songs found in your library. Generate some songs to see them here!");
       } else if (formattedPendingSongs.length > 0) {
-        console.log(`Library: Found ${formattedPendingSongs.length} pending songs`);
+        toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear once ready.`);
       } else {
         console.log(`Library: Successfully loaded ${formattedTracks.length} completed tracks`);
       }
     } catch (error) {
       console.error("Library: Error fetching tracks:", error);
       toast.error("Failed to load tracks. Please try again later.");
-      setTracks([]);
-      setPendingSongs([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -166,11 +162,7 @@ const Library = () => {
   };
 
   useEffect(() => {
-    if (user?.id) {
-      fetchTracks();
-    } else {
-      setIsLoading(false);
-    }
+    fetchTracks();
   }, [user]);
 
   // Set up realtime subscription for song updates
