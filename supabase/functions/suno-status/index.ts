@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     // Find the song with this task ID
     const { data: existingSong, error: findError } = await supabase
       .from('songs')
-      .select('id, title, status, created_at')
+      .select('id, title, status, created_at, type')
       .eq('audio_url', taskId)
       .eq('status', 'pending')
       .single()
@@ -184,14 +184,43 @@ Deno.serve(async (req) => {
       if (completedTrack) {
         console.log('✅ Found completed track with audio URL:', completedTrack.audioUrl)
         
+        // Prepare update data with all available fields
+        const updateData = {
+          status: 'completed',
+          audio_url: completedTrack.audioUrl,
+          title: completedTrack.title || existingSong.title,
+          updated_at: new Date().toISOString()
+        }
+
+        // Add lyrics if available
+        if (completedTrack.lyric || completedTrack.lyrics) {
+          updateData.lyrics = completedTrack.lyric || completedTrack.lyrics
+        }
+
+        // For songs (not instrumentals), try to get vocal and instrumental URLs
+        if (existingSong.type === 'song') {
+          // Look for vocal-only version
+          const vocalTrack = sunoTracks.find(track => 
+            track.type === 'vocal' || track.audioUrl?.includes('vocal')
+          )
+          if (vocalTrack && vocalTrack.audioUrl) {
+            updateData.vocal_url = vocalTrack.audioUrl
+          }
+
+          // Look for instrumental version
+          const instrumentalTrack = sunoTracks.find(track => 
+            track.type === 'instrumental' || track.audioUrl?.includes('instrumental')
+          )
+          if (instrumentalTrack && instrumentalTrack.audioUrl) {
+            updateData.instrumental_url = instrumentalTrack.audioUrl
+          }
+        }
+
+        console.log('📝 Update data:', updateData)
+        
         const { data: updatedSong, error: updateError } = await supabase
           .from('songs')
-          .update({
-            status: 'completed',
-            audio_url: completedTrack.audioUrl,
-            title: completedTrack.title || existingSong.title,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', existingSong.id)
           .select()
 
