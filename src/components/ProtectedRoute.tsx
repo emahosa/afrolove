@@ -8,10 +8,17 @@ const ProtectedRoute = () => {
   const { user, loading, isAdmin, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
   
-  // Show loading state while auth is loading
-  if (loading) {
+  useEffect(() => {
+    if (!loading) {
+      setIsInitialized(true);
+    }
+  }, [loading]);
+
+  // Show loading state only during initial auth check
+  if (loading && !isInitialized) {
     console.log('ProtectedRoute: Loading auth state');
     return (
       <div className="flex justify-center items-center h-screen">
