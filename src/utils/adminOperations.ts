@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -99,22 +100,18 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     console.log('Admin: Is super admin:', isSuperAdmin);
     
     if (!isSuperAdmin) {
-      // For non-super admins, check if they have admin role
+      // For non-super admins, check if they have admin role using the security definer function
       console.log('Admin: Checking admin role for non-super admin...');
       
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      const { data: hasAdminRole, error: roleError } = await supabase
+        .rpc('has_role', { _user_id: user.id, _role: 'admin' });
 
       if (roleError) {
         console.error('Admin: Error checking admin role:', roleError);
         throw new Error('Failed to verify admin access: ' + roleError.message);
       }
 
-      if (!roleData) {
+      if (!hasAdminRole) {
         console.warn('Admin: User does not have admin role');
         throw new Error('Access denied: Admin role required');
       }
@@ -138,7 +135,25 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
     }
     
     console.log("Admin: Fetched profiles:", profiles);
-    return processProfilesToUsersList(profiles);
+    
+    // Fetch user roles separately to avoid RLS issues
+    const { data: userRoles, error: userRolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+    
+    if (userRolesError) {
+      console.warn("Admin: Could not fetch user roles:", userRolesError);
+    }
+    
+    // Create a map of user roles
+    const rolesMap = new Map();
+    if (userRoles) {
+      userRoles.forEach(userRole => {
+        rolesMap.set(userRole.user_id, userRole.role);
+      });
+    }
+    
+    return processProfilesToUsersList(profiles, rolesMap);
     
   } catch (error: any) {
     console.error("Admin: Error in fetchUsersFromDatabase:", error);
@@ -147,16 +162,18 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
 };
 
 // Helper function to process profiles into user list format
-const processProfilesToUsersList = (profiles: any[]): any[] => {
+const processProfilesToUsersList = (profiles: any[], rolesMap: Map<string, string>): any[] => {
   console.log(`Processing ${profiles.length} profiles to user list format`);
   
   return profiles.map(profile => {
+    const userRole = rolesMap.get(profile.id) || 'user';
+    
     return {
       id: profile.id,
       name: profile.full_name || 'No Name',
       email: profile.username || 'No Email', 
       status: profile.is_suspended ? 'suspended' : 'active',
-      role: 'user', // Default role 
+      role: userRole,
       credits: profile.credits || 0,
       joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
     };
@@ -284,5 +301,90 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
     console.error("Error in addUserToDatabase:", error);
     toast.error("Failed to create user", { description: error.message });
     return null;
+  }
+};
+
+// Function to ensure admin user exists
+export const ensureAdminUserExists = async (): Promise<boolean> => {
+  try {
+    console.log("Ensuring admin user exists...");
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      console.error('No authenticated user found');
+      return false;
+    }
+    
+    console.log('Current user:', user.email, user.id);
+    
+    // Check if this is the super admin
+    if (user.email === "ellaadahosa@gmail.com") {
+      console.log('Super admin detected, ensuring profile exists...');
+      
+      // Check if profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (profileError) {
+        console.error('Error checking profile:', profileError);
+        return false;
+      }
+      
+      if (!profile) {
+        console.log('Creating profile for super admin...');
+        // Create profile for super admin
+        const { error: createProfileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            full_name: user.user_metadata?.full_name || 'Admin User',
+            username: user.email,
+            avatar_url: user.user_metadata?.avatar_url,
+            credits: 1000 // Give admin lots of credits
+          });
+        
+        if (createProfileError) {
+          console.error('Error creating admin profile:', createProfileError);
+          return false;
+        }
+      }
+      
+      // Check if admin role exists
+      const { data: hasAdminRole, error: roleCheckError } = await supabase
+        .rpc('has_role', { _user_id: user.id, _role: 'admin' });
+      
+      if (roleCheckError) {
+        console.error('Error checking admin role:', roleCheckError);
+        return false;
+      }
+      
+      if (!hasAdminRole) {
+        console.log('Creating admin role for super admin...');
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: user.id,
+            role: 'admin'
+          });
+        
+        if (roleError) {
+          console.error('Error creating admin role:', roleError);
+          return false;
+        }
+      }
+      
+      console.log('Super admin setup complete');
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error ensuring admin user exists:', error);
+    return false;
   }
 };

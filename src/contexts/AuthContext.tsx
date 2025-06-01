@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ensureAdminUserExists } from '@/utils/adminOperations';
 
 interface ExtendedUser extends User {
   name?: string;
@@ -33,10 +33,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const initializedRef = useRef(false);
 
   const isAdmin = () => {
+    console.log('AuthContext: Checking admin status for user:', user?.email);
+    
     if (user?.email === 'ellaadahosa@gmail.com') {
+      console.log('AuthContext: Super admin detected');
       return true;
     }
-    return userRoles.includes('admin');
+    
+    const hasAdminRole = userRoles.includes('admin');
+    console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
+    return hasAdminRole;
   };
 
   const updateUserCredits = async (amount: number) => {
@@ -59,20 +65,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserRoles = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('Error fetching user roles:', error);
+      console.log('AuthContext: Fetching roles for user:', userId);
+      
+      // Use the security definer function to avoid RLS issues
+      const { data: hasAdminRole, error: adminError } = await supabase
+        .rpc('has_role', { _user_id: userId, _role: 'admin' });
+      
+      if (adminError) {
+        console.error('AuthContext: Error checking admin role:', adminError);
         return [];
       }
-
-      return data?.map(r => r.role) || [];
+      
+      const roles = [];
+      if (hasAdminRole) {
+        roles.push('admin');
+      }
+      
+      // Check for other roles if needed
+      const { data: hasModeratorRole, error: modError } = await supabase
+        .rpc('has_role', { _user_id: userId, _role: 'moderator' });
+      
+      if (!modError && hasModeratorRole) {
+        roles.push('moderator');
+      }
+      
+      // Default to user role
+      if (roles.length === 0) {
+        roles.push('user');
+      }
+      
+      console.log('AuthContext: Fetched roles:', roles);
+      return roles;
     } catch (error) {
-      console.error('Error fetching user roles:', error);
-      return [];
+      console.error('AuthContext: Error fetching user roles:', error);
+      return ['user']; // Default fallback
     }
   };
 
@@ -89,11 +115,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           subscription: 'free'
         };
         
-        const roles = await fetchUserRoles(session.user.id);
-        
         setUser(basicUser);
-        setUserRoles(roles);
         setSession(session);
+        
+        // Ensure admin user setup if this is the super admin
+        if (session.user.email === 'ellaadahosa@gmail.com') {
+          console.log('AuthContext: Setting up super admin...');
+          await ensureAdminUserExists();
+        }
+        
+        // Fetch roles after setting user
+        const roles = await fetchUserRoles(session.user.id);
+        setUserRoles(roles);
         
         console.log('AuthContext: User setup complete');
       } catch (error) {
