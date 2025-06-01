@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,19 +9,12 @@ import {
   Download, 
   Share2, 
   Heart, 
-  MoreHorizontal,
   Music,
   Clock,
   User,
   Calendar,
   Trash
 } from 'lucide-react';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAudioPlayer } from '@/hooks/use-audio-player';
 
@@ -106,7 +100,6 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
     
     if (isPlayable) {
       console.log('🎵 GeneratedSongCard: Song is playable, calling handlePlay');
-      // Pass the song with type 'suno' to distinguish it from custom songs
       handlePlay({
         id: song.id,
         title: song.title,
@@ -169,25 +162,6 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
               )}
             </div>
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => toast.info('Add to playlist feature coming soon!')}>
-                Add to Playlist
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info('Remix feature coming soon!')}>
-                Create Remix
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast.info('Vocal separation coming soon!')}>
-                Extract Vocals
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </CardHeader>
 
@@ -215,16 +189,13 @@ const GeneratedSongCard = ({ song, isPlaying }: GeneratedSongCardProps) => {
           </p>
         )}
 
-        {/* Primary Action buttons - Always visible */}
+        {/* Always visible audio controls */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
               variant="default"
               size="sm"
-              onClick={() => {
-                console.log('🎵 GeneratedSongCard: Play button clicked - direct onClick');
-                handlePlayClick();
-              }}
+              onClick={handlePlayClick}
               disabled={!isPlayable}
               className="flex items-center gap-2"
             >

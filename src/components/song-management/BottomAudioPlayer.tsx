@@ -40,65 +40,32 @@ export const BottomAudioPlayer = ({
   const fetchAudioUrl = async () => {
     try {
       setLoadingAudio(true);
-      console.log('🎵 BottomAudioPlayer: Starting fetchAudioUrl for:', { requestId, type, title });
+      console.log('🎵 BottomAudioPlayer: Fetching audio URL for:', { requestId, type, title });
 
       if (type === 'suno') {
-        console.log('🎵 BottomAudioPlayer: Fetching Suno song from songs table with ID:', requestId);
-        
         const { data: songData, error: songError } = await supabase
           .from('songs')
           .select('*')
           .eq('id', requestId)
           .single();
 
-        console.log('🎵 BottomAudioPlayer: Supabase query result:', { songData, songError });
-
-        if (songError) {
-          console.error('❌ BottomAudioPlayer: Error fetching Suno song:', songError);
-          toast.error('Failed to load song: ' + songError.message);
+        if (songError || !songData) {
+          console.error('❌ Error fetching Suno song:', songError);
+          toast.error('Failed to load song');
           return null;
         }
 
-        if (!songData) {
-          console.error('❌ BottomAudioPlayer: No song data found for ID:', requestId);
-          toast.error('Song not found');
+        if (songData.status !== 'completed' || !songData.audio_url) {
+          console.log('❌ Song not ready for playback');
+          toast.error('Song is not ready for playback');
           return null;
         }
 
-        console.log('🎵 BottomAudioPlayer: Song data retrieved:', {
-          id: songData.id,
-          title: songData.title,
-          status: songData.status,
-          audio_url: songData.audio_url,
-          type: songData.type
-        });
-
-        if (songData.status !== 'completed') {
-          console.log('❌ BottomAudioPlayer: Song not completed. Status:', songData.status);
-          toast.error(`Song is not ready for playback. Status: ${songData.status}`);
-          return null;
-        }
-
-        if (!songData.audio_url) {
-          console.log('❌ BottomAudioPlayer: No audio URL found in song data');
-          toast.error('Audio file not available');
-          return null;
-        }
-
-        if (!songData.audio_url.startsWith('http')) {
-          console.log('❌ BottomAudioPlayer: Invalid audio URL format:', songData.audio_url);
-          toast.error('Invalid audio file URL');
-          return null;
-        }
-
-        console.log('✅ BottomAudioPlayer: Valid Suno audio URL found:', songData.audio_url);
+        console.log('✅ Suno audio URL found:', songData.audio_url);
         setAudioUrl(songData.audio_url);
         return songData.audio_url;
-
       } else {
         // Custom song logic
-        console.log('🎵 BottomAudioPlayer: Fetching custom song audio for request:', requestId);
-        
         const { data: audioData, error: audioError } = await supabase
           .from('custom_song_audio')
           .select('*')
@@ -106,8 +73,8 @@ export const BottomAudioPlayer = ({
           .order('created_at', { ascending: false });
 
         if (audioError || !audioData || audioData.length === 0) {
-          console.error('❌ BottomAudioPlayer: Error fetching custom audio:', audioError);
-          toast.error('No audio file found for this song');
+          console.error('❌ Error fetching custom audio:', audioError);
+          toast.error('No audio file found');
           return null;
         }
 
@@ -117,18 +84,17 @@ export const BottomAudioPlayer = ({
         }
 
         if (!audioRecord?.audio_url) {
-          console.error('❌ BottomAudioPlayer: No audio URL in custom audio record');
+          console.error('❌ No audio URL found');
           toast.error('Audio file URL is missing');
           return null;
         }
 
-        console.log('✅ BottomAudioPlayer: Custom audio URL found:', audioRecord.audio_url);
+        console.log('✅ Custom audio URL found:', audioRecord.audio_url);
         setAudioUrl(audioRecord.audio_url);
         return audioRecord.audio_url;
       }
-
     } catch (error: any) {
-      console.error('💥 BottomAudioPlayer: Unexpected error in fetchAudioUrl:', error);
+      console.error('💥 Error in fetchAudioUrl:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
     } finally {
@@ -138,7 +104,7 @@ export const BottomAudioPlayer = ({
 
   const setupAudioListeners = (audio: HTMLAudioElement) => {
     const handleLoadedMetadata = () => {
-      console.log('🎵 BottomAudioPlayer: Audio metadata loaded, duration:', audio.duration);
+      console.log('🎵 Audio metadata loaded, duration:', audio.duration);
       setDuration(audio.duration);
     };
 
@@ -147,27 +113,24 @@ export const BottomAudioPlayer = ({
     };
 
     const handleAudioEnd = () => {
-      console.log('🎵 BottomAudioPlayer: Audio ended, repeat mode:', repeatMode);
+      console.log('🎵 Audio ended, repeat mode:', repeatMode);
       
       if (repeatMode === 'one' || repeatMode === 'all') {
-        console.log('🎵 BottomAudioPlayer: Repeating song');
         audio.currentTime = 0;
         audio.play().catch(error => {
-          console.error('❌ BottomAudioPlayer: Error repeating song:', error);
+          console.error('❌ Error repeating song:', error);
           setIsPlaying(false);
         });
-        setCurrentTime(0);
         return;
       }
       
-      console.log('🎵 BottomAudioPlayer: No repeat, stopping playback');
       setIsPlaying(false);
       setCurrentTime(0);
     };
 
     const handleAudioError = (e: Event) => {
-      console.error('❌ BottomAudioPlayer: Audio error:', e);
-      toast.error('Failed to play audio - file may be corrupted or inaccessible');
+      console.error('❌ Audio error:', e);
+      toast.error('Failed to play audio - file may be corrupted');
       setIsPlaying(false);
     };
 
@@ -176,7 +139,6 @@ export const BottomAudioPlayer = ({
     audio.addEventListener('ended', handleAudioEnd);
     audio.addEventListener('error', handleAudioError);
 
-    // Return cleanup function
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -187,11 +149,11 @@ export const BottomAudioPlayer = ({
 
   const handlePlayPause = async () => {
     try {
-      console.log('🎵 BottomAudioPlayer: handlePlayPause called, isPlaying:', isPlaying, 'audioRef.current:', !!audioRef.current);
+      console.log('🎵 BottomAudioPlayer: handlePlayPause called, isPlaying:', isPlaying);
 
       // If currently playing, pause
       if (isPlaying && audioRef.current) {
-        console.log('🎵 BottomAudioPlayer: Pausing current audio');
+        console.log('🎵 Pausing audio');
         audioRef.current.pause();
         setIsPlaying(false);
         return;
@@ -199,24 +161,24 @@ export const BottomAudioPlayer = ({
 
       // If we have an audio instance with a source, resume playing
       if (!isPlaying && audioRef.current && audioRef.current.src) {
-        console.log('🎵 BottomAudioPlayer: Resuming existing audio');
+        console.log('🎵 Resuming audio');
         await audioRef.current.play();
         setIsPlaying(true);
         return;
       }
 
       // Need to fetch audio URL and create new audio instance
-      console.log('🎵 BottomAudioPlayer: Fetching audio URL for new playback');
+      console.log('🎵 Fetching audio URL for new playback');
       const url = await fetchAudioUrl();
       
       if (!url) {
-        console.log('❌ BottomAudioPlayer: No URL returned from fetchAudioUrl');
+        console.log('❌ No URL returned from fetchAudioUrl');
         return;
       }
 
-      console.log('🎵 BottomAudioPlayer: Creating new audio instance with URL:', url);
+      console.log('🎵 Creating new audio instance with URL:', url);
 
-      // Clean up existing audio if any
+      // Clean up existing audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = '';
@@ -227,23 +189,36 @@ export const BottomAudioPlayer = ({
       audioRef.current = audio;
 
       // Setup event listeners
-      const cleanup = setupAudioListeners(audio);
+      setupAudioListeners(audio);
 
       // Set volume and play
       audio.volume = volume / 100;
       
-      console.log('🎵 BottomAudioPlayer: Starting audio playback');
+      console.log('🎵 Starting audio playback');
       await audio.play();
       setIsPlaying(true);
       
-      console.log('✅ BottomAudioPlayer: Audio playback started successfully');
+      console.log('✅ Audio playback started successfully');
 
     } catch (error: any) {
-      console.error('💥 BottomAudioPlayer: Error in handlePlayPause:', error);
+      console.error('💥 Error in handlePlayPause:', error);
       toast.error('Failed to play audio: ' + error.message);
       setIsPlaying(false);
     }
   };
+
+  // Auto-start playback when player becomes visible
+  useEffect(() => {
+    console.log('🎵 BottomAudioPlayer: Player visibility changed:', isVisible);
+    
+    if (isVisible && requestId) {
+      console.log('🎵 Auto-starting playback for new song');
+      // Small delay to ensure component is fully mounted
+      setTimeout(() => {
+        handlePlayPause();
+      }, 100);
+    }
+  }, [isVisible, requestId]);
 
   const toggleRepeatMode = () => {
     const modes: RepeatMode[] = ['none', 'all', 'one'];
@@ -251,7 +226,7 @@ export const BottomAudioPlayer = ({
     const nextIndex = (currentIndex + 1) % modes.length;
     const newMode = modes[nextIndex];
     setRepeatMode(newMode);
-    console.log('BottomAudioPlayer: Repeat mode changed to:', newMode);
+    console.log('Repeat mode changed to:', newMode);
     
     const modeNames = {
       'none': 'Repeat Off',
@@ -302,19 +277,6 @@ export const BottomAudioPlayer = ({
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  // Auto-play when player becomes visible - THIS IS THE KEY FIX
-  useEffect(() => {
-    console.log('🎵 BottomAudioPlayer: useEffect triggered, isVisible:', isVisible, 'requestId:', requestId);
-    
-    if (isVisible && requestId) {
-      console.log('🎵 BottomAudioPlayer: Auto-starting playback for visible player');
-      // Small delay to ensure component is fully mounted
-      setTimeout(() => {
-        handlePlayPause();
-      }, 100);
-    }
-  }, [isVisible, requestId]);
 
   // Cleanup on unmount
   useEffect(() => {
