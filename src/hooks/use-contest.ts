@@ -73,14 +73,24 @@ export const useContest = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(full_name, username)
+          profiles(full_name, username)
         `)
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
       if (error) throw error;
-      setContestEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? {
+          full_name: entry.profiles.full_name || '',
+          username: entry.profiles.username || ''
+        } : undefined
+      }));
+      
+      setContestEntries(transformedData);
     } catch (error) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');

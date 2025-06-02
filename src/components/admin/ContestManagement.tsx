@@ -111,13 +111,23 @@ export const ContestManagement = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(full_name, username)
+          profiles(full_name, username)
         `)
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? {
+          full_name: entry.profiles.full_name || '',
+          username: entry.profiles.username || ''
+        } : undefined
+      }));
+      
+      setEntries(transformedData);
     } catch (error) {
       console.error('Error fetching entries:', error);
       toast.error('Failed to load contest entries');
@@ -206,7 +216,7 @@ export const ContestManagement = () => {
     try {
       const { error } = await supabase
         .from('contests')
-        .update({ status: 'ended' })
+        .update({ status: 'completed' })
         .eq('id', selectedContest.id);
 
       if (error) throw error;
