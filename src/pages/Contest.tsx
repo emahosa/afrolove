@@ -4,113 +4,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Calendar, Clock, ChevronRight, Upload, ThumbsUp, Play } from "lucide-react";
+import { Trophy, Calendar, Clock, ChevronRight, Upload, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-// Mock current contest data
-const currentContest = {
-  id: "summer-2023",
-  title: "Summer Beats Challenge",
-  description: "Create a summer-themed song using our provided beat. Stand a chance to win a record deal and promotion across our platforms.",
-  deadline: "June 30, 2025",
-  timeRemaining: "14 days",
-  progress: 65, // percentage of time elapsed
-  prizePool: "$5,000 + Record Deal",
-  entries: 243,
-  rules: [
-    "Use the official beat provided",
-    "Upload a video of your performance",
-    "Song must be at least 1 minute in length",
-    "Content must be appropriate for all audiences",
-    "One entry per participant"
-  ],
-  beatFile: "summer_beats_challenge.mp3"
-};
-
-// Mock entries
-const contestEntries = [
-  {
-    id: "entry-1",
-    user: "MusicMaker432",
-    title: "Summer Waves",
-    votes: 1243,
-    hasVoted: false,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,1"
-  },
-  {
-    id: "entry-2",
-    user: "BeatsProducer",
-    title: "Sunset Vibes",
-    votes: 892,
-    hasVoted: true,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,2"
-  },
-  {
-    id: "entry-3",
-    user: "MelodyMaster",
-    title: "Beach Party",
-    votes: 756,
-    hasVoted: false,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,3"
-  },
-  {
-    id: "entry-4",
-    user: "RhythmKing",
-    title: "Tropical Dreams",
-    votes: 682,
-    hasVoted: false,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,4"
-  },
-  {
-    id: "entry-5",
-    user: "SongSmith",
-    title: "Ocean Melody",
-    votes: 541,
-    hasVoted: false,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,5"
-  },
-  {
-    id: "entry-6",
-    user: "VocalWizard",
-    title: "Sand and Sun",
-    votes: 423,
-    hasVoted: false,
-    thumbnail: "https://source.unsplash.com/random/300x400?music,6"
-  }
-];
+import { useContest } from "@/hooks/use-contest";
+import { ContestEntryCard } from "@/components/contest/ContestEntryCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Contest = () => {
+  const { user } = useAuth();
+  const {
+    currentContest,
+    contestEntries,
+    loading,
+    submitting,
+    submitEntry,
+    voteForEntry,
+    downloadInstrumental
+  } = useContest();
+
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [votedEntries, setVotedEntries] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("current");
-  const [showAllEntries, setShowAllEntries] = useState(false);
   const [entryTitle, setEntryTitle] = useState("");
   const [entryDescription, setEntryDescription] = useState("");
   const [entryFile, setEntryFile] = useState<File | null>(null);
 
   const handleDownloadBeat = () => {
-    // Create a link element to download the file
-    const link = document.createElement('a');
-    link.href = `data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA`;
-    link.download = currentContest.beatFile;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast.success("Downloading official beat...", {
-      description: "Your download has started."
-    });
-  };
-
-  const handleSubmitEntry = () => {
-    setShowSubmitModal(true);
+    if (currentContest?.instrumental_url) {
+      downloadInstrumental(currentContest.instrumental_url, currentContest.title);
+    } else {
+      toast.error("No instrumental available for download");
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -119,60 +48,74 @@ const Contest = () => {
     }
   };
 
-  const handleEntrySubmission = (e: React.FormEvent) => {
+  const handleEntrySubmission = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!entryTitle.trim() || !entryFile) {
-      toast.error("Please fill all required fields and upload a video.", {
-        description: "Both title and video file are required."
+    if (!entryTitle.trim() || !entryFile || !currentContest) {
+      toast.error("Please fill all required fields and upload a file.", {
+        description: "Title and media file are required."
       });
       return;
     }
     
-    // In a real app, this would submit the entry to a backend
-    toast.success("Entry submitted successfully!", {
-      description: "Thank you for participating. Your entry is now being processed."
-    });
+    const success = await submitEntry(currentContest.id, entryFile, entryDescription, entryTitle);
     
-    // Reset form and close modal
-    setEntryTitle("");
-    setEntryDescription("");
-    setEntryFile(null);
-    setShowSubmitModal(false);
-  };
-
-  const handleVote = (entryId: string) => {
-    if (votedEntries.includes(entryId)) {
-      toast.error("You've already voted for this entry", {
-        description: "You can only vote once per entry."
-      });
-      return;
+    if (success) {
+      // Reset form and close modal
+      setEntryTitle("");
+      setEntryDescription("");
+      setEntryFile(null);
+      setShowSubmitModal(false);
     }
-    
-    // Check if the user has already voted for any entry
-    if (votedEntries.length > 0) {
-      toast.error("Vote limit reached", {
-        description: "You can only vote for one entry in this contest."
-      });
-      return;
-    }
-    
-    setVotedEntries([...votedEntries, entryId]);
-    toast.success("Vote submitted!", {
-      description: "Thank you for supporting this artist."
-    });
   };
 
-  const handlePlayVideo = (title: string) => {
-    toast.info(`Playing "${title}"`, {
-      description: "In a complete app, this would play the actual video."
-    });
+  const handleVote = async (entryId: string, voterPhone?: string) => {
+    return await voteForEntry(entryId, voterPhone);
   };
 
-  // Display either featured entries or all entries based on state
-  const displayEntries = showAllEntries 
-    ? contestEntries 
-    : contestEntries.slice(0, 3);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <div className="ml-3">Loading contests...</div>
+      </div>
+    );
+  }
+
+  if (!currentContest) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+              <Trophy className="h-7 w-7 text-melody-accent" /> Contest
+            </h1>
+            <p className="text-muted-foreground">Participate in music contests and win amazing prizes</p>
+          </div>
+        </div>
+        
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-xl font-semibold mb-2">No Active Contests</h3>
+            <p className="text-muted-foreground">There are no contests running at the moment. Check back soon!</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Calculate progress based on time elapsed
+  const startDate = new Date(currentContest.start_date);
+  const endDate = new Date(currentContest.end_date);
+  const now = new Date();
+  const totalTime = endDate.getTime() - startDate.getTime();
+  const elapsedTime = now.getTime() - startDate.getTime();
+  const progress = Math.min(Math.max((elapsedTime / totalTime) * 100, 0), 100);
+
+  // Calculate time remaining
+  const timeRemaining = endDate.getTime() - now.getTime();
+  const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
 
   return (
     <div className="space-y-8">
@@ -204,11 +147,11 @@ const Contest = () => {
                   <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
                     <Calendar className="h-4 w-4" /> Deadline
                   </div>
-                  <div className="font-semibold">{currentContest.deadline}</div>
+                  <div className="font-semibold">{new Date(currentContest.end_date).toLocaleDateString()}</div>
                   <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
                     <Clock className="h-4 w-4" /> Time Remaining
                   </div>
-                  <div className="font-semibold">{currentContest.timeRemaining}</div>
+                  <div className="font-semibold">{daysRemaining} days</div>
                 </div>
               </div>
             </CardHeader>
@@ -217,18 +160,18 @@ const Contest = () => {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-sm text-muted-foreground mb-1">Deadline</div>
-                    <div className="font-semibold">{currentContest.deadline}</div>
+                    <div className="font-semibold">{new Date(currentContest.end_date).toLocaleDateString()}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
-                    <div className="font-semibold">{currentContest.timeRemaining}</div>
+                    <div className="font-semibold">{daysRemaining} days</div>
                   </div>
                 </div>
-                <Progress value={currentContest.progress} className="h-2" />
+                <Progress value={progress} className="h-2" />
               </div>
               
               <div className="hidden md:block">
-                <Progress value={currentContest.progress} className="h-2 mb-2" />
+                <Progress value={progress} className="h-2 mb-2" />
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <div>Contest Started</div>
                   <div>Contest Ends</div>
@@ -241,7 +184,7 @@ const Contest = () => {
                     <CardTitle className="text-base">Prize Pool</CardTitle>
                   </CardHeader>
                   <CardContent className="py-3 px-4">
-                    <p className="text-xl font-bold text-melody-secondary">{currentContest.prizePool}</p>
+                    <p className="text-xl font-bold text-melody-secondary">{currentContest.prize}</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-muted/30">
@@ -249,7 +192,7 @@ const Contest = () => {
                     <CardTitle className="text-base">Entries</CardTitle>
                   </CardHeader>
                   <CardContent className="py-3 px-4">
-                    <p className="text-xl font-bold">{currentContest.entries}</p>
+                    <p className="text-xl font-bold">{contestEntries.length}</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-muted/30">
@@ -271,7 +214,7 @@ const Contest = () => {
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">Contest Rules</h3>
                 <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  {currentContest.rules.map((rule, index) => (
+                  {currentContest.rules.split(', ').map((rule, index) => (
                     <li key={index}>{rule}</li>
                   ))}
                 </ul>
@@ -285,96 +228,34 @@ const Contest = () => {
                 <Download className="mr-2 h-4 w-4" />
                 Download Official Beat
               </Button>
-              <Button onClick={handleSubmitEntry}>
+              <Button onClick={() => setShowSubmitModal(true)} disabled={!user}>
                 <Upload className="mr-2 h-4 w-4" />
-                Submit Your Entry
+                {user ? 'Submit Your Entry' : 'Login to Submit'}
               </Button>
             </CardFooter>
           </Card>
           
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Recent Entries</h2>
+            <h2 className="text-2xl font-bold">Contest Entries ({contestEntries.length})</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {displayEntries.map((entry) => (
-                <Card key={entry.id} className="music-card overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="relative aspect-video bg-melody-primary/30">
-                      <img 
-                        src={entry.thumbnail} 
-                        alt={entry.title} 
-                        className="w-full h-full object-cover"
-                      />
-                      <Button 
-                        variant="secondary" 
-                        size="icon" 
-                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
-                        onClick={() => handlePlayVideo(entry.title)}
-                      >
-                        <Play className="h-6 w-6" />
-                      </Button>
-                    </div>
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-bold truncate">{entry.title}</h3>
-                      </div>
-                      <div className="text-sm text-muted-foreground mb-3">
-                        by {entry.user}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <ThumbsUp className="h-4 w-4 mr-1" />
-                          <span className="text-sm">
-                            {votedEntries.includes(entry.id) 
-                              ? entry.votes + 1 
-                              : entry.votes}
-                          </span>
-                        </div>
-                        <Button 
-                          variant={votedEntries.includes(entry.id) || entry.hasVoted ? "outline" : "default"}
-                          size="sm"
-                          className={votedEntries.includes(entry.id) || entry.hasVoted ? "opacity-50 cursor-not-allowed" : ""}
-                          onClick={() => handleVote(entry.id)}
-                          disabled={votedEntries.includes(entry.id) || entry.hasVoted || votedEntries.length > 0}
-                        >
-                          {votedEntries.includes(entry.id) || entry.hasVoted ? "Voted" : "Vote Now"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            
-            <div className="text-center mt-6">
-              <Button 
-                variant="outline"
-                onClick={() => setShowAllEntries(!showAllEntries)}
-              >
-                {showAllEntries ? "Show Less" : "View All Entries"}
-              </Button>
-            </div>
-
-            {showAllEntries && (
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious href="#" />
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink href="#" isActive>1</PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink href="#">2</PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink href="#">3</PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationNext href="#" />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+            {contestEntries.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">No Entries Yet</h3>
+                  <p className="text-muted-foreground">Be the first to submit an entry!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {contestEntries.map((entry) => (
+                  <ContestEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    onVote={handleVote}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </TabsContent>
@@ -398,36 +279,10 @@ const Contest = () => {
               Please read all rules carefully before participating.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-96 overflow-y-auto">
             <div className="space-y-2">
-              <h3 className="font-semibold">Submission Requirements:</h3>
-              <ul className="space-y-2 list-disc list-inside text-sm">
-                {currentContest.rules.map((rule, index) => (
-                  <li key={index}>{rule}</li>
-                ))}
-                <li>All submissions must be original content</li>
-                <li>Participants must own the rights to their submission</li>
-                <li>No copyrighted material may be used without permission</li>
-              </ul>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-semibold">Judging Criteria:</h3>
-              <ul className="space-y-2 list-disc list-inside text-sm">
-                <li>Creativity and originality: 30%</li>
-                <li>Technical execution: 25%</li>
-                <li>Overall performance quality: 25%</li>
-                <li>Public votes: 20%</li>
-              </ul>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-semibold">Prize Details:</h3>
-              <p className="text-sm">The winner will receive {currentContest.prizePool}, which includes a record deal with MelodyVerse Records and promotion across all our platforms.</p>
-            </div>
-            
-            <div className="pt-2">
-              <p className="text-xs text-muted-foreground">By submitting an entry, you acknowledge that you have read and agreed to these rules. MelodyVerse reserves the right to disqualify any submission that violates these terms.</p>
+              <h3 className="font-semibold">Terms & Conditions:</h3>
+              <p className="text-sm">{currentContest.terms_conditions}</p>
             </div>
           </div>
         </DialogContent>
@@ -466,25 +321,26 @@ const Contest = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="entry-file">Video File *</Label>
-              <div className="flex items-center gap-2">
-                <Input 
-                  id="entry-file" 
-                  type="file"
-                  onChange={handleFileChange} 
-                  accept="video/*"
-                  required
-                  className="flex-1"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Accepted formats: MP4, MOV, AVI (max size: 500MB)</p>
+              <Label htmlFor="entry-file">Media File *</Label>
+              <Input 
+                id="entry-file" 
+                type="file"
+                onChange={handleFileChange} 
+                accept="video/*,audio/*"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: MP4, MOV, AVI, MP3, WAV (max size: 500MB)
+              </p>
             </div>
             
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setShowSubmitModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Submit Entry</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Submit Entry'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -492,26 +348,5 @@ const Contest = () => {
     </div>
   );
 };
-
-// Add this component separately
-const Download = ({ className, ...props }: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    {...props}
-  >
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
 
 export default Contest;

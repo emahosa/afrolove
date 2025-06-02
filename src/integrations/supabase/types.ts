@@ -116,34 +116,46 @@ export type Database = {
       }
       contest_entries: {
         Row: {
+          approved: boolean | null
           contest_id: string
           created_at: string
+          description: string | null
           id: string
+          media_type: string | null
           song_id: string | null
           status: Database["public"]["Enums"]["song_status"] | null
           updated_at: string
           user_id: string
           video_url: string | null
+          vote_count: number | null
         }
         Insert: {
+          approved?: boolean | null
           contest_id: string
           created_at?: string
+          description?: string | null
           id?: string
+          media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id: string
           video_url?: string | null
+          vote_count?: number | null
         }
         Update: {
+          approved?: boolean | null
           contest_id?: string
           created_at?: string
+          description?: string | null
           id?: string
+          media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id?: string
           video_url?: string | null
+          vote_count?: number | null
         }
         Relationships: [
           {
@@ -164,51 +176,66 @@ export type Database = {
       }
       contests: {
         Row: {
+          auto_close: boolean | null
           created_at: string
           created_by: string | null
           description: string
           end_date: string
           id: string
           instrumental_url: string | null
+          max_entries_per_user: number | null
           prize: string
+          prize_amount: number | null
+          prize_currency: string | null
           rules: string
           start_date: string
           status: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions: string
           title: string
           updated_at: string
+          voting_enabled: boolean | null
           winner_id: string | null
         }
         Insert: {
+          auto_close?: boolean | null
           created_at?: string
           created_by?: string | null
           description: string
           end_date: string
           id?: string
           instrumental_url?: string | null
+          max_entries_per_user?: number | null
           prize: string
+          prize_amount?: number | null
+          prize_currency?: string | null
           rules: string
           start_date: string
           status?: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions: string
           title: string
           updated_at?: string
+          voting_enabled?: boolean | null
           winner_id?: string | null
         }
         Update: {
+          auto_close?: boolean | null
           created_at?: string
           created_by?: string | null
           description?: string
           end_date?: string
           id?: string
           instrumental_url?: string | null
+          max_entries_per_user?: number | null
           prize?: string
+          prize_amount?: number | null
+          prize_currency?: string | null
           rules?: string
           start_date?: string
           status?: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions?: string
           title?: string
           updated_at?: string
+          voting_enabled?: boolean | null
           winner_id?: string | null
         }
         Relationships: []
