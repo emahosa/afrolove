@@ -86,7 +86,7 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
-  // Fetch contests with better error handling
+  // Fetch contests
   const fetchContests = async () => {
     try {
       console.log('ContestManagement: Fetching contests...');
@@ -99,7 +99,6 @@ export const ContestManagement = () => {
 
       if (error) {
         console.error('ContestManagement: Error fetching contests:', error);
-        setError(`Failed to fetch contests: ${error.message}`);
         throw error;
       }
       
@@ -119,7 +118,7 @@ export const ContestManagement = () => {
     }
   };
 
-  // Fetch entries for selected contest with better error handling
+  // Fetch entries for selected contest
   const fetchEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('ContestManagement: No contest ID provided');
@@ -141,7 +140,6 @@ export const ContestManagement = () => {
 
       if (entriesError) {
         console.error('ContestManagement: Error fetching entries:', entriesError);
-        setError(`Failed to fetch entries: ${entriesError.message}`);
         throw entriesError;
       }
 
@@ -153,7 +151,7 @@ export const ContestManagement = () => {
         return;
       }
 
-      // Get user profiles for the entries using the new RLS setup
+      // Get user profiles for the entries - RLS is now fixed
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
       console.log('ContestManagement: Fetching profiles for users:', userIds);
       
@@ -164,8 +162,7 @@ export const ContestManagement = () => {
 
       if (profilesError) {
         console.error('ContestManagement: Error fetching profiles:', profilesError);
-        // Continue without profiles if there's an error
-        console.log('ContestManagement: Continuing without profiles');
+        throw profilesError;
       }
 
       console.log('ContestManagement: Fetched profiles:', profilesData);

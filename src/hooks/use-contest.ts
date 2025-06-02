@@ -59,7 +59,6 @@ export const useContest = () => {
 
       if (error) {
         console.error('Error fetching contests:', error);
-        setError(`Failed to fetch contests: ${error.message}`);
         throw error;
       }
       
@@ -104,7 +103,6 @@ export const useContest = () => {
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
-        setError(`Failed to fetch entries: ${entriesError.message}`);
         throw entriesError;
       }
 
@@ -116,7 +114,7 @@ export const useContest = () => {
         return;
       }
 
-      // Get user profiles for the entries using the new security definer approach
+      // Get user profiles for the entries - RLS is now fixed
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
       console.log('Fetching profiles for user IDs:', userIds);
       
@@ -127,8 +125,7 @@ export const useContest = () => {
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
-        // Continue without profiles if there's an error - don't block the entries
-        console.log('Continuing without profile data due to error');
+        throw profilesError;
       }
 
       console.log('Profiles fetched:', profilesData);
