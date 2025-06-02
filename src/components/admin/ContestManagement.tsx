@@ -46,10 +46,7 @@ interface ContestEntry {
   vote_count: number;
   media_type: string;
   created_at: string;
-  profiles?: {
-    full_name: string;
-    username: string;
-  } | null;
+  user_name?: string;
 }
 
 interface Contest {
@@ -87,54 +84,44 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
-  // Simplified fetch contests with better error handling
+  // Fetch contests with proper error handling
   const fetchContests = async () => {
-    console.log('🔄 Starting fetchContests...');
+    console.log('🔄 Fetching contests...');
     setError(null);
     
     try {
-      console.log('📡 Making Supabase query...');
-      
       const { data, error: queryError } = await supabase
         .from('contests')
-        .select('id, title, description, prize, start_date, end_date, status, instrumental_url, rules')
+        .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('📊 Query result:', { data, error: queryError });
-
       if (queryError) {
-        console.error('❌ Database error:', queryError);
-        throw new Error(`Database query failed: ${queryError.message} (Code: ${queryError.code})`);
+        console.error('❌ Contest query error:', queryError);
+        throw new Error(`Failed to fetch contests: ${queryError.message}`);
       }
       
-      if (!data) {
-        console.log('⚠️ No data returned from query');
-        setContests([]);
-        return;
-      }
-
-      console.log(`✅ Successfully fetched ${data.length} contests`);
-      setContests(data);
+      console.log(`✅ Successfully fetched ${data?.length || 0} contests`);
+      setContests(data || []);
       
       // Auto-select first contest if none selected
-      if (data.length > 0 && !selectedContest) {
+      if (data && data.length > 0 && !selectedContest) {
         console.log('🎯 Auto-selecting first contest:', data[0].title);
         setSelectedContest(data[0]);
       }
       
     } catch (error: any) {
       console.error('💥 Error in fetchContests:', error);
-      const errorMessage = error.message || 'Unknown error occurred while fetching contests';
+      const errorMessage = error.message || 'Failed to fetch contests';
       setError(errorMessage);
       toast.error(errorMessage);
       setContests([]);
     }
   };
 
-  // Simplified fetch entries
+  // Fetch entries with corrected query structure
   const fetchEntries = async (contestId: string) => {
     if (!contestId) {
-      console.log('⚠️ No contest ID provided for fetchEntries');
+      console.log('⚠️ No contest ID provided');
       setEntries([]);
       return;
     }
@@ -143,27 +130,28 @@ export const ContestManagement = () => {
       setEntriesLoading(true);
       console.log(`🔄 Fetching entries for contest: ${contestId}`);
       
-      const { data, error: queryError } = await supabase
+      // First, get the contest entries
+      const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('id, contest_id, user_id, video_url, description, approved, vote_count, media_type, created_at')
+        .select('*')
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
-      if (queryError) {
-        console.error('❌ Error fetching entries:', queryError);
-        throw new Error(`Failed to fetch entries: ${queryError.message}`);
+      if (entriesError) {
+        console.error('❌ Error fetching entries:', entriesError);
+        throw new Error(`Failed to fetch entries: ${entriesError.message}`);
       }
 
-      console.log(`✅ Fetched ${data?.length || 0} entries`);
+      console.log(`✅ Fetched ${entriesData?.length || 0} entries`);
       
-      if (!data || data.length === 0) {
+      if (!entriesData || entriesData.length === 0) {
         setEntries([]);
         return;
       }
       
-      // Get profiles separately to avoid join issues
-      const entriesWithProfiles = await Promise.all(
-        data.map(async (entry) => {
+      // Then get user profiles for each entry
+      const entriesWithUserInfo = await Promise.all(
+        entriesData.map(async (entry) => {
           try {
             const { data: profileData } = await supabase
               .from('profiles')
@@ -173,27 +161,25 @@ export const ContestManagement = () => {
 
             return {
               ...entry,
-              profiles: profileData ? {
-                full_name: profileData.full_name || '',
-                username: profileData.username || ''
-              } : null
+              user_name: profileData?.full_name || profileData?.username || 'Anonymous User'
             };
           } catch (profileError) {
             console.warn('⚠️ Failed to fetch profile for user:', entry.user_id);
             return {
               ...entry,
-              profiles: null
+              user_name: 'Anonymous User'
             };
           }
         })
       );
       
-      setEntries(entriesWithProfiles);
+      setEntries(entriesWithUserInfo);
       
     } catch (error: any) {
       console.error('💥 Error fetching entries:', error);
-      setError(error.message);
-      toast.error(error.message);
+      const errorMessage = error.message || 'Failed to fetch entries';
+      setError(errorMessage);
+      toast.error(errorMessage);
       setEntries([]);
     } finally {
       setEntriesLoading(false);
@@ -299,7 +285,7 @@ export const ContestManagement = () => {
   // Choose winner
   const confirmChooseWinner = () => {
     if (selectedEntry) {
-      toast.success(`${selectedEntry.profiles?.full_name || 'User'} has been selected as the winner!`);
+      toast.success(`${selectedEntry.user_name || 'User'} has been selected as the winner!`);
       setIsChooseWinnerOpen(false);
     }
   };
@@ -308,11 +294,8 @@ export const ContestManagement = () => {
     console.log('🚀 ContestManagement component mounted');
     const loadData = async () => {
       setLoading(true);
-      try {
-        await fetchContests();
-      } finally {
-        setLoading(false);
-      }
+      await fetchContests();
+      setLoading(false);
     };
     loadData();
   }, []);
@@ -329,7 +312,6 @@ export const ContestManagement = () => {
       <div className="flex flex-col justify-center items-center p-8 space-y-4">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="text-lg">Loading contests...</span>
-        <p className="text-sm text-muted-foreground">This should only take a moment</p>
       </div>
     );
   }
@@ -455,7 +437,7 @@ export const ContestManagement = () => {
                   {entries.map((entry) => (
                     <TableRow key={entry.id}>
                       <TableCell>
-                        {entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}
+                        {entry.user_name || 'Anonymous'}
                       </TableCell>
                       <TableCell>{entry.description || 'No description'}</TableCell>
                       <TableCell>{entry.vote_count}</TableCell>
@@ -632,7 +614,7 @@ export const ContestManagement = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Choose Winner</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to select "{selectedEntry?.description}" by {selectedEntry?.profiles?.full_name} as the winner?
+              Are you sure you want to select "{selectedEntry?.description}" by {selectedEntry?.user_name} as the winner?
               This action will finalize the contest results.
             </AlertDialogDescription>
           </AlertDialogHeader>
