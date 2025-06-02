@@ -4,9 +4,9 @@ import { toast } from "sonner";
 
 export const updateUserCredits = async (userId: string, amount: number): Promise<number | null> => {
   try {
-    console.log("Credits: Updating credits for user:", userId, "amount:", amount);
+    console.log("Credits: Updating credits for user:", userId, "exact amount:", amount);
     
-    // Use the RPC function to update credits
+    // Use the RPC function to update credits with the exact amount specified
     const { data, error } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: amount
@@ -19,7 +19,7 @@ export const updateUserCredits = async (userId: string, amount: number): Promise
     
     // Ensure we return a number
     const newBalance = typeof data === 'number' ? data : parseInt(data) || 0;
-    console.log("Credits: Successfully updated, new balance:", newBalance);
+    console.log("Credits: Successfully updated, new balance:", newBalance, "amount changed:", amount);
     
     if (amount > 0) {
       toast.success(`${amount} credits added to your account`);

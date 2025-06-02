@@ -104,7 +104,7 @@ const Credits = () => {
       
       console.log("Purchasing credits:", pack.credits, "for user:", user.id);
       
-      // Update user credits using the utility function directly
+      // Update user credits with the EXACT amount from the package
       const newBalance = await updateUserCredits(user.id, pack.credits);
       
       if (newBalance === null) {
@@ -158,7 +158,7 @@ const Credits = () => {
       
       console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
       
-      // Update user credits using the utility function directly
+      // Update user credits with the EXACT amount from the plan
       const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
       
       if (newBalance === null) {
@@ -256,43 +256,12 @@ const Credits = () => {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Dialog open={dialogOpen && selectedPackId === pack.id} onOpenChange={(open) => !open && setSelectedPackId(null)}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                        onClick={() => openPurchaseDialog(pack.id)}
-                      >
-                        Purchase
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Purchase {pack.name}</DialogTitle>
-                        <DialogDescription>
-                          You are about to purchase {pack.credits} credits for ${pack.price}.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span>{pack.credits} Credits</span>
-                          <span>${pack.price}</span>
-                        </div>
-                        <div className="border-t pt-2 flex items-center justify-between font-bold">
-                          <span>Total</span>
-                          <span>${pack.price}</span>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button 
-                          onClick={() => handleBuyCredits(pack.id)} 
-                          disabled={paymentProcessing}
-                          className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                        >
-                          {paymentProcessing ? "Processing..." : "Confirm Purchase"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+                    onClick={() => openPurchaseDialog(pack.id)}
+                  >
+                    Purchase
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
@@ -335,50 +304,12 @@ const Credits = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className={`w-full ${currentPlan === plan.id ? "bg-muted hover:bg-muted" : "bg-melody-secondary hover:bg-melody-secondary/90"}`}
-                        disabled={currentPlan === plan.id}
-                      >
-                        {currentPlan === plan.id ? "Current Plan" : "Subscribe"}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Subscribe to {plan.name} Plan</DialogTitle>
-                        <DialogDescription>
-                          You are about to subscribe to the {plan.name} plan for ${plan.price}/month.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="flex items-center justify-between">
-                          <span>Monthly subscription</span>
-                          <span>${plan.price}/month</span>
-                        </div>
-                        <div className="flex items-center justify-between font-medium">
-                          <span>{plan.creditsPerMonth} credits monthly</span>
-                        </div>
-                        <div className="border-t pt-2 flex items-center justify-between font-bold">
-                          <span>Total today</span>
-                          <span>${plan.price}</span>
-                        </div>
-                      </div>
-                      <DialogFooter className="flex-col">
-                        <div className="flex items-center justify-center w-full mb-4">
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          <span className="text-sm text-muted-foreground">Secure payment processing</span>
-                        </div>
-                        <Button 
-                          onClick={() => handleSubscribe(plan.id)} 
-                          disabled={paymentProcessing}
-                          className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                        >
-                          {paymentProcessing ? "Processing..." : "Confirm Subscription"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    className={`w-full ${currentPlan === plan.id ? "bg-muted hover:bg-muted" : "bg-melody-secondary hover:bg-melody-secondary/90"}`}
+                    disabled={currentPlan === plan.id}
+                  >
+                    {currentPlan === plan.id ? "Current Plan" : "Subscribe"}
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
@@ -392,6 +323,83 @@ const Credits = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Purchase Dialog */}
+      <Dialog open={dialogOpen && selectedPackId !== null} onOpenChange={(open) => !open && setSelectedPackId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Purchase {creditPacks.find(p => p.id === selectedPackId)?.name}</DialogTitle>
+            <DialogDescription>
+              You are about to purchase {creditPacks.find(p => p.id === selectedPackId)?.credits} credits for ${creditPacks.find(p => p.id === selectedPackId)?.price}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {selectedPackId && (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span>{creditPacks.find(p => p.id === selectedPackId)?.credits} Credits</span>
+                  <span>${creditPacks.find(p => p.id === selectedPackId)?.price}</span>
+                </div>
+                <div className="border-t pt-2 flex items-center justify-between font-bold">
+                  <span>Total</span>
+                  <span>${creditPacks.find(p => p.id === selectedPackId)?.price}</span>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={() => selectedPackId && handleBuyCredits(selectedPackId)} 
+              disabled={paymentProcessing}
+              className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+            >
+              {paymentProcessing ? "Processing..." : "Confirm Purchase"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subscribe Dialog */}
+      <Dialog open={dialogOpen && selectedPlanId !== null} onOpenChange={(open) => !open && setSelectedPlanId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Subscribe to {subscriptionPlans.find(p => p.id === selectedPlanId)?.name} Plan</DialogTitle>
+            <DialogDescription>
+              You are about to subscribe to the {subscriptionPlans.find(p => p.id === selectedPlanId)?.name} plan for ${subscriptionPlans.find(p => p.id === selectedPlanId)?.price}/month.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {selectedPlanId && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span>Monthly subscription</span>
+                  <span>${subscriptionPlans.find(p => p.id === selectedPlanId)?.price}/month</span>
+                </div>
+                <div className="flex items-center justify-between font-medium">
+                  <span>{subscriptionPlans.find(p => p.id === selectedPlanId)?.creditsPerMonth} credits monthly</span>
+                </div>
+                <div className="border-t pt-2 flex items-center justify-between font-bold">
+                  <span>Total today</span>
+                  <span>${subscriptionPlans.find(p => p.id === selectedPlanId)?.price}</span>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-col">
+            <div className="flex items-center justify-center w-full mb-4">
+              <CreditCard className="mr-2 h-4 w-4" />
+              <span className="text-sm text-muted-foreground">Secure payment processing</span>
+            </div>
+            <Button 
+              onClick={() => selectedPlanId && handleSubscribe(selectedPlanId)} 
+              disabled={paymentProcessing}
+              className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+            >
+              {paymentProcessing ? "Processing..." : "Confirm Subscription"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

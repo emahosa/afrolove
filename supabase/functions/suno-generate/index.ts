@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -96,10 +95,11 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Ensure user has exactly 5 credits (not more, not less)
     if (userProfile.credits < 5) {
       console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
       return new Response(JSON.stringify({ 
-        error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+        error: 'Insufficient credits. You need exactly 5 credits to generate a song.',
         success: false 
       }), {
         status: 400,
@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
 
     console.log('✅ Task ID received:', taskId)
 
-    // Deduct credits
+    // Deduct exactly 5 credits (negative amount)
     const { error: creditError } = await supabase.rpc('update_user_credits', {
       p_user_id: userId,
       p_amount: -5
@@ -244,10 +244,10 @@ Deno.serve(async (req) => {
     if (creditError) {
       console.error('❌ Failed to deduct credits:', creditError)
     } else {
-      console.log('✅ Credits deducted for user:', userId)
+      console.log('✅ Exactly 5 credits deducted for user:', userId)
     }
 
-    // Create song record
+    // Create song record with exact credit amount
     const songData = {
       user_id: userId,
       title: title || 'Generating...',
@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
       audio_url: taskId, // Store task ID temporarily
       prompt,
       status: 'pending',
-      credits_used: 5
+      credits_used: 5  // Exactly 5 credits
     }
 
     const { data: newSong, error: songError } = await supabase
@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully'
+      message: 'Song generation started successfully - 5 credits deducted'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

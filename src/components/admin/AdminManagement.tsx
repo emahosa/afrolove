@@ -13,22 +13,14 @@ interface AdminManagementProps {
   users?: any[];
   admins?: any[];
   apiKeys?: any[];
-  pricingPlans?: any[];
-  creditPackages?: any[];
   renderStatusLabel?: (status: string) => React.ReactNode;
-  renderPlanFeatures?: (features: any[]) => React.ReactNode;
-  getButtonContent?: (status: string) => React.ReactNode;
 }
 
 export const AdminManagement = ({ 
   users = [], 
   admins = [],
   apiKeys = [],
-  pricingPlans = [],
-  creditPackages = [],
-  renderStatusLabel = (status: string) => status,
-  renderPlanFeatures = (features: any[]) => null,
-  getButtonContent = (status: string) => status
+  renderStatusLabel = (status: string) => status
 }: AdminManagementProps) => {
   return (
     <div className="space-y-6">
@@ -66,12 +58,7 @@ export const AdminManagement = ({
         </TabsContent>
         
         <TabsContent value="payments">
-          <PaymentManagement 
-            pricingPlans={pricingPlans}
-            creditPackages={creditPackages}
-            renderPlanFeatures={renderPlanFeatures}
-            renderStatusLabel={renderStatusLabel}
-          />
+          <PaymentManagement />
         </TabsContent>
         
         <TabsContent value="reports">

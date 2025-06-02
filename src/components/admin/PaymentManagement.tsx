@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,15 +34,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
-interface PricingPlan {
-  id: string;
-  name: string;
-  price: number;
-  credits: number;
-  popular?: boolean;
-  features: Array<{ label: string; included: boolean }>;
-}
-
 interface CreditPackage {
   id: string;
   name: string;
@@ -60,13 +50,6 @@ interface SubscriptionPlan {
   creditsPerMonth: number;
   features: string[];
 }
-
-const pricingPlanSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  price: z.coerce.number().positive({ message: "Price must be positive." }),
-  credits: z.coerce.number().int().positive({ message: "Credits must be positive." }),
-  popular: z.boolean().optional(),
-});
 
 const creditPackageSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -173,16 +156,16 @@ export const PaymentManagement = () => {
   };
 
   // Credit Package Functions
-  const handleAddPackage = () => {
+  function handleAddPackage() {
     packageForm.reset({
       name: "",
       credits: 0,
       price: 0,
     });
     setIsAddPackageDialogOpen(true);
-  };
+  }
 
-  const handleEditPackage = (packageId: string) => {
+  function handleEditPackage(packageId: string) {
     const pkg = creditPackages.find(p => p.id === packageId);
     if (pkg) {
       setCurrentPackage(pkg);
@@ -193,9 +176,9 @@ export const PaymentManagement = () => {
       });
       setIsEditPackageDialogOpen(true);
     }
-  };
+  }
 
-  const handleTogglePackageStatus = (packageId: string) => {
+  function handleTogglePackageStatus(packageId: string) {
     setCreditPackages(creditPackages.map(pkg => {
       if (pkg.id === packageId) {
         const newStatus = pkg.status === 'active' ? 'inactive' : 'active';
@@ -204,9 +187,9 @@ export const PaymentManagement = () => {
       }
       return pkg;
     }));
-  };
+  }
 
-  const onSubmitAddPackage = (values: z.infer<typeof creditPackageSchema>) => {
+  function onSubmitAddPackage(values: z.infer<typeof creditPackageSchema>) {
     const newPackage: CreditPackage = {
       id: `pkg-${Date.now()}`,
       name: values.name,
@@ -218,9 +201,9 @@ export const PaymentManagement = () => {
     setCreditPackages([...creditPackages, newPackage]);
     toast.success(`New credit package "${values.name}" added successfully`);
     setIsAddPackageDialogOpen(false);
-  };
+  }
 
-  const onSubmitEditPackage = (values: z.infer<typeof creditPackageSchema>) => {
+  function onSubmitEditPackage(values: z.infer<typeof creditPackageSchema>) {
     if (currentPackage) {
       setCreditPackages(creditPackages.map(pkg => 
         pkg.id === currentPackage.id 
@@ -235,10 +218,10 @@ export const PaymentManagement = () => {
       toast.success(`Credit package "${values.name}" updated successfully`);
       setIsEditPackageDialogOpen(false);
     }
-  };
+  }
 
   // Subscription Plan Functions
-  const handleAddSubscription = () => {
+  function handleAddSubscription() {
     subscriptionForm.reset({
       name: "",
       price: 0,
@@ -246,9 +229,9 @@ export const PaymentManagement = () => {
       popular: false,
     });
     setIsAddSubscriptionDialogOpen(true);
-  };
+  }
 
-  const handleEditSubscription = (planId: string) => {
+  function handleEditSubscription(planId: string) {
     const plan = subscriptionPlans.find(p => p.id === planId);
     if (plan) {
       setCurrentSubscription(plan);
@@ -260,9 +243,9 @@ export const PaymentManagement = () => {
       });
       setIsEditSubscriptionDialogOpen(true);
     }
-  };
+  }
 
-  const onSubmitAddSubscription = (values: z.infer<typeof subscriptionPlanSchema>) => {
+  function onSubmitAddSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
     const newPlan: SubscriptionPlan = {
       id: `sub-${Date.now()}`,
       name: values.name,
@@ -280,9 +263,9 @@ export const PaymentManagement = () => {
     setSubscriptionPlans([...subscriptionPlans, newPlan]);
     toast.success(`New subscription plan "${values.name}" added successfully`);
     setIsAddSubscriptionDialogOpen(false);
-  };
+  }
 
-  const onSubmitEditSubscription = (values: z.infer<typeof subscriptionPlanSchema>) => {
+  function onSubmitEditSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
     if (currentSubscription) {
       setSubscriptionPlans(subscriptionPlans.map(plan => 
         plan.id === currentSubscription.id 
@@ -298,7 +281,7 @@ export const PaymentManagement = () => {
       toast.success(`Subscription plan "${values.name}" updated successfully`);
       setIsEditSubscriptionDialogOpen(false);
     }
-  };
+  }
 
   return (
     <div className="space-y-8">
