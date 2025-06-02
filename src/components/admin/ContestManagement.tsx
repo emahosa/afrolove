@@ -92,7 +92,6 @@ export const ContestManagement = () => {
     try {
       console.log('ContestManagement: Fetching contests...');
       setError(null);
-      setLoading(true);
       
       const { data, error } = await supabase
         .from('contests')
@@ -117,8 +116,6 @@ export const ContestManagement = () => {
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast.error('Failed to load contests: ' + errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -320,7 +317,12 @@ export const ContestManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       console.log('ContestManagement: Component mounted, loading data...');
-      await fetchContests();
+      setLoading(true);
+      try {
+        await fetchContests();
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -337,26 +339,6 @@ export const ContestManagement = () => {
       <div className="flex justify-center items-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading contests...</span>
-      </div>
-    );
-  }
-
-  if (error && contests.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Contest Management</h2>
-          <Button onClick={fetchContests}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </div>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Failed to load contests: {error}
-          </AlertDescription>
-        </Alert>
       </div>
     );
   }
