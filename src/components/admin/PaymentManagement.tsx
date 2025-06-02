@@ -1,8 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star } from 'lucide-react';
+import { Star, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   Dialog, 
@@ -25,6 +25,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 interface PricingPlan {
   id: string;
@@ -43,11 +52,13 @@ interface CreditPackage {
   status: string;
 }
 
-interface PaymentManagementProps {
-  pricingPlans: PricingPlan[];
-  creditPackages: CreditPackage[];
-  renderPlanFeatures: (features: Array<{ label: string; included: boolean }>) => React.ReactNode;
-  renderStatusLabel: (status: string) => React.ReactNode;
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  popular: boolean;
+  creditsPerMonth: number;
+  features: string[];
 }
 
 const pricingPlanSchema = z.object({
@@ -63,30 +74,76 @@ const creditPackageSchema = z.object({
   price: z.coerce.number().positive({ message: "Price must be positive." }),
 });
 
-export const PaymentManagement = ({ 
-  pricingPlans, 
-  creditPackages, 
-  renderPlanFeatures,
-  renderStatusLabel 
-}: PaymentManagementProps) => {
-  const [plans, setPlans] = useState<PricingPlan[]>(pricingPlans);
-  const [packages, setPackages] = useState<CreditPackage[]>(creditPackages);
-  const [isAddPlanDialogOpen, setIsAddPlanDialogOpen] = useState(false);
-  const [isEditPlanDialogOpen, setIsEditPlanDialogOpen] = useState(false);
-  const [isAddPackageDialogOpen, setIsAddPackageDialogOpen] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<PricingPlan | null>(null);
-  const [currentPackage, setCurrentPackage] = useState<CreditPackage | null>(null);
-  const [isEditPackageDialogOpen, setIsEditPackageDialogOpen] = useState(false);
+const subscriptionPlanSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  price: z.coerce.number().positive({ message: "Price must be positive." }),
+  creditsPerMonth: z.coerce.number().int().positive({ message: "Credits per month must be positive." }),
+  popular: z.boolean().optional(),
+});
 
-  const planForm = useForm<z.infer<typeof pricingPlanSchema>>({
-    resolver: zodResolver(pricingPlanSchema),
-    defaultValues: {
-      name: "",
-      price: 0,
-      credits: 0,
-      popular: false,
-    },
-  });
+// Initial data - this should match what's in Credits.tsx
+const initialCreditPacks: CreditPackage[] = [
+  { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, status: "active" },
+  { id: "pack2", name: "Creator Pack", credits: 30, price: 9.99, status: "active" },
+  { id: "pack3", name: "Pro Pack", credits: 75, price: 19.99, status: "active" },
+  { id: "pack4", name: "Studio Pack", credits: 200, price: 49.99, status: "active" },
+];
+
+const initialSubscriptionPlans: SubscriptionPlan[] = [
+  { 
+    id: "basic",
+    name: "Basic", 
+    price: 9.99, 
+    popular: false,
+    creditsPerMonth: 20,
+    features: [
+      "20 credits monthly",
+      "Access to all basic AI models",
+      "Standard quality exports",
+      "Email support"
+    ] 
+  },
+  { 
+    id: "premium",
+    name: "Premium", 
+    price: 19.99, 
+    popular: true,
+    creditsPerMonth: 75,
+    features: [
+      "75 credits monthly",
+      "Access to all premium AI models",
+      "High quality exports",
+      "Priority email support",
+      "Unlimited song storage"
+    ] 
+  },
+  { 
+    id: "unlimited",
+    name: "Professional", 
+    price: 39.99, 
+    popular: false,
+    creditsPerMonth: 200,
+    features: [
+      "200 credits monthly",
+      "Access to all AI models including beta",
+      "Maximum quality exports",
+      "Priority support with 24hr response",
+      "Unlimited song storage",
+      "Commercial usage rights",
+      "Advanced editing tools"
+    ] 
+  }
+];
+
+export const PaymentManagement = () => {
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(initialCreditPacks);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>(initialSubscriptionPlans);
+  const [isAddPackageDialogOpen, setIsAddPackageDialogOpen] = useState(false);
+  const [isEditPackageDialogOpen, setIsEditPackageDialogOpen] = useState(false);
+  const [isAddSubscriptionDialogOpen, setIsAddSubscriptionDialogOpen] = useState(false);
+  const [isEditSubscriptionDialogOpen, setIsEditSubscriptionDialogOpen] = useState(false);
+  const [currentPackage, setCurrentPackage] = useState<CreditPackage | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<SubscriptionPlan | null>(null);
 
   const packageForm = useForm<z.infer<typeof creditPackageSchema>>({
     resolver: zodResolver(creditPackageSchema),
@@ -97,68 +154,22 @@ export const PaymentManagement = ({
     },
   });
 
-  // Pricing Plan Functions
-  const handleAddPlan = () => {
-    planForm.reset({
+  const subscriptionForm = useForm<z.infer<typeof subscriptionPlanSchema>>({
+    resolver: zodResolver(subscriptionPlanSchema),
+    defaultValues: {
       name: "",
       price: 0,
-      credits: 0,
+      creditsPerMonth: 0,
       popular: false,
-    });
-    setIsAddPlanDialogOpen(true);
-  };
+    },
+  });
 
-  const handleEditPlan = (planId: string) => {
-    const plan = plans.find(p => p.id === planId);
-    if (plan) {
-      setCurrentPlan(plan);
-      planForm.reset({
-        name: plan.name,
-        price: plan.price,
-        credits: plan.credits,
-        popular: plan.popular || false,
-      });
-      setIsEditPlanDialogOpen(true);
-    }
-  };
-
-  const onSubmitAddPlan = (values: z.infer<typeof pricingPlanSchema>) => {
-    const newPlan: PricingPlan = {
-      id: `plan-${Date.now()}`,
-      name: values.name,
-      price: values.price,
-      credits: values.credits,
-      popular: values.popular,
-      features: [
-        { label: `Generate up to ${values.credits} songs`, included: true },
-        { label: 'Standard audio quality', included: true },
-        { label: 'Download MP3 files', included: true },
-        { label: 'Voice cloning (1 voice)', included: false },
-        { label: 'Split vocals and instruments', included: false },
-      ],
-    };
-    
-    setPlans([...plans, newPlan]);
-    toast.success(`New plan "${values.name}" added successfully`);
-    setIsAddPlanDialogOpen(false);
-  };
-
-  const onSubmitEditPlan = (values: z.infer<typeof pricingPlanSchema>) => {
-    if (currentPlan) {
-      setPlans(plans.map(plan => 
-        plan.id === currentPlan.id 
-          ? { 
-              ...plan,
-              name: values.name,
-              price: values.price,
-              credits: values.credits,
-              popular: values.popular,
-            } 
-          : plan
-      ));
-      toast.success(`Plan "${values.name}" updated successfully`);
-      setIsEditPlanDialogOpen(false);
-    }
+  const renderStatusLabel = (status: string) => {
+    return (
+      <Badge variant={status === 'active' ? 'default' : 'secondary'}>
+        {status}
+      </Badge>
+    );
   };
 
   // Credit Package Functions
@@ -172,7 +183,7 @@ export const PaymentManagement = ({
   };
 
   const handleEditPackage = (packageId: string) => {
-    const pkg = packages.find(p => p.id === packageId);
+    const pkg = creditPackages.find(p => p.id === packageId);
     if (pkg) {
       setCurrentPackage(pkg);
       packageForm.reset({
@@ -184,8 +195,8 @@ export const PaymentManagement = ({
     }
   };
 
-  const handleDisablePackage = (packageId: string) => {
-    setPackages(packages.map(pkg => {
+  const handleTogglePackageStatus = (packageId: string) => {
+    setCreditPackages(creditPackages.map(pkg => {
       if (pkg.id === packageId) {
         const newStatus = pkg.status === 'active' ? 'inactive' : 'active';
         toast.success(`Credit package ${pkg.name} ${newStatus === 'active' ? 'activated' : 'disabled'}`);
@@ -204,14 +215,14 @@ export const PaymentManagement = ({
       status: 'active',
     };
     
-    setPackages([...packages, newPackage]);
+    setCreditPackages([...creditPackages, newPackage]);
     toast.success(`New credit package "${values.name}" added successfully`);
     setIsAddPackageDialogOpen(false);
   };
 
   const onSubmitEditPackage = (values: z.infer<typeof creditPackageSchema>) => {
     if (currentPackage) {
-      setPackages(packages.map(pkg => 
+      setCreditPackages(creditPackages.map(pkg => 
         pkg.id === currentPackage.id 
           ? { 
               ...pkg,
@@ -226,260 +237,169 @@ export const PaymentManagement = ({
     }
   };
 
+  // Subscription Plan Functions
+  const handleAddSubscription = () => {
+    subscriptionForm.reset({
+      name: "",
+      price: 0,
+      creditsPerMonth: 0,
+      popular: false,
+    });
+    setIsAddSubscriptionDialogOpen(true);
+  };
+
+  const handleEditSubscription = (planId: string) => {
+    const plan = subscriptionPlans.find(p => p.id === planId);
+    if (plan) {
+      setCurrentSubscription(plan);
+      subscriptionForm.reset({
+        name: plan.name,
+        price: plan.price,
+        creditsPerMonth: plan.creditsPerMonth,
+        popular: plan.popular,
+      });
+      setIsEditSubscriptionDialogOpen(true);
+    }
+  };
+
+  const onSubmitAddSubscription = (values: z.infer<typeof subscriptionPlanSchema>) => {
+    const newPlan: SubscriptionPlan = {
+      id: `sub-${Date.now()}`,
+      name: values.name,
+      price: values.price,
+      creditsPerMonth: values.creditsPerMonth,
+      popular: values.popular || false,
+      features: [
+        `${values.creditsPerMonth} credits monthly`,
+        'Access to all basic AI models',
+        'Standard quality exports',
+        'Email support'
+      ],
+    };
+    
+    setSubscriptionPlans([...subscriptionPlans, newPlan]);
+    toast.success(`New subscription plan "${values.name}" added successfully`);
+    setIsAddSubscriptionDialogOpen(false);
+  };
+
+  const onSubmitEditSubscription = (values: z.infer<typeof subscriptionPlanSchema>) => {
+    if (currentSubscription) {
+      setSubscriptionPlans(subscriptionPlans.map(plan => 
+        plan.id === currentSubscription.id 
+          ? { 
+              ...plan,
+              name: values.name,
+              price: values.price,
+              creditsPerMonth: values.creditsPerMonth,
+              popular: values.popular || false,
+            } 
+          : plan
+      ));
+      toast.success(`Subscription plan "${values.name}" updated successfully`);
+      setIsEditSubscriptionDialogOpen(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Pricing Plans</h2>
-          <Button onClick={handleAddPlan}>Add New Plan</Button>
-        </div>
-        
-        <div className="grid gap-6 md:grid-cols-3">
-          {plans.map((plan) => (
-            <Card key={plan.id} className={plan.popular ? "border-melody-secondary" : ""}>
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-melody-secondary text-white text-xs px-3 py-1 rounded-full">
-                    Popular
-                  </div>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>Subscription Plan</CardDescription>
-                <div className="mt-4 text-3xl font-bold">${plan.price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <div className="mb-4 flex items-center gap-2">
-                  <Star className="h-5 w-5 text-melody-secondary" />
-                  <span className="font-medium">{plan.credits} monthly credits</span>
-                </div>
-                <div className="space-y-2">
-                  {renderPlanFeatures(plan.features)}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" onClick={() => handleEditPlan(plan.id)}>Edit Plan</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      </div>
-      
+    <div className="space-y-8">
+      {/* Credit Packages Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Credit Packages</h2>
           <Button onClick={handleAddPackage}>Add New Package</Button>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4">Package Name</th>
-                <th className="text-left py-3 px-4">Credits</th>
-                <th className="text-left py-3 px-4">Price</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-right py-3 px-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {packages.map((pkg) => (
-                <tr key={pkg.id} className="border-b">
-                  <td className="py-3 px-4">{pkg.name}</td>
-                  <td className="py-3 px-4">{pkg.credits}</td>
-                  <td className="py-3 px-4">${pkg.price.toFixed(2)}</td>
-                  <td className="py-3 px-4">{renderStatusLabel(pkg.status)}</td>
-                  <td className="py-3 px-4 text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={() => handleEditPackage(pkg.id)}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2 text-red-500"
-                      onClick={() => handleDisablePackage(pkg.id)}
-                    >
-                      {pkg.status === 'active' ? 'Disable' : 'Enable'}
-                    </Button>
-                  </td>
-                </tr>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Package Name</TableHead>
+                <TableHead>Credits</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {creditPackages.map((pkg) => (
+                <TableRow key={pkg.id}>
+                  <TableCell className="font-medium">{pkg.name}</TableCell>
+                  <TableCell>{pkg.credits}</TableCell>
+                  <TableCell>${pkg.price.toFixed(2)}</TableCell>
+                  <TableCell>{renderStatusLabel(pkg.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditPackage(pkg.id)}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleTogglePackageStatus(pkg.id)}
+                        className={pkg.status === 'active' ? 'text-red-600' : 'text-green-600'}
+                      >
+                        {pkg.status === 'active' ? 'Disable' : 'Enable'}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* Add Plan Dialog */}
-      <Dialog open={isAddPlanDialogOpen} onOpenChange={setIsAddPlanDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add New Pricing Plan</DialogTitle>
-            <DialogDescription>
-              Create a new subscription plan for your users.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...planForm}>
-            <form onSubmit={planForm.handleSubmit(onSubmitAddPlan)} className="space-y-4">
-              <FormField
-                control={planForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Plan Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="e.g. Premium" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="credits"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Credits</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="popular"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Mark as Popular
-                      </FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        This plan will be highlighted to users
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsAddPlanDialogOpen(false)}>
-                  Cancel
+      {/* Subscription Plans Section */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Subscription Plans</h2>
+          <Button onClick={handleAddSubscription}>Add New Plan</Button>
+        </div>
+        
+        <div className="grid gap-6 md:grid-cols-3">
+          {subscriptionPlans.map((plan) => (
+            <Card key={plan.id} className={`flex flex-col ${plan.popular ? "border-melody-secondary" : ""}`}>
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-melody-secondary">Most Popular</Badge>
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle>{plan.name}</CardTitle>
+                <CardDescription>Monthly subscription</CardDescription>
+                <div className="text-3xl font-bold">${plan.price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <div className="flex items-center gap-2 mb-4">
+                  <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
+                  <span className="font-medium">{plan.creditsPerMonth} credits monthly</span>
+                </div>
+                <ul className="space-y-2">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-melody-secondary flex-shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => handleEditSubscription(plan.id)}
+                >
+                  Edit Plan
                 </Button>
-                <Button type="submit">Add Plan</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Plan Dialog */}
-      <Dialog open={isEditPlanDialogOpen} onOpenChange={setIsEditPlanDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Pricing Plan</DialogTitle>
-            <DialogDescription>
-              Modify the details of this subscription plan.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...planForm}>
-            <form onSubmit={planForm.handleSubmit(onSubmitEditPlan)} className="space-y-4">
-              <FormField
-                control={planForm.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Plan Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="credits"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Credits</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={planForm.control}
-                name="popular"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Mark as Popular
-                      </FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        This plan will be highlighted to users
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditPlanDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
 
       {/* Add Package Dialog */}
       <Dialog open={isAddPackageDialogOpen} onOpenChange={setIsAddPackageDialogOpen}>
@@ -594,6 +514,172 @@ export const PaymentManagement = ({
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditPackageDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Subscription Dialog */}
+      <Dialog open={isAddSubscriptionDialogOpen} onOpenChange={setIsAddSubscriptionDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Subscription Plan</DialogTitle>
+            <DialogDescription>
+              Create a new monthly subscription plan.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...subscriptionForm}>
+            <form onSubmit={subscriptionForm.handleSubmit(onSubmitAddSubscription)} className="space-y-4">
+              <FormField
+                control={subscriptionForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plan Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="e.g. Premium" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly Price ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="creditsPerMonth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credits Per Month</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="popular"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Mark as Popular
+                      </FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        This plan will be highlighted to users
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddSubscriptionDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Plan</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Subscription Dialog */}
+      <Dialog open={isEditSubscriptionDialogOpen} onOpenChange={setIsEditSubscriptionDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Subscription Plan</DialogTitle>
+            <DialogDescription>
+              Modify the details of this subscription plan.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...subscriptionForm}>
+            <form onSubmit={subscriptionForm.handleSubmit(onSubmitEditSubscription)} className="space-y-4">
+              <FormField
+                control={subscriptionForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Plan Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly Price ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="creditsPerMonth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credits Per Month</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={subscriptionForm.control}
+                name="popular"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Mark as Popular
+                      </FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        This plan will be highlighted to users
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditSubscriptionDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button type="submit">Save Changes</Button>
