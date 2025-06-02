@@ -116,7 +116,7 @@ export const useContest = () => {
         return;
       }
 
-      // Get user profiles for the entries
+      // Get user profiles for the entries using the new security definer approach
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
       console.log('Fetching profiles for user IDs:', userIds);
       

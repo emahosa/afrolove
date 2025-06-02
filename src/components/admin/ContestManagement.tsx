@@ -153,7 +153,7 @@ export const ContestManagement = () => {
         return;
       }
 
-      // Get user profiles for the entries
+      // Get user profiles for the entries using the new RLS setup
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
       console.log('ContestManagement: Fetching profiles for users:', userIds);
       
