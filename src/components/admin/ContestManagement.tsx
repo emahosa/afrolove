@@ -35,7 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-console.log("✅ ContestManagement component loaded - NO USERS TABLE REFERENCES");
+console.log("✅ ContestManagement component loaded - DEBUGGING USERS TABLE ACCESS");
 
 interface ContestEntry {
   id: string;
@@ -87,35 +87,37 @@ export const ContestManagement = () => {
 
   // Fetch contests - ONLY uses contests table
   const fetchContests = async () => {
-    console.log('🔄 ContestManagement: fetchContests() - ONLY querying contests table');
+    console.log('🚀 DEBUG: Starting fetchContests()');
     setError(null);
     
     try {
-      console.log('🔍 About to query supabase.from("contests") - NO USERS TABLE');
+      console.log('🔍 DEBUG: About to call supabase.from("contests")');
+      console.log('🔍 DEBUG: This query should NEVER touch users table');
       
       const { data, error: queryError } = await supabase
         .from('contests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('✅ Successfully queried contests table, no users table touched');
+      console.log('✅ DEBUG: Successfully completed contests query');
+      console.log('✅ DEBUG: Data received:', data);
 
       if (queryError) {
-        console.error('❌ Contest query error:', queryError);
+        console.error('❌ DEBUG: Contest query error:', queryError);
         throw queryError;
       }
       
-      console.log(`✅ Successfully fetched ${data?.length || 0} contests from contests table only`);
+      console.log(`✅ DEBUG: Successfully fetched ${data?.length || 0} contests`);
       setContests(data || []);
       
       // Auto-select first contest if none selected
       if (data && data.length > 0 && !selectedContest) {
-        console.log('🎯 Auto-selecting first contest:', data[0].title);
+        console.log('🎯 DEBUG: Auto-selecting first contest:', data[0].title);
         setSelectedContest(data[0]);
       }
       
     } catch (error: any) {
-      console.error('💥 Error in fetchContests (contests table only):', error);
+      console.error('💥 DEBUG: Error in fetchContests:', error);
       const errorMessage = error.message || 'Failed to fetch contests';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -123,83 +125,106 @@ export const ContestManagement = () => {
     }
   };
 
-  // Fetch entries - ABSOLUTELY NO USERS TABLE, ONLY PROFILES
+  // Fetch entries with EXPLICIT separation of contest_entries and profiles
   const fetchEntries = async (contestId: string) => {
-    console.log('🔄 ContestManagement: fetchEntries() - ONLY contest_entries + profiles tables');
+    console.log('🚀 DEBUG: Starting fetchEntries() for contest:', contestId);
     
     if (!contestId) {
-      console.log('⚠️ No contest ID provided');
+      console.log('⚠️ DEBUG: No contest ID provided');
       setEntries([]);
       return;
     }
     
     try {
       setEntriesLoading(true);
-      console.log(`🔄 Fetching entries for contest: ${contestId} - NO USERS TABLE`);
+      console.log('🔍 DEBUG: Step 1 - Fetching contest_entries ONLY (NO USERS)');
       
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries") - NO USERS TABLE');
-      
-      // Step 1: Get contest entries (ABSOLUTELY NO USERS TABLE)
+      // STEP 1: Get contest entries with EXPLICIT table specification
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('*')
+        .select(`
+          id,
+          contest_id,
+          user_id,
+          video_url,
+          description,
+          approved,
+          vote_count,
+          media_type,
+          created_at
+        `)
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
-      console.log('✅ Successfully queried contest_entries table, no users table referenced');
+      console.log('✅ DEBUG: Step 1 completed - contest_entries query result:', entriesData);
 
       if (entriesError) {
-        console.error('❌ Error fetching contest entries from contest_entries table:', entriesError);
+        console.error('❌ DEBUG: Error in contest_entries query:', entriesError);
         throw entriesError;
       }
 
-      console.log(`✅ Fetched ${entriesData?.length || 0} contest entries from contest_entries table`);
-      
       if (!entriesData || entriesData.length === 0) {
-        console.log('📝 No entries found, setting empty array');
+        console.log('📝 DEBUG: No entries found, setting empty array');
         setEntries([]);
         return;
       }
       
-      // Step 2: Get unique user IDs from entries
+      // STEP 2: Get unique user IDs
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
-      console.log(`🔍 Step 2: Fetching profiles for ${userIds.length} users - PROFILES TABLE ONLY`);
+      console.log('🔍 DEBUG: Step 2 - Need profiles for user IDs:', userIds);
       
-      console.log('🔍 About to query supabase.from("profiles") - ABSOLUTELY NO USERS TABLE');
+      if (userIds.length === 0) {
+        console.log('⚠️ DEBUG: No user IDs found in entries');
+        setEntries(entriesData.map(entry => ({ ...entry, user_name: 'Unknown User' })));
+        return;
+      }
       
-      // Step 3: Fetch profiles separately (ABSOLUTELY NO USERS TABLE)
+      console.log('🔍 DEBUG: Step 3 - Fetching profiles ONLY (NO USERS TABLE)');
+      
+      // STEP 3: Get profiles with EXPLICIT table specification
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, full_name, username')
+        .select(`
+          id,
+          full_name,
+          username
+        `)
         .in('id', userIds);
 
-      console.log('✅ Successfully queried profiles table, no users table referenced');
+      console.log('✅ DEBUG: Step 3 completed - profiles query result:', profilesData);
 
       if (profilesError) {
-        console.warn('⚠️ Error fetching profiles from profiles table (continuing anyway):', profilesError);
+        console.warn('⚠️ DEBUG: Error fetching profiles (will continue with unknown users):', profilesError);
       }
 
-      console.log(`✅ Fetched ${profilesData?.length || 0} profiles from profiles table only`);
+      // STEP 4: Create lookup map
+      const profilesMap = new Map();
+      if (profilesData) {
+        profilesData.forEach(profile => {
+          profilesMap.set(profile.id, profile.full_name || profile.username || 'Anonymous User');
+        });
+      }
+      
+      console.log('🔍 DEBUG: Step 4 - Created profiles map:', Array.from(profilesMap.entries()));
 
-      // Step 4: Create a lookup map for profiles (NO USERS TABLE INVOLVED)
-      const profilesMap = new Map(
-        (profilesData || []).map(profile => [
-          profile.id, 
-          profile.full_name || profile.username || 'Anonymous User'
-        ])
-      );
-
-      // Step 5: Combine entries with profile info in code (NO USERS TABLE)
+      // STEP 5: Combine data in memory
       const entriesWithUserInfo = entriesData.map(entry => ({
         ...entry,
         user_name: profilesMap.get(entry.user_id) || 'Anonymous User'
       }));
       
-      console.log(`✅ Combined ${entriesWithUserInfo.length} entries with profile data - NO USERS TABLE USED`);
+      console.log('✅ DEBUG: Step 5 completed - Final entries with user names:', entriesWithUserInfo);
       setEntries(entriesWithUserInfo);
       
     } catch (error: any) {
-      console.error('💥 Error fetching entries (profiles table only, no users table):', error);
+      console.error('💥 DEBUG: Error in fetchEntries:', error);
+      console.error('💥 DEBUG: Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      
       const errorMessage = error.message || 'Failed to fetch entries';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -211,7 +236,7 @@ export const ContestManagement = () => {
 
   // Approve entry - ONLY contest_entries table
   const handleApproveEntry = async (entryId: string) => {
-    console.log('🔄 handleApproveEntry - ONLY contest_entries table, NO USERS');
+    console.log('🔄 DEBUG: handleApproveEntry - ONLY contest_entries table');
     try {
       const { error } = await supabase
         .from('contest_entries')
@@ -234,7 +259,7 @@ export const ContestManagement = () => {
 
   // Reject entry - ONLY contest_entries table
   const handleRevokeEntry = async (entryId: string) => {
-    console.log('🔄 handleRevokeEntry - ONLY contest_entries table, NO USERS');
+    console.log('🔄 DEBUG: handleRevokeEntry - ONLY contest_entries table');
     try {
       const { error } = await supabase
         .from('contest_entries')
@@ -257,7 +282,7 @@ export const ContestManagement = () => {
 
   // Create new contest - ONLY contests table
   const handleCreateContest = async () => {
-    console.log('🔄 handleCreateContest - ONLY contests table, NO USERS');
+    console.log('🔄 DEBUG: handleCreateContest - ONLY contests table');
     try {
       const { error } = await supabase
         .from('contests')
@@ -289,7 +314,7 @@ export const ContestManagement = () => {
 
   // End contest - ONLY contests table
   const confirmEndContest = async () => {
-    console.log('🔄 confirmEndContest - ONLY contests table, NO USERS');
+    console.log('🔄 DEBUG: confirmEndContest - ONLY contests table');
     if (!selectedContest) return;
 
     try {
@@ -311,7 +336,7 @@ export const ContestManagement = () => {
 
   // Choose winner - NO DATABASE CALLS, JUST UI
   const confirmChooseWinner = () => {
-    console.log('🔄 confirmChooseWinner - NO DATABASE CALLS');
+    console.log('🔄 DEBUG: confirmChooseWinner - NO DATABASE CALLS');
     if (selectedEntry) {
       toast.success(`${selectedEntry.user_name || 'User'} has been selected as the winner!`);
       setIsChooseWinnerOpen(false);
@@ -319,18 +344,20 @@ export const ContestManagement = () => {
   };
 
   useEffect(() => {
-    console.log('🚀 ContestManagement component mounted - WILL ONLY USE: contests, contest_entries, profiles');
+    console.log('🚀 DEBUG: ContestManagement component mounted');
     const loadData = async () => {
+      console.log('🔍 DEBUG: Starting initial data load');
       setLoading(true);
       await fetchContests();
       setLoading(false);
+      console.log('✅ DEBUG: Initial data load completed');
     };
     loadData();
   }, []);
 
   useEffect(() => {
     if (selectedContest) {
-      console.log('🎯 Selected contest changed, fetching entries - PROFILES TABLE ONLY:', selectedContest.title);
+      console.log('🎯 DEBUG: Selected contest changed, fetching entries:', selectedContest.title);
       fetchEntries(selectedContest.id);
     }
   }, [selectedContest]);
