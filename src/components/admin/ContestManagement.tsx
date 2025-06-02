@@ -84,7 +84,7 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
-  // Fetch contests with proper error handling
+  // Fetch contests
   const fetchContests = async () => {
     console.log('🔄 Fetching contests...');
     setError(null);
@@ -97,7 +97,7 @@ export const ContestManagement = () => {
 
       if (queryError) {
         console.error('❌ Contest query error:', queryError);
-        throw new Error(`Failed to fetch contests: ${queryError.message}`);
+        throw queryError;
       }
       
       console.log(`✅ Successfully fetched ${data?.length || 0} contests`);
@@ -118,7 +118,7 @@ export const ContestManagement = () => {
     }
   };
 
-  // Fetch entries with corrected query structure
+  // Fetch entries - FIXED to use profiles table correctly
   const fetchEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('⚠️ No contest ID provided');
@@ -130,7 +130,7 @@ export const ContestManagement = () => {
       setEntriesLoading(true);
       console.log(`🔄 Fetching entries for contest: ${contestId}`);
       
-      // First, get the contest entries
+      // Get contest entries first
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -139,7 +139,7 @@ export const ContestManagement = () => {
 
       if (entriesError) {
         console.error('❌ Error fetching entries:', entriesError);
-        throw new Error(`Failed to fetch entries: ${entriesError.message}`);
+        throw entriesError;
       }
 
       console.log(`✅ Fetched ${entriesData?.length || 0} entries`);
@@ -149,29 +149,32 @@ export const ContestManagement = () => {
         return;
       }
       
-      // Then get user profiles for each entry
-      const entriesWithUserInfo = await Promise.all(
-        entriesData.map(async (entry) => {
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('full_name, username')
-              .eq('id', entry.user_id)
-              .single();
+      // Get all unique user IDs from entries
+      const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
+      
+      // Fetch profiles for all users at once
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
 
-            return {
-              ...entry,
-              user_name: profileData?.full_name || profileData?.username || 'Anonymous User'
-            };
-          } catch (profileError) {
-            console.warn('⚠️ Failed to fetch profile for user:', entry.user_id);
-            return {
-              ...entry,
-              user_name: 'Anonymous User'
-            };
-          }
-        })
+      if (profilesError) {
+        console.warn('⚠️ Error fetching profiles:', profilesError);
+      }
+
+      // Create a map of user profiles for quick lookup
+      const profilesMap = new Map(
+        (profilesData || []).map(profile => [
+          profile.id, 
+          profile.full_name || profile.username || 'Anonymous User'
+        ])
       );
+
+      // Combine entries with user information
+      const entriesWithUserInfo = entriesData.map(entry => ({
+        ...entry,
+        user_name: profilesMap.get(entry.user_id) || 'Anonymous User'
+      }));
       
       setEntries(entriesWithUserInfo);
       
