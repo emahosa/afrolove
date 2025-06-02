@@ -131,10 +131,16 @@ export const ContestManagement = () => {
       setError(null);
       console.log('ContestManagement: Fetching entries for contest:', contestId);
       
-      // Get contest entries
+      // Get contest entries with profiles in a single query using JOIN
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('*')
+        .select(`
+          *,
+          profiles!inner(
+            full_name,
+            username
+          )
+        `)
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
@@ -143,44 +149,8 @@ export const ContestManagement = () => {
         throw entriesError;
       }
 
-      console.log('ContestManagement: Fetched entries:', entriesData);
-
-      if (!entriesData || entriesData.length === 0) {
-        console.log('ContestManagement: No entries found');
-        setEntries([]);
-        return;
-      }
-
-      // Get user profiles for the entries - RLS is now fixed
-      const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
-      console.log('ContestManagement: Fetching profiles for users:', userIds);
-      
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, username')
-        .in('id', userIds);
-
-      if (profilesError) {
-        console.error('ContestManagement: Error fetching profiles:', profilesError);
-        throw profilesError;
-      }
-
-      console.log('ContestManagement: Fetched profiles:', profilesData);
-
-      // Combine entries with profiles
-      const entriesWithProfiles = entriesData.map(entry => {
-        const profile = profilesData?.find(p => p.id === entry.user_id);
-        return {
-          ...entry,
-          profiles: profile ? {
-            full_name: profile.full_name || '',
-            username: profile.username || ''
-          } : undefined
-        };
-      });
-      
-      console.log('ContestManagement: Combined entries with profiles:', entriesWithProfiles);
-      setEntries(entriesWithProfiles);
+      console.log('ContestManagement: Fetched entries with profiles:', entriesData);
+      setEntries(entriesData || []);
     } catch (error: any) {
       console.error('ContestManagement: Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
