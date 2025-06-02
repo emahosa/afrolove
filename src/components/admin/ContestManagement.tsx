@@ -87,35 +87,44 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
-  // Fetch contests
+  // Fetch contests with proper error handling
   const fetchContests = async () => {
+    console.log('ContestManagement: Starting to fetch contests...');
+    setError(null);
+    
     try {
-      console.log('ContestManagement: Fetching contests...');
-      setError(null);
-      
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('contests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('ContestManagement: Error fetching contests:', error);
-        throw error;
+      console.log('ContestManagement: Raw Supabase response:', { data, error: supabaseError });
+
+      if (supabaseError) {
+        console.error('ContestManagement: Supabase error:', supabaseError);
+        throw new Error(`Database error: ${supabaseError.message}`);
       }
       
-      console.log('ContestManagement: Fetched contests:', data);
-      setContests(data || []);
+      const contestsArray = data || [];
+      console.log('ContestManagement: Processed contests:', contestsArray);
+      setContests(contestsArray);
       
       // Set first contest as selected if none selected and we have contests
-      if (data && data.length > 0 && !selectedContest) {
-        setSelectedContest(data[0]);
-        console.log('ContestManagement: Auto-selected first contest:', data[0]);
+      if (contestsArray.length > 0 && !selectedContest) {
+        setSelectedContest(contestsArray[0]);
+        console.log('ContestManagement: Auto-selected first contest:', contestsArray[0]);
       }
+      
+      if (contestsArray.length === 0) {
+        console.log('ContestManagement: No contests found');
+      }
+      
     } catch (error: any) {
       console.error('ContestManagement: Error in fetchContests:', error);
-      const errorMessage = error.message || 'Unknown error occurred';
+      const errorMessage = error.message || 'Failed to load contests';
       setError(errorMessage);
-      toast.error('Failed to load contests: ' + errorMessage);
+      toast.error(errorMessage);
+      setContests([]);
     }
   };
 
@@ -132,7 +141,7 @@ export const ContestManagement = () => {
       setError(null);
       console.log('ContestManagement: Fetching entries for contest:', contestId);
       
-      // First get contest entries
+      // Get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -141,17 +150,18 @@ export const ContestManagement = () => {
 
       if (entriesError) {
         console.error('ContestManagement: Error fetching entries:', entriesError);
-        throw entriesError;
+        throw new Error(`Failed to fetch entries: ${entriesError.message}`);
       }
 
       console.log('ContestManagement: Fetched entries:', entriesData);
       
       if (!entriesData || entriesData.length === 0) {
+        console.log('ContestManagement: No entries found for contest');
         setEntries([]);
         return;
       }
       
-      // Then get profiles for each entry separately
+      // Get profiles for each entry
       const entriesWithProfiles = await Promise.all(
         entriesData.map(async (entry) => {
           try {
@@ -162,36 +172,20 @@ export const ContestManagement = () => {
               .single();
 
             if (profileError) {
-              console.warn('Error fetching profile for user:', entry.user_id, profileError);
+              console.warn('ContestManagement: Error fetching profile for user:', entry.user_id, profileError);
             }
 
             return {
-              id: entry.id,
-              contest_id: entry.contest_id,
-              user_id: entry.user_id,
-              video_url: entry.video_url || '',
-              description: entry.description || '',
-              approved: entry.approved,
-              vote_count: entry.vote_count || 0,
-              media_type: entry.media_type || 'video',
-              created_at: entry.created_at,
+              ...entry,
               profiles: profileData ? {
                 full_name: profileData.full_name || '',
                 username: profileData.username || ''
               } : null
             };
           } catch (error) {
-            console.error('Error processing entry:', entry.id, error);
+            console.error('ContestManagement: Error processing entry:', entry.id, error);
             return {
-              id: entry.id,
-              contest_id: entry.contest_id,
-              user_id: entry.user_id,
-              video_url: entry.video_url || '',
-              description: entry.description || '',
-              approved: entry.approved,
-              vote_count: entry.vote_count || 0,
-              media_type: entry.media_type || 'video',
-              created_at: entry.created_at,
+              ...entry,
               profiles: null
             };
           }
@@ -199,11 +193,13 @@ export const ContestManagement = () => {
       );
       
       setEntries(entriesWithProfiles);
+      console.log('ContestManagement: Set entries with profiles:', entriesWithProfiles);
+      
     } catch (error: any) {
       console.error('ContestManagement: Error fetching contest entries:', error);
-      const errorMessage = error.message || 'Unknown error occurred';
+      const errorMessage = error.message || 'Failed to load contest entries';
       setError(errorMessage);
-      toast.error('Failed to load contest entries: ' + errorMessage);
+      toast.error(errorMessage);
       setEntries([]);
     } finally {
       setEntriesLoading(false);
@@ -320,6 +316,8 @@ export const ContestManagement = () => {
       setLoading(true);
       try {
         await fetchContests();
+      } catch (error) {
+        console.error('ContestManagement: Error in loadData:', error);
       } finally {
         setLoading(false);
       }
@@ -348,7 +346,10 @@ export const ContestManagement = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Contest Management</h2>
         <div className="space-x-2">
-          <Button variant="outline" onClick={fetchContests}>
+          <Button variant="outline" onClick={() => {
+            setLoading(true);
+            fetchContests().finally(() => setLoading(false));
+          }}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
