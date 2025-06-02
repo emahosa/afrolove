@@ -47,28 +47,41 @@ export const useContest = () => {
   // Fetch active contests
   const fetchContests = async () => {
     try {
+      console.log('Fetching contests from useContest hook...');
       const { data, error } = await supabase
         .from('contests')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching contests:', error);
+        throw error;
+      }
+      
+      console.log('Contests fetched:', data);
       setContests(data || []);
       
       // Set the first active contest as current
       if (data && data.length > 0) {
         setCurrentContest(data[0]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests');
+      toast.error('Failed to load contests: ' + (error.message || 'Unknown error'));
     }
   };
 
   // Fetch entries for current contest
   const fetchContestEntries = async (contestId: string) => {
+    if (!contestId) {
+      console.log('No contest ID provided for fetching entries');
+      return;
+    }
+
     try {
+      console.log('Fetching contest entries for contest:', contestId);
+      
       // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
@@ -77,7 +90,12 @@ export const useContest = () => {
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (entriesError) throw entriesError;
+      if (entriesError) {
+        console.error('Error fetching entries:', entriesError);
+        throw entriesError;
+      }
+
+      console.log('Entries fetched:', entriesData);
 
       if (!entriesData || entriesData.length === 0) {
         setContestEntries([]);
@@ -96,6 +114,8 @@ export const useContest = () => {
         // Continue without profiles if there's an error
       }
 
+      console.log('Profiles fetched:', profilesData);
+
       // Combine entries with profiles
       const entriesWithProfiles = entriesData.map(entry => ({
         ...entry,
@@ -106,9 +126,10 @@ export const useContest = () => {
       }));
       
       setContestEntries(entriesWithProfiles);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching contest entries:', error);
-      toast.error('Failed to load contest entries');
+      toast.error('Failed to load contest entries: ' + (error.message || 'Unknown error'));
+      setContestEntries([]);
     }
   };
 
@@ -121,6 +142,8 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
+      console.log('Submitting contest entry...');
+      
       // For now, we'll just store the file name as video_url
       // In a real implementation, you'd upload to Supabase Storage
       const videoUrl = `uploads/${user.id}/${videoFile.name}`;
@@ -136,7 +159,10 @@ export const useContest = () => {
           approved: false // Pending admin approval
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error submitting entry:', error);
+        throw error;
+      }
 
       toast.success('Entry submitted successfully! It will be reviewed by our team.');
       return true;
@@ -152,19 +178,12 @@ export const useContest = () => {
   // Vote for an entry
   const voteForEntry = async (entryId: string, voterPhone?: string) => {
     try {
+      console.log('Submitting vote for entry:', entryId);
+      
       const voteData: any = {
-        contest_entry_id: entryId,
-        ip_address: 'unknown' // You'd capture real IP in production
+        entry_id: entryId,
+        voter_phone: voterPhone || 'anonymous'
       };
-
-      if (user) {
-        voteData.user_id = user.id;
-      } else if (voterPhone) {
-        voteData.voter_phone = voterPhone;
-      } else {
-        toast.error('Please log in or provide a phone number to vote');
-        return false;
-      }
 
       const { error } = await supabase
         .from('votes')
@@ -174,6 +193,7 @@ export const useContest = () => {
         if (error.code === '23505') { // Unique constraint violation
           toast.error('You have already voted for this entry');
         } else {
+          console.error('Vote error:', error);
           throw error;
         }
         return false;
@@ -204,12 +224,14 @@ export const useContest = () => {
       
       toast.success('Downloading instrumental...');
     } catch (error) {
+      console.error('Error downloading instrumental:', error);
       toast.error('Failed to download instrumental');
     }
   };
 
   useEffect(() => {
     const loadData = async () => {
+      console.log('Loading contest data...');
       setLoading(true);
       await fetchContests();
       setLoading(false);
@@ -220,6 +242,7 @@ export const useContest = () => {
 
   useEffect(() => {
     if (currentContest) {
+      console.log('Current contest changed, fetching entries...');
       fetchContestEntries(currentContest.id);
     }
   }, [currentContest]);

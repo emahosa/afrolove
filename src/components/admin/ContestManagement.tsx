@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -58,6 +59,8 @@ interface Contest {
   start_date: string;
   end_date: string;
   status: string;
+  instrumental_url?: string;
+  rules?: string;
 }
 
 export const ContestManagement = () => {
@@ -69,6 +72,7 @@ export const ContestManagement = () => {
   const [isChooseWinnerOpen, setIsChooseWinnerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entriesLoading, setEntriesLoading] = useState(false);
 
   // Form states for creating contest
   const [newContest, setNewContest] = useState({
@@ -84,27 +88,38 @@ export const ContestManagement = () => {
   // Fetch contests
   const fetchContests = async () => {
     try {
+      console.log('Fetching contests...');
       const { data, error } = await supabase
         .from('contests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching contests:', error);
+        throw error;
+      }
+      
+      console.log('Fetched contests:', data);
       setContests(data || []);
       
       // Set first contest as selected if none selected
       if (data && data.length > 0 && !selectedContest) {
         setSelectedContest(data[0]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests');
+      toast.error('Failed to load contests: ' + error.message);
     }
   };
 
   // Fetch entries for selected contest
   const fetchEntries = async (contestId: string) => {
+    if (!contestId) return;
+    
     try {
+      setEntriesLoading(true);
+      console.log('Fetching entries for contest:', contestId);
+      
       // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
@@ -112,7 +127,12 @@ export const ContestManagement = () => {
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
-      if (entriesError) throw entriesError;
+      if (entriesError) {
+        console.error('Error fetching entries:', entriesError);
+        throw entriesError;
+      }
+
+      console.log('Fetched entries:', entriesData);
 
       if (!entriesData || entriesData.length === 0) {
         setEntries([]);
@@ -131,6 +151,8 @@ export const ContestManagement = () => {
         // Continue without profiles if there's an error
       }
 
+      console.log('Fetched profiles:', profilesData);
+
       // Combine entries with profiles
       const entriesWithProfiles = entriesData.map(entry => ({
         ...entry,
@@ -141,9 +163,12 @@ export const ContestManagement = () => {
       }));
       
       setEntries(entriesWithProfiles);
-    } catch (error) {
-      console.error('Error fetching entries:', error);
-      toast.error('Failed to load contest entries');
+    } catch (error: any) {
+      console.error('Error fetching contest entries:', error);
+      toast.error('Failed to load contest entries: ' + error.message);
+      setEntries([]);
+    } finally {
+      setEntriesLoading(false);
     }
   };
 
@@ -163,9 +188,9 @@ export const ContestManagement = () => {
           : entry
       ));
       toast.success("Entry approved successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving entry:', error);
-      toast.error('Failed to approve entry');
+      toast.error('Failed to approve entry: ' + error.message);
     }
   };
 
@@ -185,9 +210,9 @@ export const ContestManagement = () => {
           : entry
       ));
       toast.success("Entry rejected successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting entry:', error);
-      toast.error('Failed to reject entry');
+      toast.error('Failed to reject entry: ' + error.message);
     }
   };
 
@@ -216,9 +241,9 @@ export const ContestManagement = () => {
         instrumental_url: ''
       });
       fetchContests();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating contest:', error);
-      toast.error('Failed to create contest');
+      toast.error('Failed to create contest: ' + error.message);
     }
   };
 
@@ -237,9 +262,9 @@ export const ContestManagement = () => {
       toast.success("Contest ended successfully");
       setIsEndContestOpen(false);
       fetchContests();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error ending contest:', error);
-      toast.error('Failed to end contest');
+      toast.error('Failed to end contest: ' + error.message);
     }
   };
 
@@ -269,7 +294,7 @@ export const ContestManagement = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading contests...</span>
       </div>
     );
@@ -293,7 +318,7 @@ export const ContestManagement = () => {
       </div>
 
       {/* Contest selector */}
-      {contests.length > 0 && (
+      {contests.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Select Contest</CardTitle>
@@ -316,89 +341,6 @@ export const ContestManagement = () => {
             </div>
           </CardContent>
         </Card>
-      )}
-      
-      {selectedContest ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedContest.title}</CardTitle>
-            <CardDescription>
-              Entries: {entries.length} | Status: {selectedContest.status} | 
-              End: {new Date(selectedContest.end_date).toLocaleDateString()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Participant</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Votes</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{entry.profiles?.full_name || 'Anonymous'}</TableCell>
-                    <TableCell>{entry.description || 'No description'}</TableCell>
-                    <TableCell>{entry.vote_count}</TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        entry.approved 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {entry.approved ? 'Approved' : 'Pending'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        
-                        {!entry.approved ? (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleApproveEntry(entry.id)}
-                              className="text-green-500"
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleRevokeEntry(entry.id)}
-                              className="text-red-500"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedEntry(entry);
-                              setIsChooseWinnerOpen(true);
-                            }}
-                          >
-                            <Trophy className="h-4 w-4 text-yellow-500" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       ) : (
         <Card>
           <CardContent className="p-12 text-center">
@@ -409,6 +351,100 @@ export const ContestManagement = () => {
               <Plus className="h-4 w-4 mr-2" />
               Create Contest
             </Button>
+          </CardContent>
+        </Card>
+      )}
+      
+      {selectedContest && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{selectedContest.title}</CardTitle>
+            <CardDescription>
+              Entries: {entries.length} | Status: {selectedContest.status} | 
+              End: {new Date(selectedContest.end_date).toLocaleDateString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {entriesLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading entries...</span>
+              </div>
+            ) : entries.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Participant</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Votes</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}</TableCell>
+                      <TableCell>{entry.description || 'No description'}</TableCell>
+                      <TableCell>{entry.vote_count}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          entry.approved 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {entry.approved ? 'Approved' : 'Pending'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          
+                          {!entry.approved ? (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleApproveEntry(entry.id)}
+                                className="text-green-500"
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleRevokeEntry(entry.id)}
+                                className="text-red-500"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEntry(entry);
+                                setIsChooseWinnerOpen(true);
+                              }}
+                            >
+                              <Trophy className="h-4 w-4 text-yellow-500" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center p-8">
+                <p className="text-muted-foreground">No entries found for this contest.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
