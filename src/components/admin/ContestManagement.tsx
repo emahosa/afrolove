@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2 } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -34,6 +33,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ContestEntry {
   id: string;
@@ -73,6 +73,7 @@ export const ContestManagement = () => {
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Form states for creating contest
   const [newContest, setNewContest] = useState({
@@ -85,42 +86,53 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
-  // Fetch contests
+  // Fetch contests with better error handling
   const fetchContests = async () => {
     try {
-      console.log('Fetching contests...');
+      console.log('ContestManagement: Fetching contests...');
+      setError(null);
+      
       const { data, error } = await supabase
         .from('contests')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching contests:', error);
+        console.error('ContestManagement: Error fetching contests:', error);
+        setError(`Failed to fetch contests: ${error.message}`);
         throw error;
       }
       
-      console.log('Fetched contests:', data);
+      console.log('ContestManagement: Fetched contests:', data);
       setContests(data || []);
       
       // Set first contest as selected if none selected
       if (data && data.length > 0 && !selectedContest) {
         setSelectedContest(data[0]);
+        console.log('ContestManagement: Auto-selected first contest:', data[0]);
       }
     } catch (error: any) {
-      console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests: ' + error.message);
+      console.error('ContestManagement: Error in fetchContests:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Failed to load contests: ' + errorMessage);
     }
   };
 
-  // Fetch entries for selected contest
+  // Fetch entries for selected contest with better error handling
   const fetchEntries = async (contestId: string) => {
-    if (!contestId) return;
+    if (!contestId) {
+      console.log('ContestManagement: No contest ID provided');
+      setEntries([]);
+      return;
+    }
     
     try {
       setEntriesLoading(true);
-      console.log('Fetching entries for contest:', contestId);
+      setError(null);
+      console.log('ContestManagement: Fetching entries for contest:', contestId);
       
-      // First get contest entries
+      // Get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -128,44 +140,55 @@ export const ContestManagement = () => {
         .order('created_at', { ascending: false });
 
       if (entriesError) {
-        console.error('Error fetching entries:', entriesError);
+        console.error('ContestManagement: Error fetching entries:', entriesError);
+        setError(`Failed to fetch entries: ${entriesError.message}`);
         throw entriesError;
       }
 
-      console.log('Fetched entries:', entriesData);
+      console.log('ContestManagement: Fetched entries:', entriesData);
 
       if (!entriesData || entriesData.length === 0) {
+        console.log('ContestManagement: No entries found');
         setEntries([]);
         return;
       }
 
       // Get user profiles for the entries
-      const userIds = entriesData.map(entry => entry.user_id);
+      const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
+      console.log('ContestManagement: Fetching profiles for users:', userIds);
+      
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, username')
         .in('id', userIds);
 
       if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
+        console.error('ContestManagement: Error fetching profiles:', profilesError);
         // Continue without profiles if there's an error
+        console.log('ContestManagement: Continuing without profiles');
       }
 
-      console.log('Fetched profiles:', profilesData);
+      console.log('ContestManagement: Fetched profiles:', profilesData);
 
       // Combine entries with profiles
-      const entriesWithProfiles = entriesData.map(entry => ({
-        ...entry,
-        profiles: profilesData?.find(profile => profile.id === entry.user_id) ? {
-          full_name: profilesData.find(profile => profile.id === entry.user_id)?.full_name || '',
-          username: profilesData.find(profile => profile.id === entry.user_id)?.username || ''
-        } : undefined
-      }));
+      const entriesWithProfiles = entriesData.map(entry => {
+        const profile = profilesData?.find(p => p.id === entry.user_id);
+        return {
+          ...entry,
+          profiles: profile ? {
+            full_name: profile.full_name || '',
+            username: profile.username || ''
+          } : undefined
+        };
+      });
       
+      console.log('ContestManagement: Combined entries with profiles:', entriesWithProfiles);
       setEntries(entriesWithProfiles);
     } catch (error: any) {
-      console.error('Error fetching contest entries:', error);
-      toast.error('Failed to load contest entries: ' + error.message);
+      console.error('ContestManagement: Error fetching contest entries:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Failed to load contest entries: ' + errorMessage);
       setEntries([]);
     } finally {
       setEntriesLoading(false);
@@ -278,6 +301,7 @@ export const ContestManagement = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      console.log('ContestManagement: Component mounted, loading data...');
       setLoading(true);
       await fetchContests();
       setLoading(false);
@@ -287,6 +311,7 @@ export const ContestManagement = () => {
 
   useEffect(() => {
     if (selectedContest) {
+      console.log('ContestManagement: Selected contest changed, fetching entries...');
       fetchEntries(selectedContest.id);
     }
   }, [selectedContest]);
@@ -305,6 +330,10 @@ export const ContestManagement = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Contest Management</h2>
         <div className="space-x-2">
+          <Button variant="outline" onClick={fetchContests}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create New Contest
@@ -317,11 +346,19 @@ export const ContestManagement = () => {
         </div>
       </div>
 
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Contest selector */}
       {contests.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle>Select Contest</CardTitle>
+            <CardDescription>Found {contests.length} contest(s)</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -384,7 +421,9 @@ export const ContestManagement = () => {
                 <TableBody>
                   {entries.map((entry) => (
                     <TableRow key={entry.id}>
-                      <TableCell>{entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}</TableCell>
+                      <TableCell>
+                        {entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}
+                      </TableCell>
                       <TableCell>{entry.description || 'No description'}</TableCell>
                       <TableCell>{entry.vote_count}</TableCell>
                       <TableCell>

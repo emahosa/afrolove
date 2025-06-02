@@ -43,11 +43,14 @@ export const useContest = () => {
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch active contests
   const fetchContests = async () => {
     try {
       console.log('Fetching contests from useContest hook...');
+      setError(null);
+      
       const { data, error } = await supabase
         .from('contests')
         .select('*')
@@ -56,19 +59,26 @@ export const useContest = () => {
 
       if (error) {
         console.error('Error fetching contests:', error);
+        setError(`Failed to fetch contests: ${error.message}`);
         throw error;
       }
       
-      console.log('Contests fetched:', data);
+      console.log('Contests fetched successfully:', data);
       setContests(data || []);
       
       // Set the first active contest as current
       if (data && data.length > 0) {
         setCurrentContest(data[0]);
+        console.log('Set current contest:', data[0]);
+      } else {
+        console.log('No active contests found');
+        setCurrentContest(null);
       }
     } catch (error: any) {
-      console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests: ' + (error.message || 'Unknown error'));
+      console.error('Error in fetchContests:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Failed to load contests: ' + errorMessage);
     }
   };
 
@@ -76,13 +86,15 @@ export const useContest = () => {
   const fetchContestEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('No contest ID provided for fetching entries');
+      setContestEntries([]);
       return;
     }
 
     try {
       console.log('Fetching contest entries for contest:', contestId);
+      setError(null);
       
-      // First get contest entries
+      // Get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -92,18 +104,22 @@ export const useContest = () => {
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
+        setError(`Failed to fetch entries: ${entriesError.message}`);
         throw entriesError;
       }
 
-      console.log('Entries fetched:', entriesData);
+      console.log('Contest entries fetched:', entriesData);
 
       if (!entriesData || entriesData.length === 0) {
+        console.log('No entries found for this contest');
         setContestEntries([]);
         return;
       }
 
       // Get user profiles for the entries
-      const userIds = entriesData.map(entry => entry.user_id);
+      const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
+      console.log('Fetching profiles for user IDs:', userIds);
+      
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, username')
@@ -111,24 +127,31 @@ export const useContest = () => {
 
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
-        // Continue without profiles if there's an error
+        // Continue without profiles if there's an error - don't block the entries
+        console.log('Continuing without profile data due to error');
       }
 
       console.log('Profiles fetched:', profilesData);
 
       // Combine entries with profiles
-      const entriesWithProfiles = entriesData.map(entry => ({
-        ...entry,
-        profiles: profilesData?.find(profile => profile.id === entry.user_id) ? {
-          full_name: profilesData.find(profile => profile.id === entry.user_id)?.full_name || '',
-          username: profilesData.find(profile => profile.id === entry.user_id)?.username || ''
-        } : undefined
-      }));
+      const entriesWithProfiles = entriesData.map(entry => {
+        const profile = profilesData?.find(p => p.id === entry.user_id);
+        return {
+          ...entry,
+          profiles: profile ? {
+            full_name: profile.full_name || '',
+            username: profile.username || ''
+          } : undefined
+        };
+      });
       
+      console.log('Entries with profiles:', entriesWithProfiles);
       setContestEntries(entriesWithProfiles);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
-      toast.error('Failed to load contest entries: ' + (error.message || 'Unknown error'));
+      const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Failed to load contest entries: ' + errorMessage);
       setContestEntries([]);
     }
   };
@@ -242,7 +265,7 @@ export const useContest = () => {
 
   useEffect(() => {
     if (currentContest) {
-      console.log('Current contest changed, fetching entries...');
+      console.log('Current contest changed, fetching entries for:', currentContest.id);
       fetchContestEntries(currentContest.id);
     }
   }, [currentContest]);
@@ -253,6 +276,7 @@ export const useContest = () => {
     contestEntries,
     loading,
     submitting,
+    error,
     submitEntry,
     voteForEntry,
     downloadInstrumental,
