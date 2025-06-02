@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +47,6 @@ interface ContestEntry {
   profiles?: {
     full_name: string;
     username: string;
-    email?: string;
   };
 }
 
@@ -107,27 +105,42 @@ export const ContestManagement = () => {
   // Fetch entries for selected contest
   const fetchEntries = async (contestId: string) => {
     try {
-      const { data, error } = await supabase
+      // First get contest entries
+      const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select(`
-          *,
-          profiles(full_name, username)
-        `)
+        .select('*')
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      // Transform the data to match our interface
-      const transformedData = (data || []).map(entry => ({
+      if (entriesError) throw entriesError;
+
+      if (!entriesData || entriesData.length === 0) {
+        setEntries([]);
+        return;
+      }
+
+      // Get user profiles for the entries
+      const userIds = entriesData.map(entry => entry.user_id);
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, username')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Continue without profiles if there's an error
+      }
+
+      // Combine entries with profiles
+      const entriesWithProfiles = entriesData.map(entry => ({
         ...entry,
-        profiles: entry.profiles ? {
-          full_name: entry.profiles.full_name || '',
-          username: entry.profiles.username || ''
+        profiles: profilesData?.find(profile => profile.id === entry.user_id) ? {
+          full_name: profilesData.find(profile => profile.id === entry.user_id)?.full_name || '',
+          username: profilesData.find(profile => profile.id === entry.user_id)?.username || ''
         } : undefined
       }));
       
-      setEntries(transformedData);
+      setEntries(entriesWithProfiles);
     } catch (error) {
       console.error('Error fetching entries:', error);
       toast.error('Failed to load contest entries');

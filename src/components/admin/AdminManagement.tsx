@@ -13,7 +13,6 @@ interface AdminManagementProps {
   users?: any[];
   admins?: any[];
   apiKeys?: any[];
-  contestEntries?: any[];
   pricingPlans?: any[];
   creditPackages?: any[];
   renderStatusLabel?: (status: string) => React.ReactNode;
@@ -25,7 +24,6 @@ export const AdminManagement = ({
   users = [], 
   admins = [],
   apiKeys = [],
-  contestEntries = [],
   pricingPlans = [],
   creditPackages = [],
   renderStatusLabel = (status: string) => status,
@@ -64,7 +62,7 @@ export const AdminManagement = ({
         </TabsContent>
         
         <TabsContent value="contests">
-          <ContestManagement contestEntries={contestEntries} renderStatusLabel={renderStatusLabel} />
+          <ContestManagement />
         </TabsContent>
         
         <TabsContent value="payments">

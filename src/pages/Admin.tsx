@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, ShieldCheck, Music, Trophy, FileText, DollarSign, Headphones, BarChart, Settings, RefreshCcw, Bug, Key } from 'lucide-react';
@@ -258,7 +257,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
               users={users}
               admins={[]}
               apiKeys={[]}
-              contestEntries={[]}
               pricingPlans={[]}
               creditPackages={[]}
               renderStatusLabel={renderStatusLabel}
@@ -280,10 +278,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="contest" className="mt-0">
-            <ContestManagement 
-              contestEntries={[]} 
-              renderStatusLabel={renderStatusLabel}
-            />
+            <ContestManagement />
           </TabsContent>
 
           <TabsContent value="content" className="mt-0">
