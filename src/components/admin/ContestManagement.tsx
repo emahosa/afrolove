@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar, Users } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -34,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 console.log("✅ ContestManagement component loaded - DEBUGGING USERS TABLE ACCESS");
 
@@ -60,6 +62,9 @@ interface Contest {
   status: string;
   instrumental_url?: string;
   rules?: string;
+  created_at: string;
+  voting_enabled?: boolean;
+  max_entries_per_user?: number;
 }
 
 export const ContestManagement = () => {
@@ -67,6 +72,8 @@ export const ContestManagement = () => {
   const [entries, setEntries] = useState<ContestEntry[]>([]);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEndContestOpen, setIsEndContestOpen] = useState(false);
   const [isChooseWinnerOpen, setIsChooseWinnerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
@@ -74,8 +81,8 @@ export const ContestManagement = () => {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form states for creating contest
-  const [newContest, setNewContest] = useState({
+  // Form states for creating/editing contest
+  const [contestForm, setContestForm] = useState({
     title: '',
     description: '',
     prize: '',
@@ -85,6 +92,19 @@ export const ContestManagement = () => {
     instrumental_url: ''
   });
 
+  // Reset form
+  const resetForm = () => {
+    setContestForm({
+      title: '',
+      description: '',
+      prize: '',
+      rules: '',
+      start_date: '',
+      end_date: '',
+      instrumental_url: ''
+    });
+  };
+
   // Fetch contests - ONLY uses contests table
   const fetchContests = async () => {
     console.log('🚀 DEBUG: Starting fetchContests()');
@@ -92,7 +112,6 @@ export const ContestManagement = () => {
     
     try {
       console.log('🔍 DEBUG: About to call supabase.from("contests")');
-      console.log('🔍 DEBUG: This query should NEVER touch users table');
       
       const { data, error: queryError } = await supabase
         .from('contests')
@@ -109,12 +128,6 @@ export const ContestManagement = () => {
       
       console.log(`✅ DEBUG: Successfully fetched ${data?.length || 0} contests`);
       setContests(data || []);
-      
-      // Auto-select first contest if none selected
-      if (data && data.length > 0 && !selectedContest) {
-        console.log('🎯 DEBUG: Auto-selecting first contest:', data[0].title);
-        setSelectedContest(data[0]);
-      }
       
     } catch (error: any) {
       console.error('💥 DEBUG: Error in fetchContests:', error);
@@ -139,7 +152,7 @@ export const ContestManagement = () => {
       setEntriesLoading(true);
       console.log('🔍 DEBUG: Step 1 - Fetching contest_entries ONLY (NO USERS)');
       
-      // STEP 1: Get contest entries with EXPLICIT table specification
+      // STEP 1: Get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select(`
@@ -179,9 +192,9 @@ export const ContestManagement = () => {
         return;
       }
       
-      console.log('🔍 DEBUG: Step 3 - Fetching profiles ONLY (NO USERS TABLE)');
+      console.log('🔍 DEBUG: Step 3 - Fetching profiles ONLY');
       
-      // STEP 3: Get profiles with EXPLICIT table specification
+      // STEP 3: Get profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
@@ -218,19 +231,60 @@ export const ContestManagement = () => {
       
     } catch (error: any) {
       console.error('💥 DEBUG: Error in fetchEntries:', error);
-      console.error('💥 DEBUG: Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      
       const errorMessage = error.message || 'Failed to fetch entries';
       setError(errorMessage);
       toast.error(errorMessage);
       setEntries([]);
     } finally {
       setEntriesLoading(false);
+    }
+  };
+
+  // View contest details
+  const handleViewContest = (contest: Contest) => {
+    setSelectedContest(contest);
+    setIsViewDialogOpen(true);
+    fetchEntries(contest.id);
+  };
+
+  // Edit contest
+  const handleEditContest = (contest: Contest) => {
+    setSelectedContest(contest);
+    setContestForm({
+      title: contest.title,
+      description: contest.description,
+      prize: contest.prize,
+      rules: contest.rules || '',
+      start_date: contest.start_date.split('T')[0] + 'T' + contest.start_date.split('T')[1].slice(0, 5),
+      end_date: contest.end_date.split('T')[0] + 'T' + contest.end_date.split('T')[1].slice(0, 5),
+      instrumental_url: contest.instrumental_url || ''
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  // Update contest
+  const handleUpdateContest = async () => {
+    if (!selectedContest) return;
+    
+    console.log('🔄 DEBUG: handleUpdateContest - ONLY contests table');
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update({
+          ...contestForm,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedContest.id);
+
+      if (error) throw error;
+
+      toast.success("Contest updated successfully");
+      setIsEditDialogOpen(false);
+      resetForm();
+      fetchContests();
+    } catch (error: any) {
+      console.error('Error updating contest:', error);
+      toast.error('Failed to update contest: ' + error.message);
     }
   };
 
@@ -287,7 +341,7 @@ export const ContestManagement = () => {
       const { error } = await supabase
         .from('contests')
         .insert({
-          ...newContest,
+          ...contestForm,
           status: 'active',
           terms_conditions: 'By submitting an entry, you acknowledge that you have read and agreed to these rules.'
         });
@@ -296,15 +350,7 @@ export const ContestManagement = () => {
 
       toast.success("New contest created successfully");
       setIsCreateDialogOpen(false);
-      setNewContest({
-        title: '',
-        description: '',
-        prize: '',
-        rules: '',
-        start_date: '',
-        end_date: '',
-        instrumental_url: ''
-      });
+      resetForm();
       fetchContests();
     } catch (error: any) {
       console.error('Error creating contest:', error);
@@ -354,13 +400,6 @@ export const ContestManagement = () => {
     };
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (selectedContest) {
-      console.log('🎯 DEBUG: Selected contest changed, fetching entries:', selectedContest.title);
-      fetchEntries(selectedContest.id);
-    }
-  }, [selectedContest]);
 
   if (loading) {
     return (
@@ -415,37 +454,74 @@ export const ContestManagement = () => {
             <Plus className="h-4 w-4 mr-2" />
             Create New Contest
           </Button>
-          {selectedContest && selectedContest.status === 'active' && (
-            <Button variant="outline" onClick={() => setIsEndContestOpen(true)}>
-              End Contest
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Contest selector */}
+      {/* Contests List */}
       {contests.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Select Contest</CardTitle>
-            <CardDescription>Found {contests.length} contest(s)</CardDescription>
+            <CardTitle>All Contests</CardTitle>
+            <CardDescription>Manage your contests and their entries</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {contests.map((contest) => (
-                <Button
-                  key={contest.id}
-                  variant={selectedContest?.id === contest.id ? "default" : "outline"}
-                  className="h-auto p-4 text-left justify-start"
-                  onClick={() => setSelectedContest(contest)}
-                >
-                  <div>
-                    <div className="font-semibold">{contest.title}</div>
-                    <div className="text-sm opacity-70">{contest.status}</div>
-                  </div>
-                </Button>
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Start Date</TableHead>
+                  <TableHead>End Date</TableHead>
+                  <TableHead>Prize</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contests.map((contest) => (
+                  <TableRow key={contest.id}>
+                    <TableCell className="font-medium">{contest.title}</TableCell>
+                    <TableCell>
+                      <Badge variant={contest.status === 'active' ? 'default' : contest.status === 'completed' ? 'secondary' : 'outline'}>
+                        {contest.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(contest.start_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(contest.end_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{contest.prize}</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewContest(contest)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditContest(contest)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {contest.status === 'active' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedContest(contest);
+                              setIsEndContestOpen(true);
+                            }}
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       ) : (
@@ -462,101 +538,139 @@ export const ContestManagement = () => {
         </Card>
       )}
       
-      {selectedContest && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedContest.title}</CardTitle>
-            <CardDescription>
-              Entries: {entries.length} | Status: {selectedContest.status} | 
-              End: {new Date(selectedContest.end_date).toLocaleDateString()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {entriesLoading ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Loading entries...</span>
+      {/* View Contest Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Contest Details: {selectedContest?.title}
+            </DialogTitle>
+            <DialogDescription>
+              View contest information and manage entries
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedContest && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="font-semibold">Status</Label>
+                  <Badge variant={selectedContest.status === 'active' ? 'default' : 'secondary'}>
+                    {selectedContest.status}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="font-semibold">Prize</Label>
+                  <p>{selectedContest.prize}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">Start Date</Label>
+                  <p>{new Date(selectedContest.start_date).toLocaleString()}</p>
+                </div>
+                <div>
+                  <Label className="font-semibold">End Date</Label>
+                  <p>{new Date(selectedContest.end_date).toLocaleString()}</p>
+                </div>
               </div>
-            ) : entries.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Participant</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Votes</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        {entry.user_name || 'Anonymous'}
-                      </TableCell>
-                      <TableCell>{entry.description || 'No description'}</TableCell>
-                      <TableCell>{entry.vote_count}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          entry.approved 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {entry.approved ? 'Approved' : 'Pending'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          {!entry.approved ? (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleApproveEntry(entry.id)}
-                                className="text-green-500"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleRevokeEntry(entry.id)}
-                                className="text-red-500"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedEntry(entry);
-                                setIsChooseWinnerOpen(true);
-                              }}
-                            >
-                              <Trophy className="h-4 w-4 text-yellow-500" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center p-8">
-                <p className="text-muted-foreground">No entries found for this contest.</p>
+              
+              <div>
+                <Label className="font-semibold">Description</Label>
+                <p className="mt-1">{selectedContest.description}</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              
+              {selectedContest.rules && (
+                <div>
+                  <Label className="font-semibold">Rules</Label>
+                  <p className="mt-1">{selectedContest.rules}</p>
+                </div>
+              )}
+              
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Contest Entries ({entries.length})
+                  </h3>
+                </div>
+                
+                {entriesLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <span className="ml-2">Loading entries...</span>
+                  </div>
+                ) : entries.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Participant</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Votes</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {entries.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>{entry.user_name || 'Anonymous'}</TableCell>
+                          <TableCell>{entry.description || 'No description'}</TableCell>
+                          <TableCell>{entry.vote_count}</TableCell>
+                          <TableCell>
+                            <Badge variant={entry.approved ? 'default' : 'secondary'}>
+                              {entry.approved ? 'Approved' : 'Pending'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              {!entry.approved ? (
+                                <>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleApproveEntry(entry.id)}
+                                    className="text-green-500"
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleRevokeEntry(entry.id)}
+                                    className="text-red-500"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEntry(entry);
+                                    setIsChooseWinnerOpen(true);
+                                  }}
+                                >
+                                  <Trophy className="h-4 w-4 text-yellow-500" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center p-8">
+                    <p className="text-muted-foreground">No entries found for this contest.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       
       {/* Create Contest Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -571,16 +685,16 @@ export const ContestManagement = () => {
               <div>
                 <Label>Contest Title</Label>
                 <Input 
-                  value={newContest.title}
-                  onChange={(e) => setNewContest({...newContest, title: e.target.value})}
+                  value={contestForm.title}
+                  onChange={(e) => setContestForm({...contestForm, title: e.target.value})}
                   placeholder="e.g., Summer Hits 2025"
                 />
               </div>
               <div>
                 <Label>Prize</Label>
                 <Input 
-                  value={newContest.prize}
-                  onChange={(e) => setNewContest({...newContest, prize: e.target.value})}
+                  value={contestForm.prize}
+                  onChange={(e) => setContestForm({...contestForm, prize: e.target.value})}
                   placeholder="e.g., ₦100,000 + Record Deal"
                 />
               </div>
@@ -589,18 +703,18 @@ export const ContestManagement = () => {
             <div>
               <Label>Description</Label>
               <Textarea 
-                value={newContest.description}
-                onChange={(e) => setNewContest({...newContest, description: e.target.value})}
+                value={contestForm.description}
+                onChange={(e) => setContestForm({...contestForm, description: e.target.value})}
                 placeholder="Contest description..."
               />
             </div>
             
             <div>
-              <Label>Rules (comma-separated)</Label>
+              <Label>Rules</Label>
               <Textarea 
-                value={newContest.rules}
-                onChange={(e) => setNewContest({...newContest, rules: e.target.value})}
-                placeholder="Use official beat, Upload video, Song must be 1+ minutes, etc."
+                value={contestForm.rules}
+                onChange={(e) => setContestForm({...contestForm, rules: e.target.value})}
+                placeholder="Contest rules and requirements..."
               />
             </div>
             
@@ -609,16 +723,16 @@ export const ContestManagement = () => {
                 <Label>Start Date</Label>
                 <Input 
                   type="datetime-local"
-                  value={newContest.start_date}
-                  onChange={(e) => setNewContest({...newContest, start_date: e.target.value})}
+                  value={contestForm.start_date}
+                  onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
                 />
               </div>
               <div>
                 <Label>End Date</Label>
                 <Input 
                   type="datetime-local"
-                  value={newContest.end_date}
-                  onChange={(e) => setNewContest({...newContest, end_date: e.target.value})}
+                  value={contestForm.end_date}
+                  onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
                 />
               </div>
             </div>
@@ -626,19 +740,111 @@ export const ContestManagement = () => {
             <div>
               <Label>Instrumental URL</Label>
               <Input 
-                value={newContest.instrumental_url}
-                onChange={(e) => setNewContest({...newContest, instrumental_url: e.target.value})}
+                value={contestForm.instrumental_url}
+                onChange={(e) => setContestForm({...contestForm, instrumental_url: e.target.value})}
                 placeholder="https://example.com/beat.mp3"
               />
             </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setIsCreateDialogOpen(false);
+              resetForm();
+            }}>
               Cancel
             </Button>
             <Button onClick={handleCreateContest}>
               Create Contest
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Contest Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Contest</DialogTitle>
+            <DialogDescription>Update contest information</DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Contest Title</Label>
+                <Input 
+                  value={contestForm.title}
+                  onChange={(e) => setContestForm({...contestForm, title: e.target.value})}
+                  placeholder="e.g., Summer Hits 2025"
+                />
+              </div>
+              <div>
+                <Label>Prize</Label>
+                <Input 
+                  value={contestForm.prize}
+                  onChange={(e) => setContestForm({...contestForm, prize: e.target.value})}
+                  placeholder="e.g., ₦100,000 + Record Deal"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label>Description</Label>
+              <Textarea 
+                value={contestForm.description}
+                onChange={(e) => setContestForm({...contestForm, description: e.target.value})}
+                placeholder="Contest description..."
+              />
+            </div>
+            
+            <div>
+              <Label>Rules</Label>
+              <Textarea 
+                value={contestForm.rules}
+                onChange={(e) => setContestForm({...contestForm, rules: e.target.value})}
+                placeholder="Contest rules and requirements..."
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input 
+                  type="datetime-local"
+                  value={contestForm.start_date}
+                  onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input 
+                  type="datetime-local"
+                  value={contestForm.end_date}
+                  onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label>Instrumental URL</Label>
+              <Input 
+                value={contestForm.instrumental_url}
+                onChange={(e) => setContestForm({...contestForm, instrumental_url: e.target.value})}
+                placeholder="https://example.com/beat.mp3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              resetForm();
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateContest}>
+              Update Contest
             </Button>
           </DialogFooter>
         </DialogContent>
