@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -118,7 +117,7 @@ export const ContestManagement = () => {
     }
   };
 
-  // Fetch entries - FIXED to use profiles table correctly
+  // Fetch entries - Using only profiles table, no users table
   const fetchEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('⚠️ No contest ID provided');
@@ -130,7 +129,7 @@ export const ContestManagement = () => {
       setEntriesLoading(true);
       console.log(`🔄 Fetching entries for contest: ${contestId}`);
       
-      // Get contest entries first
+      // Step 1: Get contest entries (no joins to avoid permission issues)
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -138,31 +137,34 @@ export const ContestManagement = () => {
         .order('created_at', { ascending: false });
 
       if (entriesError) {
-        console.error('❌ Error fetching entries:', entriesError);
+        console.error('❌ Error fetching contest entries:', entriesError);
         throw entriesError;
       }
 
-      console.log(`✅ Fetched ${entriesData?.length || 0} entries`);
+      console.log(`✅ Fetched ${entriesData?.length || 0} contest entries`);
       
       if (!entriesData || entriesData.length === 0) {
         setEntries([]);
         return;
       }
       
-      // Get all unique user IDs from entries
+      // Step 2: Get unique user IDs from entries
       const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
+      console.log(`🔍 Fetching profiles for ${userIds.length} unique users`);
       
-      // Fetch profiles for all users at once
+      // Step 3: Fetch profiles separately (no join, RLS-compliant)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, username')
         .in('id', userIds);
 
       if (profilesError) {
-        console.warn('⚠️ Error fetching profiles:', profilesError);
+        console.warn('⚠️ Error fetching profiles (continuing anyway):', profilesError);
       }
 
-      // Create a map of user profiles for quick lookup
+      console.log(`✅ Fetched ${profilesData?.length || 0} profiles`);
+
+      // Step 4: Create a lookup map for profiles
       const profilesMap = new Map(
         (profilesData || []).map(profile => [
           profile.id, 
@@ -170,12 +172,13 @@ export const ContestManagement = () => {
         ])
       );
 
-      // Combine entries with user information
+      // Step 5: Combine entries with profile info in code
       const entriesWithUserInfo = entriesData.map(entry => ({
         ...entry,
         user_name: profilesMap.get(entry.user_id) || 'Anonymous User'
       }));
       
+      console.log(`✅ Combined ${entriesWithUserInfo.length} entries with profile data`);
       setEntries(entriesWithUserInfo);
       
     } catch (error: any) {
