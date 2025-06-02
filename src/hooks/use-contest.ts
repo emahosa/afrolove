@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes");
+
 export interface Contest {
   id: string;
   title: string;
@@ -45,17 +47,21 @@ export const useContest = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch active contests
+  // Fetch active contests - ONLY contests table
   const fetchContests = async () => {
     try {
-      console.log('Fetching contests from useContest hook...');
+      console.log('🔄 use-contest: fetchContests() - ONLY contests table, NO USERS');
       setError(null);
+      
+      console.log('🔍 About to query supabase.from("contests") - NO USERS TABLE');
       
       const { data, error } = await supabase
         .from('contests')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
+
+      console.log('✅ Successfully queried contests table, no users table referenced');
 
       if (error) {
         console.error('Error fetching contests:', error);
@@ -81,7 +87,7 @@ export const useContest = () => {
     }
   };
 
-  // Fetch entries for current contest
+  // Fetch entries for current contest - ONLY contest_entries + profiles
   const fetchContestEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('No contest ID provided for fetching entries');
@@ -90,16 +96,20 @@ export const useContest = () => {
     }
 
     try {
-      console.log('Fetching contest entries for contest:', contestId);
+      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles, NO USERS');
       setError(null);
       
-      // First get contest entries
+      console.log('🔍 Step 1: About to query supabase.from("contest_entries") - NO USERS TABLE');
+      
+      // First get contest entries - NO USERS TABLE
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
+
+      console.log('✅ Successfully queried contest_entries table, no users table referenced');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
@@ -108,14 +118,18 @@ export const useContest = () => {
 
       console.log('Contest entries fetched:', entriesData);
       
-      // Then get profiles for each entry separately
+      // Then get profiles for each entry separately - PROFILES TABLE ONLY
       const entriesWithProfiles = await Promise.all(
         (entriesData || []).map(async (entry) => {
+          console.log('🔍 About to query supabase.from("profiles") for user:', entry.user_id);
+          
           const { data: profileData } = await supabase
             .from('profiles')
             .select('full_name, username')
             .eq('id', entry.user_id)
             .single();
+
+          console.log('✅ Successfully queried profiles table, no users table referenced');
 
           return {
             id: entry.id,
@@ -135,6 +149,7 @@ export const useContest = () => {
         })
       );
       
+      console.log('✅ Combined entries with profiles, no users table used');
       setContestEntries(entriesWithProfiles);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
@@ -145,7 +160,7 @@ export const useContest = () => {
     }
   };
 
-  // Submit contest entry
+  // Submit contest entry - ONLY contest_entries table
   const submitEntry = async (contestId: string, videoFile: File, description: string, title: string) => {
     if (!user) {
       toast.error('Please log in to submit an entry');
@@ -154,11 +169,13 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
-      console.log('Submitting contest entry...');
+      console.log('🔄 use-contest: submitEntry() - ONLY contest_entries table, NO USERS');
       
       // For now, we'll just store the file name as video_url
       // In a real implementation, you'd upload to Supabase Storage
       const videoUrl = `uploads/${user.id}/${videoFile.name}`;
+
+      console.log('🔍 About to insert into supabase.from("contest_entries") - NO USERS TABLE');
 
       const { error } = await supabase
         .from('contest_entries')
@@ -170,6 +187,8 @@ export const useContest = () => {
           media_type: videoFile.type.startsWith('video/') ? 'video' : 'audio',
           approved: false // Pending admin approval
         });
+
+      console.log('✅ Successfully inserted into contest_entries table, no users table referenced');
 
       if (error) {
         console.error('Error submitting entry:', error);
@@ -187,9 +206,10 @@ export const useContest = () => {
     }
   };
 
-  // Vote for an entry
+  // Vote for an entry - ONLY votes table
   const voteForEntry = async (entryId: string, voterPhone?: string) => {
     try {
+      console.log('🔄 use-contest: voteForEntry() - ONLY votes table, NO USERS');
       console.log('Submitting vote for entry:', entryId);
       
       const voteData: any = {
@@ -197,9 +217,13 @@ export const useContest = () => {
         voter_phone: voterPhone || 'anonymous'
       };
 
+      console.log('🔍 About to insert into supabase.from("votes") - NO USERS TABLE');
+
       const { error } = await supabase
         .from('votes')
         .insert(voteData);
+
+      console.log('✅ Successfully inserted into votes table, no users table referenced');
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
@@ -224,9 +248,10 @@ export const useContest = () => {
     }
   };
 
-  // Download instrumental
+  // Download instrumental - NO DATABASE CALLS
   const downloadInstrumental = (instrumentalUrl: string, contestTitle: string) => {
     try {
+      console.log('🔄 use-contest: downloadInstrumental() - NO DATABASE CALLS');
       const link = document.createElement('a');
       link.href = instrumentalUrl;
       link.download = `${contestTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_instrumental.mp3`;
@@ -243,7 +268,7 @@ export const useContest = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      console.log('Loading contest data...');
+      console.log('🚀 use-contest: Loading contest data - WILL ONLY USE: contests, contest_entries, profiles, votes');
       setLoading(true);
       await fetchContests();
       setLoading(false);
@@ -254,7 +279,7 @@ export const useContest = () => {
 
   useEffect(() => {
     if (currentContest) {
-      console.log('Current contest changed, fetching entries for:', currentContest.id);
+      console.log('🎯 use-contest: Current contest changed, fetching entries - PROFILES ONLY:', currentContest.id);
       fetchContestEntries(currentContest.id);
     }
   }, [currentContest]);

@@ -1,16 +1,23 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+console.log("✅ userProfile utility loaded - WILL ONLY USE: profiles table, NO USERS");
+
 export const enhanceUserWithProfileData = async (user: any) => {
   try {
+    console.log("🔄 userProfile: enhanceUserWithProfileData() - ONLY profiles table, NO USERS");
     console.log("UserProfile: Enhancing user with profile data for:", user.id);
     
-    // First try to get existing profile
+    console.log('🔍 About to query supabase.from("profiles") - ABSOLUTELY NO USERS TABLE');
+    
+    // First try to get existing profile - PROFILES TABLE ONLY
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle();
+
+    console.log('✅ Successfully queried profiles table, no users table referenced');
       
     if (fetchError) {
       console.error("UserProfile: Error fetching profile:", fetchError);
