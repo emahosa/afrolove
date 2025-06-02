@@ -93,16 +93,10 @@ export const useContest = () => {
       console.log('Fetching contest entries for contest:', contestId);
       setError(null);
       
-      // Get contest entries with profiles in a single query using JOIN
+      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            username
-          )
-        `)
+        .select('*')
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
@@ -112,26 +106,36 @@ export const useContest = () => {
         throw entriesError;
       }
 
-      console.log('Contest entries with profiles fetched:', entriesData);
+      console.log('Contest entries fetched:', entriesData);
       
-      // Transform the data to match our interface with proper type checking
-      const transformedEntries: ContestEntry[] = (entriesData || []).map(entry => ({
-        id: entry.id,
-        contest_id: entry.contest_id,
-        user_id: entry.user_id,
-        video_url: entry.video_url || '',
-        description: entry.description || '',
-        approved: entry.approved,
-        vote_count: entry.vote_count || 0,
-        media_type: entry.media_type || 'video',
-        created_at: entry.created_at,
-        profiles: entry.profiles ? {
-          full_name: entry.profiles.full_name || '',
-          username: entry.profiles.username || ''
-        } : null
-      }));
+      // Then get profiles for each entry separately
+      const entriesWithProfiles = await Promise.all(
+        (entriesData || []).map(async (entry) => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, username')
+            .eq('id', entry.user_id)
+            .single();
+
+          return {
+            id: entry.id,
+            contest_id: entry.contest_id,
+            user_id: entry.user_id,
+            video_url: entry.video_url || '',
+            description: entry.description || '',
+            approved: entry.approved,
+            vote_count: entry.vote_count || 0,
+            media_type: entry.media_type || 'video',
+            created_at: entry.created_at,
+            profiles: profileData ? {
+              full_name: profileData.full_name || '',
+              username: profileData.username || ''
+            } : null
+          };
+        })
+      );
       
-      setContestEntries(transformedEntries);
+      setContestEntries(entriesWithProfiles);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
