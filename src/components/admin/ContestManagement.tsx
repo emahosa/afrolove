@@ -92,6 +92,7 @@ export const ContestManagement = () => {
     try {
       console.log('ContestManagement: Fetching contests...');
       setError(null);
+      setLoading(true);
       
       const { data, error } = await supabase
         .from('contests')
@@ -106,7 +107,7 @@ export const ContestManagement = () => {
       console.log('ContestManagement: Fetched contests:', data);
       setContests(data || []);
       
-      // Set first contest as selected if none selected
+      // Set first contest as selected if none selected and we have contests
       if (data && data.length > 0 && !selectedContest) {
         setSelectedContest(data[0]);
         console.log('ContestManagement: Auto-selected first contest:', data[0]);
@@ -116,6 +117,8 @@ export const ContestManagement = () => {
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast.error('Failed to load contests: ' + errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -146,30 +149,55 @@ export const ContestManagement = () => {
 
       console.log('ContestManagement: Fetched entries:', entriesData);
       
+      if (!entriesData || entriesData.length === 0) {
+        setEntries([]);
+        return;
+      }
+      
       // Then get profiles for each entry separately
       const entriesWithProfiles = await Promise.all(
-        (entriesData || []).map(async (entry) => {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, username')
-            .eq('id', entry.user_id)
-            .single();
+        entriesData.map(async (entry) => {
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('full_name, username')
+              .eq('id', entry.user_id)
+              .single();
 
-          return {
-            id: entry.id,
-            contest_id: entry.contest_id,
-            user_id: entry.user_id,
-            video_url: entry.video_url || '',
-            description: entry.description || '',
-            approved: entry.approved,
-            vote_count: entry.vote_count || 0,
-            media_type: entry.media_type || 'video',
-            created_at: entry.created_at,
-            profiles: profileData ? {
-              full_name: profileData.full_name || '',
-              username: profileData.username || ''
-            } : null
-          };
+            if (profileError) {
+              console.warn('Error fetching profile for user:', entry.user_id, profileError);
+            }
+
+            return {
+              id: entry.id,
+              contest_id: entry.contest_id,
+              user_id: entry.user_id,
+              video_url: entry.video_url || '',
+              description: entry.description || '',
+              approved: entry.approved,
+              vote_count: entry.vote_count || 0,
+              media_type: entry.media_type || 'video',
+              created_at: entry.created_at,
+              profiles: profileData ? {
+                full_name: profileData.full_name || '',
+                username: profileData.username || ''
+              } : null
+            };
+          } catch (error) {
+            console.error('Error processing entry:', entry.id, error);
+            return {
+              id: entry.id,
+              contest_id: entry.contest_id,
+              user_id: entry.user_id,
+              video_url: entry.video_url || '',
+              description: entry.description || '',
+              approved: entry.approved,
+              vote_count: entry.vote_count || 0,
+              media_type: entry.media_type || 'video',
+              created_at: entry.created_at,
+              profiles: null
+            };
+          }
         })
       );
       
@@ -292,9 +320,7 @@ export const ContestManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       console.log('ContestManagement: Component mounted, loading data...');
-      setLoading(true);
       await fetchContests();
-      setLoading(false);
     };
     loadData();
   }, []);
@@ -311,6 +337,26 @@ export const ContestManagement = () => {
       <div className="flex justify-center items-center p-8">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading contests...</span>
+      </div>
+    );
+  }
+
+  if (error && contests.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Contest Management</h2>
+          <Button onClick={fetchContests}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load contests: {error}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
