@@ -98,7 +98,7 @@ export const useContest = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(
+          profiles (
             full_name,
             username
           )
@@ -113,7 +113,17 @@ export const useContest = () => {
       }
 
       console.log('Contest entries with profiles fetched:', entriesData);
-      setContestEntries(entriesData || []);
+      
+      // Transform the data to match our interface
+      const transformedEntries: ContestEntry[] = (entriesData || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? {
+          full_name: entry.profiles.full_name || '',
+          username: entry.profiles.username || ''
+        } : undefined
+      }));
+      
+      setContestEntries(transformedEntries);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
@@ -171,7 +181,7 @@ export const useContest = () => {
       console.log('Submitting vote for entry:', entryId);
       
       const voteData: any = {
-        entry_id: entryId,
+        contest_entry_id: entryId, // Updated to use the new column name
         voter_phone: voterPhone || 'anonymous'
       };
 

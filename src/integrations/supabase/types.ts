@@ -640,27 +640,34 @@ export type Database = {
       }
       votes: {
         Row: {
+          contest_entry_id: string
           created_at: string
-          entry_id: string
           id: string
           voter_phone: string
         }
         Insert: {
+          contest_entry_id: string
           created_at?: string
-          entry_id: string
           id?: string
           voter_phone: string
         }
         Update: {
+          contest_entry_id?: string
           created_at?: string
-          entry_id?: string
           id?: string
           voter_phone?: string
         }
         Relationships: [
           {
+            foreignKeyName: "votes_contest_entry_id_fkey"
+            columns: ["contest_entry_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "votes_entry_id_fkey"
-            columns: ["entry_id"]
+            columns: ["contest_entry_id"]
             isOneToOne: false
             referencedRelation: "contest_entries"
             referencedColumns: ["id"]

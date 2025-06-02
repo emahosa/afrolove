@@ -136,7 +136,7 @@ export const ContestManagement = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(
+          profiles (
             full_name,
             username
           )
@@ -150,7 +150,17 @@ export const ContestManagement = () => {
       }
 
       console.log('ContestManagement: Fetched entries with profiles:', entriesData);
-      setEntries(entriesData || []);
+      
+      // Transform the data to match our interface
+      const transformedEntries: ContestEntry[] = (entriesData || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? {
+          full_name: entry.profiles.full_name || '',
+          username: entry.profiles.username || ''
+        } : undefined
+      }));
+      
+      setEntries(transformedEntries);
     } catch (error: any) {
       console.error('ContestManagement: Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
