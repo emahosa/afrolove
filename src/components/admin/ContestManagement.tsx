@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +49,7 @@ interface ContestEntry {
   profiles?: {
     full_name: string;
     username: string;
-  };
+  } | null;
 }
 
 interface Contest {
@@ -151,13 +152,21 @@ export const ContestManagement = () => {
 
       console.log('ContestManagement: Fetched entries with profiles:', entriesData);
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface with proper type checking
       const transformedEntries: ContestEntry[] = (entriesData || []).map(entry => ({
-        ...entry,
+        id: entry.id,
+        contest_id: entry.contest_id,
+        user_id: entry.user_id,
+        video_url: entry.video_url || '',
+        description: entry.description || '',
+        approved: entry.approved,
+        vote_count: entry.vote_count || 0,
+        media_type: entry.media_type || 'video',
+        created_at: entry.created_at,
         profiles: entry.profiles ? {
           full_name: entry.profiles.full_name || '',
           username: entry.profiles.username || ''
-        } : undefined
+        } : null
       }));
       
       setEntries(transformedEntries);
