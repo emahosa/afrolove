@@ -13,6 +13,8 @@ interface ApiResponse {
 }
 
 const handleApiError = (code: number, msg: string): { isValid: boolean; message: string; hasCredits: boolean } => {
+  console.log(`Handling API error - Code: ${code}, Message: ${msg}`);
+  
   switch (code) {
     case 200:
       return {
@@ -48,11 +50,12 @@ const handleApiError = (code: number, msg: string): { isValid: boolean; message:
 };
 
 const validateApiKeyFormat = (apiKey: string): boolean => {
-  // Basic validation: should be 20-50 characters, no spaces
   return apiKey.length >= 20 && apiKey.length <= 50 && !/\s/.test(apiKey);
 };
 
 serve(async (req) => {
+  console.log(`${new Date().toISOString()} - Request received: ${req.method}`);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -60,7 +63,11 @@ serve(async (req) => {
   try {
     const { apiKey } = await req.json()
     
+    console.log('API key validation request received');
+    console.log('API key length:', apiKey?.length);
+    
     if (!apiKey || typeof apiKey !== 'string') {
+      console.error('Invalid API key input - missing or not string');
       return new Response(
         JSON.stringify({ 
           error: 'API key is required and must be a string',
@@ -75,6 +82,7 @@ serve(async (req) => {
 
     // Validate API key format
     if (!validateApiKeyFormat(apiKey)) {
+      console.error('Invalid API key format');
       return new Response(
         JSON.stringify({ 
           error: 'API key format appears invalid (expected 20-50 characters with no spaces)',
@@ -87,9 +95,9 @@ serve(async (req) => {
       )
     }
 
-    console.log('Testing Suno API key validity with proper error handling...')
+    console.log('Testing Suno API key validity...')
     
-    // Test the API key with a minimal request including required callBackUrl
+    // Test the API key with a minimal request
     const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -105,8 +113,10 @@ serve(async (req) => {
       })
     })
 
+    console.log('API response status:', testResponse.status);
+
     if (!testResponse.ok) {
-      console.error('API request failed with status:', testResponse.status)
+      console.error('API request failed with status:', testResponse.status);
       
       if (testResponse.status === 401) {
         return new Response(
@@ -116,7 +126,7 @@ serve(async (req) => {
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401 
+            status: 200 // Return 200 so the frontend can handle the error gracefully
           }
         )
       }
@@ -128,7 +138,7 @@ serve(async (req) => {
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: testResponse.status 
+          status: 200 // Return 200 so the frontend can handle the error gracefully
         }
       )
     }
@@ -138,6 +148,8 @@ serve(async (req) => {
 
     // Handle API response using the error handling function
     const result = handleApiError(testData.code, testData.msg || 'Unknown response')
+
+    console.log('Validation result:', result);
 
     if (result.isValid) {
       return new Response(
@@ -160,7 +172,7 @@ serve(async (req) => {
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
+          status: 200 // Return 200 so the frontend can handle the error gracefully
         }
       )
     }
@@ -177,7 +189,7 @@ serve(async (req) => {
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 503 
+          status: 200 
         }
       )
     }
@@ -189,7 +201,7 @@ serve(async (req) => {
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status: 200 
       }
     )
   }

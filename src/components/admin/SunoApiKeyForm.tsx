@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Key, Eye, EyeOff, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
+import { Key, Eye, EyeOff, ExternalLink, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface SunoApiKeyFormProps {
   onKeyUpdated: () => void;
@@ -20,32 +20,6 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
     message: string;
     hasCredits?: boolean;
   } | null>(null);
-
-  const handleApiError = (errorCode: number, message: string) => {
-    switch (errorCode) {
-      case 401:
-        return {
-          isValid: false,
-          message: 'Authentication failed: Invalid or expired API key'
-        };
-      case 429:
-        return {
-          isValid: true,
-          message: 'API key is valid but account has insufficient credits',
-          hasCredits: false
-        };
-      case 405:
-        return {
-          isValid: false,
-          message: 'Rate limited: Please reduce request frequency'
-        };
-      default:
-        return {
-          isValid: false,
-          message: message || 'API request failed with unknown error'
-        };
-    }
-  };
 
   const validateApiKey = async () => {
     if (!apiKey.trim()) {
@@ -63,30 +37,36 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
     setValidationResult(null);
     
     try {
-      console.log('Validating Suno API key with proper error handling...');
+      console.log('Starting API key validation...');
+      console.log('API key length:', apiKey.length);
       
       const { data, error } = await supabase.functions.invoke('update-suno-key', {
         body: { apiKey: apiKey.trim() }
       });
 
+      console.log('Supabase response:', { data, error });
+
       if (error) {
-        console.error('Validation error:', error);
+        console.error('Supabase function error:', error);
+        const errorMessage = error.message || 'Failed to validate API key';
         setValidationResult({
           isValid: false,
-          message: `Validation failed: ${error.message}`
+          message: errorMessage
         });
-        toast.error('❌ Validation failed: ' + error.message);
+        toast.error('❌ ' + errorMessage);
         return;
       }
 
+      // Handle successful response
       if (data?.success) {
+        console.log('Validation successful:', data);
         setValidationResult({
           isValid: true,
-          message: data.message,
-          hasCredits: data.hasCredits
+          message: data.message || 'API key validated successfully',
+          hasCredits: data.hasCredits !== false
         });
         
-        if (data.hasCredits) {
+        if (data.hasCredits !== false) {
           toast.success('✅ API key validated and ready to use!');
         } else {
           toast.warning('⚠️ API key is valid but needs more credits');
@@ -94,21 +74,25 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
         
         onKeyUpdated();
       } else {
+        console.error('Validation failed:', data);
+        const errorMessage = data?.error || 'API key validation failed';
         setValidationResult({
           isValid: false,
-          message: data?.error || 'Unknown validation error'
+          message: errorMessage
         });
-        toast.error('❌ ' + (data?.error || 'Validation failed'));
+        toast.error('❌ ' + errorMessage);
       }
       
     } catch (error: any) {
       console.error('Critical validation error:', error);
+      const errorMessage = 'Network error or API unavailable';
       setValidationResult({
         isValid: false,
-        message: 'Network error or API unavailable'
+        message: errorMessage
       });
-      toast.error('Validation failed: ' + error.message);
+      toast.error('❌ ' + errorMessage);
     } finally {
+      console.log('Validation process completed');
       setIsValidating(false);
     }
   };
@@ -156,30 +140,43 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
             </div>
           </div>
 
-          {/* Validation Result */}
-          {validationResult && (
+          {/* Validation Status */}
+          {(isValidating || validationResult) && (
             <div className={`p-3 rounded-lg border ${
-              validationResult.isValid 
-                ? validationResult.hasCredits
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-orange-50 border-orange-200 text-orange-800'
-                : 'bg-red-50 border-red-200 text-red-800'
+              isValidating 
+                ? 'bg-blue-50 border-blue-200'
+                : validationResult?.isValid 
+                  ? validationResult.hasCredits
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-orange-50 border-orange-200 text-orange-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
             }`}>
               <div className="flex items-center gap-2">
-                {validationResult.isValid ? (
+                {isValidating ? (
+                  <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                ) : validationResult?.isValid ? (
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 ) : (
                   <AlertCircle className="h-4 w-4 text-red-600" />
                 )}
                 <span className="text-sm font-medium">
-                  {validationResult.isValid ? 'API Key Valid' : 'Validation Failed'}
+                  {isValidating 
+                    ? 'Validating API Key...' 
+                    : validationResult?.isValid 
+                      ? 'API Key Valid' 
+                      : 'Validation Failed'
+                  }
                 </span>
               </div>
-              <p className="text-sm mt-1">{validationResult.message}</p>
-              {validationResult.isValid && !validationResult.hasCredits && (
-                <p className="text-xs mt-2 text-orange-600">
-                  ⚠️ Add credits to your Suno account to enable music generation
-                </p>
+              {!isValidating && validationResult && (
+                <>
+                  <p className="text-sm mt-1">{validationResult.message}</p>
+                  {validationResult.isValid && !validationResult.hasCredits && (
+                    <p className="text-xs mt-2 text-orange-600">
+                      ⚠️ Add credits to your Suno account to enable music generation
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -190,6 +187,11 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
               disabled={isValidating || !apiKey.trim()}
               className="flex items-center gap-2"
             >
+              {isValidating ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4" />
+              )}
               {isValidating ? 'Validating...' : 'Validate & Save API Key'}
             </Button>
             
