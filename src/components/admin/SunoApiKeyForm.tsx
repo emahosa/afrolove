@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +18,34 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
   const [validationResult, setValidationResult] = useState<{
     isValid: boolean;
     message: string;
+    hasCredits?: boolean;
   } | null>(null);
+
+  const handleApiError = (errorCode: number, message: string) => {
+    switch (errorCode) {
+      case 401:
+        return {
+          isValid: false,
+          message: 'Authentication failed: Invalid or expired API key'
+        };
+      case 429:
+        return {
+          isValid: true,
+          message: 'API key is valid but account has insufficient credits',
+          hasCredits: false
+        };
+      case 405:
+        return {
+          isValid: false,
+          message: 'Rate limited: Please reduce request frequency'
+        };
+      default:
+        return {
+          isValid: false,
+          message: message || 'API request failed with unknown error'
+        };
+    }
+  };
 
   const validateApiKey = async () => {
     if (!apiKey.trim()) {
@@ -25,77 +53,56 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
       return;
     }
 
+    // Basic format validation
+    if (apiKey.length < 20 || apiKey.length > 50) {
+      toast.error('API key format appears invalid (expected 20-50 characters)');
+      return;
+    }
+
     setIsValidating(true);
     setValidationResult(null);
     
     try {
-      console.log('Validating Suno API key...');
+      console.log('Validating Suno API key with proper error handling...');
       
-      // Test the API key by making a simple request to Suno API with callback URL
-      const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: 'test validation',
-          customMode: false,
-          instrumental: true,
-          model: 'V3_5',
-          callBackUrl: `${window.location.origin}/api/suno-webhook` // Add required callback URL
-        })
+      const { data, error } = await supabase.functions.invoke('update-suno-key', {
+        body: { apiKey: apiKey.trim() }
       });
 
-      const responseData = await testResponse.json();
-      console.log('Validation response:', responseData);
-
-      let isValid = false;
-      let message = '';
-
-      if (testResponse.ok && responseData.code === 200) {
-        isValid = true;
-        message = 'API key is valid and working correctly';
-        toast.success('✅ API key validated successfully!');
-      } else if (responseData.code === 429) {
-        // Rate limit or insufficient credits - but key is valid
-        isValid = true;
-        message = 'API key is valid but account has insufficient credits';
-        toast.warning('⚠️ API key is valid but needs more credits');
-      } else if (testResponse.status === 401) {
-        isValid = false;
-        message = 'API key is invalid or expired';
-        toast.error('❌ Invalid API key');
-      } else {
-        isValid = false;
-        message = responseData.msg || 'API key validation failed';
-        toast.error('❌ Validation failed: ' + message);
+      if (error) {
+        console.error('Validation error:', error);
+        setValidationResult({
+          isValid: false,
+          message: `Validation failed: ${error.message}`
+        });
+        toast.error('❌ Validation failed: ' + error.message);
+        return;
       }
 
-      setValidationResult({ isValid, message });
-
-      if (isValid) {
-        // Update environment variable via edge function
-        try {
-          const { data, error } = await supabase.functions.invoke('update-suno-key', {
-            body: { apiKey: apiKey.trim() }
-          });
-
-          if (error) {
-            console.error('Error updating environment:', error);
-            toast.warning('API key is valid but failed to update environment');
-          } else if (data?.success) {
-            toast.success('API key validated and environment updated!');
-            onKeyUpdated();
-          }
-        } catch (envError) {
-          console.error('Environment update error:', envError);
-          toast.warning('API key is valid but environment update may have failed');
+      if (data?.success) {
+        setValidationResult({
+          isValid: true,
+          message: data.message,
+          hasCredits: data.hasCredits
+        });
+        
+        if (data.hasCredits) {
+          toast.success('✅ API key validated and ready to use!');
+        } else {
+          toast.warning('⚠️ API key is valid but needs more credits');
         }
+        
+        onKeyUpdated();
+      } else {
+        setValidationResult({
+          isValid: false,
+          message: data?.error || 'Unknown validation error'
+        });
+        toast.error('❌ ' + (data?.error || 'Validation failed'));
       }
       
     } catch (error: any) {
-      console.error('Validation error:', error);
+      console.error('Critical validation error:', error);
       setValidationResult({
         isValid: false,
         message: 'Network error or API unavailable'
@@ -129,11 +136,11 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
             <div className="relative">
               <Input
                 type={showKey ? "text" : "password"}
-                placeholder="Enter your Suno API key (32-character string)"
+                placeholder="Enter your Suno API key (20-50 characters)"
                 value={apiKey}
                 onChange={(e) => {
                   setApiKey(e.target.value);
-                  setValidationResult(null); // Clear previous validation
+                  setValidationResult(null);
                 }}
                 className="pr-10 font-mono text-sm"
               />
@@ -153,7 +160,9 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
           {validationResult && (
             <div className={`p-3 rounded-lg border ${
               validationResult.isValid 
-                ? 'bg-green-50 border-green-200 text-green-800' 
+                ? validationResult.hasCredits
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-orange-50 border-orange-200 text-orange-800'
                 : 'bg-red-50 border-red-200 text-red-800'
             }`}>
               <div className="flex items-center gap-2">
@@ -163,10 +172,15 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
                   <AlertCircle className="h-4 w-4 text-red-600" />
                 )}
                 <span className="text-sm font-medium">
-                  {validationResult.isValid ? 'Validation Successful' : 'Validation Failed'}
+                  {validationResult.isValid ? 'API Key Valid' : 'Validation Failed'}
                 </span>
               </div>
               <p className="text-sm mt-1">{validationResult.message}</p>
+              {validationResult.isValid && !validationResult.hasCredits && (
+                <p className="text-xs mt-2 text-orange-600">
+                  ⚠️ Add credits to your Suno account to enable music generation
+                </p>
+              )}
             </div>
           )}
           
@@ -189,18 +203,19 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
             </Button>
           </div>
 
-          <div className="text-xs text-muted-foreground">
-            <p>• API key should be a 32-character alphanumeric string</p>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>• API key should be 20-50 characters long</p>
             <p>• Get your API key from the Suno AI platform</p>
             <p>• Ensure your Suno account has sufficient credits</p>
+            <p>• Keys are securely stored in environment variables</p>
           </div>
         </CardContent>
       </Card>
 
       <div className="p-3 bg-blue-50 rounded-lg">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> After successful validation, the API key will be securely stored 
-          in your Supabase environment variables for use by the music generation system.
+          <strong>Security:</strong> API keys are stored securely in Supabase environment 
+          variables following industry best practices. Never share your API key or commit it to source control.
         </p>
         <Button
           variant="outline"
@@ -209,7 +224,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
           onClick={() => window.open('https://supabase.com/dashboard/project/bswfiynuvjvoaoyfdrso/settings/functions', '_blank')}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
-          View Supabase Environment Variables
+          View Environment Variables
         </Button>
       </div>
     </div>

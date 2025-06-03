@@ -6,6 +6,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface ApiResponse {
+  code: number;
+  msg?: string;
+  data?: any;
+}
+
+const handleApiError = (code: number, msg: string): { isValid: boolean; message: string; hasCredits: boolean } => {
+  switch (code) {
+    case 200:
+      return {
+        isValid: true,
+        message: 'API key is valid and ready to use',
+        hasCredits: true
+      };
+    case 401:
+      return {
+        isValid: false,
+        message: 'Authentication failed: Invalid or expired API key',
+        hasCredits: false
+      };
+    case 429:
+      return {
+        isValid: true,
+        message: 'API key is valid but account has insufficient credits',
+        hasCredits: false
+      };
+    case 405:
+      return {
+        isValid: false,
+        message: 'Rate limited: Please reduce request frequency',
+        hasCredits: false
+      };
+    default:
+      return {
+        isValid: false,
+        message: `API error: ${msg || 'Unknown error'}`,
+        hasCredits: false
+      };
+  }
+};
+
+const validateApiKeyFormat = (apiKey: string): boolean => {
+  // Basic validation: should be 20-50 characters, no spaces
+  return apiKey.length >= 20 && apiKey.length <= 50 && !/\s/.test(apiKey);
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -27,11 +73,11 @@ serve(async (req) => {
       )
     }
 
-    // Validate API key format (basic check)
-    if (apiKey.length < 20 || apiKey.length > 50) {
+    // Validate API key format
+    if (!validateApiKeyFormat(apiKey)) {
       return new Response(
         JSON.stringify({ 
-          error: 'API key format appears invalid (expected 20-50 characters)',
+          error: 'API key format appears invalid (expected 20-50 characters with no spaces)',
           success: false
         }),
         { 
@@ -41,7 +87,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('Testing Suno API key validity...')
+    console.log('Testing Suno API key validity with proper error handling...')
     
     // Test the API key with a minimal request including required callBackUrl
     const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -59,41 +105,57 @@ serve(async (req) => {
       })
     })
 
-    const testData = await testResponse.json()
+    if (!testResponse.ok) {
+      console.error('API request failed with status:', testResponse.status)
+      
+      if (testResponse.status === 401) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'API key is invalid or expired',
+            success: false
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        )
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: `HTTP error: ${testResponse.status}`,
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: testResponse.status 
+        }
+      )
+    }
+
+    const testData: ApiResponse = await testResponse.json()
     console.log('API validation response:', testData)
 
-    // Check if the response indicates the key is valid
-    if (testData.code === 200 || testData.code === 429) {
-      // Code 200 = success, Code 429 = rate limit/insufficient credits (but key is valid)
+    // Handle API response using the error handling function
+    const result = handleApiError(testData.code, testData.msg || 'Unknown response')
+
+    if (result.isValid) {
       return new Response(
         JSON.stringify({ 
           success: true,
-          message: testData.code === 200 
-            ? 'API key is valid and ready to use' 
-            : 'API key is valid but account needs more credits',
+          message: result.message,
           key: apiKey,
-          hasCredits: testData.code === 200
+          hasCredits: result.hasCredits
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200 
         }
       )
-    } else if (testResponse.status === 401) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'API key is invalid or expired',
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401 
-        }
-      )
     } else {
       return new Response(
         JSON.stringify({ 
-          error: `API validation failed: ${testData.msg || 'Unknown error'}`,
+          error: result.message,
           success: false
         }),
         { 
@@ -104,7 +166,22 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error validating API key:', error)
+    console.error('Critical error validating API key:', error)
+    
+    // Handle network errors and timeouts
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Network error: Unable to connect to Suno API. Please check your connection and try again.',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 503 
+        }
+      )
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: error.message || 'Failed to validate API key',
