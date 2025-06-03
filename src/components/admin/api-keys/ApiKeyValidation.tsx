@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { AlertCircle, CheckCircle, Clock, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ApiKeyValidationProps {
   provider: string;
@@ -25,57 +26,51 @@ export const ApiKeyValidation = ({ provider, apiKey, onValidationComplete }: Api
     }
 
     setIsValidating(true);
+    setValidationStatus('idle');
+    setStatusMessage('Validating API key...');
     
     try {
-      // For Suno API validation
-      if (provider === 'suno') {
-        const response = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: 'validation test',
-            customMode: false,
-            instrumental: true,
-            model: 'V3_5',
-            callBackUrl: `${window.location.origin}/api/suno-webhook`
-          })
-        });
+      console.log('Validating API key via Supabase edge function...');
+      
+      // Use the Supabase edge function for validation
+      const { data, error } = await supabase.functions.invoke('update-suno-key', {
+        body: { apiKey: apiKey.trim() }
+      });
 
-        const data = await response.json();
+      console.log('Validation response:', { data, error });
+
+      let isValid = false;
+      let message = '';
+      let status: 'valid' | 'invalid' | 'warning' = 'invalid';
+
+      if (error) {
+        console.error('Validation error:', error);
+        message = `Validation failed: ${error.message}`;
+        status = 'invalid';
+        toast.error('❌ Validation failed: ' + error.message);
+      } else if (data?.success) {
+        isValid = true;
+        message = data.message || 'API key is valid and working correctly';
+        status = data.hasCredits !== false ? 'valid' : 'warning';
         
-        let isValid = false;
-        let message = '';
-        let status: 'valid' | 'invalid' | 'warning' = 'invalid';
-
-        if (data.code === 200) {
-          isValid = true;
-          message = 'API key is valid and working correctly';
-          status = 'valid';
+        if (data.hasCredits !== false) {
           toast.success('✅ API key validated successfully!');
-        } else if (data.code === 429) {
-          isValid = true;
-          message = 'API key is valid but account has insufficient credits';
-          status = 'warning';
-          toast.warning('⚠️ API key valid but needs more credits');
-        } else if (response.status === 401 || data.code === 401) {
-          message = 'API key is invalid or expired';
-          toast.error('❌ Invalid API key');
         } else {
-          message = data.msg || 'API validation failed';
-          toast.error('❌ Validation failed: ' + message);
+          toast.warning('⚠️ API key valid but needs more credits');
         }
-
-        setValidationStatus(status);
-        setStatusMessage(message);
-        setLastValidated(new Date());
-        onValidationComplete(isValid, message);
+      } else {
+        message = data?.error || 'API key validation failed';
+        status = 'invalid';
+        toast.error('❌ ' + message);
       }
+
+      setValidationStatus(status);
+      setStatusMessage(message);
+      setLastValidated(new Date());
+      onValidationComplete(isValid, message);
       
     } catch (error: any) {
-      console.error('Validation error:', error);
+      console.error('Critical validation error:', error);
       const errorMessage = 'Network error or API unavailable';
       setValidationStatus('invalid');
       setStatusMessage(errorMessage);
