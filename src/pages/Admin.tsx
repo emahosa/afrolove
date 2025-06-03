@@ -255,13 +255,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           <TabsContent value="admins" className="mt-0">
             <AdminManagement 
               users={users}
-              admins={[]}
-              apiKeys={[]}
-              pricingPlans={[]}
-              creditPackages={[]}
               renderStatusLabel={renderStatusLabel}
-              renderPlanFeatures={() => null}
-              getButtonContent={(status: string) => status}
             />
           </TabsContent>
 
@@ -286,12 +280,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="payments" className="mt-0">
-            <PaymentManagement 
-              pricingPlans={[]}
-              creditPackages={[]}
-              renderPlanFeatures={() => null}
-              renderStatusLabel={renderStatusLabel}
-            />
+            <PaymentManagement />
           </TabsContent>
 
           <TabsContent value="support" className="mt-0">
