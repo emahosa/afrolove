@@ -43,7 +43,7 @@ serve(async (req) => {
 
     console.log('Testing Suno API key validity...')
     
-    // Test the API key with a minimal request
+    // Test the API key with a minimal request including required callBackUrl
     const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
@@ -54,7 +54,8 @@ serve(async (req) => {
         prompt: 'validation test',
         customMode: false,
         instrumental: true,
-        model: 'V3_5'
+        model: 'V3_5',
+        callBackUrl: 'https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-webhook'
       })
     })
 

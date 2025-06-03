@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +31,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
     try {
       console.log('Validating Suno API key...');
       
-      // Test the API key by making a simple request to Suno API
+      // Test the API key by making a simple request to Suno API with callback URL
       const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
         method: 'POST',
         headers: {
@@ -43,7 +42,8 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
           prompt: 'test validation',
           customMode: false,
           instrumental: true,
-          model: 'V3_5'
+          model: 'V3_5',
+          callBackUrl: `${window.location.origin}/api/suno-webhook` // Add required callback URL
         })
       });
 
