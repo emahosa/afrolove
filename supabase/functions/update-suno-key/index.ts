@@ -12,48 +12,87 @@ serve(async (req) => {
   }
 
   try {
-    // Set the new API key directly
-    const newApiKey = "9f290dd97b2bbacfbb9eb199787aea31"
+    const { apiKey } = await req.json()
     
-    // Test the API key first
-    console.log('Testing Suno API key...')
+    if (!apiKey || typeof apiKey !== 'string') {
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key is required and must be a string',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
+    }
+
+    // Validate API key format (basic check)
+    if (apiKey.length < 20 || apiKey.length > 50) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key format appears invalid (expected 20-50 characters)',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
+    }
+
+    console.log('Testing Suno API key validity...')
     
+    // Test the API key with a minimal request
     const testResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${newApiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: 'test',
-        style: 'Pop',
-        title: 'API Key Test',
-        instrumental: true,
+        prompt: 'validation test',
         customMode: false,
-        model: 'V3_5',
-        callBackUrl: 'https://bswfiynuvjvoaoyfdrso.supabase.co/functions/v1/suno-callback'
+        instrumental: true,
+        model: 'V3_5'
       })
     })
 
     const testData = await testResponse.json()
-    console.log('API key test response:', testData)
+    console.log('API validation response:', testData)
 
+    // Check if the response indicates the key is valid
     if (testData.code === 200 || testData.code === 429) {
+      // Code 200 = success, Code 429 = rate limit/insufficient credits (but key is valid)
       return new Response(
         JSON.stringify({ 
           success: true,
-          message: 'API key is valid and ready to use',
-          key: newApiKey
+          message: testData.code === 200 
+            ? 'API key is valid and ready to use' 
+            : 'API key is valid but account needs more credits',
+          key: apiKey,
+          hasCredits: testData.code === 200
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200 
         }
       )
+    } else if (testResponse.status === 401) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'API key is invalid or expired',
+          success: false
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401 
+        }
+      )
     } else {
       return new Response(
         JSON.stringify({ 
-          error: `API key validation failed: ${testData.msg || 'Invalid response'}`,
+          error: `API validation failed: ${testData.msg || 'Unknown error'}`,
           success: false
         }),
         { 
@@ -64,10 +103,10 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Error updating API key:', error)
+    console.error('Error validating API key:', error)
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to update API key',
+        error: error.message || 'Failed to validate API key',
         success: false
       }),
       { 

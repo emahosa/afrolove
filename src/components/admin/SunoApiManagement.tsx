@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, Key, RefreshCw, Music } from 'lucide-react';
+import { AlertCircle, CheckCircle, Key, RefreshCw, Music, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
@@ -13,53 +13,73 @@ import { SunoApiKeyForm } from './SunoApiKeyForm';
 export const SunoApiManagement = () => {
   const { user } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
-  const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing' | 'no_credits'>('checking');
+  const [keyStatus, setKeyStatus] = useState<'checking' | 'valid' | 'invalid' | 'missing' | 'no_credits' | 'error'>('checking');
   const [lastChecked, setLastChecked] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('');
   
   const { generateSong, isGenerating, generationStatus } = useSunoGeneration();
 
   const checkApiKeyStatus = async () => {
     setIsChecking(true);
     setKeyStatus('checking');
+    setStatusMessage('Checking API key configuration...');
 
     try {
-      console.log('Checking Suno API key status...');
+      console.log('Performing comprehensive API key status check...');
       
+      // First check if we can call the status function
       const { data, error } = await supabase.functions.invoke('suno-status', {
-        body: { taskId: 'test' }
+        body: { taskId: 'status-check' }
       });
 
-      console.log('API key check response:', { data, error });
+      console.log('Status check response:', { data, error });
 
       if (error) {
-        console.error('API key check error:', error);
+        console.error('Status check error:', error);
+        
         if (error.message?.includes('SUNO_API_KEY not configured')) {
           setKeyStatus('missing');
+          setStatusMessage('No Suno API key configured in environment');
           toast.error('Suno API key is not configured');
-        } else if (error.message?.includes('credits are insufficient')) {
-          setKeyStatus('no_credits');
-          toast.warning('⚠️ Suno API has insufficient credits');
-        } else {
+        } else if (error.message?.includes('invalid') || error.message?.includes('unauthorized')) {
           setKeyStatus('invalid');
-          toast.error('API key check failed: ' + error.message);
+          setStatusMessage('API key appears to be invalid or expired');
+          toast.error('API key validation failed');
+        } else {
+          setKeyStatus('error');
+          setStatusMessage(`Status check failed: ${error.message}`);
+          toast.error('Unable to check API key status');
         }
       } else if (data) {
-        if (data.code === 200 || data.msg === 'success') {
+        // Analyze the response to determine status
+        if (data.code === 200) {
           setKeyStatus('valid');
-          toast.success('Suno API key is valid and working');
-        } else {
+          setStatusMessage('API key is valid and working correctly');
+          toast.success('Suno API key is configured and working');
+        } else if (data.code === 429 || data.msg?.includes('credit')) {
+          setKeyStatus('no_credits');
+          setStatusMessage('API key is valid but Suno account has insufficient credits');
+          toast.warning('⚠️ Suno API key valid but needs more credits');
+        } else if (data.code === 401 || data.msg?.includes('unauthorized')) {
           setKeyStatus('invalid');
-          toast.error('API key appears to be invalid');
+          setStatusMessage('API key is invalid or expired');
+          toast.error('Invalid API key detected');
+        } else {
+          setKeyStatus('error');
+          setStatusMessage(`Unexpected response: ${data.msg || 'Unknown status'}`);
+          toast.warning('Unexpected API response received');
         }
       } else {
-        setKeyStatus('invalid');
-        toast.error('Unexpected response from API key check');
+        setKeyStatus('error');
+        setStatusMessage('No response received from API check');
+        toast.error('Failed to get API status response');
       }
 
       setLastChecked(new Date().toLocaleString());
     } catch (error) {
-      console.error('Error checking API key:', error);
-      setKeyStatus('invalid');
+      console.error('Critical error in status check:', error);
+      setKeyStatus('error');
+      setStatusMessage(`Critical error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast.error('Failed to check API key status');
     } finally {
       setIsChecking(false);
@@ -67,21 +87,24 @@ export const SunoApiManagement = () => {
   };
 
   useEffect(() => {
+    // Initial status check when component mounts
     checkApiKeyStatus();
   }, []);
 
   const getStatusBadge = () => {
     switch (keyStatus) {
       case 'checking':
-        return <Badge variant="secondary">Checking...</Badge>;
+        return <Badge variant="secondary" className="animate-pulse">Checking...</Badge>;
       case 'valid':
-        return <Badge variant="default" className="bg-green-500">Active</Badge>;
+        return <Badge variant="default" className="bg-green-500">Active & Working</Badge>;
       case 'invalid':
-        return <Badge variant="destructive">Invalid</Badge>;
+        return <Badge variant="destructive">Invalid/Expired</Badge>;
       case 'missing':
         return <Badge variant="outline">Not Configured</Badge>;
       case 'no_credits':
-        return <Badge variant="destructive" className="bg-orange-500">No Credits</Badge>;
+        return <Badge variant="destructive" className="bg-orange-500">Valid - No Credits</Badge>;
+      case 'error':
+        return <Badge variant="destructive">Check Failed</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -97,46 +120,30 @@ export const SunoApiManagement = () => {
         return <AlertCircle className="h-5 w-5 text-orange-500" />;
       case 'invalid':
       case 'missing':
+      case 'error':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       default:
         return <Key className="h-5 w-5 text-gray-500" />;
     }
   };
 
-  const getStatusMessage = () => {
-    switch (keyStatus) {
-      case 'checking':
-        return 'Verifying API key configuration...';
-      case 'valid':
-        return 'API key is properly configured and working.';
-      case 'invalid':
-        return 'API key is configured but appears to be invalid or expired.';
-      case 'missing':
-        return 'No API key configured. Please add your Suno API key to enable music generation.';
-      case 'no_credits':
-        return 'API key is valid but the Suno account has insufficient credits. Please top up your Suno account to continue generating music.';
-      default:
-        return 'Unable to determine API key status.';
-    }
-  };
-
   const handleTestGeneration = async () => {
     if (keyStatus !== 'valid') {
-      toast.error('Please configure a valid API key first.');
+      toast.error('Please configure a valid API key first');
       return;
     }
 
     if (!user) {
-      toast.error('You must be logged in to test generation.');
+      toast.error('You must be logged in to test generation');
       return;
     }
 
     try {
-      console.log('Starting test generation...');
+      console.log('Starting admin test generation...');
       await generateSong({
-        prompt: 'Test generation for API verification',
-        style: 'Pop',
-        title: 'API Test Song',
+        prompt: 'Test generation for API verification - short instrumental piece',
+        style: 'Ambient',
+        title: 'API Test Track',
         instrumental: true,
         customMode: false,
         model: 'V3_5',
@@ -144,26 +151,29 @@ export const SunoApiManagement = () => {
       });
     } catch (error: any) {
       console.error('Test generation error:', error);
-      toast.error('Failed to test generation: ' + error.message);
+      toast.error('Test generation failed: ' + error.message);
     }
   };
 
   const handleKeyUpdated = () => {
     // Refresh the API key status after update
-    checkApiKeyStatus();
+    toast.info('Rechecking API key status...');
+    setTimeout(() => {
+      checkApiKeyStatus();
+    }, 1000);
   };
 
   // Show generation status updates
   useEffect(() => {
     if (generationStatus) {
-      console.log('Generation status update:', generationStatus);
+      console.log('Admin test generation status:', generationStatus);
       
       if (generationStatus.status === 'SUCCESS') {
         toast.success('🎵 Test generation completed successfully!');
       } else if (generationStatus.status === 'FAIL') {
-        toast.error('Test generation failed');
+        toast.error('Test generation failed - check API key and credits');
       } else if (generationStatus.status === 'TEXT_SUCCESS') {
-        toast.info('Test: Lyrics generated, creating audio...');
+        toast.info('Test: Lyrics stage complete, generating audio...');
       }
     }
   }, [generationStatus]);
@@ -175,7 +185,7 @@ export const SunoApiManagement = () => {
         <p className="text-muted-foreground">Configure and manage your Suno AI API integration for music generation</p>
       </div>
 
-      {/* Show credit warning if no credits */}
+      {/* Critical Status Alert */}
       {keyStatus === 'no_credits' && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
@@ -219,11 +229,12 @@ export const SunoApiManagement = () => {
             </div>
             
             <p className="text-sm text-muted-foreground">
-              {getStatusMessage()}
+              {statusMessage}
             </p>
 
             {lastChecked && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
                 Last checked: {lastChecked}
               </p>
             )}
@@ -236,7 +247,7 @@ export const SunoApiManagement = () => {
                 disabled={isChecking}
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${isChecking ? 'animate-spin' : ''}`} />
-                Refresh Status
+                {isChecking ? 'Checking...' : 'Refresh Status'}
               </Button>
 
               {keyStatus === 'valid' && (
@@ -247,7 +258,7 @@ export const SunoApiManagement = () => {
                   disabled={isGenerating}
                 >
                   <Music className="h-4 w-4 mr-2" />
-                  {isGenerating ? 'Generating...' : 'Test Generation'}
+                  {isGenerating ? 'Testing...' : 'Test Generation'}
                 </Button>
               )}
             </div>
@@ -255,7 +266,7 @@ export const SunoApiManagement = () => {
             {/* Show current generation status */}
             {generationStatus && (
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium">Generation Status:</p>
+                <p className="text-sm font-medium">Test Generation Status:</p>
                 <p className="text-sm text-muted-foreground">
                   Task ID: {generationStatus.task_id}
                 </p>
@@ -277,7 +288,7 @@ export const SunoApiManagement = () => {
           <CardHeader>
             <CardTitle>API Usage & Features</CardTitle>
             <CardDescription>
-              Information about Suno AI API capabilities and usage
+              Information about Suno AI API capabilities and requirements
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -305,6 +316,7 @@ export const SunoApiManagement = () => {
                   <li>• Each generation uses Suno account credits</li>
                   <li>• Monitor credit usage in your Suno dashboard</li>
                   <li>• Top up credits as needed for continuous service</li>
+                  <li>• Invalid keys or insufficient credits will block generation</li>
                 </ul>
               </div>
             </div>
@@ -312,7 +324,7 @@ export const SunoApiManagement = () => {
         </Card>
       </div>
 
-      {/* API Key Update Form */}
+      {/* API Key Configuration Form */}
       <SunoApiKeyForm onKeyUpdated={handleKeyUpdated} />
     </div>
   );
