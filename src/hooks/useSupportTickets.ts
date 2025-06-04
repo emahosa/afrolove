@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -29,12 +28,11 @@ export const useSupportTickets = () => {
   const { user, isAdmin } = useAuth();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [messages, setMessages] = useState<{ [ticketId: string]: SupportMessage[] }>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = async () => {
     if (!user) return;
-    
-    setLoading(true);
+
     try {
       let query = supabase
         .from('support_tickets')
@@ -60,14 +58,25 @@ export const useSupportTickets = () => {
           const userMap = new Map(userData.map(u => [u.id, u.username]));
           const ticketsWithEmail = data.map(ticket => ({
             ...ticket,
+            status: ticket.status as SupportTicket['status'],
+            priority: ticket.priority as SupportTicket['priority'],
             user_email: userMap.get(ticket.user_id) || 'Unknown user'
           }));
           setTickets(ticketsWithEmail);
         } else {
-          setTickets(data.map(ticket => ({ ...ticket, user_email: 'Unknown user' })));
+          setTickets(data.map(ticket => ({ 
+            ...ticket, 
+            status: ticket.status as SupportTicket['status'],
+            priority: ticket.priority as SupportTicket['priority'],
+            user_email: 'Unknown user' 
+          })));
         }
       } else {
-        setTickets(data || []);
+        setTickets((data || []).map(ticket => ({
+          ...ticket,
+          status: ticket.status as SupportTicket['status'],
+          priority: ticket.priority as SupportTicket['priority']
+        })));
       }
     } catch (error) {
       console.error('Error fetching tickets:', error);
@@ -75,9 +84,9 @@ export const useSupportTickets = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin]);
+  };
 
-  const fetchMessages = useCallback(async (ticketId: string) => {
+  const fetchMessages = async (ticketId: string) => {
     try {
       const { data, error } = await supabase
         .from('support_messages')
@@ -89,110 +98,136 @@ export const useSupportTickets = () => {
 
       setMessages(prev => ({
         ...prev,
-        [ticketId]: data || []
+        [ticketId]: (data || []).map(msg => ({
+          ...msg,
+          sender_type: msg.sender_type as SupportMessage['sender_type']
+        }))
       }));
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast.error('Failed to fetch messages');
     }
-  }, []);
+  };
 
-  const createTicket = async (subject: string, message: string, priority: 'low' | 'medium' | 'high' = 'medium') => {
-    if (!user) return;
+  const createTicket = async (ticketData: { subject: string; message: string; priority: SupportTicket['priority'] }) => {
+    if (!user) return null;
 
     try {
       const { data, error } = await supabase
         .from('support_tickets')
-        .insert({
+        .insert([{
           user_id: user.id,
-          subject,
-          message,
-          priority
-        })
+          subject: ticketData.subject,
+          message: ticketData.message,
+          priority: ticketData.priority,
+          status: 'new' as const
+        }])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Create initial message
-      await supabase
-        .from('support_messages')
-        .insert({
-          ticket_id: data.id,
-          sender_id: user.id,
-          sender_type: 'user',
-          content: message
-        });
+      const newTicket = {
+        ...data,
+        status: data.status as SupportTicket['status'],
+        priority: data.priority as SupportTicket['priority']
+      };
 
+      setTickets(prev => [newTicket, ...prev]);
       toast.success('Support ticket created successfully');
-      fetchTickets();
-      return data;
+      return newTicket;
     } catch (error) {
       console.error('Error creating ticket:', error);
       toast.error('Failed to create support ticket');
-      throw error;
+      return null;
     }
   };
 
-  const updateTicketStatus = async (ticketId: string, status: SupportTicket['status']) => {
+  const updateTicket = async (ticketId: string, updates: Partial<SupportTicket>) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('support_tickets')
-        .update({ status })
-        .eq('id', ticketId);
+        .update(updates)
+        .eq('id', ticketId)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast.success(`Ticket status updated to ${status}`);
-      fetchTickets();
+      const updatedTicket = {
+        ...data,
+        status: data.status as SupportTicket['status'],
+        priority: data.priority as SupportTicket['priority']
+      };
+
+      setTickets(prev => prev.map(ticket => 
+        ticket.id === ticketId ? updatedTicket : ticket
+      ));
+      toast.success('Ticket updated successfully');
+      return updatedTicket;
     } catch (error) {
-      console.error('Error updating ticket status:', error);
-      toast.error('Failed to update ticket status');
+      console.error('Error updating ticket:', error);
+      toast.error('Failed to update ticket');
+      return null;
     }
   };
 
-  const sendMessage = async (ticketId: string, content: string) => {
-    if (!user) return;
+  const createMessage = async (ticketId: string, content: string) => {
+    if (!user) return null;
 
     try {
-      const senderType = isAdmin() ? 'admin' : 'user';
-      
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('support_messages')
-        .insert({
+        .insert([{
           ticket_id: ticketId,
           sender_id: user.id,
-          sender_type: senderType,
+          sender_type: isAdmin() ? 'admin' as const : 'user' as const,
           content
-        });
+        }])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      // Update ticket status to pending if admin replied
-      if (senderType === 'admin') {
-        await updateTicketStatus(ticketId, 'pending');
+      const newMessage = {
+        ...data,
+        sender_type: data.sender_type as SupportMessage['sender_type']
+      };
+
+      setMessages(prev => ({
+        ...prev,
+        [ticketId]: [...(prev[ticketId] || []), newMessage]
+      }));
+
+      // Update ticket status to active if it's new
+      const ticket = tickets.find(t => t.id === ticketId);
+      if (ticket && ticket.status === 'new') {
+        await updateTicket(ticketId, { status: 'active' });
       }
 
       toast.success('Message sent successfully');
-      fetchMessages(ticketId);
+      return newMessage;
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error creating message:', error);
       toast.error('Failed to send message');
+      return null;
     }
   };
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    if (user) {
+      fetchTickets();
+    }
+  }, [user]);
 
   return {
     tickets,
     messages,
     loading,
-    fetchTickets,
-    fetchMessages,
     createTicket,
-    updateTicketStatus,
-    sendMessage
+    updateTicket,
+    createMessage,
+    fetchMessages,
+    refetch: fetchTickets
   };
 };

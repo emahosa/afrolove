@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,45 +6,65 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Disc, Mic, Loader2, Music, FileMusic, Plus, History } from "lucide-react";
+import { Music, FileMusic, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import CustomSongCreation from "@/components/CustomSongCreation";
-import SplitAudioControl from "@/components/SplitAudioControl";
-import VoiceCloning from "@/components/VoiceCloning";
-import VoiceChanger from "@/components/VoiceChanger";
 import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
-import { SunoGenerationForm } from "@/components/suno/SunoGenerationForm";
-import { useNavigate } from "react-router-dom";
+import { useSunoGeneration } from "@/hooks/use-suno-generation";
 import { useGenres } from "@/hooks/use-genres";
 
+type CreationMode = 'prompt' | 'lyrics';
+
 const Create = () => {
-  const [activeTab, setActiveTab] = useState("ai-suno");
+  const [activeTab, setActiveTab] = useState("create");
+  const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
   const [selectedGenre, setSelectedGenre] = useState("");
-  const [theme, setTheme] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedTrack, setGeneratedTrack] = useState<null | { name: string }>(null);
-  const { user, updateUserCredits, isAdmin } = useAuth();
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
+  const [userPrompt, setUserPrompt] = useState("");
+  const [songTitle, setSongTitle] = useState("");
+  const [instrumental, setInstrumental] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const navigate = useNavigate();
+  
+  const { user } = useAuth();
+  const { generateSong, isGenerating } = useSunoGeneration();
   const { genres, loading: genresLoading } = useGenres();
 
-  const handleLegacyGenerate = () => {
+  const getMaxPromptLength = () => {
     const selectedGenreData = genres.find(g => g.id === selectedGenre);
-    
+    const genrePromptLength = selectedGenreData?.prompt_template?.length || 0;
+    return Math.max(1, 199 - genrePromptLength);
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedGenre) {
+      toast.error("Please select a genre");
+      return;
+    }
+
+    if (!userPrompt.trim()) {
+      toast.error(`Please enter ${creationMode === 'prompt' ? 'a prompt' : 'lyrics'}`);
+      return;
+    }
+
+    if (creationMode === 'lyrics' && !songTitle.trim()) {
+      toast.error("Please enter a song title for lyrics mode");
+      return;
+    }
+
+    const selectedGenreData = genres.find(g => g.id === selectedGenre);
     if (!selectedGenreData) {
-      toast.error("Please select a genre. Select a music genre to continue");
+      toast.error("Invalid genre selected");
       return;
     }
 
-    if (!theme) {
-      toast.error("Please enter a theme. Describe the theme or topic of your song");
-      return;
-    }
-
-    if (theme.length > 90) {
-      toast.error("Song description must be 90 characters or less");
+    // Combine admin genre prompt with user prompt
+    const combinedPrompt = `${selectedGenreData.prompt_template}. ${userPrompt}`;
+    
+    if (combinedPrompt.length > 199) {
+      toast.error(`Combined prompt is too long (${combinedPrompt.length}/199 characters). Please shorten your input.`);
       return;
     }
 
@@ -52,30 +73,25 @@ const Create = () => {
       return;
     }
 
-    const combinedPrompt = `${selectedGenreData.prompt_template}. ${theme}`;
-    console.log('Combined prompt for AI generation:', combinedPrompt);
+    const request = {
+      prompt: combinedPrompt,
+      instrumental,
+      customMode: creationMode === 'lyrics',
+      model: 'V4_5' as const,
+      ...(creationMode === 'lyrics' && {
+        title: songTitle,
+        style: selectedGenreData.name
+      })
+    };
 
-    setIsGenerating(true);
-    
-    setTimeout(() => {
-      setIsGenerating(false);
-      setGeneratedTrack({ 
-        name: `${selectedGenreData.name} ${activeTab === "vocals" ? "song" : "instrumental"} about ${theme}` 
-      });
-      
-      updateUserCredits(-1);
-      
-      toast.success("Track generated! Your AI track has been created successfully");
-    }, 5000);
-  };
-
-  const handleSunoSuccess = (taskId: string) => {
-    console.log('Suno generation started with task ID:', taskId);
-    toast.success('🎵 Your song is being generated! Check back in a few minutes.');
-  };
-
-  const handleViewHistory = () => {
-    navigate("/custom-songs-management");
+    const taskId = await generateSong(request);
+    if (taskId) {
+      toast.success('🎵 Your song is being generated! Check your library in a few minutes.');
+      // Reset form
+      setUserPrompt("");
+      setSongTitle("");
+      setSelectedGenre("");
+    }
   };
 
   if (genresLoading) {
@@ -94,331 +110,189 @@ const Create = () => {
       <h1 className="text-3xl font-bold mb-2">Create Music</h1>
       <p className="text-muted-foreground mb-6">Generate high-quality songs using AI technology</p>
       
-      <Tabs defaultValue="ai-suno" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
-          <TabsTrigger value="ai-suno" className="flex items-center gap-2">
+      <Tabs defaultValue="create" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+          <TabsTrigger value="create" className="flex items-center gap-2">
             <Music className="h-4 w-4" />
-            <span>Suno AI</span>
-          </TabsTrigger>
-          <TabsTrigger value="vocals" className="flex items-center gap-2">
-            <Mic className="h-4 w-4" />
-            <span>Legacy AI</span>
-          </TabsTrigger>
-          <TabsTrigger value="instrumental" className="flex items-center gap-2">
-            <Disc className="h-4 w-4" />
-            <span>Instrumental</span>
+            <span>Create Song</span>
           </TabsTrigger>
           <TabsTrigger value="custom" className="flex items-center gap-2">
             <FileMusic className="h-4 w-4" />
-            <span>Custom</span>
+            <span>Custom Song</span>
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="ai-suno" className="space-y-6">
+        <TabsContent value="create" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>🎵 Suno AI Music Generation</CardTitle>
+              <CardTitle>🎵 AI Song Generation</CardTitle>
               <CardDescription>
                 Create professional-quality songs with advanced AI. Choose between quick prompts or detailed lyrics input.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <SunoGenerationForm onSuccess={handleSunoSuccess} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="vocals" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate a song with AI vocals (Legacy)</CardTitle>
-              <CardDescription>
-                Basic AI song generation with simple prompts
-              </CardDescription>
-            </CardHeader>
             <CardContent className="space-y-6">
-              {!generatedTrack ? (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="genre" className="text-base font-medium">
-                        1. Select a genre
-                      </Label>
-                      {genres.length === 0 ? (
-                        <div className="text-center py-8">
-                          <Music className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No genres available</p>
-                        </div>
-                      ) : (
-                        <RadioGroup
-                          value={selectedGenre}
-                          onValueChange={setSelectedGenre}
-                          className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
+              {/* Creation Mode Toggle */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Creation Mode</Label>
+                <RadioGroup 
+                  value={creationMode} 
+                  onValueChange={(value) => {
+                    setCreationMode(value as CreationMode);
+                    setUserPrompt("");
+                    setSongTitle("");
+                  }}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <div className="space-y-1">
+                    <RadioGroupItem value="prompt" id="prompt" className="peer sr-only" />
+                    <Label
+                      htmlFor="prompt"
+                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <div className="font-medium">🎨 Prompt Mode</div>
+                      <div className="text-xs text-muted-foreground text-center">
+                        Describe your song idea
+                      </div>
+                    </Label>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <RadioGroupItem value="lyrics" id="lyrics" className="peer sr-only" />
+                    <Label
+                      htmlFor="lyrics"
+                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    >
+                      <div className="font-medium">✍️ Lyrics Mode</div>
+                      <div className="text-xs text-muted-foreground text-center">
+                        Input full song lyrics
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Genre Selection */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Select Genre</Label>
+                {genres.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Music className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No genres available</p>
+                  </div>
+                ) : (
+                  <RadioGroup
+                    value={selectedGenre}
+                    onValueChange={setSelectedGenre}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  >
+                    {genres.map((genre) => (
+                      <div key={genre.id} className="space-y-1">
+                        <RadioGroupItem
+                          value={genre.id}
+                          id={genre.id}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={genre.id}
+                          className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
-                          {genres.map((genre) => (
-                            <div key={genre.id} className="space-y-1">
-                              <RadioGroupItem
-                                value={genre.id}
-                                id={genre.id}
-                                className="peer sr-only"
-                              />
-                              <Label
-                                htmlFor={genre.id}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                              >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
-                                  <Music className="h-5 w-5" />
-                                </div>
-                                <div className="font-medium">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground text-center">
-                                  {genre.description}
-                                </div>
-                              </Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="theme" className="text-base font-medium">
-                        2. Describe your song (max 90 characters)
-                      </Label>
-                      <div className="mt-3">
-                        <Input
-                          id="theme"
-                          placeholder="E.g., A song about falling in love on a summer evening"
-                          value={theme}
-                          onChange={(e) => setTheme(e.target.value)}
-                          maxLength={90}
-                        />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {theme.length}/90 characters
-                        </p>
+                          <div className="font-medium">{genre.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {genre.description}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1 font-mono">
+                            Template: {genre.prompt_template?.substring(0, 50)}...
+                          </div>
+                        </Label>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    onClick={handleLegacyGenerate}
-                    disabled={isGenerating || genres.length === 0}
-                    className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      "Generate Song"
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-6">
-                  <div className="aspect-square max-w-sm mx-auto bg-melody-primary/30 rounded-md flex items-center justify-center">
-                    <div className="audio-wave scale-150">
-                      <div className="audio-wave-bar h-5 animate-wave1"></div>
-                      <div className="audio-wave-bar h-8 animate-wave2"></div>
-                      <div className="audio-wave-bar h-4 animate-wave3"></div>
-                      <div className="audio-wave-bar h-6 animate-wave4"></div>
-                      <div className="audio-wave-bar h-3 animate-wave1"></div>
-                      <div className="audio-wave-bar h-7 animate-wave2"></div>
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <h3 className="text-xl font-semibold mb-2">{generatedTrack.name}</h3>
-                    <p className="text-muted-foreground mb-6">Generated with AI</p>
-                    
-                    <div className="flex flex-wrap justify-center gap-3">
-                      <Button>
-                        <Music className="mr-2 h-4 w-4" />
-                        Play
-                      </Button>
-                      <Button variant="outline">
-                        Save to Library
-                      </Button>
-                      <Button variant="outline">
-                        Download
-                      </Button>
-                      <Button variant="outline">
-                        Share
-                      </Button>
-                    </div>
-                    
-                    <div className="mt-4 flex flex-col gap-3 items-center">
-                      <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
-                      <div className="flex items-center gap-3">
-                        <VoiceCloning 
-                          onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)} 
-                        />
-                        {selectedVoiceId && (
-                          <VoiceChanger 
-                            songName={generatedTrack.name} 
-                            songUrl="mock-url"
-                            voiceId={selectedVoiceId}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => {
-                      setGeneratedTrack(null);
-                      setSelectedGenre("");
-                      setTheme("");
-                      setSelectedVoiceId(null);
-                    }}
-                  >
-                    Create Another Song
-                  </Button>
+                    ))}
+                  </RadioGroup>
+                )}
+              </div>
+
+              {/* Song Title (for lyrics mode) */}
+              {creationMode === 'lyrics' && (
+                <div className="space-y-2">
+                  <Label htmlFor="title" className="text-base font-medium">
+                    Song Title <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    placeholder="Enter song title"
+                    value={songTitle}
+                    onChange={(e) => setSongTitle(e.target.value)}
+                    maxLength={80}
+                  />
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="instrumental" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate an instrumental track</CardTitle>
-              <CardDescription>
-                Our AI will create an instrumental based on your description
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {!generatedTrack ? (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="genre-inst" className="text-base font-medium">
-                        1. Select a genre
-                      </Label>
-                      {genres.length === 0 ? (
-                        <div className="text-center py-8">
-                          <Music className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No genres available</p>
-                        </div>
-                      ) : (
-                        <RadioGroup
-                          value={selectedGenre}
-                          onValueChange={setSelectedGenre}
-                          className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3"
-                        >
-                          {genres.map((genre) => (
-                            <div key={genre.id} className="space-y-1">
-                              <RadioGroupItem
-                                value={genre.id}
-                                id={`${genre.id}-inst`}
-                                className="peer sr-only"
-                              />
-                              <Label
-                                htmlFor={`${genre.id}-inst`}
-                                className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                              >
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-2">
-                                  <Disc className="h-5 w-5" />
-                                </div>
-                                <div className="font-medium">{genre.name}</div>
-                                <div className="text-xs text-muted-foreground text-center">
-                                  {genre.description}
-                                </div>
-                              </Label>
-                            </div>
-                          ))}
-                        </RadioGroup>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="theme-inst" className="text-base font-medium">
-                        2. Describe your instrumental (max 90 characters)
-                      </Label>
-                      <div className="mt-3">
-                        <Input
-                          id="theme-inst"
-                          placeholder="E.g., A relaxing beat with piano and soft drums"
-                          value={theme}
-                          onChange={(e) => setTheme(e.target.value)}
-                          maxLength={90}
-                        />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {theme.length}/90 characters
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button
-                    onClick={handleLegacyGenerate}
-                    disabled={isGenerating || genres.length === 0}
-                    className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      "Generate Instrumental"
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-6">
-                  <div className="aspect-square max-w-sm mx-auto bg-melody-primary/30 rounded-md flex items-center justify-center">
-                    <div className="audio-wave scale-150">
-                      <div className="audio-wave-bar h-5 animate-wave1"></div>
-                      <div className="audio-wave-bar h-8 animate-wave2"></div>
-                      <div className="audio-wave-bar h-4 animate-wave3"></div>
-                      <div className="audio-wave-bar h-6 animate-wave4"></div>
-                      <div className="audio-wave-bar h-3 animate-wave1"></div>
-                      <div className="audio-wave-bar h-7 animate-wave2"></div>
-                    </div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <h3 className="text-xl font-semibold mb-2">{generatedTrack.name}</h3>
-                    <p className="text-muted-foreground mb-6">Generated with AI</p>
-                    
-                    <div className="flex flex-wrap justify-center gap-3">
-                      <Button>
-                        <Music className="mr-2 h-4 w-4" />
-                        Play
-                      </Button>
-                      <Button variant="outline">
-                        Save to Library
-                      </Button>
-                      <Button variant="outline">
-                        Download
-                      </Button>
-                      <Button variant="outline">
-                        Share
-                      </Button>
-                    </div>
-                    
-                    <div className="mt-4 flex flex-col gap-3 items-center">
-                      <SplitAudioControl songName={generatedTrack.name} songUrl="mock-url" />
-                    </div>
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => {
-                      setGeneratedTrack(null);
-                      setSelectedGenre("");
-                      setTheme("");
-                    }}
-                  >
-                    Create Another Instrumental
-                  </Button>
+
+              {/* User Prompt/Lyrics Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="userPrompt" className="text-base font-medium">
+                    {creationMode === 'prompt' ? 'Your Song Description' : 'Your Lyrics'}
+                  </Label>
+                  <span className="text-sm text-muted-foreground">
+                    Max: {getMaxPromptLength()} chars
+                  </span>
                 </div>
-              )}
+                <Textarea
+                  id="userPrompt"
+                  placeholder={
+                    creationMode === 'prompt' 
+                      ? "e.g., about falling in love on a summer evening..." 
+                      : "Paste your full song lyrics here..."
+                  }
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  maxLength={getMaxPromptLength()}
+                  className="min-h-[120px]"
+                />
+                <div className="flex justify-between text-sm">
+                  <span className={userPrompt.length > getMaxPromptLength() ? 'text-red-500' : 'text-muted-foreground'}>
+                    {userPrompt.length}/{getMaxPromptLength()} characters
+                  </span>
+                  {selectedGenre && (
+                    <span className="text-muted-foreground">
+                      Combined: {(genres.find(g => g.id === selectedGenre)?.prompt_template?.length || 0) + userPrompt.length}/199
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Instrumental Toggle */}
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="instrumental"
+                  checked={instrumental}
+                  onCheckedChange={setInstrumental}
+                />
+                <Label htmlFor="instrumental">Generate instrumental only (no vocals)</Label>
+              </div>
+
+              {/* Generate Button */}
+              <Button
+                onClick={handleGenerate}
+                disabled={isGenerating || !selectedGenre || !userPrompt.trim() || (creationMode === 'lyrics' && !songTitle.trim())}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                size="lg"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Song...
+                  </>
+                ) : (
+                  <>
+                    <Music className="mr-2 h-4 w-4" />
+                    Generate Song (5 Credits)
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Generation typically takes 1-2 minutes. You'll be notified when it's ready.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -437,16 +311,16 @@ const Create = () => {
                   onClick={() => setShowCreateDialog(true)}
                   className="h-20 flex flex-col items-center justify-center gap-2 bg-melody-primary hover:bg-melody-primary/90"
                 >
-                  <Plus className="h-6 w-6" />
+                  <Music className="h-6 w-6" />
                   <span>Create New Request</span>
                 </Button>
                 
                 <Button
-                  onClick={handleViewHistory}
+                  onClick={() => window.location.href = "/custom-songs-management"}
                   variant="outline"
                   className="h-20 flex flex-col items-center justify-center gap-2"
                 >
-                  <History className="h-6 w-6" />
+                  <FileMusic className="h-6 w-6" />
                   <span>View History</span>
                 </Button>
               </div>
@@ -458,37 +332,6 @@ const Create = () => {
           </Card>
         </TabsContent>
       </Tabs>
-      
-      {isAdmin() && (
-        <div className="mt-8 border-t pt-6">
-          <h2 className="text-xl font-bold mb-4">Admin Settings</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Audio Splitting Configuration</CardTitle>
-                <CardDescription>
-                  Configure the API integration for splitting vocals from instrumentals
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SplitAudioControl songName="Admin Configuration" isAdmin={true} />
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Voice Cloning Configuration</CardTitle>
-                <CardDescription>
-                  Configure the ElevenLabs API for voice cloning functionality
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <VoiceCloning isAdmin={true} />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
       
       <CreateSongRequestDialog
         open={showCreateDialog}
