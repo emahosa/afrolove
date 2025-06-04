@@ -38,10 +38,7 @@ export const useSupportTickets = () => {
     try {
       let query = supabase
         .from('support_tickets')
-        .select(`
-          *,
-          profiles!inner(username)
-        `);
+        .select('*');
 
       if (!isAdmin()) {
         query = query.eq('user_id', user.id);
@@ -51,12 +48,27 @@ export const useSupportTickets = () => {
 
       if (error) throw error;
 
-      const ticketsWithEmail = data?.map(ticket => ({
-        ...ticket,
-        user_email: ticket.profiles?.username || 'Unknown user'
-      })) || [];
+      // Get user emails for admin view
+      if (isAdmin() && data && data.length > 0) {
+        const userIds = [...new Set(data.map(ticket => ticket.user_id))];
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .in('id', userIds);
 
-      setTickets(ticketsWithEmail);
+        if (!userError && userData) {
+          const userMap = new Map(userData.map(u => [u.id, u.username]));
+          const ticketsWithEmail = data.map(ticket => ({
+            ...ticket,
+            user_email: userMap.get(ticket.user_id) || 'Unknown user'
+          }));
+          setTickets(ticketsWithEmail);
+        } else {
+          setTickets(data.map(ticket => ({ ...ticket, user_email: 'Unknown user' })));
+        }
+      } else {
+        setTickets(data || []);
+      }
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast.error('Failed to fetch support tickets');
