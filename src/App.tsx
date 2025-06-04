@@ -16,6 +16,7 @@ import Library from "./pages/Library";
 import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
 import Credits from "./pages/Credits";
+import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/contest" element={<Contest />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/credits" element={<Credits />} />
+              <Route path="/support" element={<Support />} />
               <Route path="/my-custom-songs" element={<UserCustomSongs />} />
               <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
               

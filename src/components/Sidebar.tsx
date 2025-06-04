@@ -2,7 +2,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText, Users as UsersIcon } from "lucide-react";
+import { X, Home, Music, Library, Trophy, User, Plus, Star, Shield, MessageSquare, Settings, Database, Key, Bell, FileText, Users as UsersIcon, HelpCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -92,6 +92,16 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
               )}>
                 <Trophy className="h-5 w-5" />
                 <span>Contest</span>
+              </NavLink>
+
+              <NavLink to="/support" className={({ isActive }) => cn(
+                "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                isActive 
+                  ? "bg-melody-primary/20 text-melody-secondary font-medium" 
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}>
+                <HelpCircle className="h-5 w-5" />
+                <span>Support</span>
               </NavLink>
               
               <NavLink to="/profile" className={({ isActive }) => cn(

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
@@ -19,219 +19,45 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { MessageSquare, Check, Clock } from 'lucide-react';
-
-interface SupportTicket {
-  id: string;
-  subject: string;
-  user: string;
-  status: 'new' | 'active' | 'pending' | 'completed' | 'closed';
-  priority: 'low' | 'medium' | 'high';
-  created_at: string;
-  last_updated: string;
-  messages?: {
-    sender: string;
-    content: string;
-    timestamp: string;
-  }[];
-}
-
-const mockTickets: SupportTicket[] = [
-  {
-    id: "T-1001",
-    subject: "Can't generate music",
-    user: "john@example.com",
-    status: "new",
-    priority: "high",
-    created_at: "2025-04-27 09:15",
-    last_updated: "2025-04-27 09:15",
-    messages: [
-      {
-        sender: "john@example.com",
-        content: "I'm trying to generate music but keep getting an error message. Can you help?",
-        timestamp: "2025-04-27 09:15"
-      }
-    ]
-  },
-  {
-    id: "T-1002",
-    subject: "Billing issue with my subscription",
-    user: "sarah@example.com",
-    status: "active",
-    priority: "medium",
-    created_at: "2025-04-26 14:22",
-    last_updated: "2025-04-27 11:05",
-    messages: [
-      {
-        sender: "sarah@example.com",
-        content: "I was charged twice for my monthly subscription. Please help resolve this issue.",
-        timestamp: "2025-04-26 14:22"
-      },
-      {
-        sender: "admin",
-        content: "I'm checking with our billing department and will get back to you shortly.",
-        timestamp: "2025-04-27 11:05"
-      }
-    ]
-  },
-  {
-    id: "T-1003",
-    subject: "Voice cloning not working",
-    user: "robert@example.com",
-    status: "pending",
-    priority: "medium",
-    created_at: "2025-04-25 16:30",
-    last_updated: "2025-04-27 10:15",
-    messages: [
-      {
-        sender: "robert@example.com",
-        content: "I uploaded my voice sample but the cloning process seems to be stuck.",
-        timestamp: "2025-04-25 16:30"
-      },
-      {
-        sender: "admin",
-        content: "Can you please provide the exact error message you're seeing?",
-        timestamp: "2025-04-26 09:45"
-      },
-      {
-        sender: "admin",
-        content: "Just following up on this issue. Have you had a chance to check the error message?",
-        timestamp: "2025-04-27 10:15"
-      }
-    ]
-  },
-  {
-    id: "T-1004",
-    subject: "How to split vocals and instrumental",
-    user: "emma@example.com",
-    status: "completed",
-    priority: "low",
-    created_at: "2025-04-24 11:20",
-    last_updated: "2025-04-26 15:40",
-    messages: [
-      {
-        sender: "emma@example.com",
-        content: "Is there a way to split the vocals from the instrumental in my generated songs?",
-        timestamp: "2025-04-24 11:20"
-      },
-      {
-        sender: "admin",
-        content: "Yes, you can use our Split Audio feature. Go to your song list, select the track, and click the 'Split Audio' button.",
-        timestamp: "2025-04-24 13:15"
-      },
-      {
-        sender: "emma@example.com",
-        content: "Thank you! I found it and it works perfectly.",
-        timestamp: "2025-04-25 10:05"
-      },
-      {
-        sender: "admin",
-        content: "Great! Let us know if you need anything else.",
-        timestamp: "2025-04-26 15:40"
-      }
-    ]
-  },
-  {
-    id: "T-1005",
-    subject: "Missing credits after payment",
-    user: "david@example.com",
-    status: "closed",
-    priority: "high",
-    created_at: "2025-04-23 08:50",
-    last_updated: "2025-04-24 14:30",
-    messages: [
-      {
-        sender: "david@example.com",
-        content: "I purchased 50 credits but they haven't been added to my account yet.",
-        timestamp: "2025-04-23 08:50"
-      },
-      {
-        sender: "admin",
-        content: "I'll check with our payment processor right away.",
-        timestamp: "2025-04-23 09:25"
-      },
-      {
-        sender: "admin",
-        content: "We've identified the issue and your credits have been added to your account. Please confirm.",
-        timestamp: "2025-04-23 14:10"
-      },
-      {
-        sender: "david@example.com",
-        content: "I can see the credits now. Thank you for your help!",
-        timestamp: "2025-04-24 14:30"
-      }
-    ]
-  }
-];
+import { useSupportTickets, SupportTicket } from '@/hooks/useSupportTickets';
+import { formatDistanceToNow } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
 
 export const SupportManagement = () => {
-  const [tickets, setTickets] = useState<SupportTicket[]>(mockTickets);
+  const { tickets, messages, loading, fetchMessages, updateTicketStatus, sendMessage } = useSupportTickets();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const getFilteredTickets = (status: SupportTicket['status']) => {
     return tickets.filter(ticket => ticket.status === status);
   };
 
-  const handleOpenTicket = (ticket: SupportTicket) => {
+  const handleOpenTicket = async (ticket: SupportTicket) => {
     setSelectedTicket(ticket);
     setIsTicketDialogOpen(true);
+    await fetchMessages(ticket.id);
   };
 
-  const handleSendReply = () => {
+  const handleSendReply = async () => {
     if (!selectedTicket || !replyText.trim()) return;
 
-    const updatedTickets = tickets.map(ticket => {
-      if (ticket.id === selectedTicket.id) {
-        const messages = [
-          ...(ticket.messages || []),
-          {
-            sender: "admin",
-            content: replyText,
-            timestamp: new Date().toLocaleString()
-          }
-        ];
-        
-        return {
-          ...ticket,
-          status: 'pending' as const,
-          last_updated: new Date().toLocaleString(),
-          messages
-        };
-      }
-      return ticket;
-    });
-    
-    setTickets(updatedTickets);
-    setReplyText('');
-    toast.success("Reply sent to user");
+    setIsSending(true);
+    try {
+      await sendMessage(selectedTicket.id, replyText);
+      setReplyText('');
+    } catch (error) {
+      // Error handling is done in the hook
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleUpdateStatus = (ticketId: string, newStatus: SupportTicket['status']) => {
-    const updatedTickets = tickets.map(ticket => {
-      if (ticket.id === ticketId) {
-        return {
-          ...ticket,
-          status: newStatus,
-          last_updated: new Date().toLocaleString()
-        };
-      }
-      return ticket;
-    });
-    
-    setTickets(updatedTickets);
+  const handleUpdateStatus = async (ticketId: string, newStatus: SupportTicket['status']) => {
+    await updateTicketStatus(ticketId, newStatus);
     setIsTicketDialogOpen(false);
-    
-    const statusMessages = {
-      active: "Ticket marked as active",
-      pending: "Ticket marked as pending user response",
-      completed: "Ticket marked as completed",
-      closed: "Ticket closed"
-    };
-    
-    toast.success(statusMessages[newStatus] || "Ticket status updated");
   };
 
   const renderTicketTable = (filteredTickets: SupportTicket[]) => {
@@ -259,9 +85,9 @@ export const SupportManagement = () => {
         <TableBody>
           {filteredTickets.map((ticket) => (
             <TableRow key={ticket.id}>
-              <TableCell>{ticket.id}</TableCell>
+              <TableCell>#{ticket.id.slice(-8)}</TableCell>
               <TableCell className="font-medium">{ticket.subject}</TableCell>
-              <TableCell>{ticket.user}</TableCell>
+              <TableCell>{ticket.user_email}</TableCell>
               <TableCell>
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   ticket.priority === 'high' ? 'bg-red-100 text-red-800' : 
@@ -271,8 +97,8 @@ export const SupportManagement = () => {
                   {ticket.priority}
                 </span>
               </TableCell>
-              <TableCell>{ticket.created_at}</TableCell>
-              <TableCell>{ticket.last_updated}</TableCell>
+              <TableCell>{formatDistanceToNow(new Date(ticket.created_at))} ago</TableCell>
+              <TableCell>{formatDistanceToNow(new Date(ticket.updated_at))} ago</TableCell>
               <TableCell>
                 <Button 
                   variant="outline" 
@@ -289,6 +115,14 @@ export const SupportManagement = () => {
       </Table>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-secondary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -385,29 +219,29 @@ export const SupportManagement = () => {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              Ticket #{selectedTicket?.id}: {selectedTicket?.subject}
+              Ticket #{selectedTicket?.id.slice(-8)}: {selectedTicket?.subject}
             </DialogTitle>
             <DialogDescription>
-              {selectedTicket?.user} - {selectedTicket?.created_at}
+              {selectedTicket?.user_email} - {selectedTicket && formatDistanceToNow(new Date(selectedTicket.created_at))} ago
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 max-h-96 overflow-y-auto py-4">
-            {selectedTicket?.messages?.map((message, index) => (
+            {selectedTicket && messages[selectedTicket.id]?.map((message) => (
               <div
-                key={index}
+                key={message.id}
                 className={`p-3 rounded-lg ${
-                  message.sender === 'admin'
+                  message.sender_type === 'admin'
                     ? 'bg-primary/10 ml-8'
                     : 'bg-muted/50 mr-8'
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium">
-                    {message.sender === 'admin' ? 'Support Agent' : message.sender}
+                    {message.sender_type === 'admin' ? 'Support Agent' : selectedTicket.user_email}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {message.timestamp}
+                    {formatDistanceToNow(new Date(message.created_at))} ago
                   </span>
                 </div>
                 <div className="text-sm">{message.content}</div>
@@ -419,12 +253,12 @@ export const SupportManagement = () => {
             <div className="space-y-4 pt-4">
               <div>
                 <label className="text-sm font-medium">Reply</label>
-                <textarea
-                  className="w-full mt-1 border rounded-md p-2 h-24"
+                <Textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Type your response here..."
-                ></textarea>
+                  rows={3}
+                />
               </div>
             </div>
           )}
@@ -464,11 +298,11 @@ export const SupportManagement = () => {
             
             {selectedTicket?.status !== 'closed' && selectedTicket?.status !== 'completed' && (
               <Button 
-                disabled={!replyText.trim()}
+                disabled={!replyText.trim() || isSending}
                 onClick={handleSendReply}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Send Reply
+                {isSending ? 'Sending...' : 'Send Reply'}
               </Button>
             )}
           </DialogFooter>
