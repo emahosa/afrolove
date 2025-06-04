@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +31,9 @@ const Create = () => {
   const { generateSong, isGenerating } = useSunoGeneration();
   const { genres, loading: genresLoading } = useGenres();
 
-  const getMaxPromptLength = () => {
-    const selectedGenreData = genres.find(g => g.id === selectedGenre);
-    const genrePromptLength = selectedGenreData?.prompt_template?.length || 0;
-    return Math.max(1, 199 - genrePromptLength);
+  const getMaxUserPromptLength = () => {
+    // User prompt is limited to 99 characters (199 total - 100 max for admin genre template)
+    return 99;
   };
 
   const handleGenerate = async () => {
@@ -197,12 +195,11 @@ const Create = () => {
                           className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                         >
                           <div className="font-medium">{genre.name}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {genre.description}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1 font-mono">
-                            Template: {genre.prompt_template?.substring(0, 50)}...
-                          </div>
+                          {genre.description && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {genre.description}
+                            </div>
+                          )}
                         </Label>
                       </div>
                     ))}
@@ -233,7 +230,7 @@ const Create = () => {
                     {creationMode === 'prompt' ? 'Your Song Description' : 'Your Lyrics'}
                   </Label>
                   <span className="text-sm text-muted-foreground">
-                    Max: {getMaxPromptLength()} chars
+                    Max: {getMaxUserPromptLength()} chars
                   </span>
                 </div>
                 <Textarea
@@ -245,18 +242,13 @@ const Create = () => {
                   }
                   value={userPrompt}
                   onChange={(e) => setUserPrompt(e.target.value)}
-                  maxLength={getMaxPromptLength()}
+                  maxLength={getMaxUserPromptLength()}
                   className="min-h-[120px]"
                 />
                 <div className="flex justify-between text-sm">
-                  <span className={userPrompt.length > getMaxPromptLength() ? 'text-red-500' : 'text-muted-foreground'}>
-                    {userPrompt.length}/{getMaxPromptLength()} characters
+                  <span className={userPrompt.length > getMaxUserPromptLength() ? 'text-red-500' : 'text-muted-foreground'}>
+                    {userPrompt.length}/{getMaxUserPromptLength()} characters
                   </span>
-                  {selectedGenre && (
-                    <span className="text-muted-foreground">
-                      Combined: {(genres.find(g => g.id === selectedGenre)?.prompt_template?.length || 0) + userPrompt.length}/199
-                    </span>
-                  )}
                 </div>
               </div>
 
