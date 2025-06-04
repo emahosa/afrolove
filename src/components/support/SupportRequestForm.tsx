@@ -25,7 +25,7 @@ export const SupportRequestForm = () => {
 
     setIsSubmitting(true);
     try {
-      await createTicket(subject, message, priority);
+      await createTicket({ subject, message, priority });
       setSubject('');
       setMessage('');
       setPriority('medium');

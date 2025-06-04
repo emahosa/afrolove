@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { useSupportTickets, SupportTicket } from '@/hooks/useSupportTickets';
 import { formatDistanceToNow } from 'date-fns';
 
 export const UserSupportTickets = () => {
-  const { tickets, messages, loading, fetchMessages, sendMessage } = useSupportTickets();
+  const { tickets, messages, loading, fetchMessages, createMessage } = useSupportTickets();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -74,7 +73,7 @@ export const UserSupportTickets = () => {
 
     setIsSending(true);
     try {
-      await sendMessage(selectedTicket.id, replyText);
+      await createMessage(selectedTicket.id, replyText);
       setReplyText('');
     } catch (error) {
       // Error handling is done in the hook

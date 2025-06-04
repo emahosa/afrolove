@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +24,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Textarea } from '@/components/ui/textarea';
 
 export const SupportManagement = () => {
-  const { tickets, messages, loading, fetchMessages, updateTicketStatus, sendMessage } = useSupportTickets();
+  const { tickets, messages, loading, fetchMessages, updateTicket, createMessage } = useSupportTickets();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
@@ -46,7 +45,7 @@ export const SupportManagement = () => {
 
     setIsSending(true);
     try {
-      await sendMessage(selectedTicket.id, replyText);
+      await createMessage(selectedTicket.id, replyText);
       setReplyText('');
     } catch (error) {
       // Error handling is done in the hook
@@ -56,7 +55,7 @@ export const SupportManagement = () => {
   };
 
   const handleUpdateStatus = async (ticketId: string, newStatus: SupportTicket['status']) => {
-    await updateTicketStatus(ticketId, newStatus);
+    await updateTicket(ticketId, { status: newStatus });
     setIsTicketDialogOpen(false);
   };
 
