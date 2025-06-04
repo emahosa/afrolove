@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -17,60 +17,196 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Calendar, Download, PieChart, BarChart2, LineChart as LineChartIcon, Users } from 'lucide-react';
+import { Calendar, Download, PieChart, BarChart2, LineChart as LineChartIcon, Users, RefreshCcw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for charts
-const monthlyRevenueData = [
-  { month: 'Jan', revenue: 1200 },
-  { month: 'Feb', revenue: 1900 },
-  { month: 'Mar', revenue: 1500 },
-  { month: 'Apr', revenue: 2800 },
-  { month: 'May', revenue: 2100 },
-  { month: 'Jun', revenue: 2500 },
-  { month: 'Jul', revenue: 3100 },
-  { month: 'Aug', revenue: 2700 },
-  { month: 'Sep', revenue: 3500 },
-  { month: 'Oct', revenue: 3800 },
-  { month: 'Nov', revenue: 3300 },
-  { month: 'Dec', revenue: 4200 },
-];
+interface StatsData {
+  totalUsers: number;
+  activeUsers: number;
+  totalSongs: number;
+  totalRevenue: string;
+  premiumUsers: number;
+  customSongRequests: number;
+  supportTickets: number;
+  contestEntries: number;
+}
 
-const userActivityData = [
-  { day: 'Mon', songs: 145, users: 42 },
-  { day: 'Tue', songs: 132, users: 38 },
-  { day: 'Wed', songs: 164, users: 45 },
-  { day: 'Thu', songs: 189, users: 52 },
-  { day: 'Fri', songs: 212, users: 58 },
-  { day: 'Sat', songs: 250, users: 65 },
-  { day: 'Sun', songs: 230, users: 62 },
-];
+interface MonthlyData {
+  month: string;
+  revenue: number;
+}
 
-const genreDistributionData = [
-  { genre: 'Pop', songs: 520 },
-  { genre: 'Rock', songs: 380 },
-  { genre: 'Hip Hop', songs: 450 },
-  { genre: 'Electronic', songs: 320 },
-  { genre: 'Classical', songs: 180 },
-  { genre: 'Jazz', songs: 220 },
-  { genre: 'Country', songs: 290 },
-];
+interface GenreData {
+  genre: string;
+  songs: number;
+}
 
-// Stats data
-const statsData = {
-  totalUsers: 1423,
-  activeUsers: 865,
-  totalSongs: 12450,
-  totalRevenue: '$24,680',
-  averageCredits: 14.5,
-  contestEntries: 142,
-  premiumUsers: 320,
-  customSongRequests: 85
-};
+interface UserActivityData {
+  day: string;
+  songs: number;
+  users: number;
+}
 
 export const ReportsAnalytics = () => {
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
   const [selectedYear, setSelectedYear] = useState(2025);
-  const [selectedMonth, setSelectedMonth] = useState(4); // April
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [loading, setLoading] = useState(true);
+  
+  // Real data states
+  const [statsData, setStatsData] = useState<StatsData>({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalSongs: 0,
+    totalRevenue: '$0',
+    premiumUsers: 0,
+    customSongRequests: 0,
+    supportTickets: 0,
+    contestEntries: 0
+  });
+  
+  const [monthlyRevenueData, setMonthlyRevenueData] = useState<MonthlyData[]>([]);
+  const [genreDistributionData, setGenreDistributionData] = useState<GenreData[]>([]);
+  const [userActivityData, setUserActivityData] = useState<UserActivityData[]>([]);
+
+  // Fetch live data from database
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch basic stats
+      const [
+        { count: totalUsers },
+        { count: totalSongs },
+        { count: customSongRequests },
+        { count: supportTickets },
+        { count: contestEntries }
+      ] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('songs').select('*', { count: 'exact', head: true }),
+        supabase.from('custom_song_requests').select('*', { count: 'exact', head: true }),
+        supabase.from('support_tickets').select('*', { count: 'exact', head: true }),
+        supabase.from('contest_entries').select('*', { count: 'exact', head: true })
+      ]);
+
+      // Calculate active users (users who created songs in last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: activeUsersData } = await supabase
+        .from('songs')
+        .select('user_id')
+        .gte('created_at', thirtyDaysAgo.toISOString());
+      
+      const activeUsers = new Set(activeUsersData?.map(song => song.user_id) || []).size;
+
+      // Calculate total revenue from payment transactions
+      const { data: revenueData } = await supabase
+        .from('payment_transactions')
+        .select('amount')
+        .eq('status', 'completed');
+      
+      const totalRevenue = revenueData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
+
+      // Get monthly revenue data for the chart
+      const { data: monthlyRevenue } = await supabase
+        .from('payment_transactions')
+        .select('amount, created_at')
+        .eq('status', 'completed')
+        .gte('created_at', new Date(selectedYear, 0, 1).toISOString())
+        .lt('created_at', new Date(selectedYear + 1, 0, 1).toISOString());
+
+      // Group by month
+      const monthlyData: { [key: string]: number } = {};
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      monthNames.forEach((month, index) => {
+        monthlyData[month] = 0;
+      });
+
+      monthlyRevenue?.forEach(transaction => {
+        const month = new Date(transaction.created_at).getMonth();
+        const monthName = monthNames[month];
+        monthlyData[monthName] += Number(transaction.amount);
+      });
+
+      const formattedMonthlyData = monthNames.map(month => ({
+        month,
+        revenue: monthlyData[month]
+      }));
+
+      // Get genre distribution
+      const { data: genres } = await supabase.from('genres').select('id, name');
+      const { data: songsWithGenres } = await supabase
+        .from('songs')
+        .select('genre_id')
+        .not('genre_id', 'is', null);
+
+      const genreCount: { [key: string]: number } = {};
+      const genreMap = new Map(genres?.map(g => [g.id, g.name]) || []);
+      
+      songsWithGenres?.forEach(song => {
+        const genreName = genreMap.get(song.genre_id) || 'Unknown';
+        genreCount[genreName] = (genreCount[genreName] || 0) + 1;
+      });
+
+      const genreData = Object.entries(genreCount).map(([genre, songs]) => ({
+        genre,
+        songs
+      }));
+
+      // Get weekly activity data (last 7 days)
+      const weekData: UserActivityData[] = [];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayStart = new Date(date.setHours(0, 0, 0, 0));
+        const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+        
+        const { data: daySongs } = await supabase
+          .from('songs')
+          .select('user_id')
+          .gte('created_at', dayStart.toISOString())
+          .lte('created_at', dayEnd.toISOString());
+        
+        const uniqueUsers = new Set(daySongs?.map(song => song.user_id) || []).size;
+        
+        weekData.push({
+          day: dayNames[dayStart.getDay()],
+          songs: daySongs?.length || 0,
+          users: uniqueUsers
+        });
+      }
+
+      // Update state with real data
+      setStatsData({
+        totalUsers: totalUsers || 0,
+        activeUsers,
+        totalSongs: totalSongs || 0,
+        totalRevenue: `$${totalRevenue.toFixed(2)}`,
+        premiumUsers: 0, // This would need a premium user system
+        customSongRequests: customSongRequests || 0,
+        supportTickets: supportTickets || 0,
+        contestEntries: contestEntries || 0
+      });
+      
+      setMonthlyRevenueData(formattedMonthlyData);
+      setGenreDistributionData(genreData);
+      setUserActivityData(weekData);
+      
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      toast.error('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleGenerateMonthlyReport = () => {
     setIsMonthlyReportOpen(true);
@@ -86,11 +222,24 @@ export const ReportsAnalytics = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-secondary"></div>
+        <span className="ml-2">Loading analytics data...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Reports & Analytics</h2>
         <div className="space-x-2">
+          <Button onClick={fetchAnalyticsData} variant="outline">
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh Data
+          </Button>
           <Button onClick={handleGenerateMonthlyReport}>
             <Calendar className="h-4 w-4 mr-2" />
             Generate Monthly Report
@@ -109,7 +258,6 @@ export const ReportsAnalytics = () => {
               </div>
               <Users className="text-muted-foreground" />
             </div>
-            <p className="text-xs text-green-500 mt-2">+12% from last month</p>
           </CardContent>
         </Card>
         
@@ -122,7 +270,7 @@ export const ReportsAnalytics = () => {
               </div>
               <Users className="text-muted-foreground" />
             </div>
-            <p className="text-xs text-green-500 mt-2">+8% from last month</p>
+            <p className="text-xs text-muted-foreground mt-2">Last 30 days</p>
           </CardContent>
         </Card>
         
@@ -135,7 +283,6 @@ export const ReportsAnalytics = () => {
               </div>
               <BarChart2 className="text-muted-foreground" />
             </div>
-            <p className="text-xs text-green-500 mt-2">+15% from last month</p>
           </CardContent>
         </Card>
         
@@ -148,7 +295,42 @@ export const ReportsAnalytics = () => {
               </div>
               <LineChartIcon className="text-muted-foreground" />
             </div>
-            <p className="text-xs text-green-500 mt-2">+21% from last month</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Custom Song Requests</p>
+                <p className="text-2xl font-bold">{statsData.customSongRequests}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Support Tickets</p>
+                <p className="text-2xl font-bold">{statsData.supportTickets}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Contest Entries</p>
+                <p className="text-2xl font-bold">{statsData.contestEntries}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -165,7 +347,7 @@ export const ReportsAnalytics = () => {
           <Card>
             <CardHeader>
               <CardTitle>Monthly Revenue</CardTitle>
-              <CardDescription>Revenue data across the year 2025</CardDescription>
+              <CardDescription>Revenue data across the year {selectedYear}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-80">
@@ -292,60 +474,40 @@ export const ReportsAnalytics = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">New Users</p>
-                  <p className="text-xl font-bold">124</p>
+                  <p className="text-sm text-muted-foreground">Total Users</p>
+                  <p className="text-xl font-bold">{statsData.totalUsers}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-xl font-bold">$3,845</p>
+                  <p className="text-xl font-bold">{statsData.totalRevenue}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">Songs Generated</p>
-                  <p className="text-xl font-bold">1,247</p>
+                  <p className="text-xl font-bold">{statsData.totalSongs}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">Contest Entries</p>
-                  <p className="text-xl font-bold">38</p>
+                  <p className="text-xl font-bold">{statsData.contestEntries}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">Average Session</p>
-                  <p className="text-xl font-bold">14.5 min</p>
+                  <p className="text-sm text-muted-foreground">Active Users</p>
+                  <p className="text-xl font-bold">{statsData.activeUsers}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
                   <p className="text-sm text-muted-foreground">Support Tickets</p>
-                  <p className="text-xl font-bold">67</p>
+                  <p className="text-xl font-bold">{statsData.supportTickets}</p>
                 </CardContent>
               </Card>
-            </div>
-            
-            <div className="h-64 mb-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[
-                    { week: 'Week 1', revenue: 950 },
-                    { week: 'Week 2', revenue: 870 },
-                    { week: 'Week 3', revenue: 1120 },
-                    { week: 'Week 4', revenue: 905 },
-                  ]}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => `$${value}`} />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#8884d8" name="Weekly Revenue ($)" />
-                </BarChart>
-              </ResponsiveContainer>
             </div>
           </div>
           
