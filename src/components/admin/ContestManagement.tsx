@@ -113,6 +113,29 @@ export const ContestManagement = () => {
     });
   };
 
+  // Helper function to format datetime for input
+  const formatDateTimeForInput = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+  };
+
+  // Helper function to validate and format datetime
+  const validateAndFormatDateTime = (dateString: string) => {
+    if (!dateString || dateString.trim() === '') {
+      return null;
+    }
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid date');
+      }
+      return date.toISOString();
+    } catch (error) {
+      throw new Error('Invalid date format');
+    }
+  };
+
   // Fetch entries with EXPLICIT separation of contest_entries and profiles
   const fetchEntries = async (contestId: string) => {
     console.log('🚀 DEBUG: Starting fetchEntries() for contest:', contestId);
@@ -229,8 +252,8 @@ export const ContestManagement = () => {
       description: contest.description,
       prize: contest.prize,
       rules: contest.rules || '',
-      start_date: contest.start_date.split('T')[0] + 'T' + contest.start_date.split('T')[1].slice(0, 5),
-      end_date: contest.end_date.split('T')[0] + 'T' + contest.end_date.split('T')[1].slice(0, 5),
+      start_date: formatDateTimeForInput(contest.start_date),
+      end_date: formatDateTimeForInput(contest.end_date),
       instrumental_url: contest.instrumental_url || ''
     });
     setIsEditDialogOpen(true);
@@ -240,15 +263,40 @@ export const ContestManagement = () => {
   const handleCreateContest = async () => {
     console.log('🔄 DEBUG: handleCreateContest - Using createContest from hook');
     
-    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
-      toast.error('Please fill in all required fields');
+    if (!contestForm.title || !contestForm.description || !contestForm.prize || !contestForm.start_date || !contestForm.end_date) {
+      toast.error('Please fill in all required fields including start and end dates');
       return;
     }
 
-    const success = await createContest(contestForm);
-    if (success) {
-      setIsCreateDialogOpen(false);
-      resetForm();
+    try {
+      // Validate and format dates
+      const startDate = validateAndFormatDateTime(contestForm.start_date);
+      const endDate = validateAndFormatDateTime(contestForm.end_date);
+      
+      if (!startDate || !endDate) {
+        toast.error('Please provide valid start and end dates');
+        return;
+      }
+
+      // Check if end date is after start date
+      if (new Date(endDate) <= new Date(startDate)) {
+        toast.error('End date must be after start date');
+        return;
+      }
+
+      const contestData = {
+        ...contestForm,
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      const success = await createContest(contestData);
+      if (success) {
+        setIsCreateDialogOpen(false);
+        resetForm();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid date format');
     }
   };
 
@@ -258,16 +306,41 @@ export const ContestManagement = () => {
     
     console.log('🔄 DEBUG: handleUpdateContest - Using updateContest from hook');
     
-    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
-      toast.error('Please fill in all required fields');
+    if (!contestForm.title || !contestForm.description || !contestForm.prize || !contestForm.start_date || !contestForm.end_date) {
+      toast.error('Please fill in all required fields including start and end dates');
       return;
     }
 
-    const success = await updateContest(selectedContest.id, contestForm);
-    if (success) {
-      setIsEditDialogOpen(false);
-      setSelectedContest(null);
-      resetForm();
+    try {
+      // Validate and format dates
+      const startDate = validateAndFormatDateTime(contestForm.start_date);
+      const endDate = validateAndFormatDateTime(contestForm.end_date);
+      
+      if (!startDate || !endDate) {
+        toast.error('Please provide valid start and end dates');
+        return;
+      }
+
+      // Check if end date is after start date
+      if (new Date(endDate) <= new Date(startDate)) {
+        toast.error('End date must be after start date');
+        return;
+      }
+
+      const contestData = {
+        ...contestForm,
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      const success = await updateContest(selectedContest.id, contestData);
+      if (success) {
+        setIsEditDialogOpen(false);
+        setSelectedContest(null);
+        resetForm();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid date format');
     }
   };
 
@@ -696,19 +769,21 @@ export const ContestManagement = () => {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Start Date</Label>
+                <Label>Start Date *</Label>
                 <Input 
                   type="datetime-local"
                   value={contestForm.start_date}
                   onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
+                  required
                 />
               </div>
               <div>
-                <Label>End Date</Label>
+                <Label>End Date *</Label>
                 <Input 
                   type="datetime-local"
                   value={contestForm.end_date}
                   onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
+                  required
                 />
               </div>
             </div>
@@ -785,19 +860,21 @@ export const ContestManagement = () => {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Start Date</Label>
+                <Label>Start Date *</Label>
                 <Input 
                   type="datetime-local"
                   value={contestForm.start_date}
                   onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
+                  required
                 />
               </div>
               <div>
-                <Label>End Date</Label>
+                <Label>End Date *</Label>
                 <Input 
                   type="datetime-local"
                   value={contestForm.end_date}
                   onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
+                  required
                 />
               </div>
             </div>
