@@ -263,8 +263,13 @@ export const ContestManagement = () => {
   const handleCreateContest = async () => {
     console.log('🔄 DEBUG: handleCreateContest - Using createContest from hook');
     
-    if (!contestForm.title || !contestForm.description || !contestForm.prize || !contestForm.start_date || !contestForm.end_date) {
-      toast.error('Please fill in all required fields including start and end dates');
+    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!contestForm.start_date || !contestForm.end_date) {
+      toast.error('Please provide both start and end dates');
       return;
     }
 
@@ -306,8 +311,13 @@ export const ContestManagement = () => {
     
     console.log('🔄 DEBUG: handleUpdateContest - Using updateContest from hook');
     
-    if (!contestForm.title || !contestForm.description || !contestForm.prize || !contestForm.start_date || !contestForm.end_date) {
-      toast.error('Please fill in all required fields including start and end dates');
+    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!contestForm.start_date || !contestForm.end_date) {
+      toast.error('Please provide both start and end dates');
       return;
     }
 
