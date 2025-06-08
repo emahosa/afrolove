@@ -58,7 +58,6 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       console.log('✅ Successfully queried contests table, no users table referenced');
@@ -72,9 +71,10 @@ export const useContest = () => {
       setContests(data || []);
       
       // Set the first active contest as current
-      if (data && data.length > 0) {
-        setCurrentContest(data[0]);
-        console.log('Set current contest:', data[0]);
+      const activeContests = data?.filter(contest => contest.status === 'active') || [];
+      if (activeContests.length > 0) {
+        setCurrentContest(activeContests[0]);
+        console.log('Set current contest:', activeContests[0]);
       } else {
         console.log('No active contests found');
         setCurrentContest(null);
@@ -84,6 +84,125 @@ export const useContest = () => {
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast.error('Failed to load contests: ' + errorMessage);
+    }
+  };
+
+  // Create new contest - ONLY contests table
+  const createContest = async (contestData: {
+    title: string;
+    description: string;
+    prize: string;
+    rules: string;
+    start_date: string;
+    end_date: string;
+    instrumental_url: string;
+  }) => {
+    if (!user) {
+      toast.error('Please log in to create contests');
+      return false;
+    }
+
+    try {
+      console.log('🔄 use-contest: createContest() - ONLY contests table, NO USERS');
+      
+      const { error } = await supabase
+        .from('contests')
+        .insert({
+          ...contestData,
+          status: 'active',
+          terms_conditions: 'By submitting an entry, you acknowledge that you have read and agreed to these rules.',
+          created_by: user.id
+        });
+
+      console.log('✅ Successfully inserted into contests table, no users table referenced');
+
+      if (error) {
+        console.error('Error creating contest:', error);
+        throw error;
+      }
+
+      toast.success('Contest created successfully!');
+      await fetchContests();
+      return true;
+    } catch (error: any) {
+      console.error('Error creating contest:', error);
+      toast.error(error.message || 'Failed to create contest');
+      return false;
+    }
+  };
+
+  // Update contest - ONLY contests table
+  const updateContest = async (contestId: string, contestData: {
+    title: string;
+    description: string;
+    prize: string;
+    rules: string;
+    start_date: string;
+    end_date: string;
+    instrumental_url: string;
+  }) => {
+    if (!user) {
+      toast.error('Please log in to update contests');
+      return false;
+    }
+
+    try {
+      console.log('🔄 use-contest: updateContest() - ONLY contests table, NO USERS');
+      
+      const { error } = await supabase
+        .from('contests')
+        .update({
+          ...contestData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', contestId);
+
+      console.log('✅ Successfully updated contests table, no users table referenced');
+
+      if (error) {
+        console.error('Error updating contest:', error);
+        throw error;
+      }
+
+      toast.success('Contest updated successfully!');
+      await fetchContests();
+      return true;
+    } catch (error: any) {
+      console.error('Error updating contest:', error);
+      toast.error(error.message || 'Failed to update contest');
+      return false;
+    }
+  };
+
+  // Delete contest - ONLY contests table
+  const deleteContest = async (contestId: string) => {
+    if (!user) {
+      toast.error('Please log in to delete contests');
+      return false;
+    }
+
+    try {
+      console.log('🔄 use-contest: deleteContest() - ONLY contests table, NO USERS');
+      
+      const { error } = await supabase
+        .from('contests')
+        .delete()
+        .eq('id', contestId);
+
+      console.log('✅ Successfully deleted from contests table, no users table referenced');
+
+      if (error) {
+        console.error('Error deleting contest:', error);
+        throw error;
+      }
+
+      toast.success('Contest deleted successfully!');
+      await fetchContests();
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting contest:', error);
+      toast.error(error.message || 'Failed to delete contest');
+      return false;
     }
   };
 
@@ -291,6 +410,9 @@ export const useContest = () => {
     loading,
     submitting,
     error,
+    createContest,
+    updateContest,
+    deleteContest,
     submitEntry,
     voteForEntry,
     downloadInstrumental,

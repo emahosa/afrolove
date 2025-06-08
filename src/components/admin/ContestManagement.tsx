@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar, Users } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar, Users, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -36,8 +35,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { useContest } from '@/hooks/use-contest';
 
-console.log("✅ ContestManagement component loaded - DEBUGGING USERS TABLE ACCESS");
+console.log("✅ ContestManagement component loaded - Using useContest hook");
 
 interface ContestEntry {
   id: string;
@@ -68,18 +68,26 @@ interface Contest {
 }
 
 export const ContestManagement = () => {
-  const [contests, setContests] = useState<Contest[]>([]);
+  const { 
+    contests, 
+    loading, 
+    error,
+    createContest,
+    updateContest,
+    deleteContest,
+    refreshContests
+  } = useContest();
+
   const [entries, setEntries] = useState<ContestEntry[]>([]);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEndContestOpen, setIsEndContestOpen] = useState(false);
   const [isChooseWinnerOpen, setIsChooseWinnerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
-  const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Form states for creating/editing contest
   const [contestForm, setContestForm] = useState({
@@ -103,39 +111,6 @@ export const ContestManagement = () => {
       end_date: '',
       instrumental_url: ''
     });
-  };
-
-  // Fetch contests - ONLY uses contests table
-  const fetchContests = async () => {
-    console.log('🚀 DEBUG: Starting fetchContests()');
-    setError(null);
-    
-    try {
-      console.log('🔍 DEBUG: About to call supabase.from("contests")');
-      
-      const { data, error: queryError } = await supabase
-        .from('contests')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      console.log('✅ DEBUG: Successfully completed contests query');
-      console.log('✅ DEBUG: Data received:', data);
-
-      if (queryError) {
-        console.error('❌ DEBUG: Contest query error:', queryError);
-        throw queryError;
-      }
-      
-      console.log(`✅ DEBUG: Successfully fetched ${data?.length || 0} contests`);
-      setContests(data || []);
-      
-    } catch (error: any) {
-      console.error('💥 DEBUG: Error in fetchContests:', error);
-      const errorMessage = error.message || 'Failed to fetch contests';
-      setError(errorMessage);
-      toast.error(errorMessage);
-      setContests([]);
-    }
   };
 
   // Fetch entries with EXPLICIT separation of contest_entries and profiles
@@ -232,7 +207,6 @@ export const ContestManagement = () => {
     } catch (error: any) {
       console.error('💥 DEBUG: Error in fetchEntries:', error);
       const errorMessage = error.message || 'Failed to fetch entries';
-      setError(errorMessage);
       toast.error(errorMessage);
       setEntries([]);
     } finally {
@@ -262,29 +236,51 @@ export const ContestManagement = () => {
     setIsEditDialogOpen(true);
   };
 
-  // Update contest
+  // Handle contest creation
+  const handleCreateContest = async () => {
+    console.log('🔄 DEBUG: handleCreateContest - Using createContest from hook');
+    
+    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const success = await createContest(contestForm);
+    if (success) {
+      setIsCreateDialogOpen(false);
+      resetForm();
+    }
+  };
+
+  // Handle contest update
   const handleUpdateContest = async () => {
     if (!selectedContest) return;
     
-    console.log('🔄 DEBUG: handleUpdateContest - ONLY contests table');
-    try {
-      const { error } = await supabase
-        .from('contests')
-        .update({
-          ...contestForm,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedContest.id);
+    console.log('🔄 DEBUG: handleUpdateContest - Using updateContest from hook');
+    
+    if (!contestForm.title || !contestForm.description || !contestForm.prize) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
-      if (error) throw error;
-
-      toast.success("Contest updated successfully");
+    const success = await updateContest(selectedContest.id, contestForm);
+    if (success) {
       setIsEditDialogOpen(false);
+      setSelectedContest(null);
       resetForm();
-      fetchContests();
-    } catch (error: any) {
-      console.error('Error updating contest:', error);
-      toast.error('Failed to update contest: ' + error.message);
+    }
+  };
+
+  // Handle contest deletion
+  const handleDeleteContest = async () => {
+    if (!selectedContest) return;
+    
+    console.log('🔄 DEBUG: handleDeleteContest - Using deleteContest from hook');
+    
+    const success = await deleteContest(selectedContest.id);
+    if (success) {
+      setIsDeleteDialogOpen(false);
+      setSelectedContest(null);
     }
   };
 
@@ -334,30 +330,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Create new contest - ONLY contests table
-  const handleCreateContest = async () => {
-    console.log('🔄 DEBUG: handleCreateContest - ONLY contests table');
-    try {
-      const { error } = await supabase
-        .from('contests')
-        .insert({
-          ...contestForm,
-          status: 'active',
-          terms_conditions: 'By submitting an entry, you acknowledge that you have read and agreed to these rules.'
-        });
-
-      if (error) throw error;
-
-      toast.success("New contest created successfully");
-      setIsCreateDialogOpen(false);
-      resetForm();
-      fetchContests();
-    } catch (error: any) {
-      console.error('Error creating contest:', error);
-      toast.error('Failed to create contest: ' + error.message);
-    }
-  };
-
   // End contest - ONLY contests table
   const confirmEndContest = async () => {
     console.log('🔄 DEBUG: confirmEndContest - ONLY contests table');
@@ -373,7 +345,7 @@ export const ContestManagement = () => {
 
       toast.success("Contest ended successfully");
       setIsEndContestOpen(false);
-      fetchContests();
+      refreshContests();
     } catch (error: any) {
       console.error('Error ending contest:', error);
       toast.error('Failed to end contest: ' + error.message);
@@ -422,11 +394,7 @@ export const ContestManagement = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  fetchContests().finally(() => setLoading(false));
-                }}
+                onClick={refreshContests}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Try Again
@@ -443,10 +411,7 @@ export const ContestManagement = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Contest Management</h2>
         <div className="space-x-2">
-          <Button variant="outline" onClick={() => {
-            setLoading(true);
-            fetchContests().finally(() => setLoading(false));
-          }}>
+          <Button variant="outline" onClick={refreshContests}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -503,6 +468,17 @@ export const ContestManagement = () => {
                           onClick={() => handleEditContest(contest)}
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedContest(contest);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         {contest.status === 'active' && (
                           <Button 
@@ -683,7 +659,7 @@ export const ContestManagement = () => {
           <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Contest Title</Label>
+                <Label>Contest Title *</Label>
                 <Input 
                   value={contestForm.title}
                   onChange={(e) => setContestForm({...contestForm, title: e.target.value})}
@@ -691,7 +667,7 @@ export const ContestManagement = () => {
                 />
               </div>
               <div>
-                <Label>Prize</Label>
+                <Label>Prize *</Label>
                 <Input 
                   value={contestForm.prize}
                   onChange={(e) => setContestForm({...contestForm, prize: e.target.value})}
@@ -701,7 +677,7 @@ export const ContestManagement = () => {
             </div>
             
             <div>
-              <Label>Description</Label>
+              <Label>Description *</Label>
               <Textarea 
                 value={contestForm.description}
                 onChange={(e) => setContestForm({...contestForm, description: e.target.value})}
@@ -772,7 +748,7 @@ export const ContestManagement = () => {
           <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Contest Title</Label>
+                <Label>Contest Title *</Label>
                 <Input 
                   value={contestForm.title}
                   onChange={(e) => setContestForm({...contestForm, title: e.target.value})}
@@ -780,7 +756,7 @@ export const ContestManagement = () => {
                 />
               </div>
               <div>
-                <Label>Prize</Label>
+                <Label>Prize *</Label>
                 <Input 
                   value={contestForm.prize}
                   onChange={(e) => setContestForm({...contestForm, prize: e.target.value})}
@@ -790,7 +766,7 @@ export const ContestManagement = () => {
             </div>
             
             <div>
-              <Label>Description</Label>
+              <Label>Description *</Label>
               <Textarea 
                 value={contestForm.description}
                 onChange={(e) => setContestForm({...contestForm, description: e.target.value})}
@@ -849,6 +825,25 @@ export const ContestManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Contest Alert Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Contest?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{selectedContest?.title}"? 
+              This action cannot be undone and will also delete all associated entries.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteContest} className="bg-red-500 hover:bg-red-600">
+              Delete Contest
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       {/* End Contest Alert Dialog */}
       <AlertDialog open={isEndContestOpen} onOpenChange={setIsEndContestOpen}>
