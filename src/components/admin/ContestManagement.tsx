@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -431,18 +432,6 @@ export const ContestManagement = () => {
     }
   };
 
-  useEffect(() => {
-    console.log('🚀 DEBUG: ContestManagement component mounted');
-    const loadData = async () => {
-      console.log('🔍 DEBUG: Starting initial data load');
-      setLoading(true);
-      await fetchContests();
-      setLoading(false);
-      console.log('✅ DEBUG: Initial data load completed');
-    };
-    loadData();
-  }, []);
-
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center p-8 space-y-4">
@@ -559,7 +548,7 @@ export const ContestManagement = () => {
                               setIsEndContestOpen(true);
                             }}
                           >
-                            <Calendar className="h-4 w-4" />
+                            <CalendarIcon className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
@@ -790,7 +779,6 @@ export const ContestManagement = () => {
                       selected={contestForm.start_date || undefined}
                       onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -820,7 +808,6 @@ export const ContestManagement = () => {
                       selected={contestForm.end_date || undefined}
                       onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -923,7 +910,6 @@ export const ContestManagement = () => {
                       selected={contestForm.start_date || undefined}
                       onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
@@ -953,7 +939,6 @@ export const ContestManagement = () => {
                       selected={contestForm.end_date || undefined}
                       onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
                       initialFocus
-                      className="pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
