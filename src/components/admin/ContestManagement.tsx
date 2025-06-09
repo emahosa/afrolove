@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar, Users, Trash2 } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -36,6 +36,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useContest } from '@/hooks/use-contest';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 console.log("✅ ContestManagement component loaded - Using useContest hook");
 
@@ -95,8 +103,8 @@ export const ContestManagement = () => {
     description: '',
     prize: '',
     rules: '',
-    start_date: '',
-    end_date: '',
+    start_date: null as Date | null,
+    end_date: null as Date | null,
     instrumental_url: ''
   });
 
@@ -107,33 +115,22 @@ export const ContestManagement = () => {
       description: '',
       prize: '',
       rules: '',
-      start_date: '',
-      end_date: '',
+      start_date: null,
+      end_date: null,
       instrumental_url: ''
     });
   };
 
-  // Helper function to format datetime for input
-  const formatDateTimeForInput = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:MM
+  // Helper function to format datetime for display
+  const formatDateTimeForDisplay = (date: Date | null) => {
+    if (!date) return '';
+    return format(date, 'PPP p');
   };
 
-  // Helper function to validate and format datetime
-  const validateAndFormatDateTime = (dateString: string) => {
-    if (!dateString || dateString.trim() === '') {
-      return null;
-    }
-    
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        throw new Error('Invalid date');
-      }
-      return date.toISOString();
-    } catch (error) {
-      throw new Error('Invalid date format');
-    }
+  // Helper function to convert Date to ISO string
+  const formatDateForSubmission = (date: Date | null) => {
+    if (!date) return null;
+    return date.toISOString();
   };
 
   // Fetch entries with EXPLICIT separation of contest_entries and profiles
@@ -252,8 +249,8 @@ export const ContestManagement = () => {
       description: contest.description,
       prize: contest.prize,
       rules: contest.rules || '',
-      start_date: formatDateTimeForInput(contest.start_date),
-      end_date: formatDateTimeForInput(contest.end_date),
+      start_date: new Date(contest.start_date),
+      end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || ''
     });
     setIsEditDialogOpen(true);
@@ -269,30 +266,25 @@ export const ContestManagement = () => {
     }
 
     if (!contestForm.start_date || !contestForm.end_date) {
-      toast.error('Please provide both start and end dates');
+      toast.error('Please select both start and end dates');
       return;
     }
 
     try {
-      // Validate and format dates
-      const startDate = validateAndFormatDateTime(contestForm.start_date);
-      const endDate = validateAndFormatDateTime(contestForm.end_date);
-      
-      if (!startDate || !endDate) {
-        toast.error('Please provide valid start and end dates');
-        return;
-      }
-
       // Check if end date is after start date
-      if (new Date(endDate) <= new Date(startDate)) {
+      if (contestForm.end_date <= contestForm.start_date) {
         toast.error('End date must be after start date');
         return;
       }
 
       const contestData = {
-        ...contestForm,
-        start_date: startDate,
-        end_date: endDate
+        title: contestForm.title,
+        description: contestForm.description,
+        prize: contestForm.prize,
+        rules: contestForm.rules,
+        start_date: formatDateForSubmission(contestForm.start_date)!,
+        end_date: formatDateForSubmission(contestForm.end_date)!,
+        instrumental_url: contestForm.instrumental_url
       };
 
       const success = await createContest(contestData);
@@ -301,7 +293,7 @@ export const ContestManagement = () => {
         resetForm();
       }
     } catch (error: any) {
-      toast.error(error.message || 'Invalid date format');
+      toast.error(error.message || 'Failed to create contest');
     }
   };
 
@@ -317,30 +309,25 @@ export const ContestManagement = () => {
     }
 
     if (!contestForm.start_date || !contestForm.end_date) {
-      toast.error('Please provide both start and end dates');
+      toast.error('Please select both start and end dates');
       return;
     }
 
     try {
-      // Validate and format dates
-      const startDate = validateAndFormatDateTime(contestForm.start_date);
-      const endDate = validateAndFormatDateTime(contestForm.end_date);
-      
-      if (!startDate || !endDate) {
-        toast.error('Please provide valid start and end dates');
-        return;
-      }
-
       // Check if end date is after start date
-      if (new Date(endDate) <= new Date(startDate)) {
+      if (contestForm.end_date <= contestForm.start_date) {
         toast.error('End date must be after start date');
         return;
       }
 
       const contestData = {
-        ...contestForm,
-        start_date: startDate,
-        end_date: endDate
+        title: contestForm.title,
+        description: contestForm.description,
+        prize: contestForm.prize,
+        rules: contestForm.rules,
+        start_date: formatDateForSubmission(contestForm.start_date)!,
+        end_date: formatDateForSubmission(contestForm.end_date)!,
+        instrumental_url: contestForm.instrumental_url
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -350,7 +337,7 @@ export const ContestManagement = () => {
         resetForm();
       }
     } catch (error: any) {
-      toast.error(error.message || 'Invalid date format');
+      toast.error(error.message || 'Failed to update contest');
     }
   };
 
@@ -780,21 +767,63 @@ export const ContestManagement = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start Date *</Label>
-                <Input 
-                  type="datetime-local"
-                  value={contestForm.start_date}
-                  onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !contestForm.start_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {contestForm.start_date ? (
+                        formatDateTimeForDisplay(contestForm.start_date)
+                      ) : (
+                        <span>Pick start date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={contestForm.start_date || undefined}
+                      onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label>End Date *</Label>
-                <Input 
-                  type="datetime-local"
-                  value={contestForm.end_date}
-                  onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !contestForm.end_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {contestForm.end_date ? (
+                        formatDateTimeForDisplay(contestForm.end_date)
+                      ) : (
+                        <span>Pick end date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={contestForm.end_date || undefined}
+                      onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             
@@ -871,21 +900,63 @@ export const ContestManagement = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start Date *</Label>
-                <Input 
-                  type="datetime-local"
-                  value={contestForm.start_date}
-                  onChange={(e) => setContestForm({...contestForm, start_date: e.target.value})}
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !contestForm.start_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {contestForm.start_date ? (
+                        formatDateTimeForDisplay(contestForm.start_date)
+                      ) : (
+                        <span>Pick start date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={contestForm.start_date || undefined}
+                      onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <Label>End Date *</Label>
-                <Input 
-                  type="datetime-local"
-                  value={contestForm.end_date}
-                  onChange={(e) => setContestForm({...contestForm, end_date: e.target.value})}
-                  required
-                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !contestForm.end_date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {contestForm.end_date ? (
+                        formatDateTimeForDisplay(contestForm.end_date)
+                      ) : (
+                        <span>Pick end date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={contestForm.end_date || undefined}
+                      onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             
