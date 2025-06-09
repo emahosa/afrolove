@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar as CalendarIcon, Users, Trash2 } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar as CalendarIcon, Users, Trash2, Upload } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -97,6 +96,8 @@ export const ContestManagement = () => {
   const [isChooseWinnerOpen, setIsChooseWinnerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
   const [entriesLoading, setEntriesLoading] = useState(false);
+  const [instrumentalFile, setInstrumentalFile] = useState<File | null>(null);
+  const [uploadingInstrumental, setUploadingInstrumental] = useState(false);
 
   // Form states for creating/editing contest
   const [contestForm, setContestForm] = useState({
@@ -120,6 +121,64 @@ export const ContestManagement = () => {
       end_date: null,
       instrumental_url: ''
     });
+    setInstrumentalFile(null);
+  };
+
+  // Upload instrumental file to Supabase Storage
+  const uploadInstrumental = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingInstrumental(true);
+      
+      // Generate unique filename
+      const timestamp = Date.now();
+      const filename = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      const { data, error } = await supabase.storage
+        .from('instrumentals')
+        .upload(filename, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('instrumentals')
+        .getPublicUrl(filename);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading instrumental:', error);
+      toast.error('Failed to upload instrumental: ' + error.message);
+      return null;
+    } finally {
+      setUploadingInstrumental(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('audio/')) {
+        toast.error('Please select an audio file');
+        return;
+      }
+      
+      // Validate file size (max 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('File size must be less than 50MB');
+        return;
+      }
+      
+      setInstrumentalFile(file);
+      toast.success('Audio file selected: ' + file.name);
+    }
   };
 
   // Helper function to format datetime for display
@@ -278,6 +337,18 @@ export const ContestManagement = () => {
         return;
       }
 
+      let instrumentalUrl = contestForm.instrumental_url;
+
+      // Upload instrumental file if provided
+      if (instrumentalFile) {
+        const uploadedUrl = await uploadInstrumental(instrumentalFile);
+        if (!uploadedUrl) {
+          toast.error('Failed to upload instrumental file');
+          return;
+        }
+        instrumentalUrl = uploadedUrl;
+      }
+
       const contestData = {
         title: contestForm.title,
         description: contestForm.description,
@@ -285,7 +356,7 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: contestForm.instrumental_url
+        instrumental_url: instrumentalUrl
       };
 
       const success = await createContest(contestData);
@@ -321,6 +392,18 @@ export const ContestManagement = () => {
         return;
       }
 
+      let instrumentalUrl = contestForm.instrumental_url;
+
+      // Upload new instrumental file if provided
+      if (instrumentalFile) {
+        const uploadedUrl = await uploadInstrumental(instrumentalFile);
+        if (!uploadedUrl) {
+          toast.error('Failed to upload instrumental file');
+          return;
+        }
+        instrumentalUrl = uploadedUrl;
+      }
+
       const contestData = {
         title: contestForm.title,
         description: contestForm.description,
@@ -328,7 +411,7 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: contestForm.instrumental_url
+        instrumental_url: instrumentalUrl
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -815,12 +898,36 @@ export const ContestManagement = () => {
             </div>
             
             <div>
-              <Label>Instrumental URL</Label>
-              <Input 
-                value={contestForm.instrumental_url}
-                onChange={(e) => setContestForm({...contestForm, instrumental_url: e.target.value})}
-                placeholder="https://example.com/beat.mp3"
-              />
+              <Label>Instrumental Audio</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileSelect}
+                    className="flex-1"
+                  />
+                  {instrumentalFile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInstrumentalFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {instrumentalFile && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Upload className="h-4 w-4" />
+                    <span>{instrumentalFile.name}</span>
+                    <span>({(instrumentalFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Upload an audio file (max 50MB) or leave empty if not needed
+                </p>
+              </div>
             </div>
           </div>
           
@@ -831,8 +938,15 @@ export const ContestManagement = () => {
             }}>
               Cancel
             </Button>
-            <Button onClick={handleCreateContest}>
-              Create Contest
+            <Button onClick={handleCreateContest} disabled={uploadingInstrumental}>
+              {uploadingInstrumental ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                'Create Contest'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -946,12 +1060,41 @@ export const ContestManagement = () => {
             </div>
             
             <div>
-              <Label>Instrumental URL</Label>
-              <Input 
-                value={contestForm.instrumental_url}
-                onChange={(e) => setContestForm({...contestForm, instrumental_url: e.target.value})}
-                placeholder="https://example.com/beat.mp3"
-              />
+              <Label>Instrumental Audio</Label>
+              <div className="space-y-2">
+                {selectedContest?.instrumental_url && (
+                  <div className="p-2 bg-muted rounded text-sm">
+                    Current: <a href={selectedContest.instrumental_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">View current instrumental</a>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileSelect}
+                    className="flex-1"
+                  />
+                  {instrumentalFile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInstrumentalFile(null)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {instrumentalFile && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Upload className="h-4 w-4" />
+                    <span>{instrumentalFile.name}</span>
+                    <span>({(instrumentalFile.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Upload a new audio file to replace the current one (max 50MB)
+                </p>
+              </div>
             </div>
           </div>
           
@@ -962,8 +1105,15 @@ export const ContestManagement = () => {
             }}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateContest}>
-              Update Contest
+            <Button onClick={handleUpdateContest} disabled={uploadingInstrumental}>
+              {uploadingInstrumental ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                'Update Contest'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
