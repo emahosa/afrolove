@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { checkUserCredits, updateUserCredits } from '@/utils/credits';
 
 console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes");
 
@@ -41,6 +41,7 @@ export interface ContestEntry {
 export const useContest = () => {
   const { user } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
+  const [activeContests, setActiveContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,11 +71,13 @@ export const useContest = () => {
       console.log('Contests fetched successfully:', data);
       setContests(data || []);
       
-      // Set the first active contest as current
-      const activeContests = data?.filter(contest => contest.status === 'active') || [];
-      if (activeContests.length > 0) {
-        setCurrentContest(activeContests[0]);
-        console.log('Set current contest:', activeContests[0]);
+      // Set all active contests
+      const activeContestsData = data?.filter(contest => contest.status === 'active') || [];
+      setActiveContests(activeContestsData);
+      
+      if (activeContestsData.length > 0) {
+        setCurrentContest(activeContestsData[0]);
+        console.log('Set current contest:', activeContestsData[0]);
       } else {
         console.log('No active contests found');
         setCurrentContest(null);
@@ -279,7 +282,7 @@ export const useContest = () => {
     }
   };
 
-  // Submit contest entry - ONLY contest_entries table
+  // Submit contest entry with file upload - ONLY contest_entries table
   const submitEntry = async (contestId: string, videoFile: File, description: string, title: string) => {
     if (!user) {
       toast.error('Please log in to submit an entry');
@@ -290,9 +293,26 @@ export const useContest = () => {
     try {
       console.log('🔄 use-contest: submitEntry() - ONLY contest_entries table, NO USERS');
       
-      // For now, we'll just store the file name as video_url
-      // In a real implementation, you'd upload to Supabase Storage
-      const videoUrl = `uploads/${user.id}/${videoFile.name}`;
+      // Upload file to Supabase Storage
+      const timestamp = Date.now();
+      const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('instrumentals')
+        .upload(`entries/${filename}`, videoFile, {
+          contentType: videoFile.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload file: ' + uploadError.message);
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('instrumentals')
+        .getPublicUrl(`entries/${filename}`);
 
       console.log('🔍 About to insert into supabase.from("contest_entries") - NO USERS TABLE');
 
@@ -301,7 +321,7 @@ export const useContest = () => {
         .insert({
           contest_id: contestId,
           user_id: user.id,
-          video_url: videoUrl,
+          video_url: publicUrl,
           description,
           media_type: videoFile.type.startsWith('video/') ? 'video' : 'audio',
           approved: false // Pending admin approval
@@ -367,10 +387,27 @@ export const useContest = () => {
     }
   };
 
-  // Download instrumental - NO DATABASE CALLS
-  const downloadInstrumental = (instrumentalUrl: string, contestTitle: string) => {
+  // Download instrumental with credit check
+  const downloadInstrumental = async (instrumentalUrl: string, contestTitle: string) => {
+    if (!user) {
+      toast.error('Please log in to download instrumentals');
+      return;
+    }
+
     try {
-      console.log('🔄 use-contest: downloadInstrumental() - NO DATABASE CALLS');
+      console.log('🔄 use-contest: downloadInstrumental() - Checking credits first');
+      
+      // Check if user has enough credits (cost: 1 credit)
+      const currentCredits = await checkUserCredits(user.id);
+      if (currentCredits < 1) {
+        toast.error('You need at least 1 credit to download instrumentals. Please purchase credits first.');
+        return;
+      }
+
+      // Deduct credit
+      await updateUserCredits(user.id, -1);
+      
+      // Download the file
       const link = document.createElement('a');
       link.href = instrumentalUrl;
       link.download = `${contestTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_instrumental.mp3`;
@@ -378,7 +415,7 @@ export const useContest = () => {
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Downloading instrumental...');
+      toast.success('Instrumental downloaded! 1 credit used.');
     } catch (error) {
       console.error('Error downloading instrumental:', error);
       toast.error('Failed to download instrumental');
@@ -405,6 +442,7 @@ export const useContest = () => {
 
   return {
     contests,
+    activeContests,
     currentContest,
     contestEntries,
     loading,
@@ -417,6 +455,7 @@ export const useContest = () => {
     voteForEntry,
     downloadInstrumental,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
-    refreshContests: fetchContests
+    refreshContests: fetchContests,
+    setCurrentContest
   };
 };

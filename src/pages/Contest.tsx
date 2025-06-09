@@ -18,13 +18,15 @@ import { useAuth } from "@/contexts/AuthContext";
 const Contest = () => {
   const { user } = useAuth();
   const {
+    activeContests,
     currentContest,
     contestEntries,
     loading,
     submitting,
     submitEntry,
     voteForEntry,
-    downloadInstrumental
+    downloadInstrumental,
+    setCurrentContest
   } = useContest();
 
   const [showRulesModal, setShowRulesModal] = useState(false);
@@ -34,9 +36,9 @@ const Contest = () => {
   const [entryDescription, setEntryDescription] = useState("");
   const [entryFile, setEntryFile] = useState<File | null>(null);
 
-  const handleDownloadBeat = () => {
-    if (currentContest?.instrumental_url) {
-      downloadInstrumental(currentContest.instrumental_url, currentContest.title);
+  const handleDownloadBeat = (contest: typeof currentContest) => {
+    if (contest?.instrumental_url) {
+      downloadInstrumental(contest.instrumental_url, contest.title);
     } else {
       toast.error("No instrumental available for download");
     }
@@ -44,7 +46,21 @@ const Contest = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setEntryFile(e.target.files[0]);
+      const file = e.target.files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('video/') && !file.type.startsWith('audio/')) {
+        toast.error('Please select a video or audio file');
+        return;
+      }
+      
+      // Validate file size (max 100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error('File size must be less than 100MB');
+        return;
+      }
+      
+      setEntryFile(file);
     }
   };
 
@@ -82,7 +98,7 @@ const Contest = () => {
     );
   }
 
-  if (!currentContest) {
+  if (activeContests.length === 0) {
     return (
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -105,18 +121,6 @@ const Contest = () => {
     );
   }
 
-  // Calculate progress based on time elapsed
-  const startDate = new Date(currentContest.start_date);
-  const endDate = new Date(currentContest.end_date);
-  const now = new Date();
-  const totalTime = endDate.getTime() - startDate.getTime();
-  const elapsedTime = now.getTime() - startDate.getTime();
-  const progress = Math.min(Math.max((elapsedTime / totalTime) * 100, 0), 100);
-
-  // Calculate time remaining
-  const timeRemaining = endDate.getTime() - now.getTime();
-  const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
-
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -135,129 +139,164 @@ const Contest = () => {
         </TabsList>
         
         <TabsContent value="current" className="space-y-6">
-          <Card className="border border-melody-secondary/30">
-            <CardHeader className="bg-gradient-to-r from-melody-primary/50 to-melody-secondary/30 rounded-t-lg">
-              <div className="flex justify-between items-start">
-                <div>
-                  <Badge variant="secondary" className="mb-2 bg-melody-secondary text-white">Current Contest</Badge>
-                  <CardTitle className="text-2xl">{currentContest.title}</CardTitle>
-                  <CardDescription className="text-white/70 mt-1">{currentContest.description}</CardDescription>
-                </div>
-                <div className="text-right hidden md:block">
-                  <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
-                    <Calendar className="h-4 w-4" /> Deadline
+          {/* Display all active contests */}
+          {activeContests.map((contest) => {
+            // Calculate progress based on time elapsed
+            const startDate = new Date(contest.start_date);
+            const endDate = new Date(contest.end_date);
+            const now = new Date();
+            const totalTime = endDate.getTime() - startDate.getTime();
+            const elapsedTime = now.getTime() - startDate.getTime();
+            const progress = Math.min(Math.max((elapsedTime / totalTime) * 100, 0), 100);
+
+            // Calculate time remaining
+            const timeRemaining = endDate.getTime() - now.getTime();
+            const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
+
+            return (
+              <Card key={contest.id} className="border border-melody-secondary/30">
+                <CardHeader className="bg-gradient-to-r from-melody-primary/50 to-melody-secondary/30 rounded-t-lg">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <Badge variant="secondary" className="mb-2 bg-melody-secondary text-white">
+                        {contest.id === currentContest?.id ? 'Viewing' : 'Active Contest'}
+                      </Badge>
+                      <CardTitle className="text-2xl">{contest.title}</CardTitle>
+                      <CardDescription className="text-white/70 mt-1">{contest.description}</CardDescription>
+                    </div>
+                    <div className="text-right hidden md:block">
+                      <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
+                        <Calendar className="h-4 w-4" /> Deadline
+                      </div>
+                      <div className="font-semibold">{new Date(contest.end_date).toLocaleDateString()}</div>
+                      <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
+                        <Clock className="h-4 w-4" /> Time Remaining
+                      </div>
+                      <div className="font-semibold">{daysRemaining} days</div>
+                    </div>
                   </div>
-                  <div className="font-semibold">{new Date(currentContest.end_date).toLocaleDateString()}</div>
-                  <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
-                    <Clock className="h-4 w-4" /> Time Remaining
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="md:hidden space-y-4">
+                    <div className="flex justify-between">
+                      <div>
+                        <div className="text-sm text-muted-foreground mb-1">Deadline</div>
+                        <div className="font-semibold">{new Date(contest.end_date).toLocaleDateString()}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
+                        <div className="font-semibold">{daysRemaining} days</div>
+                      </div>
+                    </div>
+                    <Progress value={progress} className="h-2" />
                   </div>
-                  <div className="font-semibold">{daysRemaining} days</div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="md:hidden space-y-4">
-                <div className="flex justify-between">
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Deadline</div>
-                    <div className="font-semibold">{new Date(currentContest.end_date).toLocaleDateString()}</div>
+                  
+                  <div className="hidden md:block">
+                    <Progress value={progress} className="h-2 mb-2" />
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <div>Contest Started</div>
+                      <div>Contest Ends</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
-                    <div className="font-semibold">{daysRemaining} days</div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="bg-muted/30">
+                      <CardHeader className="py-3 px-4">
+                        <CardTitle className="text-base">Prize Pool</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-3 px-4">
+                        <p className="text-xl font-bold text-melody-secondary">{contest.prize}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-muted/30">
+                      <CardHeader className="py-3 px-4">
+                        <CardTitle className="text-base">Rules</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-3 px-4">
+                        <Button 
+                          variant="link" 
+                          className="p-0 h-auto text-melody-secondary"
+                          onClick={() => {
+                            setCurrentContest(contest);
+                            setShowRulesModal(true);
+                          }}
+                        >
+                          View Rules <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-muted/30">
+                      <CardHeader className="py-3 px-4">
+                        <CardTitle className="text-base">Actions</CardTitle>
+                      </CardHeader>
+                      <CardContent className="py-3 px-4">
+                        <div className="space-y-2">
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              setCurrentContest(contest);
+                              setShowSubmitModal(true);
+                            }}
+                            disabled={!user}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            {user ? 'Submit Entry' : 'Login Required'}
+                          </Button>
+                          <Button 
+                            size="sm"
+                            className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+                            onClick={() => handleDownloadBeat(contest)}
+                            disabled={!user}
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            {user ? 'Download Beat (1 Credit)' : 'Login Required'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
-              
-              <div className="hidden md:block">
-                <Progress value={progress} className="h-2 mb-2" />
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <div>Contest Started</div>
-                  <div>Contest Ends</div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-muted/30">
-                  <CardHeader className="py-3 px-4">
-                    <CardTitle className="text-base">Prize Pool</CardTitle>
-                  </CardHeader>
-                  <CardContent className="py-3 px-4">
-                    <p className="text-xl font-bold text-melody-secondary">{currentContest.prize}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-muted/30">
-                  <CardHeader className="py-3 px-4">
-                    <CardTitle className="text-base">Entries</CardTitle>
-                  </CardHeader>
-                  <CardContent className="py-3 px-4">
-                    <p className="text-xl font-bold">{contestEntries.length}</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-muted/30">
-                  <CardHeader className="py-3 px-4">
-                    <CardTitle className="text-base">Rules</CardTitle>
-                  </CardHeader>
-                  <CardContent className="py-3 px-4">
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-melody-secondary"
-                      onClick={() => setShowRulesModal(true)}
-                    >
-                      View Rules <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold">Contest Rules</h3>
-                <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                  {currentContest.rules.split(', ').map((rule, index) => (
-                    <li key={index}>{rule}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-            <CardFooter className="bg-card border-t border-border/50 flex flex-wrap gap-4 justify-between">
-              <Button 
-                className="bg-melody-secondary hover:bg-melody-secondary/90"
-                onClick={handleDownloadBeat}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Official Beat
-              </Button>
-              <Button onClick={() => setShowSubmitModal(true)} disabled={!user}>
-                <Upload className="mr-2 h-4 w-4" />
-                {user ? 'Submit Your Entry' : 'Login to Submit'}
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Contest Entries ({contestEntries.length})</h2>
-            
-            {contestEntries.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">No Entries Yet</h3>
-                  <p className="text-muted-foreground">Be the first to submit an entry!</p>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold">Contest Rules</h3>
+                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                      {contest.rules.split(', ').map((rule, index) => (
+                        <li key={index}>{rule}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {contestEntries.map((entry) => (
-                  <ContestEntryCard
-                    key={entry.id}
-                    entry={entry}
-                    onVote={handleVote}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+            );
+          })}
+          
+          {/* Show entries for current contest if one is selected */}
+          {currentContest && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold">Entries for {currentContest.title} ({contestEntries.length})</h2>
+              
+              {contestEntries.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Entries Yet</h3>
+                    <p className="text-muted-foreground">Be the first to submit an entry!</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {contestEntries.map((entry) => (
+                    <ContestEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      onVote={handleVote}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="past">
@@ -274,7 +313,7 @@ const Contest = () => {
       <Dialog open={showRulesModal} onOpenChange={setShowRulesModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Contest Rules - {currentContest.title}</DialogTitle>
+            <DialogTitle>Contest Rules - {currentContest?.title}</DialogTitle>
             <DialogDescription>
               Please read all rules carefully before participating.
             </DialogDescription>
@@ -282,7 +321,7 @@ const Contest = () => {
           <div className="space-y-4 max-h-96 overflow-y-auto">
             <div className="space-y-2">
               <h3 className="font-semibold">Terms & Conditions:</h3>
-              <p className="text-sm">{currentContest.terms_conditions}</p>
+              <p className="text-sm">{currentContest?.terms_conditions}</p>
             </div>
           </div>
         </DialogContent>
@@ -294,7 +333,7 @@ const Contest = () => {
           <DialogHeader>
             <DialogTitle>Submit Your Entry</DialogTitle>
             <DialogDescription>
-              Fill out the form below to submit your entry to the {currentContest.title}.
+              Fill out the form below to submit your entry to {currentContest?.title}.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEntrySubmission} className="space-y-4">
@@ -329,8 +368,13 @@ const Contest = () => {
                 accept="video/*,audio/*"
                 required
               />
+              {entryFile && (
+                <div className="text-sm text-muted-foreground">
+                  Selected: {entryFile.name} ({(entryFile.size / 1024 / 1024).toFixed(2)} MB)
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                Accepted formats: MP4, MOV, AVI, MP3, WAV (max size: 500MB)
+                Accepted formats: MP4, MOV, AVI, MP3, WAV (max size: 100MB)
               </p>
             </div>
             
