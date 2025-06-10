@@ -91,14 +91,18 @@ export const useContest = () => {
       // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => {
         const profiles = entry.profiles;
-        const isValidProfile = profiles && 
-          typeof profiles === 'object' && 
-          profiles !== null && 
-          'id' in profiles;
+        
+        // Check if profiles exists and has required structure
+        if (profiles && typeof profiles === 'object' && 'id' in profiles) {
+          return {
+            ...entry,
+            profiles: profiles as { id: string; full_name?: string; username?: string }
+          };
+        }
         
         return {
           ...entry,
-          profiles: isValidProfile ? (profiles as { id: string; full_name?: string; username?: string }) : null
+          profiles: null
         };
       });
       
