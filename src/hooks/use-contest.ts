@@ -91,11 +91,14 @@ export const useContest = () => {
       // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => {
         const profiles = entry.profiles;
+        const isValidProfile = profiles && 
+          typeof profiles === 'object' && 
+          profiles !== null && 
+          'id' in profiles;
+        
         return {
           ...entry,
-          profiles: profiles && typeof profiles === 'object' && profiles !== null && 'id' in profiles 
-            ? profiles 
-            : null
+          profiles: isValidProfile ? profiles : null
         };
       });
       
