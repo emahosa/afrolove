@@ -73,6 +73,8 @@ interface Contest {
   created_at: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
+  credit_cost: number;
+  terms_conditions: string;
 }
 
 export const ContestManagement = () => {

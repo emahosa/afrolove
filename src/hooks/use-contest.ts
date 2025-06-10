@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -89,7 +88,7 @@ export const useContest = () => {
 
       if (error) throw error;
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => ({
         ...entry,
         profiles: entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles 
@@ -128,10 +127,18 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .insert([{
-          ...contestData,
+          title: contestData.title,
+          description: contestData.description,
+          prize: contestData.prize,
+          rules: contestData.rules,
+          start_date: contestData.start_date,
+          end_date: contestData.end_date,
+          instrumental_url: contestData.instrumental_url || '',
+          credit_cost: contestData.credit_cost,
+          terms_conditions: contestData.terms_conditions,
           status: 'active',
-          rules: contestData.rules || '',
-          terms_conditions: contestData.terms_conditions || 'Standard contest terms apply.'
+          voting_enabled: contestData.voting_enabled,
+          max_entries_per_user: contestData.max_entries_per_user
         }])
         .select()
         .single();
