@@ -52,66 +52,102 @@ function App() {
 
               {/* Protected routes with app layout */}
               <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin" element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Admin />
-                  </ProtectedRoute>
-                } />
-                <Route path="/create" element={
-                  <ProtectedRoute>
-                    <Create />
-                  </ProtectedRoute>
-                } />
-                <Route path="/library" element={
-                  <ProtectedRoute>
-                    <Library />
-                  </ProtectedRoute>
-                } />
-                <Route path="/contest" element={
-                  <ProtectedRoute>
-                    <Contest />
-                  </ProtectedRoute>
-                } />
-                <Route path="/contest/:contestId/entries" element={
-                  <ProtectedRoute>
-                    <ContestEntries />
-                  </ProtectedRoute>
-                } />
-                <Route path="/credits" element={
-                  <ProtectedRoute>
-                    <Credits />
-                  </ProtectedRoute>
-                } />
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/support" element={
-                  <ProtectedRoute>
-                    <Support />
-                  </ProtectedRoute>
-                } />
-                <Route path="/user-custom-songs" element={
-                  <ProtectedRoute>
-                    <UserCustomSongs />
-                  </ProtectedRoute>
-                } />
-                <Route path="/user-custom-songs-management" element={
-                  <ProtectedRoute>
-                    <UserCustomSongsManagement />
-                  </ProtectedRoute>
-                } />
-                <Route path="/custom-song-management" element={
-                  <ProtectedRoute requiredRole="admin">
-                    <CustomSongManagement />
-                  </ProtectedRoute>
-                } />
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin" 
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <Admin />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/create" 
+                  element={
+                    <ProtectedRoute>
+                      <Create />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/library" 
+                  element={
+                    <ProtectedRoute>
+                      <Library />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/contest" 
+                  element={
+                    <ProtectedRoute>
+                      <Contest />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/contest/:contestId/entries" 
+                  element={
+                    <ProtectedRoute>
+                      <ContestEntries />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/credits" 
+                  element={
+                    <ProtectedRoute>
+                      <Credits />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/support" 
+                  element={
+                    <ProtectedRoute>
+                      <Support />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/user-custom-songs" 
+                  element={
+                    <ProtectedRoute>
+                      <UserCustomSongs />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/user-custom-songs-management" 
+                  element={
+                    <ProtectedRoute>
+                      <UserCustomSongsManagement />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/custom-song-management" 
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <CustomSongManagement />
+                    </ProtectedRoute>
+                  } 
+                />
               </Route>
 
               {/* 404 route */}

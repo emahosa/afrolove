@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, User, Calendar, Phone } from "lucide-react";
+import { Heart, User, Calendar } from "lucide-react";
 import { ContestEntry } from "@/hooks/use-contest";
 import { PhoneVoteDialog } from "./PhoneVoteDialog";
 
@@ -21,10 +21,12 @@ export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = f
   const handleVote = async (voterPhone?: string) => {
     setIsVoting(true);
     try {
-      await onVote(entry.id, voterPhone);
+      const success = await onVote(entry.id, voterPhone);
+      if (success) {
+        setShowPhoneDialog(false);
+      }
     } finally {
       setIsVoting(false);
-      setShowPhoneDialog(false);
     }
   };
 
@@ -110,7 +112,7 @@ export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = f
       <PhoneVoteDialog
         open={showPhoneDialog}
         onOpenChange={setShowPhoneDialog}
-        onVote={handleVote}
+        onSubmit={handleVote}
         entryTitle={entry.description || "Contest Entry"}
         artistName={entry.profiles?.full_name || entry.profiles?.username || "Anonymous"}
       />
