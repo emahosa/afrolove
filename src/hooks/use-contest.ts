@@ -89,12 +89,15 @@ export const useContest = () => {
       if (error) throw error;
       
       // Transform the data to match our interface with proper null handling
-      const transformedEntries = (data || []).map(entry => ({
-        ...entry,
-        profiles: entry.profiles && typeof entry.profiles === 'object' && entry.profiles !== null && 'id' in entry.profiles 
-          ? entry.profiles 
-          : null
-      }));
+      const transformedEntries = (data || []).map(entry => {
+        const profiles = entry.profiles;
+        return {
+          ...entry,
+          profiles: profiles && typeof profiles === 'object' && profiles !== null && 'id' in profiles 
+            ? profiles 
+            : null
+        };
+      });
       
       setContestEntries(transformedEntries);
     } catch (error: any) {
