@@ -1,10 +1,15 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-const ProtectedRoute = () => {
+interface ProtectedRouteProps {
+  children?: ReactNode;
+  requiredRole?: string;
+}
+
+const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, loading, isAdmin, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
@@ -39,7 +44,7 @@ const ProtectedRoute = () => {
   }
 
   // Handle admin routes
-  if (isAdminRoute) {
+  if (isAdminRoute || requiredRole === 'admin') {
     const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     
     if (!isSuperAdmin && !isAdmin()) {
@@ -53,7 +58,7 @@ const ProtectedRoute = () => {
   }
 
   console.log('ProtectedRoute: Access granted for user:', user.id);
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;

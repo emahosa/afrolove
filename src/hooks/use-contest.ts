@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ export interface Contest {
   voting_enabled?: boolean;
   max_entries_per_user?: number;
   credit_cost: number;
+  terms_conditions: string;
 }
 
 export interface ContestEntry {
@@ -33,7 +35,7 @@ export interface ContestEntry {
     id: string;
     full_name?: string;
     username?: string;
-  };
+  } | null;
 }
 
 export const useContest = () => {
@@ -44,6 +46,8 @@ export const useContest = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
+  const [unlockedContests, setUnlockedContests] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
 
   const { user } = useAuth();
 
@@ -171,21 +175,26 @@ export const useContest = () => {
     }
   };
 
-  const submitEntry = async (contestId: string, videoUrl: string, description: string, mediaType: string = 'video') => {
+  const submitEntry = async (contestId: string, file: File, description: string, title: string) => {
     if (!user) {
       toast.error('You must be logged in to submit an entry');
       return false;
     }
 
+    setSubmitting(true);
     try {
+      // In a real app, you'd upload the file to storage first
+      // For now, we'll use a placeholder URL
+      const videoUrl = URL.createObjectURL(file);
+      
       const { error } = await supabase
         .from('contest_entries')
         .insert([{
           contest_id: contestId,
           user_id: user.id,
           video_url: videoUrl,
-          description,
-          media_type: mediaType,
+          description: title,
+          media_type: file.type.startsWith('video/') ? 'video' : 'audio',
           approved: false,
           vote_count: 0
         }]);
@@ -198,6 +207,8 @@ export const useContest = () => {
       console.error('Error submitting entry:', error);
       toast.error('Failed to submit entry: ' + error.message);
       return false;
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -273,6 +284,9 @@ export const useContest = () => {
 
       if (updateError) throw updateError;
 
+      // Add to unlocked contests
+      setUnlockedContests(prev => new Set([...prev, contestId]));
+
       toast.success(`Contest unlocked! ${creditCost} credits deducted.`);
       return true;
     } catch (error: any) {
@@ -280,6 +294,15 @@ export const useContest = () => {
       toast.error('Failed to unlock contest: ' + error.message);
       return false;
     }
+  };
+
+  const downloadInstrumental = (url: string, title: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${title}_instrumental.mp3`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const refreshContests = () => {
@@ -299,12 +322,15 @@ export const useContest = () => {
 
   return {
     contests,
+    activeContests: contests.filter(c => c.status === 'active'),
     contestEntries,
     userEntries,
     currentContest,
     loading,
     error,
     userVotes,
+    unlockedContests,
+    submitting,
     createContest,
     updateContest,
     deleteContest,
@@ -312,6 +338,7 @@ export const useContest = () => {
     voteForEntry,
     hasUserEntry,
     unlockContest,
+    downloadInstrumental,
     refreshContests,
     setCurrentContest,
     fetchContestEntries,
