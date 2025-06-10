@@ -98,7 +98,7 @@ export const useContest = () => {
         
         return {
           ...entry,
-          profiles: isValidProfile ? profiles : null
+          profiles: isValidProfile ? (profiles as { id: string; full_name?: string; username?: string }) : null
         };
       });
       
