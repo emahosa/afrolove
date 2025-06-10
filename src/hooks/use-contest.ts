@@ -92,8 +92,8 @@ export const useContest = () => {
       const transformedEntries = (data || []).map(entry => {
         const profiles = entry.profiles;
         
-        // Check if profiles exists and has required structure
-        if (profiles && typeof profiles === 'object' && 'id' in profiles) {
+        // Check if profiles exists, is not null, is an object, and has an id property
+        if (profiles !== null && typeof profiles === 'object' && profiles && 'id' in profiles) {
           return {
             ...entry,
             profiles: profiles as { id: string; full_name?: string; username?: string }
