@@ -107,7 +107,8 @@ export const ContestManagement = () => {
     rules: '',
     start_date: null as Date | null,
     end_date: null as Date | null,
-    instrumental_url: ''
+    instrumental_url: '',
+    credit_cost: 1
   });
 
   // Reset form
@@ -119,7 +120,8 @@ export const ContestManagement = () => {
       rules: '',
       start_date: null,
       end_date: null,
-      instrumental_url: ''
+      instrumental_url: '',
+      credit_cost: 1
     });
     setInstrumentalFile(null);
   };
@@ -311,7 +313,8 @@ export const ContestManagement = () => {
       rules: contest.rules || '',
       start_date: new Date(contest.start_date),
       end_date: new Date(contest.end_date),
-      instrumental_url: contest.instrumental_url || ''
+      instrumental_url: contest.instrumental_url || '',
+      credit_cost: contest.credit_cost || 1
     });
     setIsEditDialogOpen(true);
   };
@@ -356,7 +359,8 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: instrumentalUrl
+        instrumental_url: instrumentalUrl,
+        credit_cost: contestForm.credit_cost
       };
 
       const success = await createContest(contestData);
@@ -411,7 +415,8 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: instrumentalUrl
+        instrumental_url: instrumentalUrl,
+        credit_cost: contestForm.credit_cost
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -580,6 +585,7 @@ export const ContestManagement = () => {
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Prize</TableHead>
+                  <TableHead>Credit Cost</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -595,6 +601,11 @@ export const ContestManagement = () => {
                     <TableCell>{new Date(contest.start_date).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(contest.end_date).toLocaleDateString()}</TableCell>
                     <TableCell>{contest.prize}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {contest.credit_cost || 1} credits
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button 
@@ -835,6 +846,20 @@ export const ContestManagement = () => {
                 placeholder="Contest rules and requirements..."
               />
             </div>
+
+            <div>
+              <Label>Credit Cost to Enter *</Label>
+              <Input 
+                type="number"
+                min="1"
+                value={contestForm.credit_cost}
+                onChange={(e) => setContestForm({...contestForm, credit_cost: parseInt(e.target.value) || 1})}
+                placeholder="Number of credits required to enter contest"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Users will need this many credits to unlock and participate in the contest
+              </p>
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -996,6 +1021,20 @@ export const ContestManagement = () => {
                 onChange={(e) => setContestForm({...contestForm, rules: e.target.value})}
                 placeholder="Contest rules and requirements..."
               />
+            </div>
+
+            <div>
+              <Label>Credit Cost to Enter *</Label>
+              <Input 
+                type="number"
+                min="1"
+                value={contestForm.credit_cost}
+                onChange={(e) => setContestForm({...contestForm, credit_cost: parseInt(e.target.value) || 1})}
+                placeholder="Number of credits required to enter contest"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Users will need this many credits to unlock and participate in the contest
+              </p>
             </div>
             
             <div className="grid grid-cols-2 gap-4">

@@ -19,6 +19,7 @@ export interface Contest {
   status: string;
   instrumental_url: string;
   terms_conditions: string;
+  credit_cost: number;
   created_at: string;
 }
 
@@ -47,6 +48,7 @@ export const useContest = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unlockedContests, setUnlockedContests] = useState<Set<string>>(new Set());
 
   // Fetch active contests - ONLY contests table
   const fetchContests = async () => {
@@ -422,6 +424,44 @@ export const useContest = () => {
     }
   };
 
+  // Unlock contest with credits
+  const unlockContest = async (contestId: string, creditCost: number) => {
+    if (!user) {
+      toast.error('Please log in to unlock contests');
+      return false;
+    }
+
+    try {
+      console.log('🔄 use-contest: unlockContest() - Checking credits for contest unlock');
+      
+      // Check if user has enough credits
+      const currentCredits = await checkUserCredits(user.id);
+      if (currentCredits < creditCost) {
+        toast.error(`You need ${creditCost} credits to unlock this contest. You have ${currentCredits} credits.`);
+        return false;
+      }
+
+      // Deduct credits
+      await updateUserCredits(user.id, -creditCost);
+      
+      // Add to unlocked contests
+      setUnlockedContests(prev => new Set([...prev, contestId]));
+      
+      toast.success(`Contest unlocked! ${creditCost} credits used.`);
+      return true;
+    } catch (error) {
+      console.error('Error unlocking contest:', error);
+      toast.error('Failed to unlock contest');
+      return false;
+    }
+  };
+
+  // Check if user has entry in contest
+  const hasUserEntry = (contestId: string): boolean => {
+    if (!user) return false;
+    return contestEntries.some(entry => entry.contest_id === contestId && entry.user_id === user.id);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       console.log('🚀 use-contest: Loading contest data - WILL ONLY USE: contests, contest_entries, profiles, votes');
@@ -448,12 +488,15 @@ export const useContest = () => {
     loading,
     submitting,
     error,
+    unlockedContests,
     createContest,
     updateContest,
     deleteContest,
     submitEntry,
     voteForEntry,
     downloadInstrumental,
+    unlockContest,
+    hasUserEntry,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
     setCurrentContest
