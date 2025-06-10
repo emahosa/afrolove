@@ -91,7 +91,7 @@ export const useContest = () => {
       // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => ({
         ...entry,
-        profiles: entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles 
+        profiles: entry.profiles && typeof entry.profiles === 'object' && entry.profiles !== null && 'id' in entry.profiles 
           ? entry.profiles 
           : null
       }));
