@@ -108,7 +108,8 @@ export const ContestManagement = () => {
     start_date: null as Date | null,
     end_date: null as Date | null,
     instrumental_url: '',
-    credit_cost: 1
+    credit_cost: 1,
+    terms_conditions: ''
   });
 
   // Reset form
@@ -121,7 +122,8 @@ export const ContestManagement = () => {
       start_date: null,
       end_date: null,
       instrumental_url: '',
-      credit_cost: 1
+      credit_cost: 1,
+      terms_conditions: ''
     });
     setInstrumentalFile(null);
   };
@@ -314,7 +316,8 @@ export const ContestManagement = () => {
       start_date: new Date(contest.start_date),
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
-      credit_cost: contest.credit_cost || 1
+      credit_cost: contest.credit_cost || 1,
+      terms_conditions: contest.terms_conditions || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -356,11 +359,12 @@ export const ContestManagement = () => {
         title: contestForm.title,
         description: contestForm.description,
         prize: contestForm.prize,
-        rules: contestForm.rules,
+        rules: contestForm.rules || '',
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
-        credit_cost: contestForm.credit_cost
+        credit_cost: contestForm.credit_cost,
+        terms_conditions: contestForm.terms_conditions || 'Standard contest terms apply.'
       };
 
       const success = await createContest(contestData);
@@ -412,11 +416,12 @@ export const ContestManagement = () => {
         title: contestForm.title,
         description: contestForm.description,
         prize: contestForm.prize,
-        rules: contestForm.rules,
+        rules: contestForm.rules || '',
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
-        credit_cost: contestForm.credit_cost
+        credit_cost: contestForm.credit_cost,
+        terms_conditions: contestForm.terms_conditions || 'Standard contest terms apply.'
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -860,6 +865,15 @@ export const ContestManagement = () => {
                 Users will need this many credits to unlock and participate in the contest
               </p>
             </div>
+
+            <div>
+              <Label>Terms & Conditions</Label>
+              <Textarea 
+                value={contestForm.terms_conditions}
+                onChange={(e) => setContestForm({...contestForm, terms_conditions: e.target.value})}
+                placeholder="Contest terms and conditions..."
+              />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1035,6 +1049,15 @@ export const ContestManagement = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 Users will need this many credits to unlock and participate in the contest
               </p>
+            </div>
+
+            <div>
+              <Label>Terms & Conditions</Label>
+              <Textarea 
+                value={contestForm.terms_conditions}
+                onChange={(e) => setContestForm({...contestForm, terms_conditions: e.target.value})}
+                placeholder="Contest terms and conditions..."
+              />
             </div>
             
             <div className="grid grid-cols-2 gap-4">

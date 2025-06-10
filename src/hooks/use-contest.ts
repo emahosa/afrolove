@@ -13,7 +13,7 @@ export interface Contest {
   end_date: string;
   status: string;
   instrumental_url?: string;
-  rules?: string;
+  rules: string;
   created_at: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
@@ -88,7 +88,16 @@ export const useContest = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setContestEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedEntries = (data || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles 
+          ? entry.profiles 
+          : null
+      }));
+      
+      setContestEntries(transformedEntries);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
@@ -120,7 +129,9 @@ export const useContest = () => {
         .from('contests')
         .insert([{
           ...contestData,
-          status: 'active'
+          status: 'active',
+          rules: contestData.rules || '',
+          terms_conditions: contestData.terms_conditions || 'Standard contest terms apply.'
         }])
         .select()
         .single();
@@ -139,9 +150,20 @@ export const useContest = () => {
 
   const updateContest = async (contestId: string, contestData: Partial<Contest>) => {
     try {
+      // Ensure we have the required fields for update
+      const updateData: any = { ...contestData };
+      
+      // Convert status to proper enum type if provided
+      if (updateData.status && typeof updateData.status === 'string') {
+        const validStatuses = ['draft', 'active', 'voting', 'completed'];
+        if (!validStatuses.includes(updateData.status)) {
+          updateData.status = 'active'; // Default fallback
+        }
+      }
+
       const { error } = await supabase
         .from('contests')
-        .update(contestData)
+        .update(updateData)
         .eq('id', contestId);
 
       if (error) throw error;

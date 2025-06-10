@@ -18,13 +18,14 @@ export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = f
   const [isVoting, setIsVoting] = useState(false);
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
 
-  const handleVote = async (voterPhone?: string) => {
+  const handleVote = async (phone: string) => {
     setIsVoting(true);
     try {
-      const success = await onVote(entry.id, voterPhone);
+      const success = await onVote(entry.id, phone);
       if (success) {
         setShowPhoneDialog(false);
       }
+      return success;
     } finally {
       setIsVoting(false);
     }
