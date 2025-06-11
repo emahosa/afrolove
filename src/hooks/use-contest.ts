@@ -90,16 +90,18 @@ export const useContest = () => {
       
       // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => {
-        const profilesData = entry.profiles;
-        
-        // Check if profiles exists and is a valid object with an id
-        if (profilesData && typeof profilesData === 'object' && 'id' in profilesData) {
+        // Type guard function to check if profiles is valid
+        const isValidProfile = (profiles: any): profiles is { id: string; full_name?: string; username?: string } => {
+          return profiles && typeof profiles === 'object' && 'id' in profiles;
+        };
+
+        if (isValidProfile(entry.profiles)) {
           return {
             ...entry,
             profiles: {
-              id: profilesData.id,
-              full_name: profilesData.full_name || undefined,
-              username: profilesData.username || undefined
+              id: entry.profiles.id,
+              full_name: entry.profiles.full_name || undefined,
+              username: entry.profiles.username || undefined
             }
           };
         }
