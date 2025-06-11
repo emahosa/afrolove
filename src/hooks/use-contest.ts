@@ -30,7 +30,7 @@ export interface ContestEntry {
   vote_count: number;
   media_type: string;
   created_at: string;
-  profiles?: {
+  profiles: {
     id: string;
     full_name?: string;
     username?: string;
@@ -89,13 +89,9 @@ export const useContest = () => {
       if (error) throw error;
       
       // Transform the data to match our interface with proper null handling
-      const transformedEntries = (data || []).map(entry => {
-        // Type guard function to check if profiles is valid
-        const isValidProfile = (profiles: any): profiles is { id: string; full_name?: string; username?: string } => {
-          return profiles && typeof profiles === 'object' && 'id' in profiles;
-        };
-
-        if (isValidProfile(entry.profiles)) {
+      const transformedEntries: ContestEntry[] = (data || []).map(entry => {
+        // Handle the profiles data properly
+        if (entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles) {
           return {
             ...entry,
             profiles: {
@@ -103,13 +99,13 @@ export const useContest = () => {
               full_name: entry.profiles.full_name || undefined,
               username: entry.profiles.username || undefined
             }
-          };
+          } as ContestEntry;
         }
         
         return {
           ...entry,
           profiles: null
-        };
+        } as ContestEntry;
       });
       
       setContestEntries(transformedEntries);
