@@ -88,25 +88,16 @@ export const useContest = () => {
 
       if (error) throw error;
       
-      // Transform the data to match our interface with proper null handling
+      // Transform the data with proper null handling using optional chaining and explicit typing
       const transformedEntries: ContestEntry[] = (data || []).map(entry => {
-        // Handle the profiles data properly with explicit null check
-        if (entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles) {
-          const validProfile = entry.profiles as { id: string; full_name?: string; username?: string };
-          return {
-            ...entry,
-            profiles: {
-              id: validProfile.id,
-              full_name: validProfile.full_name || undefined,
-              username: validProfile.username || undefined
-            }
-          } as ContestEntry;
-        }
-        
         return {
           ...entry,
-          profiles: null
-        } as ContestEntry;
+          profiles: entry.profiles ? {
+            id: entry.profiles.id || '',
+            full_name: entry.profiles.full_name || undefined,
+            username: entry.profiles.username || undefined
+          } : null
+        };
       });
       
       setContestEntries(transformedEntries);
