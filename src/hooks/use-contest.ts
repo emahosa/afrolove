@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -90,13 +91,15 @@ export const useContest = () => {
       
       // Transform the data to match our interface with proper null handling
       const transformedEntries = (data || []).map(entry => {
-        const profiles = entry.profiles;
-        
-        // Properly handle the profiles data with explicit null checks
-        if (profiles !== null && typeof profiles === 'object' && profiles.hasOwnProperty('id')) {
+        // Check if profiles exists and is a valid object with an id
+        if (entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles) {
           return {
             ...entry,
-            profiles: profiles as { id: string; full_name?: string; username?: string }
+            profiles: {
+              id: entry.profiles.id,
+              full_name: entry.profiles.full_name || undefined,
+              username: entry.profiles.username || undefined
+            }
           };
         }
         
