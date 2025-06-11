@@ -90,17 +90,15 @@ export const useContest = () => {
       
       // Transform the data to match our interface with proper null handling
       const transformedEntries: ContestEntry[] = (data || []).map(entry => {
-        // Store profiles in a variable to help TypeScript understand the type
-        const profiles = entry.profiles;
-        
-        // Handle the profiles data properly with explicit null check
-        if (profiles && typeof profiles === 'object' && 'id' in profiles) {
+        // Handle the profiles data properly with explicit null check and type assertion
+        if (entry.profiles && typeof entry.profiles === 'object' && 'id' in entry.profiles) {
+          const validProfile = entry.profiles as { id: string; full_name?: string; username?: string };
           return {
             ...entry,
             profiles: {
-              id: profiles.id,
-              full_name: profiles.full_name || undefined,
-              username: profiles.username || undefined
+              id: validProfile.id,
+              full_name: validProfile.full_name || undefined,
+              username: validProfile.username || undefined
             }
           } as ContestEntry;
         }
