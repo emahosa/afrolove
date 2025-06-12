@@ -51,7 +51,7 @@ export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = f
               <CardTitle className="text-lg line-clamp-2">{entry.description || "Contest Entry"}</CardTitle>
               <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                 <User className="h-4 w-4" />
-                <span>{entry.profiles?.full_name || entry.profiles?.username || "Anonymous"}</span>
+                <span>Anonymous</span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
@@ -115,7 +115,7 @@ export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = f
         onOpenChange={setShowPhoneDialog}
         onSubmit={handleVote}
         entryTitle={entry.description || "Contest Entry"}
-        artistName={entry.profiles?.full_name || entry.profiles?.username || "Anonymous"}
+        artistName="Anonymous"
       />
     </>
   );

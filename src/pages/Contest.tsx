@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Calendar, Clock, Eye, Upload, Download, Coins } from "lucide-react";
+import { Trophy, Calendar, Clock, Eye, Upload, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useContest } from "@/hooks/use-contest";
 import { useAuth } from "@/contexts/AuthContext";
-import { checkUserCredits } from "@/utils/credits";
 
 const Contest = () => {
   const navigate = useNavigate();
@@ -23,25 +22,14 @@ const Contest = () => {
     loading,
     submitting,
     submitEntry,
-    unlockContest,
-    unlockedContests,
     downloadInstrumental
   } = useContest();
 
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [selectedContest, setSelectedContest] = useState<any>(null);
   const [entryTitle, setEntryTitle] = useState("");
   const [entryDescription, setEntryDescription] = useState("");
   const [entryFile, setEntryFile] = useState<File | null>(null);
-  const [userCredits, setUserCredits] = useState(0);
-
-  // Load user credits when component mounts
-  useState(() => {
-    if (user) {
-      checkUserCredits(user.id).then(setUserCredits);
-    }
-  });
 
   const handleViewEntries = (contest: any) => {
     navigate(`/contest/${contest.id}/entries`);
@@ -53,27 +41,9 @@ const Contest = () => {
       return;
     }
 
-    if (unlockedContests.has(contest.id)) {
-      // Contest already unlocked, show submit modal
-      setSelectedContest(contest);
-      setShowSubmitModal(true);
-    } else {
-      // Show unlock modal
-      setSelectedContest(contest);
-      const currentCredits = await checkUserCredits(user.id);
-      setUserCredits(currentCredits);
-      setShowUnlockModal(true);
-    }
-  };
-
-  const handleUnlockContest = async () => {
-    if (selectedContest) {
-      const success = await unlockContest(selectedContest.id, selectedContest.credit_cost);
-      if (success) {
-        setShowUnlockModal(false);
-        setShowSubmitModal(true);
-      }
-    }
+    // Show submit modal directly
+    setSelectedContest(contest);
+    setShowSubmitModal(true);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,10 +152,6 @@ const Contest = () => {
                       <Badge variant="secondary" className="bg-melody-secondary text-white">
                         Active Contest
                       </Badge>
-                      <Badge variant="outline" className="bg-black/20 text-white border-white/30">
-                        <Coins className="h-3 w-3 mr-1" />
-                        {contest.credit_cost} Credits to Enter
-                      </Badge>
                     </div>
                     <CardTitle className="text-2xl text-white">{contest.title}</CardTitle>
                     <CardDescription className="text-white/70 mt-1">{contest.description}</CardDescription>
@@ -273,64 +239,6 @@ const Contest = () => {
           );
         })}
       </div>
-
-      {/* Unlock Contest Modal */}
-      <Dialog open={showUnlockModal} onOpenChange={setShowUnlockModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Unlock Contest</DialogTitle>
-            <DialogDescription>
-              You need to unlock this contest to participate.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold">{selectedContest?.title}</h3>
-              <p className="text-muted-foreground">{selectedContest?.description}</p>
-            </div>
-            
-            <div className="bg-muted p-4 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span>Credits Required:</span>
-                <span className="font-bold text-melody-secondary">{selectedContest?.credit_cost}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Your Credits:</span>
-                <span className="font-bold">{userCredits}</span>
-              </div>
-              <div className="border-t mt-2 pt-2">
-                <div className="flex justify-between items-center">
-                  <span>After Unlock:</span>
-                  <span className={`font-bold ${userCredits >= (selectedContest?.credit_cost || 0) ? 'text-green-600' : 'text-red-600'}`}>
-                    {userCredits - (selectedContest?.credit_cost || 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {userCredits < (selectedContest?.credit_cost || 0) && (
-              <div className="text-center text-red-600">
-                <p>You don't have enough credits to unlock this contest.</p>
-                <p>Please purchase more credits to continue.</p>
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUnlockModal(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUnlockContest}
-              disabled={userCredits < (selectedContest?.credit_cost || 0)}
-              className="bg-melody-secondary hover:bg-melody-secondary/90"
-            >
-              Unlock Contest
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Submit Entry Modal */}
       <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
