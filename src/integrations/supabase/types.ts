@@ -221,7 +221,6 @@ export type Database = {
           auto_close: boolean | null
           created_at: string
           created_by: string | null
-          credit_cost: number
           description: string
           end_date: string
           id: string
@@ -243,7 +242,6 @@ export type Database = {
           auto_close?: boolean | null
           created_at?: string
           created_by?: string | null
-          credit_cost?: number
           description: string
           end_date: string
           id?: string
@@ -265,7 +263,6 @@ export type Database = {
           auto_close?: boolean | null
           created_at?: string
           created_by?: string | null
-          credit_cost?: number
           description?: string
           end_date?: string
           id?: string

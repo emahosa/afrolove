@@ -73,7 +73,6 @@ interface Contest {
   created_at: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
-  credit_cost: number;
   terms_conditions: string;
 }
 
@@ -101,7 +100,6 @@ export const ContestManagement = () => {
   const [instrumentalFile, setInstrumentalFile] = useState<File | null>(null);
   const [uploadingInstrumental, setUploadingInstrumental] = useState(false);
 
-  // Form states for creating/editing contest
   const [contestForm, setContestForm] = useState({
     title: '',
     description: '',
@@ -110,11 +108,9 @@ export const ContestManagement = () => {
     start_date: null as Date | null,
     end_date: null as Date | null,
     instrumental_url: '',
-    credit_cost: 1,
     terms_conditions: ''
   });
 
-  // Reset form
   const resetForm = () => {
     setContestForm({
       title: '',
@@ -124,18 +120,15 @@ export const ContestManagement = () => {
       start_date: null,
       end_date: null,
       instrumental_url: '',
-      credit_cost: 1,
       terms_conditions: ''
     });
     setInstrumentalFile(null);
   };
 
-  // Upload instrumental file to Supabase Storage
   const uploadInstrumental = async (file: File): Promise<string | null> => {
     try {
       setUploadingInstrumental(true);
       
-      // Generate unique filename
       const timestamp = Date.now();
       const filename = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
@@ -151,7 +144,6 @@ export const ContestManagement = () => {
         throw error;
       }
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('instrumentals')
         .getPublicUrl(filename);
@@ -166,17 +158,14 @@ export const ContestManagement = () => {
     }
   };
 
-  // Handle file selection
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('audio/')) {
         toast.error('Please select an audio file');
         return;
       }
       
-      // Validate file size (max 50MB)
       if (file.size > 50 * 1024 * 1024) {
         toast.error('File size must be less than 50MB');
         return;
@@ -187,19 +176,16 @@ export const ContestManagement = () => {
     }
   };
 
-  // Helper function to format datetime for display
   const formatDateTimeForDisplay = (date: Date | null) => {
     if (!date) return '';
     return format(date, 'PPP p');
   };
 
-  // Helper function to convert Date to ISO string
   const formatDateForSubmission = (date: Date | null) => {
     if (!date) return null;
     return date.toISOString();
   };
 
-  // Fetch entries with EXPLICIT separation of contest_entries and profiles
   const fetchEntries = async (contestId: string) => {
     console.log('🚀 DEBUG: Starting fetchEntries() for contest:', contestId);
     
@@ -211,26 +197,15 @@ export const ContestManagement = () => {
     
     try {
       setEntriesLoading(true);
-      console.log('🔍 DEBUG: Step 1 - Fetching contest_entries ONLY (NO USERS)');
+      console.log('🔍 DEBUG: Fetching contest_entries only');
       
-      // STEP 1: Get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select(`
-          id,
-          contest_id,
-          user_id,
-          video_url,
-          description,
-          approved,
-          vote_count,
-          media_type,
-          created_at
-        `)
+        .select('*')
         .eq('contest_id', contestId)
         .order('created_at', { ascending: false });
 
-      console.log('✅ DEBUG: Step 1 completed - contest_entries query result:', entriesData);
+      console.log('✅ DEBUG: contest_entries query result:', entriesData);
 
       if (entriesError) {
         console.error('❌ DEBUG: Error in contest_entries query:', entriesError);
@@ -243,51 +218,12 @@ export const ContestManagement = () => {
         return;
       }
       
-      // STEP 2: Get unique user IDs
-      const userIds = [...new Set(entriesData.map(entry => entry.user_id))];
-      console.log('🔍 DEBUG: Step 2 - Need profiles for user IDs:', userIds);
-      
-      if (userIds.length === 0) {
-        console.log('⚠️ DEBUG: No user IDs found in entries');
-        setEntries(entriesData.map(entry => ({ ...entry, user_name: 'Unknown User' })));
-        return;
-      }
-      
-      console.log('🔍 DEBUG: Step 3 - Fetching profiles ONLY');
-      
-      // STEP 3: Get profiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          full_name,
-          username
-        `)
-        .in('id', userIds);
-
-      console.log('✅ DEBUG: Step 3 completed - profiles query result:', profilesData);
-
-      if (profilesError) {
-        console.warn('⚠️ DEBUG: Error fetching profiles (will continue with unknown users):', profilesError);
-      }
-
-      // STEP 4: Create lookup map
-      const profilesMap = new Map();
-      if (profilesData) {
-        profilesData.forEach(profile => {
-          profilesMap.set(profile.id, profile.full_name || profile.username || 'Anonymous User');
-        });
-      }
-      
-      console.log('🔍 DEBUG: Step 4 - Created profiles map:', Array.from(profilesMap.entries()));
-
-      // STEP 5: Combine data in memory
       const entriesWithUserInfo = entriesData.map(entry => ({
         ...entry,
-        user_name: profilesMap.get(entry.user_id) || 'Anonymous User'
+        user_name: 'Anonymous User'
       }));
       
-      console.log('✅ DEBUG: Step 5 completed - Final entries with user names:', entriesWithUserInfo);
+      console.log('✅ DEBUG: Final entries with user names:', entriesWithUserInfo);
       setEntries(entriesWithUserInfo);
       
     } catch (error: any) {
@@ -300,14 +236,12 @@ export const ContestManagement = () => {
     }
   };
 
-  // View contest details
   const handleViewContest = (contest: Contest) => {
     setSelectedContest(contest);
     setIsViewDialogOpen(true);
     fetchEntries(contest.id);
   };
 
-  // Edit contest
   const handleEditContest = (contest: Contest) => {
     setSelectedContest(contest);
     setContestForm({
@@ -318,13 +252,11 @@ export const ContestManagement = () => {
       start_date: new Date(contest.start_date),
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
-      credit_cost: contest.credit_cost || 1,
       terms_conditions: contest.terms_conditions || ''
     });
     setIsEditDialogOpen(true);
   };
 
-  // Handle contest creation
   const handleCreateContest = async () => {
     console.log('🔄 DEBUG: handleCreateContest - Using createContest from hook');
     
@@ -339,7 +271,6 @@ export const ContestManagement = () => {
     }
 
     try {
-      // Check if end date is after start date
       if (contestForm.end_date <= contestForm.start_date) {
         toast.error('End date must be after start date');
         return;
@@ -347,7 +278,6 @@ export const ContestManagement = () => {
 
       let instrumentalUrl = contestForm.instrumental_url;
 
-      // Upload instrumental file if provided
       if (instrumentalFile) {
         const uploadedUrl = await uploadInstrumental(instrumentalFile);
         if (!uploadedUrl) {
@@ -365,7 +295,6 @@ export const ContestManagement = () => {
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
-        credit_cost: contestForm.credit_cost,
         terms_conditions: contestForm.terms_conditions || 'Standard contest terms apply.'
       };
 
@@ -379,7 +308,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Handle contest update
   const handleUpdateContest = async () => {
     if (!selectedContest) return;
     
@@ -396,7 +324,6 @@ export const ContestManagement = () => {
     }
 
     try {
-      // Check if end date is after start date
       if (contestForm.end_date <= contestForm.start_date) {
         toast.error('End date must be after start date');
         return;
@@ -404,7 +331,6 @@ export const ContestManagement = () => {
 
       let instrumentalUrl = contestForm.instrumental_url;
 
-      // Upload new instrumental file if provided
       if (instrumentalFile) {
         const uploadedUrl = await uploadInstrumental(instrumentalFile);
         if (!uploadedUrl) {
@@ -422,7 +348,6 @@ export const ContestManagement = () => {
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
-        credit_cost: contestForm.credit_cost,
         terms_conditions: contestForm.terms_conditions || 'Standard contest terms apply.'
       };
 
@@ -437,7 +362,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Handle contest deletion
   const handleDeleteContest = async () => {
     if (!selectedContest) return;
     
@@ -450,7 +374,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Approve entry - ONLY contest_entries table
   const handleApproveEntry = async (entryId: string) => {
     console.log('🔄 DEBUG: handleApproveEntry - ONLY contest_entries table');
     try {
@@ -473,7 +396,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Reject entry - ONLY contest_entries table
   const handleRevokeEntry = async (entryId: string) => {
     console.log('🔄 DEBUG: handleRevokeEntry - ONLY contest_entries table');
     try {
@@ -496,7 +418,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // End contest - ONLY contests table
   const confirmEndContest = async () => {
     console.log('🔄 DEBUG: confirmEndContest - ONLY contests table');
     if (!selectedContest) return;
@@ -518,7 +439,6 @@ export const ContestManagement = () => {
     }
   };
 
-  // Choose winner - NO DATABASE CALLS, JUST UI
   const confirmChooseWinner = () => {
     console.log('🔄 DEBUG: confirmChooseWinner - NO DATABASE CALLS');
     if (selectedEntry) {
@@ -576,7 +496,6 @@ export const ContestManagement = () => {
         </div>
       </div>
 
-      {/* Contests List */}
       {contests.length > 0 ? (
         <Card>
           <CardHeader>
@@ -592,7 +511,6 @@ export const ContestManagement = () => {
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Prize</TableHead>
-                  <TableHead>Credit Cost</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -608,11 +526,6 @@ export const ContestManagement = () => {
                     <TableCell>{new Date(contest.start_date).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(contest.end_date).toLocaleDateString()}</TableCell>
                     <TableCell>{contest.prize}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {contest.credit_cost || 1} credits
-                      </Badge>
-                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button 
@@ -674,7 +587,6 @@ export const ContestManagement = () => {
         </Card>
       )}
       
-      {/* View Contest Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -808,7 +720,6 @@ export const ContestManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Create Contest Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -852,20 +763,6 @@ export const ContestManagement = () => {
                 onChange={(e) => setContestForm({...contestForm, rules: e.target.value})}
                 placeholder="Contest rules and requirements..."
               />
-            </div>
-
-            <div>
-              <Label>Credit Cost to Enter *</Label>
-              <Input 
-                type="number"
-                min="1"
-                value={contestForm.credit_cost}
-                onChange={(e) => setContestForm({...contestForm, credit_cost: parseInt(e.target.value) || 1})}
-                placeholder="Number of credits required to enter contest"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Users will need this many credits to unlock and participate in the contest
-              </p>
             </div>
 
             <div>
@@ -993,7 +890,6 @@ export const ContestManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Contest Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1037,20 +933,6 @@ export const ContestManagement = () => {
                 onChange={(e) => setContestForm({...contestForm, rules: e.target.value})}
                 placeholder="Contest rules and requirements..."
               />
-            </div>
-
-            <div>
-              <Label>Credit Cost to Enter *</Label>
-              <Input 
-                type="number"
-                min="1"
-                value={contestForm.credit_cost}
-                onChange={(e) => setContestForm({...contestForm, credit_cost: parseInt(e.target.value) || 1})}
-                placeholder="Number of credits required to enter contest"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Users will need this many credits to unlock and participate in the contest
-              </p>
             </div>
 
             <div>
@@ -1183,7 +1065,6 @@ export const ContestManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Contest Alert Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1202,7 +1083,6 @@ export const ContestManagement = () => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* End Contest Alert Dialog */}
       <AlertDialog open={isEndContestOpen} onOpenChange={setIsEndContestOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1221,7 +1101,6 @@ export const ContestManagement = () => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Choose Winner Alert Dialog */}
       <AlertDialog open={isChooseWinnerOpen} onOpenChange={setIsChooseWinnerOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

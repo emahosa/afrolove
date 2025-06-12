@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,7 +17,6 @@ export interface Contest {
   created_at: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
-  credit_cost: number;
   terms_conditions: string;
 }
 
@@ -30,11 +30,6 @@ export interface ContestEntry {
   vote_count: number;
   media_type: string;
   created_at: string;
-  profiles: {
-    id: string;
-    full_name?: string;
-    username?: string;
-  } | null;
 }
 
 export const useContest = () => {
@@ -45,7 +40,6 @@ export const useContest = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
-  const [unlockedContests, setUnlockedContests] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
   const { user } = useAuth();
@@ -74,33 +68,14 @@ export const useContest = () => {
     try {
       const { data, error } = await supabase
         .from('contest_entries')
-        .select(`
-          *,
-          profiles (
-            id,
-            full_name,
-            username
-          )
-        `)
+        .select('*')
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Transform the data with proper null handling using optional chaining and explicit typing
-      const transformedEntries: ContestEntry[] = (data || []).map(entry => {
-        return {
-          ...entry,
-          profiles: entry.profiles ? {
-            id: entry.profiles.id || '',
-            full_name: entry.profiles.full_name || undefined,
-            username: entry.profiles.username || undefined
-          } : null
-        };
-      });
-      
-      setContestEntries(transformedEntries);
+      setContestEntries(data || []);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
@@ -138,7 +113,6 @@ export const useContest = () => {
           start_date: contestData.start_date,
           end_date: contestData.end_date,
           instrumental_url: contestData.instrumental_url || '',
-          credit_cost: contestData.credit_cost,
           terms_conditions: contestData.terms_conditions,
           status: 'active',
           voting_enabled: contestData.voting_enabled,
@@ -161,14 +135,12 @@ export const useContest = () => {
 
   const updateContest = async (contestId: string, contestData: Partial<Contest>) => {
     try {
-      // Ensure we have the required fields for update
       const updateData: any = { ...contestData };
       
-      // Convert status to proper enum type if provided
       if (updateData.status && typeof updateData.status === 'string') {
         const validStatuses = ['draft', 'active', 'voting', 'completed'];
         if (!validStatuses.includes(updateData.status)) {
-          updateData.status = 'active'; // Default fallback
+          updateData.status = 'active';
         }
       }
 
@@ -216,8 +188,6 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
-      // In a real app, you'd upload the file to storage first
-      // For now, we'll use a placeholder URL
       const videoUrl = URL.createObjectURL(file);
       
       const { error } = await supabase
@@ -251,7 +221,6 @@ export const useContest = () => {
       return false;
     }
 
-    // Check if user has already voted in this contest
     if (userVotes.has(entryId)) {
       toast.error('You have already voted for this entry');
       return false;
@@ -269,10 +238,7 @@ export const useContest = () => {
 
       if (error) throw error;
       
-      // Update local state
       setUserVotes(prev => new Set([...prev, entryId]));
-      
-      // Refresh entries to get updated vote counts
       await fetchContestEntries(currentContest.id);
       
       toast.success('Vote cast successfully!');
@@ -286,47 +252,6 @@ export const useContest = () => {
 
   const hasUserEntry = (contestId: string) => {
     return userEntries.some(entry => entry.contest_id === contestId);
-  };
-
-  const unlockContest = async (contestId: string, creditCost: number) => {
-    if (!user) {
-      toast.error('You must be logged in to unlock a contest');
-      return false;
-    }
-
-    try {
-      // Check if user has enough credits
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      if (!profile || profile.credits < creditCost) {
-        toast.error(`You need ${creditCost} credits to unlock this contest`);
-        return false;
-      }
-
-      // Deduct credits
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ credits: profile.credits - creditCost })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      // Add to unlocked contests
-      setUnlockedContests(prev => new Set([...prev, contestId]));
-
-      toast.success(`Contest unlocked! ${creditCost} credits deducted.`);
-      return true;
-    } catch (error: any) {
-      console.error('Error unlocking contest:', error);
-      toast.error('Failed to unlock contest: ' + error.message);
-      return false;
-    }
   };
 
   const downloadInstrumental = (url: string, title: string) => {
@@ -362,7 +287,6 @@ export const useContest = () => {
     loading,
     error,
     userVotes,
-    unlockedContests,
     submitting,
     createContest,
     updateContest,
@@ -370,7 +294,6 @@ export const useContest = () => {
     submitEntry,
     voteForEntry,
     hasUserEntry,
-    unlockContest,
     downloadInstrumental,
     refreshContests,
     setCurrentContest,
