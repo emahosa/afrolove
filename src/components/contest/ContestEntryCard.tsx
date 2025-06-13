@@ -1,121 +1,112 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Heart, User, Calendar } from "lucide-react";
-import { ContestEntry } from "@/hooks/use-contest";
-import { PhoneVoteDialog } from "./PhoneVoteDialog";
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Play, ThumbsUp, User } from 'lucide-react';
+import { ContestEntry } from '@/hooks/use-contest';
+import { useAuth } from '@/contexts/AuthContext';
+import { PhoneVoteDialog } from './PhoneVoteDialog';
 
 interface ContestEntryCardProps {
   entry: ContestEntry;
   onVote: (entryId: string, voterPhone?: string) => Promise<boolean>;
-  canVote?: boolean;
-  isOwnEntry?: boolean;
+  userHasVoted?: boolean;
 }
 
-export const ContestEntryCard = ({ entry, onVote, canVote = true, isOwnEntry = false }: ContestEntryCardProps) => {
-  const [isVoting, setIsVoting] = useState(false);
+export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCardProps) => {
+  const { user } = useAuth();
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
+  const [voting, setVoting] = useState(false);
 
-  const handleVote = async (phone: string) => {
-    setIsVoting(true);
-    try {
-      const success = await onVote(entry.id, phone);
-      if (success) {
-        setShowPhoneDialog(false);
-      }
-      return success;
-    } finally {
-      setIsVoting(false);
+  const handleVoteClick = async () => {
+    if (user) {
+      setVoting(true);
+      await onVote(entry.id);
+      setVoting(false);
+    } else {
+      setShowPhoneDialog(true);
     }
   };
 
-  const getVoteButtonText = () => {
-    if (isOwnEntry) return "Your Entry";
-    if (!canVote) return "Login to Vote";
-    return "Vote";
+  const handlePhoneVote = async (phone: string) => {
+    setVoting(true);
+    const success = await onVote(entry.id, phone);
+    setVoting(false);
+    return success;
   };
 
-  const getVoteButtonVariant = () => {
-    if (isOwnEntry) return "secondary";
-    return "default";
+  const handlePlayVideo = () => {
+    // In a real implementation, this would open a video player
+    console.log('Playing video:', entry.video_url);
   };
 
   return (
     <>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-lg line-clamp-2">{entry.description || "Contest Entry"}</CardTitle>
-              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>Anonymous</span>
+        <CardContent className="p-0">
+          <div className="relative aspect-video bg-gradient-to-br from-melody-primary/20 to-melody-secondary/20 flex items-center justify-center">
+            {/* Video thumbnail placeholder */}
+            <div className="text-center">
+              <div className="w-16 h-16 bg-melody-primary/30 rounded-full flex items-center justify-center mb-2">
+                {entry.media_type === 'video' ? (
+                  <Play className="h-8 w-8 text-melody-primary" />
+                ) : (
+                  <User className="h-8 w-8 text-melody-primary" />
+                )}
               </div>
-              <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>{new Date(entry.created_at).toLocaleDateString()}</span>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                {entry.media_type === 'video' ? 'Video Entry' : 'Audio Entry'}
+              </p>
             </div>
-            {isOwnEntry && (
-              <Badge variant="secondary" className="ml-2">
-                Your Entry
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="pb-3">
-          {entry.video_url && (
-            <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-              {entry.media_type === 'video' ? (
-                <video 
-                  src={entry.video_url} 
-                  controls 
-                  className="w-full h-full object-cover"
-                  preload="metadata"
-                />
-              ) : (
-                <audio 
-                  src={entry.video_url} 
-                  controls 
-                  className="w-full mt-8"
-                  preload="metadata"
-                />
-              )}
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="flex items-center justify-between pt-3">
-          <div className="flex items-center gap-2">
-            <Heart className="h-4 w-4 text-red-500" />
-            <span className="font-semibold">{entry.vote_count || 0}</span>
-            <span className="text-sm text-muted-foreground">
-              {entry.vote_count === 1 ? 'vote' : 'votes'}
-            </span>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={getVoteButtonVariant()}
-              onClick={() => setShowPhoneDialog(true)}
-              disabled={isVoting || isOwnEntry || !canVote}
+            
+            <Button 
+              variant="secondary" 
+              size="icon" 
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
+              onClick={handlePlayVideo}
             >
-              {isVoting ? "Voting..." : getVoteButtonText()}
+              <Play className="h-6 w-6" />
             </Button>
           </div>
-        </CardFooter>
+          
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold truncate">{entry.description || 'Untitled Entry'}</h3>
+              <Badge variant="secondary">
+                {entry.vote_count} votes
+              </Badge>
+            </div>
+            
+            <div className="text-sm text-muted-foreground mb-3">
+              by {entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <ThumbsUp className="h-4 w-4 mr-1" />
+                <span>{entry.vote_count}</span>
+              </div>
+              
+              <Button 
+                variant={userHasVoted ? "outline" : "default"}
+                size="sm"
+                className={userHasVoted ? "opacity-50 cursor-not-allowed" : ""}
+                onClick={handleVoteClick}
+                disabled={userHasVoted || voting}
+              >
+                {voting ? 'Voting...' : userHasVoted ? 'Voted' : 'Vote'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       <PhoneVoteDialog
         open={showPhoneDialog}
         onOpenChange={setShowPhoneDialog}
-        onSubmit={handleVote}
-        entryTitle={entry.description || "Contest Entry"}
-        artistName="Anonymous"
+        onVoteSubmit={handlePhoneVote}
+        entryTitle={entry.description || 'Entry'}
       />
     </>
   );

@@ -9,12 +9,11 @@ import { toast } from 'sonner';
 interface PhoneVoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (phone: string) => Promise<boolean>;
+  onVoteSubmit: (phone: string) => Promise<boolean>;
   entryTitle: string;
-  artistName: string;
 }
 
-export const PhoneVoteDialog = ({ open, onOpenChange, onSubmit, entryTitle, artistName }: PhoneVoteDialogProps) => {
+export const PhoneVoteDialog = ({ open, onOpenChange, onVoteSubmit, entryTitle }: PhoneVoteDialogProps) => {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -55,7 +54,7 @@ export const PhoneVoteDialog = ({ open, onOpenChange, onSubmit, entryTitle, arti
         return;
       }
 
-      const success = await onSubmit(phone);
+      const success = await onVoteSubmit(phone);
       if (success) {
         onOpenChange(false);
         setPhone('');
@@ -84,7 +83,7 @@ export const PhoneVoteDialog = ({ open, onOpenChange, onSubmit, entryTitle, arti
         <DialogHeader>
           <DialogTitle>Vote for "{entryTitle}"</DialogTitle>
           <DialogDescription>
-            By {artistName} - {step === 'phone' 
+            {step === 'phone' 
               ? 'Enter your phone number to receive a verification code'
               : 'Enter the verification code sent to your phone'
             }

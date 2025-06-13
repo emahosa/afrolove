@@ -10,9 +10,9 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
-  // Only redirect if we're certain the user is authenticated
+  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (!loading && user && user.id) {
+    if (!loading && user) {
       console.log("Index: User is authenticated, redirecting to dashboard");
       navigate("/dashboard", { replace: true });
     }
@@ -29,8 +29,8 @@ const Index = () => {
     );
   }
 
-  // Show landing page for non-authenticated users or if auth check failed
-  console.log("Index: Showing landing page", { user: user?.id, loading });
+  // Show landing page for non-authenticated users
+  console.log("Index: Showing landing page for non-authenticated user");
   return (
     <div className="min-h-screen bg-gradient-to-br from-melody-primary via-background to-melody-secondary/20">
       <div className="container mx-auto px-4 py-16">

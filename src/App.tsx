@@ -1,163 +1,86 @@
 
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+
+// Pages
 import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminRegister from "./pages/AdminRegister";
 import Dashboard from "./pages/Dashboard";
-import Admin from "./pages/Admin";
 import Create from "./pages/Create";
 import Library from "./pages/Library";
 import Contest from "./pages/Contest";
-import ContestEntries from "./pages/ContestEntries";
-import Credits from "./pages/Credits";
 import Profile from "./pages/Profile";
+import Credits from "./pages/Credits";
 import Support from "./pages/Support";
+import Admin from "./pages/Admin";
+import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
-import CustomSongManagement from "./pages/CustomSongManagement";
-import NotFound from "./pages/NotFound";
+
+// Layouts
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
+
+// Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              {/* Public routes with auth layout */}
-              <Route element={<AuthLayout />}>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/admin-register" element={<AdminRegister />} />
-              </Route>
-
-              {/* Protected routes with app layout */}
-              <Route element={<AppLayout />}>
-                <Route 
-                  path="/dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <Admin />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/create" 
-                  element={
-                    <ProtectedRoute>
-                      <Create />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/library" 
-                  element={
-                    <ProtectedRoute>
-                      <Library />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/contest" 
-                  element={
-                    <ProtectedRoute>
-                      <Contest />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/contest/:contestId/entries" 
-                  element={
-                    <ProtectedRoute>
-                      <ContestEntries />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/credits" 
-                  element={
-                    <ProtectedRoute>
-                      <Credits />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/support" 
-                  element={
-                    <ProtectedRoute>
-                      <Support />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/user-custom-songs" 
-                  element={
-                    <ProtectedRoute>
-                      <UserCustomSongs />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/user-custom-songs-management" 
-                  element={
-                    <ProtectedRoute>
-                      <UserCustomSongsManagement />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/custom-song-management" 
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <CustomSongManagement />
-                    </ProtectedRoute>
-                  } 
-                />
-              </Route>
-
-              {/* 404 route - catch all unmatched routes */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <AuthProvider>
+    <TooltipProvider>
+      <Toaster />
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Index />} />
+          
+          {/* Auth routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/register/admin" element={<AdminRegister />} />
+          </Route>
+          
+          {/* Protected routes */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/create" element={<Create />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/contest" element={<Contest />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/credits" element={<Credits />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/my-custom-songs" element={<UserCustomSongs />} />
+              <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
+              
+              {/* Admin routes */}
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/users" element={<Admin tab="users" />} />
+              <Route path="/admin/admins" element={<Admin tab="admins" />} />
+              <Route path="/admin/genres" element={<Admin tab="genres" />} />
+              <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+              <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+              <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+              <Route path="/admin/contest" element={<Admin tab="contest" />} />
+              <Route path="/admin/content" element={<Admin tab="content" />} />
+              <Route path="/admin/payments" element={<Admin tab="payments" />} />
+              <Route path="/admin/support" element={<Admin tab="support" />} />
+              <Route path="/admin/reports" element={<Admin tab="reports" />} />
+              <Route path="/admin/settings" element={<Admin tab="settings" />} />
+            </Route>
+          </Route>
+          
+          {/* Catch-all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </AuthProvider>
+);
 
 export default App;

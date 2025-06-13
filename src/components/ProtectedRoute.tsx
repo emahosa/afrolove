@@ -1,15 +1,10 @@
 
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-interface ProtectedRouteProps {
-  children?: ReactNode;
-  requiredRole?: string;
-}
-
-const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
+const ProtectedRoute = () => {
   const { user, loading, isAdmin, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
@@ -24,7 +19,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
   // Show loading state only during initial auth check
   if (loading && !isInitialized) {
-    console.log('ProtectedRoute: Loading auth state for path:', location.pathname);
+    console.log('ProtectedRoute: Loading auth state');
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
@@ -35,7 +30,7 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
 
   // Redirect if not authenticated
   if (!user || !session) {
-    console.log('ProtectedRoute: No user or session, redirecting to login from:', location.pathname);
+    console.log('ProtectedRoute: No user or session, redirecting to login');
     if (!hasShownToast) {
       toast.error("You need to log in to access this page");
       setHasShownToast(true);
@@ -44,11 +39,11 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   }
 
   // Handle admin routes
-  if (isAdminRoute || requiredRole === 'admin') {
+  if (isAdminRoute) {
     const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
     
     if (!isSuperAdmin && !isAdmin()) {
-      console.log('ProtectedRoute: User lacks admin privileges for path:', location.pathname);
+      console.log('ProtectedRoute: User lacks admin privileges');
       if (!hasShownToast) {
         toast.error("You don't have admin privileges to access this page");
         setHasShownToast(true);
@@ -57,8 +52,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
     }
   }
 
-  console.log('ProtectedRoute: Access granted for user:', user.id, 'path:', location.pathname);
-  return children ? <>{children}</> : <Outlet />;
+  console.log('ProtectedRoute: Access granted for user:', user.id);
+  return <Outlet />;
 };
 
 export default ProtectedRoute;
