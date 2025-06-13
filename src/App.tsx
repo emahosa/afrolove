@@ -150,7 +150,7 @@ function App() {
                 />
               </Route>
 
-              {/* 404 route */}
+              {/* 404 route - catch all unmatched routes */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
