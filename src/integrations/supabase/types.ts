@@ -174,48 +174,6 @@ export type Database = {
           },
         ]
       }
-      contest_votes: {
-        Row: {
-          contest_entry_id: string
-          contest_id: string
-          created_at: string
-          id: string
-          user_id: string
-          voter_phone: string | null
-        }
-        Insert: {
-          contest_entry_id: string
-          contest_id: string
-          created_at?: string
-          id?: string
-          user_id: string
-          voter_phone?: string | null
-        }
-        Update: {
-          contest_entry_id?: string
-          contest_id?: string
-          created_at?: string
-          id?: string
-          user_id?: string
-          voter_phone?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contest_votes_contest_entry_id_fkey"
-            columns: ["contest_entry_id"]
-            isOneToOne: false
-            referencedRelation: "contest_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contest_votes_contest_id_fkey"
-            columns: ["contest_id"]
-            isOneToOne: false
-            referencedRelation: "contests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       contests: {
         Row: {
           auto_close: boolean | null
@@ -688,39 +646,6 @@ export type Database = {
           subject?: string
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      system_settings: {
-        Row: {
-          category: string
-          created_at: string
-          description: string | null
-          id: string
-          key: string
-          updated_at: string
-          updated_by: string | null
-          value: Json
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          key: string
-          updated_at?: string
-          updated_by?: string | null
-          value: Json
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          key?: string
-          updated_at?: string
-          updated_by?: string | null
-          value?: Json
         }
         Relationships: []
       }
