@@ -1,46 +1,17 @@
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, Server, Database, Globe, Bell, Lock } from 'lucide-react';
+import { Shield, Server, Database, Globe, Bell, Lock, Loader2 } from 'lucide-react';
+import { useSystemSettings } from '@/hooks/use-system-settings';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const SettingsManagement = () => {
-  const [settings, setSettings] = useState({
-    general: {
-      siteName: "MelodyVerse",
-      supportEmail: "support@melodyverse.com",
-      maximumFileSize: 50,
-      autoDeleteDays: 30
-    },
-    api: {
-      rateLimit: 100,
-      cacheDuration: 15,
-      enableThrottling: true,
-      logApiCalls: true
-    },
-    security: {
-      passwordMinLength: 8,
-      passwordRequiresSymbol: true,
-      sessionTimeout: 60,
-      twoFactorEnabled: false
-    },
-    notifications: {
-      emailNotifications: true,
-      songCompletionNotices: true,
-      systemAnnouncements: true,
-      marketingEmails: false
-    },
-    adminProfile: {
-      adminType: "super_admin",
-      joinedDate: "January 15, 2025",
-      email: "admin@melodyverse.com"
-    }
-  });
+  const { user } = useAuth();
+  const { settings, setSettings, loading, saving, saveAllSettings } = useSystemSettings();
 
   const [recentActivity] = useState([
     { action: "Updated system settings", timestamp: "Today, 10:15 AM" },
@@ -49,6 +20,12 @@ export const SettingsManagement = () => {
     { action: "Modified pricing plan", timestamp: "Apr 23, 2025, 2:10 PM" },
     { action: "Approved 5 contest entries", timestamp: "Apr 20, 2025, 9:30 AM" },
   ]);
+
+  const adminProfile = {
+    adminType: user?.email === "ellaadahosa@gmail.com" ? "super_admin" : "ordinary_admin",
+    joinedDate: "January 15, 2025",
+    email: user?.email || "admin@afroverse.com"
+  };
 
   const handleInputChange = (section: string, field: string, value: any) => {
     setSettings({
@@ -70,15 +47,26 @@ export const SettingsManagement = () => {
     });
   };
 
-  const handleSaveSettings = () => {
-    toast.success("Settings saved successfully");
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading settings...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">System Settings</h2>
-        <Button onClick={handleSaveSettings}>Save All Settings</Button>
+        <Button 
+          onClick={saveAllSettings} 
+          disabled={saving}
+        >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save All Settings
+        </Button>
       </div>
 
       <Tabs defaultValue="general">
@@ -304,8 +292,8 @@ export const SettingsManagement = () => {
                   <label className="text-sm font-medium">Admin Type</label>
                   <select 
                     className="w-full border rounded-md p-2"
-                    value={settings.adminProfile.adminType}
-                    onChange={(e) => handleInputChange('adminProfile', 'adminType', e.target.value)}
+                    value={adminProfile.adminType}
+                    disabled
                   >
                     <option value="super_admin">Super Admin</option>
                     <option value="ordinary_admin">Ordinary Admin</option>
@@ -315,15 +303,15 @@ export const SettingsManagement = () => {
                   <label className="text-sm font-medium">Email</label>
                   <Input
                     type="email"
-                    value={settings.adminProfile.email}
-                    onChange={(e) => handleInputChange('adminProfile', 'email', e.target.value)}
+                    value={adminProfile.email}
+                    readOnly
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Joined Date</label>
                   <Input
                     readOnly
-                    value={settings.adminProfile.joinedDate}
+                    value={adminProfile.joinedDate}
                   />
                 </div>
               </div>
