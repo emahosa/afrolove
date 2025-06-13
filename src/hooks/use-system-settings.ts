@@ -42,27 +42,27 @@ interface SettingsData {
 export const useSystemSettings = () => {
   const [settings, setSettings] = useState<SettingsData>({
     general: {
-      siteName: '',
-      supportEmail: '',
-      maximumFileSize: 0,
-      autoDeleteDays: 0
+      siteName: 'Afroverse',
+      supportEmail: 'support@afroverse.com',
+      maximumFileSize: 50,
+      autoDeleteDays: 30
     },
     api: {
-      rateLimit: 0,
-      cacheDuration: 0,
-      enableThrottling: false,
-      logApiCalls: false
+      rateLimit: 100,
+      cacheDuration: 15,
+      enableThrottling: true,
+      logApiCalls: true
     },
     security: {
-      passwordMinLength: 0,
-      passwordRequiresSymbol: false,
-      sessionTimeout: 0,
+      passwordMinLength: 8,
+      passwordRequiresSymbol: true,
+      sessionTimeout: 60,
       twoFactorEnabled: false
     },
     notifications: {
-      emailNotifications: false,
-      songCompletionNotices: false,
-      systemAnnouncements: false,
+      emailNotifications: true,
+      songCompletionNotices: true,
+      systemAnnouncements: true,
       marketingEmails: false
     }
   });
@@ -75,42 +75,51 @@ export const useSystemSettings = () => {
       setLoading(true);
       console.log('Fetching system settings...');
       
+      // First check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.email);
+      
       const { data, error } = await supabase
         .from('system_settings')
         .select('*');
 
       if (error) {
         console.error('Error fetching settings:', error);
-        toast.error('Failed to load settings');
+        toast.error('Failed to load settings: ' + error.message);
         return;
       }
 
       console.log('Fetched settings:', data);
 
+      if (!data || data.length === 0) {
+        console.log('No settings found, using defaults');
+        return;
+      }
+
       // Transform the data into the expected format
       const transformedSettings: SettingsData = {
         general: {
-          siteName: '',
-          supportEmail: '',
-          maximumFileSize: 0,
-          autoDeleteDays: 0
+          siteName: 'Afroverse',
+          supportEmail: 'support@afroverse.com',
+          maximumFileSize: 50,
+          autoDeleteDays: 30
         },
         api: {
-          rateLimit: 0,
-          cacheDuration: 0,
-          enableThrottling: false,
-          logApiCalls: false
+          rateLimit: 100,
+          cacheDuration: 15,
+          enableThrottling: true,
+          logApiCalls: true
         },
         security: {
-          passwordMinLength: 0,
-          passwordRequiresSymbol: false,
-          sessionTimeout: 0,
+          passwordMinLength: 8,
+          passwordRequiresSymbol: true,
+          sessionTimeout: 60,
           twoFactorEnabled: false
         },
         notifications: {
-          emailNotifications: false,
-          songCompletionNotices: false,
-          systemAnnouncements: false,
+          emailNotifications: true,
+          songCompletionNotices: true,
+          systemAnnouncements: true,
           marketingEmails: false
         }
       };
@@ -183,6 +192,7 @@ export const useSystemSettings = () => {
 
       setSettings(transformedSettings);
       console.log('Settings transformed and set:', transformedSettings);
+      toast.success('Settings loaded successfully');
     } catch (error) {
       console.error('Error in fetchSettings:', error);
       toast.error('Failed to load settings');
