@@ -132,7 +132,11 @@ const SongLibrary = () => {
     const firstCompletedSong = filteredAndSortedSongs.find(s => s.status === 'completed' && s.audio_url && s.audio_url.startsWith('http'));
     if (firstCompletedSong) {
       console.log('Debug playing first completed song:', firstCompletedSong);
-      playTrack({ title: firstCompletedSong.title, src: firstCompletedSong.audio_url });
+      playTrack({ 
+        id: firstCompletedSong.id,
+        title: firstCompletedSong.title, 
+        audio_url: firstCompletedSong.audio_url 
+      });
       toast.info(`Playing: ${firstCompletedSong.title}`);
     } else {
       toast.error('No completed songs with valid URLs found to play.');
