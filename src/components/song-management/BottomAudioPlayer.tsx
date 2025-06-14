@@ -29,6 +29,10 @@ export const BottomAudioPlayer = ({
   const [isLiked, setIsLiked] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('none');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const repeatModeRef = useRef(repeatMode);
+  repeatModeRef.current = repeatMode;
 
   const fetchAudioUrl = useCallback(async (requestId: string, type: 'suno' | 'custom') => {
     try {
@@ -85,7 +89,7 @@ export const BottomAudioPlayer = ({
     const handleLoadedMetadata = () => setDuration(audio.duration);
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleAudioEnd = () => {
-      if (repeatMode === 'one' || repeatMode === 'all') {
+      if (repeatModeRef.current === 'one' || repeatModeRef.current === 'all') {
         audio.currentTime = 0;
         audio.play().catch(error => console.error('❌ Error repeating song:', error));
       } else {
@@ -95,7 +99,7 @@ export const BottomAudioPlayer = ({
     const handleAudioError = (e: Event) => {
       console.error('❌ Audio error:', e);
       toast.error('Failed to play audio - file may be corrupted');
-      if (isPlaying) togglePlayPause();
+      if (isPlayingRef.current) togglePlayPause();
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -109,7 +113,7 @@ export const BottomAudioPlayer = ({
       audio.removeEventListener('ended', handleAudioEnd);
       audio.removeEventListener('error', handleAudioError);
     };
-  }, [isPlaying, repeatMode, togglePlayPause]);
+  }, [togglePlayPause]);
 
   useEffect(() => {
     if (currentTrack) {
@@ -137,7 +141,7 @@ export const BottomAudioPlayer = ({
         audioRef.current = null;
       }
     };
-  }, [currentTrack, fetchAudioUrl, setupAudioListeners, volume]);
+  }, [currentTrack, fetchAudioUrl, setupAudioListeners]);
   
   useEffect(() => {
     if (!audioRef.current) return;

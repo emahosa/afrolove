@@ -104,15 +104,11 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     console.log('🎵 GeneratedSongCard: Play button clicked for song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
-      if (currentTrack?.id === song.id) {
-        togglePlayPause();
-      } else {
-        playTrack({
-          id: song.id,
-          title: song.title,
-          type: 'suno'
-        });
-      }
+      playTrack({
+        id: song.id,
+        title: song.title,
+        type: 'suno'
+      });
     } else {
       console.log('❌ GeneratedSongCard: Song not playable:', song.status, song.audio_url);
       
