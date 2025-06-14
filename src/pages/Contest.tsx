@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -242,7 +241,9 @@ const Contest = () => {
                             disabled={!user}
                           >
                             <Upload className="mr-2 h-4 w-4" />
-                            {user ? 'Submit Entry' : 'Login Required'}
+                            {user 
+                              ? (contest.entry_fee > 0 ? `Submit (${contest.entry_fee} Credits)`: 'Submit Entry (Free)')
+                              : 'Login Required'}
                           </Button>
                           <Button 
                             size="sm"

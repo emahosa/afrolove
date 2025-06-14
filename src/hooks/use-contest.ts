@@ -180,7 +180,7 @@ export const useContest = () => {
     }
   };
 
-  // Delete contest - ONLY contests table
+  // Delete contest - handles dependencies
   const deleteContest = async (contestId: string) => {
     if (!user) {
       toast.error('Please log in to delete contests');
@@ -188,18 +188,69 @@ export const useContest = () => {
     }
 
     try {
-      console.log('🔄 use-contest: deleteContest() - ONLY contests table, NO USERS');
-      
-      const { error } = await supabase
+      console.log('🔄 use-contest: deleteContest() - Deleting dependencies first');
+
+      // Step 1: Get all entries for the contest
+      const { data: entries, error: entriesError } = await supabase
+        .from('contest_entries')
+        .select('id')
+        .eq('contest_id', contestId);
+
+      if (entriesError) {
+        console.error('Error fetching entries for deletion:', entriesError);
+        throw entriesError;
+      }
+
+      if (entries && entries.length > 0) {
+        const entryIds = entries.map(e => e.id);
+
+        // Step 2a: Delete votes from 'votes' table
+        console.log('🗑️ Deleting votes for entries:', entryIds);
+        const { error: votesError } = await supabase
+          .from('votes')
+          .delete()
+          .in('contest_entry_id', entryIds);
+        
+        if (votesError) {
+          console.error('Error deleting votes:', votesError);
+          throw votesError;
+        }
+
+        // Step 2b: Delete votes from 'contest_votes' table if it's being used
+        console.log('🗑️ Deleting contest_votes for contest:', contestId);
+        const { error: contestVotesError } = await supabase
+            .from('contest_votes')
+            .delete()
+            .eq('contest_id', contestId);
+        
+        if (contestVotesError) {
+            console.error('Error deleting contest_votes:', contestVotesError);
+            // We can ignore this error if the table is not used consistently
+        }
+
+        // Step 3: Delete the contest entries themselves
+        console.log('🗑️ Deleting contest entries:', entryIds);
+        const { error: deleteEntriesError } = await supabase
+          .from('contest_entries')
+          .delete()
+          .in('id', entryIds);
+
+        if (deleteEntriesError) {
+          console.error('Error deleting contest entries:', deleteEntriesError);
+          throw deleteEntriesError;
+        }
+      }
+
+      // Step 4: Delete the contest itself
+      console.log('🗑️ Deleting contest:', contestId);
+      const { error: contestError } = await supabase
         .from('contests')
         .delete()
         .eq('id', contestId);
 
-      console.log('✅ Successfully deleted from contests table, no users table referenced');
-
-      if (error) {
-        console.error('Error deleting contest:', error);
-        throw error;
+      if (contestError) {
+        console.error('Error deleting contest:', contestError);
+        throw contestError;
       }
 
       toast.success('Contest deleted successfully!');
@@ -285,17 +336,45 @@ export const useContest = () => {
     }
   };
 
-  // Submit contest entry with file upload - ONLY contest_entries table
+  // Submit contest entry with file upload and credit check
   const submitEntry = async (contestId: string, videoFile: File, description: string, title: string) => {
     if (!user) {
       toast.error('Please log in to submit an entry');
       return false;
     }
 
+    // Get contest to check entry fee
+    const { data: contestData, error: contestError } = await supabase
+      .from('contests')
+      .select('entry_fee')
+      .eq('id', contestId)
+      .single();
+
+    if (contestError || !contestData) {
+      toast.error('Failed to retrieve contest information.');
+      return false;
+    }
+
+    const entryFee = contestData.entry_fee || 0;
+
+    // Check user credits if there is an entry fee
+    if (entryFee > 0) {
+      const userCredits = await checkUserCredits(user.id);
+      if (userCredits < entryFee) {
+        toast.error(`You need ${entryFee} credits to enter this contest. You only have ${userCredits}.`);
+        return false;
+      }
+    }
+
     setSubmitting(true);
     try {
       console.log('🔄 use-contest: submitEntry() - ONLY contest_entries table, NO USERS');
       
+      // Deduct credits before uploading
+      if (entryFee > 0) {
+        await updateUserCredits(user.id, -entryFee);
+      }
+
       // Upload file to Supabase Storage
       const timestamp = Date.now();
       const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
@@ -309,6 +388,8 @@ export const useContest = () => {
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
+        // Refund credits if upload fails
+        if (entryFee > 0) await updateUserCredits(user.id, entryFee);
         throw new Error('Failed to upload file: ' + uploadError.message);
       }
 
@@ -330,14 +411,14 @@ export const useContest = () => {
           approved: false // Pending admin approval
         });
 
-      console.log('✅ Successfully inserted into contest_entries table, no users table referenced');
-
       if (error) {
         console.error('Error submitting entry:', error);
+        // Refund credits if insert fails
+        if (entryFee > 0) await updateUserCredits(user.id, entryFee);
         throw error;
       }
 
-      toast.success('Entry submitted successfully! It will be reviewed by our team.');
+      toast.success('Entry submitted successfully!');
       return true;
     } catch (error: any) {
       console.error('Error submitting entry:', error);
