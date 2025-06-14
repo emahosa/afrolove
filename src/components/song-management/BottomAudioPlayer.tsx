@@ -1,8 +1,8 @@
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, Download, X, Volume2, Heart, Share2 } from "lucide-react";
-import { Repeat, Repeat1 } from "lucide-react";
+import { Play, Pause, Download, X, Volume2, Heart, Share2, Repeat, Repeat1, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayerContext } from "@/contexts/AudioPlayerContext";
@@ -22,27 +22,32 @@ export const BottomAudioPlayer = ({
 }: BottomAudioPlayerProps) => {
   const { currentTrack, isPlaying, togglePlayPause, showPlayer } = useAudioPlayerContext();
   
-  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(100);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(1);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('none');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isPlayingRef = useRef(isPlaying);
-  isPlayingRef.current = isPlaying;
+
   const repeatModeRef = useRef(repeatMode);
-  repeatModeRef.current = repeatMode;
+  useEffect(() => {
+      repeatModeRef.current = repeatMode;
+  }, [repeatMode]);
+
+  const togglePlayPauseRef = useRef(togglePlayPause);
+  useEffect(() => {
+    togglePlayPauseRef.current = togglePlayPause;
+  }, [togglePlayPause]);
 
   const fetchAudioUrl = useCallback(async (requestId: string, type: 'suno' | 'custom') => {
     try {
-      setLoadingAudio(true);
       console.log('🎵 BottomAudioPlayer: Fetching audio URL for:', { requestId, type });
 
       if (type === 'suno') {
         const { data: songData, error: songError } = await supabase
           .from('songs')
-          .select('*')
+          .select('audio_url, status')
           .eq('id', requestId)
           .single();
 
@@ -60,7 +65,7 @@ export const BottomAudioPlayer = ({
       } else {
         const { data: audioData, error: audioError } = await supabase
           .from('custom_song_audio')
-          .select('*')
+          .select('audio_url, is_selected')
           .eq('request_id', requestId)
           .order('created_at', { ascending: false });
 
@@ -80,125 +85,113 @@ export const BottomAudioPlayer = ({
       console.error('💥 Error in fetchAudioUrl:', error);
       toast.error('Failed to load audio: ' + error.message);
       return null;
-    } finally {
-      setLoadingAudio(false);
     }
   }, []);
 
-  const setupAudioListeners = useCallback((audio: HTMLAudioElement) => {
+  useEffect(() => {
+    audioRef.current = new Audio();
+    const audio = audioRef.current;
+    console.log('🔊 Audio player initialized');
+
     const handleLoadedMetadata = () => setDuration(audio.duration);
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const handleAudioEnd = () => {
+    const handleEnded = () => {
       if (repeatModeRef.current === 'one' || repeatModeRef.current === 'all') {
         audio.currentTime = 0;
-        audio.play().catch(error => console.error('❌ Error repeating song:', error));
+        audio.play().catch(e => console.error("Error on repeat:", e));
       } else {
-        togglePlayPause();
+        togglePlayPauseRef.current();
       }
     };
-    const handleAudioError = (e: Event) => {
-      console.error('❌ Audio error:', e);
-      toast.error('Failed to play audio - file may be corrupted');
-      if (isPlayingRef.current) togglePlayPause();
+    const handleCanPlay = () => setLoadingAudio(false);
+    const handleWaiting = () => setLoadingAudio(true);
+    const handleError = (e: Event) => {
+        console.error('❌ Audio error:', e);
+        toast.error('Failed to play audio.');
+        setLoadingAudio(false);
     };
 
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleAudioEnd);
-    audio.addEventListener('error', handleAudioError);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("waiting", handleWaiting);
+    audio.addEventListener("error", handleError);
 
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleAudioEnd);
-      audio.removeEventListener('error', handleAudioError);
+      console.log('🔊 Audio player cleaned up');
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("waiting", handleWaiting);
+      audio.removeEventListener("error", handleError);
+      audio.pause();
+      audioRef.current = null;
     };
-  }, [togglePlayPause]);
+  }, []);
 
   useEffect(() => {
-    if (currentTrack) {
-      const loadAndPlayTrack = async () => {
-        const url = await fetchAudioUrl(currentTrack.id, currentTrack.type || 'custom');
-        if (url) {
-          if (audioRef.current) {
+    if (currentTrack && audioRef.current) {
+        console.log('🔄 Loading new track:', currentTrack);
+        const load = async () => {
+            setLoadingAudio(true);
+            setCurrentTime(0);
+            setDuration(0);
+            const url = await fetchAudioUrl(currentTrack.id, currentTrack.type || 'custom');
+            if (url && audioRef.current) {
+                audioRef.current.src = url;
+            } else {
+                setLoadingAudio(false);
+            }
+        };
+        load();
+    }
+  }, [currentTrack, fetchAudioUrl]);
+
+  useEffect(() => {
+    if (audioRef.current) {
+        if (isPlaying && audioRef.current.src) {
+            audioRef.current.play().catch(e => console.error("Play error:", e));
+        } else {
             audioRef.current.pause();
-          }
-          const audio = new Audio(url);
-          audioRef.current = audio;
-          audio.volume = volume / 100;
-          setupAudioListeners(audio);
-          if (isPlaying) {
-            await audio.play().catch(e => console.error("Error auto-playing track", e));
-          }
         }
-      };
-      loadAndPlayTrack();
     }
-  
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, [currentTrack, fetchAudioUrl, setupAudioListeners]);
-  
+  }, [isPlaying, currentTrack]);
+
   useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-    } else {
-      audioRef.current.pause();
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
     }
-  }, [isPlaying]);
-
-  const toggleRepeatMode = () => {
-    const modes: RepeatMode[] = ['none', 'all', 'one'];
-    const currentIndex = modes.indexOf(repeatMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    const newMode = modes[nextIndex];
-    setRepeatMode(newMode);
-    console.log('Repeat mode changed to:', newMode);
-    
-    const modeNames = {
-      'none': 'Repeat Off',
-      'all': 'Repeat All',
-      'one': 'Repeat One'
-    };
-    toast.success(`${modeNames[newMode]}`);
-  };
-
-  const getRepeatIcon = () => {
-    switch (repeatMode) {
-      case 'one':
-        return <Repeat1 className="h-5 w-5" />;
-      case 'all':
-        return <Repeat className="h-5 w-5" />;
-      default:
-        return <Repeat className="h-5 w-5" />;
-    }
-  };
-
-  const getRepeatButtonClass = () => {
-    if (repeatMode === 'none') {
-      return "h-10 w-10 rounded-full text-gray-400 hover:text-white";
-    }
-    return "h-10 w-10 rounded-full text-purple-400 hover:text-purple-300";
-  };
+  }, [volume]);
 
   const handleSeek = (value: number[]) => {
-    if (audioRef.current) {
-      const newTime = (value[0] / 100) * duration;
+    if (audioRef.current && duration > 0) {
+      const newTime = value[0];
       audioRef.current.currentTime = newTime;
       setCurrentTime(newTime);
     }
   };
 
   const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume / 100;
+    setVolume(value[0] / 100);
+  };
+  
+  const toggleRepeatMode = () => {
+    const modes: RepeatMode[] = ['none', 'all', 'one'];
+    const currentIndex = modes.indexOf(repeatMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    const newMode = modes[nextIndex];
+    setRepeatMode(newMode);
+    const modeNames = { 'none': 'Repeat Off', 'all': 'Repeat All', 'one': 'Repeat One' };
+    toast.success(`${modeNames[newMode]}`);
+  };
+  
+  const getRepeatIcon = () => {
+    switch (repeatMode) {
+      case 'one': return <Repeat1 className="h-5 w-5" />;
+      case 'all': return <Repeat className="h-5 w-5" />;
+      default: return <Repeat className="h-5 w-5" />;
     }
   };
 
@@ -208,17 +201,15 @@ export const BottomAudioPlayer = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
   if (!showPlayer || !currentTrack) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50 animate-slide-in-up">
       <div className="px-6 py-2">
         <Slider
-          value={[progress]}
+          value={[currentTime]}
           onValueChange={handleSeek}
-          max={100}
+          max={duration || 100}
           step={0.1}
           className="w-full"
         />
@@ -234,7 +225,7 @@ export const BottomAudioPlayer = ({
             className="h-14 w-14 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
           >
             {loadingAudio ? (
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-current border-t-transparent" />
+              <Loader2 className="h-6 w-6 animate-spin" />
             ) : isPlaying ? (
               <Pause className="h-6 w-6" />
             ) : (
@@ -269,17 +260,13 @@ export const BottomAudioPlayer = ({
               variant="ghost"
               size="sm"
               onClick={toggleRepeatMode}
-              className={getRepeatButtonClass()}
+              className={`h-10 w-10 rounded-full ${repeatMode === 'none' ? 'text-gray-400 hover:text-white' : 'text-purple-400 hover:text-purple-300'}`}
               title={`Repeat: ${repeatMode}`}
             >
               {getRepeatIcon()}
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
-            >
+            <Button variant="ghost" size="sm" className="h-10 w-10 rounded-full text-gray-400 hover:text-white">
               <Share2 className="h-5 w-5" />
             </Button>
 
@@ -291,7 +278,7 @@ export const BottomAudioPlayer = ({
               className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
             >
               {downloadingAudio ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Download className="h-5 w-5" />
               )}
@@ -301,7 +288,7 @@ export const BottomAudioPlayer = ({
               <Volume2 className="h-5 w-5 text-gray-400" />
               <div className="w-24">
                 <Slider
-                  value={[volume]}
+                  value={[volume * 100]}
                   onValueChange={handleVolumeChange}
                   max={100}
                   step={1}
@@ -309,12 +296,7 @@ export const BottomAudioPlayer = ({
               </div>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500"
-            >
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500">
               <X className="h-5 w-5" />
             </Button>
           </div>
