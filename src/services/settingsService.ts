@@ -86,10 +86,11 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
     data.forEach((setting) => {
       if (setting.key in loadedSettings && setting.value && typeof setting.value === 'object') {
         const sectionKey = setting.key as keyof SystemSettings;
+        // Properly merge the section data
         loadedSettings[sectionKey] = {
           ...loadedSettings[sectionKey],
-          ...(setting.value as Record<string, any>)
-        };
+          ...setting.value
+        } as SystemSettings[typeof sectionKey];
       }
     });
 
