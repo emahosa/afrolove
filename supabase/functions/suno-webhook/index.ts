@@ -25,42 +25,43 @@ Deno.serve(async (req) => {
     console.log('🔔 WEBHOOK PAYLOAD RECEIVED:', JSON.stringify(payload, null, 2))
 
     // Handle different callback structures from Suno
-    let taskId = null
-    let audioUrl = null
-    let status = null
-    let title = null
+    let taskId = null;
+    let audioUrl = null;
+    let status = 'pending'; // Default status
+    let title = null;
+    let errorMessage = null;
 
-    // Try to extract data from various possible structures
-    if (payload.taskId) {
-      taskId = payload.taskId
-      audioUrl = payload.audioUrl || payload.audio_url
-      status = payload.status
-      title = payload.title
-      console.log('📋 Using direct properties from payload')
-    } else if (payload.data) {
-      if (Array.isArray(payload.data) && payload.data.length > 0) {
-        const item = payload.data[0]
-        taskId = item.id || item.taskId
-        audioUrl = item.audio_url || item.audioUrl
-        status = item.status
-        title = item.title
-        console.log('📋 Using data array structure - first item:', JSON.stringify(item, null, 2))
-      } else if (typeof payload.data === 'object') {
-        taskId = payload.data.id || payload.data.taskId || payload.data.task_id
-        audioUrl = payload.data.audio_url || payload.data.audioUrl
-        status = payload.data.status
-        title = payload.data.title
-        console.log('📋 Using data object structure:', JSON.stringify(payload.data, null, 2))
+    // More robust extraction logic
+    if (payload.data?.task_id) { // Structure: { data: { task_id, data: [...] } }
+      taskId = payload.data.task_id;
+      if (payload.data.data && Array.isArray(payload.data.data) && payload.data.data.length > 0) {
+        const track = payload.data.data[0];
+        audioUrl = track.audio_url || track.audioUrl;
+        title = track.title;
+        // Suno callback for "complete" means it was successful.
+        if (payload.data.callbackType === 'complete' || track.status === 'SUCCESS' || track.status === 'completed') {
+            status = 'completed';
+        } else if (track.status === 'failed' || track.status === 'FAIL' || track.status === 'error') {
+            status = 'failed';
+            errorMessage = track.error_message || 'Generation failed';
+        }
+        console.log('📋 Extracted from nested data structure');
       }
-    } else if (payload.id) {
-      taskId = payload.id
-      audioUrl = payload.audio_url || payload.audioUrl
-      status = payload.status
-      title = payload.title
-      console.log('📋 Using ID as taskId from root payload')
+    } else if (payload.id) { // Fallback for root object structure: { id, audio_url, ... }
+        taskId = payload.id;
+        audioUrl = payload.audio_url || payload.audioUrl;
+        status = payload.status;
+        title = payload.title;
+        console.log('📋 Extracted from root object structure');
+    }
+    
+    // Final check for failure status at payload root
+    if (payload.status === 'FAIL' || payload.status === 'failed' || payload.status === 'error') {
+      status = 'failed';
+      errorMessage = payload.error_message || payload.message || 'Generation failed';
     }
 
-    console.log('📋 EXTRACTED DATA:', { taskId, audioUrl, status, title })
+    console.log('📋 EXTRACTED DATA:', { taskId, audioUrl, status, title, errorMessage });
 
     if (!taskId) {
       console.error('❌ NO TASK ID FOUND in webhook payload')
@@ -87,7 +88,6 @@ Deno.serve(async (req) => {
     if (findError) {
       console.error('❌ DATABASE ERROR finding song:', findError)
       
-      // Let's also search without status filter to see what we have
       const { data: allSongs } = await supabase
         .from('songs')
         .select('id, title, status, audio_url, created_at')
@@ -108,7 +108,6 @@ Deno.serve(async (req) => {
     if (!existingSong) {
       console.error('❌ NO SONG FOUND with task ID:', taskId)
       
-      // Let's see what songs exist for debugging
       const { data: recentSongs } = await supabase
         .from('songs')
         .select('id, title, status, audio_url, created_at')
@@ -136,7 +135,7 @@ Deno.serve(async (req) => {
     }
 
     // Check if generation completed successfully
-    if (audioUrl && (status === 'SUCCESS' || status === 'completed' || status === 'finished')) {
+    if (audioUrl && (status === 'SUCCESS' || status === 'completed')) {
       updateData.status = 'completed'
       updateData.audio_url = audioUrl
       
@@ -148,15 +147,22 @@ Deno.serve(async (req) => {
       console.log('✅ MARKING SONG AS COMPLETED with audio URL:', audioUrl)
     }
     // Check if generation failed
-    else if (status === 'FAIL' || status === 'FAILED' || status === 'error' || status === 'failed') {
+    else if (status === 'FAIL' || status === 'failed') {
       updateData.status = 'rejected'
-      updateData.audio_url = `error: ${payload.error_message || payload.message || 'Generation failed'}`
+      updateData.audio_url = `error: ${errorMessage || 'Generation failed'}`
       console.log('❌ MARKING SONG AS FAILED')
     }
     // Still processing
     else {
-      console.log('⏳ SONG STILL PROCESSING, status:', status)
-      // Don't update status, just timestamp
+      console.log('⏳ SONG STILL PROCESSING, status:', status, 'No update will be made.')
+      // We will return a success response to Suno but not update our DB for intermediate steps.
+       return new Response(JSON.stringify({ 
+        success: true,
+        message: 'Webhook processed for intermediate step, no final update made.',
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     console.log('📝 UPDATE DATA:', JSON.stringify(updateData, null, 2))
@@ -208,3 +214,4 @@ Deno.serve(async (req) => {
     })
   }
 })
+
