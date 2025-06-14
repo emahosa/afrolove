@@ -51,18 +51,22 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [currentTrack, showPlayer]);
 
   const playTrack = useCallback((track: PlayingRequest) => {
+    console.log('🎵 AudioPlayerContext: playTrack called with:', track);
+    
+    // Always show the player when a track is played
+    setShowPlayer(true);
+    
     if (currentTrack?.id !== track.id) {
+      // New track - set it and start playing
       setCurrentTrack(track);
       setIsPlaying(true);
+      console.log('🎵 AudioPlayerContext: New track set, player should show');
     } else {
-      // If it's the same track, just toggle play/pause
+      // Same track - just toggle play/pause
       setIsPlaying(prev => !prev);
+      console.log('🎵 AudioPlayerContext: Same track, toggling play/pause');
     }
-    
-    if (!showPlayer) {
-      setShowPlayer(true);
-    }
-  }, [currentTrack, showPlayer]);
+  }, [currentTrack]);
 
   const togglePlayPause = useCallback(() => {
     if (currentTrack) {
@@ -71,6 +75,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   }, [currentTrack]);
   
   const closePlayer = useCallback(() => {
+    console.log('🎵 AudioPlayerContext: closePlayer called');
     setShowPlayer(false);
     setIsPlaying(false);
     setCurrentTrack(null);
@@ -84,6 +89,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     closePlayer,
     showPlayer
   };
+
+  console.log('🎵 AudioPlayerContext: Current state:', { currentTrack: currentTrack?.title, isPlaying, showPlayer });
 
   return (
     <AudioPlayerContext.Provider value={value}>

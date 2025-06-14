@@ -42,7 +42,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     audio_url: song.audio_url,
     url_length: song.audio_url?.length,
     url_starts_with_http: song.audio_url?.startsWith('http'),
-    full_song_object: song
   });
 
   const getStatusBadge = (status: string) => {
@@ -101,9 +100,10 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   };
 
   const handlePlayClick = () => {
-    console.log('🎵 GeneratedSongCard: Play button clicked for song:', song.title, 'ID:', song.id, 'Status:', song.status);
+    console.log('🎵 GeneratedSongCard: Play button clicked for song:', song.title, 'ID:', song.id);
     
     if (isPlayable) {
+      console.log('🎵 GeneratedSongCard: Song is playable, calling playTrack');
       playTrack({
         id: song.id,
         title: song.title,
@@ -146,7 +146,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
   const isCurrentlyPlaying = isPlaying && currentTrack?.id === song.id;
 
-  console.log('🎮 GeneratedSongCard: Song playable?', isPlayable, 'Status:', song.status, 'Valid URL:', song.audio_url && song.audio_url.startsWith('http'));
+  console.log('🎮 GeneratedSongCard: Song playable?', isPlayable, 'Currently playing?', isCurrentlyPlaying);
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200">
