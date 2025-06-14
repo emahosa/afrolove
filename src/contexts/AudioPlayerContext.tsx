@@ -26,51 +26,86 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Create the audio element on the client
+    console.log('🎧 AudioPlayerProvider mounted. Creating audio element.');
     audioRef.current = new Audio();
     const audio = audioRef.current;
 
-    const handleEnded = () => setIsPlaying(false);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      console.log('⏹️ Audio ended.');
+      setIsPlaying(false);
+    };
+    const handlePlay = () => {
+      console.log('▶️ Audio play event fired.');
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      console.log('⏸️ Audio pause event fired.');
+      setIsPlaying(false);
+    };
+    const handleError = (e: Event) => {
+      console.error('🔊 Audio Element Error:', e);
+    }
 
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
+    audio.addEventListener('error', handleError);
 
     return () => {
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
+      console.log('🧹 Cleaning up audio element and listeners.');
+      if (audioRef.current) {
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.removeEventListener('play', handlePlay);
+        audioRef.current.removeEventListener('pause', handlePause);
+        audioRef.current.removeEventListener('error', handleError);
+        audioRef.current.pause();
+      }
+      audioRef.current = null;
     };
   }, []);
 
-  const playTrack = useCallback((track: PlayingRequest) => {
-    if (audioRef.current) {
-      if (currentTrack?.id === track.id) {
-        // If it's the same track, just toggle play/pause
-        togglePlayPause();
-      } else {
-        // New track
-        setCurrentTrack(track);
-        setShowPlayer(true);
-        audioRef.current.src = track.audio_url;
-        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-      }
-    }
-  }, [currentTrack]);
-
   const togglePlayPause = useCallback(() => {
-    if (audioRef.current?.src) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
-      }
+    if (!audioRef.current?.src) {
+        console.log('⏯️ Toggle failed: no src.');
+        return;
+    }
+
+    if (isPlaying) {
+      console.log('⏯️ Toggle: Pausing...');
+      audioRef.current.pause();
+    } else {
+      console.log('⏯️ Toggle: Playing...');
+      audioRef.current.play().catch(e => console.error("Error playing audio on toggle:", e));
     }
   }, [isPlaying]);
+
+  const playTrack = useCallback((track: PlayingRequest) => {
+    if (!audioRef.current) {
+        console.log('🎵 playTrack failed: audioRef not ready.');
+        return;
+    }
+    
+    console.log('🎵 playTrack called with:', track);
+
+    if (currentTrack?.id === track.id) {
+      console.log('🎵 It\'s the same track, toggling play/pause.');
+      togglePlayPause();
+    } else {
+      console.log('🎵 It\'s a new track. Setting up and playing.');
+      setCurrentTrack(track);
+      setShowPlayer(true);
+      audioRef.current.src = track.audio_url;
+      audioRef.current.play().catch(e => {
+          console.error("Error playing new track:", e);
+          setShowPlayer(false);
+          setCurrentTrack(null);
+          setIsPlaying(false);
+      });
+    }
+  }, [currentTrack, togglePlayPause]);
   
   const closePlayer = useCallback(() => {
+    console.log('❌ Closing player.');
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = '';
@@ -80,6 +115,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setCurrentTrack(null);
   }, []);
 
+  console.log('🔄 AudioPlayerContext render. State:', { showPlayer, isPlaying, currentTrack: currentTrack?.title });
   const value = { currentTrack, isPlaying, playTrack, togglePlayPause, closePlayer, showPlayer };
 
   return (

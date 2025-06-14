@@ -6,7 +6,10 @@ import { Play, Pause, X } from 'lucide-react';
 const AudioPlayer = () => {
   const { currentTrack, isPlaying, togglePlayPause, closePlayer, showPlayer } = useAudioPlayerContext();
 
+  console.log('🎼 AudioPlayer render. State:', { showPlayer, isPlaying, currentTrack: currentTrack?.title });
+
   if (!showPlayer || !currentTrack) {
+    console.log('👻 AudioPlayer not rendered (showPlayer or currentTrack is falsy).');
     return null;
   }
 
