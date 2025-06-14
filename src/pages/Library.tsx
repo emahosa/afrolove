@@ -1,272 +1,93 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import TracksList from "@/components/library/TracksList";
-import SingleTrackView from "@/components/library/SingleTrackView";
-import LibraryFilters from "@/components/library/LibraryFilters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, RefreshCw, Clock, CheckCircle } from "lucide-react";
+import { Loader2, Music, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useSongStatusChecker } from "@/hooks/use-song-status-checker";
+import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
+import AudioPlayer from "@/components/AudioPlayer";
 
-interface Track {
+export interface Song {
   id: string;
   title: string;
-  type: "song" | "instrumental";
-  genre: string;
-  date: string;
-  audio_url?: string;
-  genre_id?: string;
-  status?: string;
+  audio_url: string;
+  status: 'pending' | 'completed' | 'rejected' | 'approved';
+  created_at: string;
+  prompt?: string;
+  credits_used: number;
+  duration?: number;
 }
 
 const Library = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [pendingSongs, setPendingSongs] = useState<Track[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string | null>(null);
-  const [playingTrack, setPlayingTrack] = useState<string | null>(null);
-  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
-
-  const { checkAllPendingSongs, isChecking } = useSongStatusChecker();
-
-  const fetchTracks = async (showRefreshingIndicator = false) => {
-    if (!user?.id) {
-      console.log('Library: No user ID available, skipping fetch');
-      setIsLoading(false);
-      return;
+  const [songs, setSongs] = useState<Song[]>([]);
+  
+  const fetchSongs = async (showRefreshingIndicator = false) => {
+    if (!user?.id) return;
+    
+    if (showRefreshingIndicator) setIsRefreshing(true);
+    else setIsLoading(true);
+      
+    const { data, error } = await supabase
+      .from('songs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+        
+    if (error) {
+      toast.error('Failed to load songs: ' + error.message);
+    } else if (data) {
+      setSongs(data as Song[]);
     }
     
-    try {
-      if (showRefreshingIndicator) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      
-      console.log('Library: Fetching tracks for user:', user.id);
-      
-      // Fetch user-specific songs with better error handling
-      const { data: songsData, error: songsError } = await supabase
-        .from('songs')
-        .select(`
-          id,
-          title,
-          type,
-          created_at,
-          audio_url,
-          genre_id,
-          status,
-          user_id,
-          genres (name)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-        
-      if (songsError) {
-        console.error('Library: Error fetching user songs:', songsError);
-        toast.error('Failed to load songs: ' + songsError.message);
-        return;
-      }
-      
-      console.log('Library: Raw songs data:', songsData);
-      
-      if (!songsData || songsData.length === 0) {
-        console.log('Library: No songs found for user');
-        setTracks([]);
-        setPendingSongs([]);
-        toast.info("No songs found. Create your first song to get started!");
-        return;
-      }
-      
-      // Separate completed and pending songs with detailed logging
-      const completedSongs = songsData.filter(song => {
-        const isCompleted = song.audio_url && 
-                           !song.audio_url.startsWith('task_pending:') &&
-                           !song.audio_url.startsWith('error:') &&
-                           song.audio_url !== 'generating' &&
-                           song.audio_url.startsWith('http') && // Must be a valid URL
-                           (song.status === 'completed' || song.status === 'approved');
-        console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isCompleted=${isCompleted}`);
-        return isCompleted;
-      });
-      
-      const pendingSongsList = songsData.filter(song => {
-        const isPending = song.status === 'pending' || 
-                         (song.audio_url && (
-                           song.audio_url.startsWith('task_pending:') || 
-                           song.audio_url === 'generating' ||
-                           (!song.audio_url.startsWith('http') && !song.audio_url.startsWith('error:'))
-                         ));
-        console.log(`Song ${song.id}: status=${song.status}, audio_url=${song.audio_url}, isPending=${isPending}`);
-        return isPending;
-      });
-
-      // Also check for failed songs
-      const failedSongs = songsData.filter(song => {
-        return song.status === 'rejected' || 
-               (song.audio_url && song.audio_url.startsWith('error:'));
-      });
-      
-      console.log(`Library: Found ${completedSongs.length} completed, ${pendingSongsList.length} pending, ${failedSongs.length} failed songs`);
-      
-      const formattedTracks = completedSongs.map(song => ({
-        id: song.id,
-        title: song.title,
-        type: song.type as "song" | "instrumental",
-        genre: song.genres?.name || "Unknown",
-        date: formatDate(song.created_at),
-        audio_url: song.audio_url,
-        genre_id: song.genre_id,
-        status: song.status
-      }));
-
-      const formattedPendingSongs = pendingSongsList.map(song => ({
-        id: song.id,
-        title: song.title || 'Generating...',
-        type: song.type as "song" | "instrumental",
-        genre: song.genres?.name || "Unknown",
-        date: formatDate(song.created_at),
-        audio_url: song.audio_url,
-        genre_id: song.genre_id,
-        status: song.status
-      }));
-      
-      setTracks(formattedTracks);
-      setPendingSongs(formattedPendingSongs);
-      
-      // Show appropriate messages
-      if (failedSongs.length > 0) {
-        toast.error(`${failedSongs.length} song(s) failed to generate. Please try again.`);
-      }
-      
-      if (formattedTracks.length === 0 && formattedPendingSongs.length === 0 && failedSongs.length === 0) {
-        toast.info("No songs found in your library. Generate some songs to see them here!");
-      } else if (formattedPendingSongs.length > 0) {
-        toast.info(`You have ${formattedPendingSongs.length} song(s) still generating. They will appear once ready.`);
-      } else {
-        console.log(`Library: Successfully loaded ${formattedTracks.length} completed tracks`);
-      }
-    } catch (error) {
-      console.error("Library: Error fetching tracks:", error);
-      toast.error("Failed to load tracks. Please try again later.");
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
+    setIsLoading(false);
+    setIsRefreshing(false);
   };
 
   useEffect(() => {
-    fetchTracks();
+    if (user) fetchSongs();
   }, [user]);
 
-  // Set up realtime subscription for song updates
+  // Realtime subscription for song updates
   useEffect(() => {
     if (!user?.id) return;
-
-    console.log('Library: Setting up realtime subscription for user:', user.id);
 
     const channel = supabase
       .channel('songs-changes')
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'songs',
-          filter: `user_id=eq.${user.id}`
-        },
+        { event: 'UPDATE', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('Library: Song updated via realtime:', payload);
+          console.log('Library: Realtime update received!', payload);
+          const updatedSong = payload.new as Song;
           
-          if ((payload.new.status === 'completed' || payload.new.status === 'approved') && 
-              payload.new.audio_url && 
-              payload.new.audio_url.startsWith('http')) {
-            console.log('Library: Detected completed song, refreshing...');
-            fetchTracks(true);
-            toast.success(`🎵 "${payload.new.title}" is now ready in your library!`);
-          } else if (payload.new.status === 'rejected' || 
-                     (payload.new.audio_url && payload.new.audio_url.startsWith('error:'))) {
-            console.log('Library: Detected failed song, refreshing...');
-            fetchTracks(true);
-            toast.error(`❌ "${payload.new.title}" failed to generate. Please try again.`);
+          // Optimistically update the local state
+          setSongs(currentSongs =>
+            currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
+          );
+
+          if (updatedSong.status === 'completed') {
+            toast.success(`🎵 "${updatedSong.title}" is ready!`);
+          } else if (updatedSong.status === 'rejected') {
+            toast.error(`❌ "${updatedSong.title}" failed to generate.`);
           }
         }
       )
-      .subscribe((status) => {
-        console.log('Library: Realtime subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('Library: Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
   
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffMinutes = Math.ceil(diffTime / (1000 * 60));
-    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffMinutes < 60) {
-      return `${diffMinutes}m ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else if (diffDays === 1) {
-      return "Yesterday";
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else if (diffDays < 30) {
-      return `${Math.floor(diffDays / 7)}w ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
-  const filteredTracks = tracks.filter((track) => {
-    const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          track.genre.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (activeTab === "all") return matchesSearch;
-    if (activeTab === "songs") return matchesSearch && track.type === "song";
-    if (activeTab === "instrumentals") return matchesSearch && track.type === "instrumental";
-    
-    return matchesSearch;
-  });
-
-  const handlePlay = (trackId: string, trackTitle: string) => {
-    if (playingTrack === trackId) {
-      setPlayingTrack(null);
-      toast.success("Playback stopped");
-    } else {
-      setPlayingTrack(trackId);
-      toast.success(`Now playing: ${trackTitle}`);
-      
-      setTimeout(() => {
-        setPlayingTrack(null);
-        toast.success("Playback complete");
-      }, 30000);
-    }
-  };
-
   const handleRefresh = () => {
-    console.log('Library: Manual refresh triggered');
-    fetchTracks(true);
+    fetchSongs(true);
   };
-
-  const handleCheckStatus = () => {
-    console.log('Library: Manual status check triggered');
-    checkAllPendingSongs();
-  };
-
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -277,109 +98,70 @@ const Library = () => {
   }
 
   if (!user) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">My Library</h1>
-          <p className="text-muted-foreground">Please log in to view your songs</p>
-        </div>
-      </div>
-    );
+    return <p className="text-muted-foreground">Please log in to view your songs.</p>
   }
 
+  const pendingSongs = songs.filter(s => s.status === 'pending');
+  const completedSongs = songs.filter(s => s.status === 'completed' || s.status === 'approved');
+  const failedSongs = songs.filter(s => s.status === 'rejected');
+
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">My Library</h1>
-            <p className="text-muted-foreground">All your saved songs and instrumentals</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendingSongs.length > 0 && (
-              <Button
-                onClick={handleCheckStatus}
-                variant="outline"
-                size="sm"
-                disabled={isChecking}
-                className="flex items-center gap-2"
-              >
-                <CheckCircle className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
-                Check Status
-              </Button>
-            )}
-            <Button
-              onClick={handleRefresh}
-              variant="outline"
-              size="sm"
-              disabled={isRefreshing}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+    <div className="space-y-8 pb-24"> {/* Padding bottom to avoid overlap with player */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">My Library</h1>
+          <p className="text-muted-foreground">All your generated songs</p>
         </div>
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Show pending songs section */}
       {pendingSongs.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            <h2 className="text-xl font-semibold">Generating Songs</h2>
-            <Badge variant="secondary">{pendingSongs.length}</Badge>
-            {isChecking && (
-              <Badge variant="outline" className="animate-pulse">
-                Checking Status...
-              </Badge>
-            )}
-          </div>
-          <div className="grid gap-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Clock className="h-5 w-5" /> Generating Songs
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pendingSongs.map((song) => (
-              <div key={song.id} className="p-4 border rounded-lg bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{song.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {song.genre} • {song.date}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <Badge variant="outline">Generating</Badge>
-                  </div>
-                </div>
-              </div>
+              <GeneratedSongCard key={song.id} song={song} />
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {completedSongs.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Completed Songs</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {completedSongs.map((song) => (
+              <GeneratedSongCard key={song.id} song={song} />
             ))}
           </div>
         </div>
       )}
 
-      {!selectedTrack ? (
-        <>
-          <LibraryFilters
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-
-          <TracksList
-            tracks={filteredTracks}
-            onTrackSelect={(trackId) => setSelectedTrack(trackId)}
-          />
-        </>
-      ) : (
-        <SingleTrackView
-          track={tracks.find(track => track.id === selectedTrack)!}
-          onBackClick={() => setSelectedTrack(null)}
-          playingTrack={playingTrack}
-          onPlayToggle={handlePlay}
-          onVoiceCloned={(voiceId) => setSelectedVoiceId(voiceId)}
-          selectedVoiceId={selectedVoiceId}
-        />
+      {songs.length === 0 && !isLoading && (
+         <div className="text-center py-16 border-2 border-dashed rounded-lg">
+            <Music className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-medium">No songs yet</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Create your first song to see it here.</p>
+         </div>
       )}
+
+      {failedSongs.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-destructive">Failed Songs</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {failedSongs.map((song) => (
+              <GeneratedSongCard key={song.id} song={song} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <AudioPlayer />
     </div>
   );
 };

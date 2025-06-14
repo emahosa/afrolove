@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -11,28 +10,11 @@ export interface SunoGenerationRequest {
   instrumental: boolean;
   customMode: boolean;
   model: 'V3_5' | 'V4' | 'V4_5';
-  negativeTags?: string;
-  requestId?: string;
-  isAdminTest?: boolean;
-}
-
-export interface SunoGenerationStatus {
-  task_id: string;
-  status: 'PENDING' | 'TEXT_SUCCESS' | 'FIRST_SUCCESS' | 'SUCCESS' | 'FAIL';
-  audio_url?: string;
-  stream_audio_url?: string;
-  image_url?: string;
-  title?: string;
-  duration?: number;
-  model_name?: string;
-  prompt?: string;
 }
 
 export const useSunoGeneration = () => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-  const [generationStatus, setGenerationStatus] = useState<SunoGenerationStatus | null>(null);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
     if (!user) {
@@ -40,10 +22,9 @@ export const useSunoGeneration = () => {
       return null;
     }
 
+    setIsGenerating(true);
     try {
-      setIsGenerating(true);
-      console.log('useSunoGeneration: Starting song generation. isGenerating should be true.');
-      console.log('useSunoGeneration: Request:', request);
+      console.log('useSunoGeneration: Starting song generation with request:', request);
 
       const { data, error } = await supabase.functions.invoke('suno-generate', {
         body: {
@@ -52,40 +33,24 @@ export const useSunoGeneration = () => {
         }
       });
       
-      console.log('useSunoGeneration: invoke returned.', { data, error });
-
-      if (error) {
-        console.error('Generation error:', error);
-        toast.error('Generation failed: ' + (error.message || 'Unknown error'));
-        return null;
-      }
-
-      if (!data?.success) {
-        const errorMsg = data?.error || 'Generation failed';
-        console.error('useSunoGeneration: Generation failed with message:', errorMsg);
-        toast.error(errorMsg);
+      if (error || !data?.success) {
+        const errorMessage = data?.error || error?.message || 'An unknown error occurred during generation.';
+        console.error('Generation error:', errorMessage);
+        toast.error(`Generation failed: ${errorMessage}`);
         return null;
       }
 
       const taskId = data.task_id;
-      if (!taskId) {
-        console.error('useSunoGeneration: No task ID received');
-        toast.error('No task ID received');
-        return null;
-      }
-
-      setCurrentTaskId(taskId);
-      toast.success('🎵 Song generation started! Check your library for progress.');
+      toast.success('🎵 Your song is being generated! It will appear in your library shortly.');
       console.log('useSunoGeneration: Successfully started generation with task ID:', taskId);
       return taskId;
 
     } catch (error: any) {
-      console.error('Error generating song:', error);
+      console.error('Critical error calling generateSong function:', error);
       toast.error('Generation failed: ' + error.message);
       return null;
     } finally {
       setIsGenerating(false);
-      console.log('useSunoGeneration: Generation process finished. isGenerating should be false.');
     }
   };
 
@@ -112,39 +77,9 @@ export const useSunoGeneration = () => {
     }
   };
 
-  const checkStatus = async (taskId: string): Promise<SunoGenerationStatus | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('suno-status', {
-        body: { taskId }
-      });
-
-      if (error) {
-        console.error('Status check error:', error);
-        return null;
-      }
-
-      const status = data?.data || null;
-      setGenerationStatus(status);
-      return status;
-    } catch (error) {
-      console.error('Error checking status:', error);
-      return null;
-    }
-  };
-
-  const resetGeneration = () => {
-    setIsGenerating(false);
-    setCurrentTaskId(null);
-    setGenerationStatus(null);
-  };
-
   return {
     generateSong,
     generateLyrics,
-    checkStatus,
-    resetGeneration,
     isGenerating,
-    currentTaskId,
-    generationStatus
   };
 };
