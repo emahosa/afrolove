@@ -45,6 +45,7 @@ interface User {
   role: string;
   credits: number;
   joinDate: string;
+  permissions?: string[]; // Added optional permissions
 }
 
 interface UserManagementProps {
@@ -131,8 +132,14 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         credits: user.credits,
         status: user.status as "active" | "suspended",
         role: user.role as UserRole,
-        permissions: user.permissions,
+        permissions: user.permissions || [], // Ensure permissions is an array
       });
+      // If the role is admin, set selectedPermissions from the user's permissions
+      if (user.role === 'admin' && user.permissions) {
+        setSelectedPermissions(user.permissions);
+      } else {
+        setSelectedPermissions([]);
+      }
       setIsEditDialogOpen(true);
     }
   };
@@ -176,7 +183,9 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     if (currentUser) {
       setIsLoading(true);
       try {
-        const success = await updateUserInDatabase(currentUser.id, values);
+        // Include selectedPermissions if the role is 'admin'
+        const permissionsToUpdate = values.role === 'admin' ? selectedPermissions : undefined;
+        const success = await updateUserInDatabase(currentUser.id, { ...values, permissions: permissionsToUpdate });
         if (success) {
           setUsersList(usersList.map(user => 
             user.id === currentUser.id 
@@ -187,7 +196,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   credits: values.credits,
                   status: values.status || user.status,
                   role: values.role || user.role,
-                  permissions: values.permissions || user.permissions,
+                  permissions: permissionsToUpdate || user.permissions, // Update permissions
                 } 
               : user
           ));
@@ -196,6 +205,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         }
       } catch (error) {
         console.error("Failed to update user:", error);
+        toast.error("Failed to update user");
       } finally {
         setIsLoading(false);
       }
@@ -281,7 +291,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">User Management</h2>
         <div className="space-x-2">
-          <Button onClick={() => {}} variant="outline" disabled={isLoading}>
+          <Button onClick={loadUsers} variant="outline" disabled={isLoading}>
             {isLoading ? 'Refreshing...' : 'Refresh Users'}
           </Button>
           {isSuperAdmin() && (
@@ -343,7 +353,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                           variant="ghost" 
                           size="sm" 
                           className="h-8 px-2"
-                          onClick={() => {}}
+                          onClick={() => handleEdit(user.id)}
                           disabled={isLoading}
                         >
                           Edit
@@ -352,7 +362,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                           variant="ghost" 
                           size="sm" 
                           className="h-8 px-2"
-                          onClick={() => {}}
+                          onClick={() => handleToggleBan(user.id, user.status)}
                           disabled={isLoading}
                         >
                           {user.status === 'suspended' ? 'Unban' : 'Ban'}
@@ -369,7 +379,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[500px]"> {/* Increased width for permissions */}
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -448,8 +458,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   <FormItem>
                     <FormLabel>Role</FormLabel>
                     <Select 
-                      onValueChange={handleRoleChange} 
-                      defaultValue={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value); // Update RHF state
+                        handleRoleChange(value); // Custom logic (e.g., reset permissions)
+                      }} 
+                      value={field.value} // Controlled component
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -468,6 +481,33 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   </FormItem>
                 )}
               />
+
+              {/* Admin Permissions - Only show for admin role */}
+              {form.watch('role') === 'admin' && (
+                <div className="space-y-3">
+                  <FormLabel>Admin Permissions</FormLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ADMIN_PERMISSIONS.map(permission => (
+                      <div key={permission.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-dialog-${permission.id}`} // Unique ID for checkbox
+                          checked={selectedPermissions.includes(permission.id)}
+                          onCheckedChange={(checked) => 
+                            handlePermissionChange(permission.id, checked as boolean)
+                          }
+                        />
+                        <label 
+                          htmlFor={`edit-dialog-${permission.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {permission.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
@@ -539,8 +579,11 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     <FormItem>
                       <FormLabel>Role</FormLabel>
                       <Select 
-                        onValueChange={handleRoleChange} 
-                        defaultValue={field.value}
+                        onValueChange={(value) => {
+                           field.onChange(value); // Update RHF state
+                           handleRoleChange(value); // Custom logic
+                        }}
+                        value={field.value} // Ensure it's a controlled component
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -568,14 +611,14 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       {ADMIN_PERMISSIONS.map(permission => (
                         <div key={permission.id} className="flex items-center space-x-2">
                           <Checkbox
-                            id={permission.id}
+                            id={`add-dialog-${permission.id}`} // Unique ID for checkbox
                             checked={selectedPermissions.includes(permission.id)}
                             onCheckedChange={(checked) => 
                               handlePermissionChange(permission.id, checked as boolean)
                             }
                           />
                           <label 
-                            htmlFor={permission.id}
+                            htmlFor={`add-dialog-${permission.id}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
                             {permission.label}
