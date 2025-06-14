@@ -1,5 +1,5 @@
 
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
 export interface PlayingRequest {
   id: string;
@@ -19,15 +19,46 @@ interface AudioPlayerContextType {
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
 
 export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
-  const [currentTrack, setCurrentTrack] = useState<PlayingRequest | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<PlayingRequest | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('audioPlayerTrack');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showPlayer, setShowPlayer] = useState(false);
+  const [showPlayer, setShowPlayer] = useState<boolean>(() => {
+    try {
+      const saved = sessionStorage.getItem('audioPlayerShow');
+      return saved ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (currentTrack) {
+        sessionStorage.setItem('audioPlayerTrack', JSON.stringify(currentTrack));
+      } else {
+        sessionStorage.removeItem('audioPlayerTrack');
+      }
+      sessionStorage.setItem('audioPlayerShow', JSON.stringify(showPlayer));
+    } catch (error) {
+      console.error("Failed to save audio player state to sessionStorage", error);
+    }
+  }, [currentTrack, showPlayer]);
 
   const playTrack = useCallback((track: PlayingRequest) => {
     if (currentTrack?.id !== track.id) {
       setCurrentTrack(track);
+      setIsPlaying(true);
+    } else {
+      // If it's the same track, just toggle play/pause
+      setIsPlaying(prev => !prev);
     }
-    setIsPlaying(true);
+    
     if (!showPlayer) {
       setShowPlayer(true);
     }
