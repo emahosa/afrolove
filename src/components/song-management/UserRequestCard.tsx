@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { CompletedSongItem } from "./CompletedSongItem";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioPlayerContext } from "@/contexts/AudioPlayerContext";
 
 interface UserRequestCardProps {
   request: CustomSongRequest;
@@ -17,6 +19,7 @@ interface UserRequestCardProps {
 
 export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => {
   const { user } = useAuth();
+  const { playTrack, togglePlayPause, currentTrack, isPlaying } = useAudioPlayerContext();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
 
@@ -93,7 +96,21 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   };
 
   const handlePlay = (targetRequest: CustomSongRequest) => {
-    // This is not used anymore as CompletedSongItem handles play internally
+    // The previous comment suggested this was unused. We are implementing it
+    // to correctly connect to the global audio player.
+    if (!targetRequest) return;
+    
+    const isCurrentlyPlaying = isPlaying && currentTrack?.id === targetRequest.id;
+
+    if (isCurrentlyPlaying) {
+      togglePlayPause();
+    } else {
+      playTrack({
+        id: targetRequest.id,
+        title: targetRequest.title,
+        type: 'custom',
+      });
+    }
   };
 
   const handleDelete = (requestId: string) => {
@@ -140,9 +157,9 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     return (
       <CompletedSongItem
         request={request}
-        onPlay={handlePlay}
-        onDownload={handleDownloadAudio}
-        onDelete={handleDelete}
+        onPlay={() => handlePlay(request)}
+        onDownload={() => handleDownloadAudio(request)}
+        onDelete={() => handleDelete(request.id)}
         downloadingAudio={downloadingAudio}
       />
     );
