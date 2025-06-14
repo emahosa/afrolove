@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useCallback, useRef, useEffect } from 'react';
 
 export interface PlayingRequest {
@@ -65,19 +64,23 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const togglePlayPause = useCallback(() => {
-    if (!audioRef.current?.src) {
+    if (!audioRef.current) {
+      console.log('⏯️ Toggle failed: audioRef not ready.');
+      return;
+    }
+    if (!audioRef.current.src) {
         console.log('⏯️ Toggle failed: no src.');
         return;
     }
 
-    if (isPlaying) {
-      console.log('⏯️ Toggle: Pausing...');
-      audioRef.current.pause();
-    } else {
-      console.log('⏯️ Toggle: Playing...');
+    if (audioRef.current.paused) {
+      console.log('⏯️ Toggle: Audio is paused, calling play().');
       audioRef.current.play().catch(e => console.error("Error playing audio on toggle:", e));
+    } else {
+      console.log('⏯️ Toggle: Audio is playing, calling pause().');
+      audioRef.current.pause();
     }
-  }, [isPlaying]);
+  }, []);
 
   const playTrack = useCallback((track: PlayingRequest) => {
     if (!audioRef.current) {

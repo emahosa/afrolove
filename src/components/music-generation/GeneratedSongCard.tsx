@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Pause, Download, Share2, Music, Clock, Calendar, Trash, AlertCircle } from 'lucide-react';
+import { Play, Pause, Download, Share2, Music, Clock, Calendar, Trash, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { Loader2 } from 'lucide-react';
@@ -24,11 +24,13 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const { playTrack, currentTrack, isPlaying } = useAudioPlayerContext();
+  const [showPrompt, setShowPrompt] = useState(false);
 
-  const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
+  const isPlayable = song.status === 'completed' && !!song.audio_url && song.audio_url.startsWith('http');
   const isCurrentlyPlaying = isPlaying && currentTrack?.id === song.id;
 
   const handlePlayClick = () => {
+    console.log(`▶️ Play clicked for "${song.title}". Is playable?`, isPlayable, "URL:", song.audio_url);
     if (isPlayable) {
       playTrack({
         id: song.id,
@@ -36,7 +38,8 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         audio_url: song.audio_url,
       });
     } else {
-      toast.error('This song is not available for playback.');
+      toast.error('This song is not yet ready for playback.');
+      console.error('Playback failed check:', { status: song.status, audio_url: song.audio_url });
     }
   };
 
@@ -138,12 +141,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
 
       <CardContent className="space-y-4 flex-grow flex flex-col justify-between">
         <div>
-          {song.prompt && (
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-              “{song.prompt}”
-            </p>
-          )}
-
           <div className="flex items-center gap-2">
             <Button
               variant="default"
@@ -165,7 +162,25 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             >
               <Download className="h-4 w-4" />
             </Button>
+            
+            {song.prompt && (
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setShowPrompt(!showPrompt)}
+                title={showPrompt ? "Hide Prompt" : "Show Prompt"}
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            )}
           </div>
+          
+          {showPrompt && song.prompt && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-md border text-sm max-h-48 overflow-y-auto whitespace-pre-wrap">
+              <p className="font-semibold mb-2 text-primary">Prompt:</p>
+              {song.prompt}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2 mt-4">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Music, Wand2, Settings, Play, Download, Share2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
-import { useSongStatusChecker } from '@/hooks/use-song-status-checker';
 import { useGenres } from '@/hooks/use-genres';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -28,7 +26,6 @@ const MusicGenerationWorkflow = () => {
   const { user } = useAuth();
   const { genres } = useGenres();
   const { generateSong, isGenerating } = useSunoGeneration();
-  const { checkAllPendingSongs, isChecking } = useSongStatusChecker();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -379,7 +376,7 @@ const MusicGenerationWorkflow = () => {
       </Tabs>
 
       {/* Status Panel */}
-      {(isGenerating || isChecking) && (
+      {isGenerating && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -390,8 +387,7 @@ const MusicGenerationWorkflow = () => {
           <CardContent>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                {isGenerating && 'AI is composing your song...'}
-                {isChecking && 'Checking for completed songs...'}
+                AI is composing your song...
               </p>
               {currentTaskId && (
                 <p className="text-xs font-mono bg-muted p-2 rounded">
