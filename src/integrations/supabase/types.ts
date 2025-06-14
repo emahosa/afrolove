@@ -611,6 +611,7 @@ export type Database = {
           audio_url: string
           created_at: string
           credits_used: number
+          duration: number | null
           genre_id: string | null
           id: string
           instrumental_url: string | null
@@ -627,6 +628,7 @@ export type Database = {
           audio_url: string
           created_at?: string
           credits_used?: number
+          duration?: number | null
           genre_id?: string | null
           id?: string
           instrumental_url?: string | null
@@ -643,6 +645,7 @@ export type Database = {
           audio_url?: string
           created_at?: string
           credits_used?: number
+          duration?: number | null
           genre_id?: string | null
           id?: string
           instrumental_url?: string | null

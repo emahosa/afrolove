@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -30,6 +29,8 @@ Deno.serve(async (req) => {
     let status = 'pending'; // Default status
     let title = null;
     let errorMessage = null;
+    let lyrics = null;
+    let duration = null;
 
     // More robust extraction logic
     if (payload.data?.task_id) { // Structure: { data: { task_id, data: [...] } }
@@ -38,6 +39,9 @@ Deno.serve(async (req) => {
         const track = payload.data.data[0];
         audioUrl = track.audio_url || track.audioUrl;
         title = track.title;
+        lyrics = track.prompt; // Extract lyrics
+        duration = track.duration; // Extract duration
+
         // Suno callback for "complete" means it was successful.
         if (payload.data.callbackType === 'complete' || track.status === 'SUCCESS' || track.status === 'completed') {
             status = 'completed';
@@ -52,6 +56,8 @@ Deno.serve(async (req) => {
         audioUrl = payload.audio_url || payload.audioUrl;
         status = payload.status;
         title = payload.title;
+        lyrics = payload.prompt;
+        duration = payload.duration;
         console.log('📋 Extracted from root object structure');
     }
     
@@ -61,7 +67,7 @@ Deno.serve(async (req) => {
       errorMessage = payload.error_message || payload.message || 'Generation failed';
     }
 
-    console.log('📋 EXTRACTED DATA:', { taskId, audioUrl, status, title, errorMessage });
+    console.log('📋 EXTRACTED DATA:', { taskId, audioUrl, status, title, errorMessage, lyrics, duration });
 
     if (!taskId) {
       console.error('❌ NO TASK ID FOUND in webhook payload')
@@ -130,7 +136,7 @@ Deno.serve(async (req) => {
     console.log('📋 Song details:', JSON.stringify(existingSong, null, 2))
 
     // Determine the update based on status
-    let updateData = {
+    let updateData: any = {
       updated_at: new Date().toISOString()
     }
 
@@ -138,6 +144,8 @@ Deno.serve(async (req) => {
     if (audioUrl && (status === 'SUCCESS' || status === 'completed')) {
       updateData.status = 'completed'
       updateData.audio_url = audioUrl
+      updateData.lyrics = lyrics
+      updateData.duration = duration
       
       // Update title if provided and different
       if (title && title !== existingSong.title && title.trim() !== '') {
@@ -214,4 +222,3 @@ Deno.serve(async (req) => {
     })
   }
 })
-

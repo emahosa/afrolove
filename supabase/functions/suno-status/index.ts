@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -216,6 +215,8 @@ Deno.serve(async (req) => {
             status: 'completed',
             audio_url: completedTrack.audioUrl,
             title: completedTrack.title || existingSong.title,
+            lyrics: completedTrack.prompt, // Lyrics are in the prompt field
+            duration: completedTrack.duration, // Add song duration
             updated_at: new Date().toISOString()
           })
           .eq('id', existingSong.id)
