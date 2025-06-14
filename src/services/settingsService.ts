@@ -84,10 +84,11 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
     const loadedSettings = { ...defaultSettings };
     
     data.forEach((setting) => {
-      if (setting.key in loadedSettings) {
-        loadedSettings[setting.key as keyof SystemSettings] = {
-          ...loadedSettings[setting.key as keyof SystemSettings],
-          ...setting.value
+      if (setting.key in loadedSettings && setting.value && typeof setting.value === 'object') {
+        const sectionKey = setting.key as keyof SystemSettings;
+        loadedSettings[sectionKey] = {
+          ...loadedSettings[sectionKey],
+          ...(setting.value as Record<string, any>)
         };
       }
     });
