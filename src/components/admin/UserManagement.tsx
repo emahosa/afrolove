@@ -1,82 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
-  DialogDescription
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus } from '@/utils/adminOperations';
-import { Database } from "@/integrations/supabase/types";
-import { 
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell
-} from '@/components/ui/table';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
-type UserRole = Database["public"]["Enums"]["user_role"];
+import { User, UserRole, UserManagementContainerProps } from './user-management/types';
+import { userFormSchema, UserFormValues } from './user-management/config';
+import { UserManagementHeader } from './user-management/UserManagementHeader';
+import { EmptyUserList } from './user-management/EmptyUserList';
+import { UserTable } from './user-management/UserTable';
+import { EditUserDialog } from './user-management/EditUserDialog';
+import { AddUserDialog } from './user-management/AddUserDialog';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  status: string;
-  role: string;
-  credits: number;
-  joinDate: string;
-  permissions?: string[]; // Added optional permissions
-}
-
-interface UserManagementProps {
-  users: User[];
-  renderStatusLabel: (status: string) => React.ReactNode;
-}
-
-const ADMIN_PERMISSIONS = [
-  { id: 'users', label: 'User Management' },
-  { id: 'content', label: 'Content Management' },
-  { id: 'genres', label: 'Genre Management' },
-  { id: 'custom-songs', label: 'Custom Songs' },
-  { id: 'suno-api', label: 'Suno API' },
-  { id: 'contest', label: 'Contest Management' },
-  { id: 'payments', label: 'Payment Management' },
-  { id: 'support', label: 'Support Management' },
-  { id: 'reports', label: 'Reports & Analytics' },
-  { id: 'settings', label: 'Settings Management' }
-];
-
-const userFormSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
-  status: z.enum(["active", "suspended"]).default("active"),
-  role: z.enum(["admin", "moderator", "user", "super_admin", "voter", "subscriber"]).default("voter"),
-  permissions: z.array(z.string()).optional(),
-});
-
-export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementProps) => {
+export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementContainerProps) => {
   const { user: currentAuthUser, isSuperAdmin } = useAuth();
   const [usersList, setUsersList] = useState<User[]>(initialUsers);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -85,7 +24,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
-  const form = useForm<z.infer<typeof userFormSchema>>({
+  const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       name: "",
@@ -108,12 +47,18 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       console.log("UserManagement: Loading users directly...");
       const loadedUsers = await fetchUsersFromDatabase();
       console.log(`UserManagement: Loaded ${loadedUsers.length} users:`, loadedUsers);
-      setUsersList(loadedUsers);
+      // Ensure loadedUsers conform to the User type, especially status and role
+      const typedUsers = loadedUsers.map(u => ({
+        ...u,
+        status: u.status === 'suspended' ? 'suspended' : 'active',
+        role: u.role as UserRole,
+      })) as User[];
+      setUsersList(typedUsers);
       
-      if (loadedUsers.length === 0) {
+      if (typedUsers.length === 0) {
         toast.info("No users found in the database");
       } else {
-        toast.success(`Loaded ${loadedUsers.length} users`);
+        toast.success(`Loaded ${typedUsers.length} users`);
       }
     } catch (error: any) {
       console.error("UserManagement: Failed to load users:", error);
@@ -131,8 +76,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         name: userToEdit.name,
         email: userToEdit.email,
         credits: userToEdit.credits,
-        status: userToEdit.status as "active" | "suspended",
-        role: userToEdit.role as UserRole,
+        status: userToEdit.status,
+        role: userToEdit.role,
         permissions: userToEdit.permissions || [],
       });
       if (userToEdit.role === 'admin' && userToEdit.permissions) {
@@ -144,7 +89,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     }
   };
 
-  const handleToggleBan = async (userId: string, currentStatus: string) => {
+  const handleToggleBan = async (userId: string, currentStatus: User['status']) => {
     setIsLoading(true);
     try {
       const success = await toggleUserBanStatus(userId, currentStatus);
@@ -160,6 +105,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       }
     } catch (error) {
       console.error("Failed to toggle ban status:", error);
+      toast.error("Failed to toggle ban status");
     } finally {
       setIsLoading(false);
     }
@@ -179,7 +125,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     setIsAddDialogOpen(true);
   };
 
-  const onSubmitEdit = async (values: z.infer<typeof userFormSchema>) => {
+  const onSubmitEdit = async (values: UserFormValues) => {
     if (currentUserToEdit) {
       setIsLoading(true);
       try {
@@ -211,13 +157,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     }
   };
 
-  const onSubmitAdd = async (values: z.infer<typeof userFormSchema>) => {
+  const onSubmitAdd = async (values: UserFormValues) => {
     setIsLoading(true);
     try {
       console.log("Adding user with values:", values);
       const { name, email, credits, role } = values;
       
-      // Use VITE_APP_BASE_URL if available, otherwise fallback to window.location.origin
       const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
       console.log("UserManagement: Using appBaseUrl for invitation:", appBaseUrl);
 
@@ -228,7 +173,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           role,
           permissions: role === 'admin' ? selectedPermissions : undefined,
           credits,
-          appBaseUrl: appBaseUrl, // Use the determined appBaseUrl
+          appBaseUrl: appBaseUrl,
         }
       });
 
@@ -257,7 +202,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   const handleRoleChange = (role: string) => {
     form.setValue('role', role as UserRole);
-    // Reset permissions when role changes
     if (role !== 'admin') {
       setSelectedPermissions([]);
     }
@@ -272,374 +216,73 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   };
 
   const getRoleOptions = () => {
+    const baseOptions = [
+      { value: "voter", label: "Voter" },
+      { value: "subscriber", label: "Subscriber" },
+      { value: "user", label: "User" },
+      { value: "moderator", label: "Moderator" },
+    ];
     if (isSuperAdmin()) {
       return [
-        { value: "voter", label: "Voter" },
-        { value: "subscriber", label: "Subscriber" },
-        { value: "user", label: "User" },
-        { value: "moderator", label: "Moderator" },
+        ...baseOptions,
         { value: "admin", label: "Admin" },
         { value: "super_admin", label: "Super Admin" }
       ];
-    } else {
-      return [
-        { value: "voter", label: "Voter" },
-        { value: "subscriber", label: "Subscriber" },
-        { value: "user", label: "User" },
-        { value: "moderator", label: "Moderator" }
-      ];
     }
+    return baseOptions;
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">User Management</h2>
-        <div className="space-x-2">
-          <Button onClick={loadUsers} variant="outline" disabled={isLoading}>
-            {isLoading ? 'Refreshing...' : 'Refresh Users'}
-          </Button>
-          {isSuperAdmin() && (
-            <Button onClick={handleAddUser}>Add New User</Button>
-          )}
-        </div>
-      </div>
+      <UserManagementHeader
+        onRefreshUsers={loadUsers}
+        onAddUser={handleAddUser}
+        isLoading={isLoading}
+        isSuperAdmin={isSuperAdmin()}
+      />
       
       {usersList.length === 0 && !isLoading && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-md text-center">
-          <p className="font-medium">No users found</p>
-          <p className="text-sm mt-1">Get started by adding your first user</p>
-          {isSuperAdmin() && (
-            <Button onClick={handleAddUser} className="mt-2" size="sm">
-              Add First User
-            </Button>
-          )}
-        </div>
+        <EmptyUserList
+          onAddUser={handleAddUser}
+          isSuperAdmin={isSuperAdmin()}
+        />
       )}
       
       {usersList.length > 0 && (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {usersList.map((userItem) => (
-                <TableRow key={userItem.id}>
-                  <TableCell className="font-medium">{userItem.name}</TableCell>
-                  <TableCell>{userItem.email}</TableCell>
-                  <TableCell>{renderStatusLabel(userItem.status)}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      userItem.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
-                      userItem.role === 'admin' ? 'bg-red-100 text-red-800' :
-                      userItem.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
-                      userItem.role === 'subscriber' ? 'bg-green-100 text-green-800' :
-                      userItem.role === 'voter' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {userItem.role}
-                    </span>
-                  </TableCell>
-                  <TableCell>{userItem.credits}</TableCell>
-                  <TableCell>{userItem.joinDate}</TableCell>
-                  <TableCell className="text-right space-x-1">
-                    {isSuperAdmin() && (
-                      <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 px-2"
-                          onClick={() => handleEdit(userItem.id)}
-                          disabled={isLoading}
-                        >
-                          Edit
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 px-2"
-                          onClick={() => handleToggleBan(userItem.id, userItem.status)}
-                          disabled={isLoading}
-                        >
-                          {userItem.status === 'suspended' ? 'Unban' : 'Ban'}
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <UserTable
+          users={usersList}
+          renderStatusLabel={renderStatusLabel}
+          isSuperAdmin={isSuperAdmin()}
+          onEditUser={handleEdit}
+          onToggleBanUser={handleToggleBan}
+          isLoading={isLoading}
+        />
       )}
 
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Make changes to the user account details.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="credits"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Credits</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value); 
-                        handleRoleChange(value); 
-                      }} 
-                      value={field.value} 
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {getRoleOptions().map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {form.watch('role') === 'admin' && (
-                <div className="space-y-3">
-                  <FormLabel>Admin Permissions</FormLabel>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ADMIN_PERMISSIONS.map(permission => (
-                      <div key={permission.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`edit-dialog-${permission.id}`}
-                          checked={selectedPermissions.includes(permission.id)}
-                          onCheckedChange={(checked) => 
-                            handlePermissionChange(permission.id, checked as boolean)
-                          }
-                        />
-                        <label 
-                          htmlFor={`edit-dialog-${permission.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {permission.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <EditUserDialog
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        form={form}
+        onSubmit={onSubmitEdit}
+        isLoading={isLoading}
+        selectedPermissions={selectedPermissions}
+        onPermissionChange={handlePermissionChange}
+        roleOptions={getRoleOptions()}
+        onRoleChange={handleRoleChange}
+      />
 
-      {/* Add User Dialog - Only for Super Admin */}
       {isSuperAdmin() && (
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>
-                Enter details for the new user account. An invitation email will be sent.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitAdd)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter user's full name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="email" placeholder="Enter user's email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="credits"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Initial Credits</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                           field.onChange(value); 
-                           handleRoleChange(value); 
-                        }}
-                        value={field.value} 
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {getRoleOptions().map(option => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {form.watch('role') === 'admin' && (
-                  <div className="space-y-3">
-                    <FormLabel>Admin Permissions</FormLabel>
-                    <div className="grid grid-cols-2 gap-2">
-                      {ADMIN_PERMISSIONS.map(permission => (
-                        <div key={permission.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`add-dialog-${permission.id}`}
-                            checked={selectedPermissions.includes(permission.id)}
-                            onCheckedChange={(checked) => 
-                              handlePermissionChange(permission.id, checked as boolean)
-                            }
-                          />
-                          <label 
-                            htmlFor={`add-dialog-${permission.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {permission.label}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Adding & Inviting...' : 'Add & Invite User'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <AddUserDialog
+          isOpen={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          form={form}
+          onSubmit={onSubmitAdd}
+          isLoading={isLoading}
+          selectedPermissions={selectedPermissions}
+          onPermissionChange={handlePermissionChange}
+          roleOptions={getRoleOptions()}
+          onRoleChange={handleRoleChange}
+        />
       )}
     </div>
   );
