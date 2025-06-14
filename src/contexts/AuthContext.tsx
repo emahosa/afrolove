@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [subscriberStatus, setSubscriberStatus] = useState(false);
   const initialized = useRef(false);
 
-  const isSuperAdmin = () => {
+  const isSuperAdmin = useCallback(() => {
     console.log('AuthContext: Checking super admin status for user:', user?.email);
     
     // Check if super admin by email first
@@ -52,9 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const hasSuperAdminRole = userRoles.includes('super_admin');
     console.log('AuthContext: Super admin role check:', hasSuperAdminRole);
     return hasSuperAdminRole;
-  };
+  }, [user, userRoles]);
 
-  const isAdmin = () => {
+  const isAdmin = useCallback(() => {
     console.log('AuthContext: Checking admin status for user:', user?.email);
     
     // Super admin is also admin
@@ -67,24 +67,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const hasAdminRole = userRoles.includes('admin');
     console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
     return hasAdminRole;
-  };
+  }, [isSuperAdmin, userRoles]);
 
-  const isVoter = () => {
+  const isVoter = useCallback(() => {
     return userRoles.includes('voter');
-  };
+  }, [userRoles]);
 
-  const isSubscriber = () => {
+  const isSubscriber = useCallback(() => {
     return userRoles.includes('subscriber') || subscriberStatus;
-  };
+  }, [userRoles, subscriberStatus]);
 
-  const hasAdminPermission = (permission: string) => {
+  const hasAdminPermission = useCallback((permission: string) => {
     // Super admin has all permissions
     if (isSuperAdmin()) return true;
     // Regular admin only has specific permissions
     return adminPermissions.includes(permission);
-  };
+  }, [isSuperAdmin, adminPermissions]);
 
-  const canAccessFeature = (feature: string) => {
+  const canAccessFeature = useCallback((feature: string) => {
     // Super admin can access everything
     if (isSuperAdmin()) return true;
     
@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     return false;
-  };
+  }, [isAdmin, isSuperAdmin, isSubscriber, isVoter, hasAdminPermission]);
 
   const updateUserCredits = async (amount: number) => {
     if (!user) return;
