@@ -869,7 +869,13 @@ export type Database = {
       flag_status: "pending" | "reviewed" | "dismissed"
       song_status: "pending" | "approved" | "rejected" | "completed"
       song_type: "song" | "instrumental"
-      user_role: "admin" | "moderator" | "user"
+      user_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "super_admin"
+        | "voter"
+        | "subscriber"
       voice_clone_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -997,7 +1003,14 @@ export const Constants = {
       flag_status: ["pending", "reviewed", "dismissed"],
       song_status: ["pending", "approved", "rejected", "completed"],
       song_type: ["song", "instrumental"],
-      user_role: ["admin", "moderator", "user"],
+      user_role: [
+        "admin",
+        "moderator",
+        "user",
+        "super_admin",
+        "voter",
+        "subscriber",
+      ],
       voice_clone_status: ["pending", "approved", "rejected"],
     },
   },
