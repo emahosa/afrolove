@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -128,21 +127,6 @@ const SongLibrary = () => {
   const statusCounts = getStatusCounts();
   console.log('📊 Status counts:', statusCounts);
 
-  const handleDebugPlayFirstSong = () => {
-    const firstCompletedSong = filteredAndSortedSongs.find(s => s.status === 'completed' && s.audio_url && s.audio_url.startsWith('http'));
-    if (firstCompletedSong) {
-      console.log('Debug playing first completed song:', firstCompletedSong);
-      playTrack({ 
-        id: firstCompletedSong.id,
-        title: firstCompletedSong.title, 
-        audio_url: firstCompletedSong.audio_url 
-      });
-      toast.info(`Playing: ${firstCompletedSong.title}`);
-    } else {
-      toast.error('No completed songs with valid URLs found to play.');
-    }
-  };
-  
   if (loading) {
     console.log('⏳ Loading songs...');
     return (
@@ -175,7 +159,6 @@ const SongLibrary = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-               <Button onClick={handleDebugPlayFirstSong} variant="secondary" size="sm">Debug Play First</Button>
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'outline'}
                 size="sm"
@@ -257,23 +240,6 @@ const SongLibrary = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Debug Information */}
-      {songs.length > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-blue-800">Debug Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm space-y-1 text-blue-700">
-              <p>Total songs in database: {songs.length}</p>
-              <p>Completed songs: {statusCounts.completed}</p>
-              <p>Songs with valid URLs: {songs.filter(s => s.audio_url && s.audio_url.startsWith('http')).length}</p>
-              <p>First song URL: {songs[0]?.audio_url || 'None'}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Songs Grid/List */}
       {filteredAndSortedSongs.length === 0 ? (

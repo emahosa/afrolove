@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,28 +7,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Wand2, Settings, Play, Download, Share2, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Music, Wand2, Settings, Clock, AlertCircle } from 'lucide-react';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
 import { useGenres } from '@/hooks/use-genres';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-interface GenerationStep {
-  id: string;
-  title: string;
-  description: string;
-  status: 'pending' | 'active' | 'completed' | 'error';
-}
 
 const MusicGenerationWorkflow = () => {
   const { user } = useAuth();
   const { genres } = useGenres();
   const { generateSong, isGenerating } = useSunoGeneration();
 
-  const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     prompt: '',
     title: '',
@@ -38,39 +30,6 @@ const MusicGenerationWorkflow = () => {
     negativeTags: ''
   });
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-
-  const [steps, setSteps] = useState<GenerationStep[]>([
-    { id: 'setup', title: 'Setup', description: 'Configure your song parameters', status: 'active' },
-    { id: 'generate', title: 'Generate', description: 'AI is creating your song', status: 'pending' },
-    { id: 'process', title: 'Process', description: 'Finalizing audio quality', status: 'pending' },
-    { id: 'complete', title: 'Complete', description: 'Your song is ready', status: 'pending' }
-  ]);
-
-  const [generationProgress, setGenerationProgress] = useState(0);
-
-  useEffect(() => {
-    if (isGenerating) {
-      setCurrentStep(1);
-      updateStepStatus('generate', 'active');
-      // Simulate progress for better UX
-      const interval = setInterval(() => {
-        setGenerationProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(interval);
-            return 90;
-          }
-          return prev + Math.random() * 10;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [isGenerating]);
-
-  const updateStepStatus = (stepId: string, status: GenerationStep['status']) => {
-    setSteps(prev => prev.map(step => 
-      step.id === stepId ? { ...step, status } : step
-    ));
-  };
 
   const handleGenerate = async () => {
     if (!formData.prompt.trim()) {
@@ -83,9 +42,6 @@ const MusicGenerationWorkflow = () => {
       return;
     }
 
-    updateStepStatus('setup', 'completed');
-    setCurrentStep(1);
-    setGenerationProgress(0);
     setCurrentTaskId(null);
 
     const request = {
@@ -101,71 +57,12 @@ const MusicGenerationWorkflow = () => {
     const taskId = await generateSong(request);
     if (taskId) {
       setCurrentTaskId(taskId);
-      toast.success('🎵 Generation started! We\'ll notify you when it\'s ready.');
-    }
-  };
-
-  const getStepIcon = (step: GenerationStep) => {
-    switch (step.status) {
-      case 'completed': return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'active': return <Clock className="h-5 w-5 text-blue-500 animate-spin" />;
-      case 'error': return <AlertCircle className="h-5 w-5 text-red-500" />;
-      default: return <div className="h-5 w-5 rounded-full bg-gray-300" />;
+      toast.success('🎵 Generation started! Your song will appear in your library when ready.');
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Progress Indicator */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5" />
-            Music Generation Workflow
-          </CardTitle>
-          <CardDescription>
-            Create professional-quality music with AI
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Step Indicator */}
-            <div className="flex items-center justify-between">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                    step.status === 'active' ? 'bg-blue-50 border border-blue-200' :
-                    step.status === 'completed' ? 'bg-green-50 border border-green-200' :
-                    step.status === 'error' ? 'bg-red-50 border border-red-200' :
-                    'bg-gray-50 border border-gray-200'
-                  }`}>
-                    {getStepIcon(step)}
-                    <div>
-                      <div className="font-medium text-sm">{step.title}</div>
-                      <div className="text-xs text-muted-foreground">{step.description}</div>
-                    </div>
-                  </div>
-                  {index < steps.length - 1 && (
-                    <div className="h-px bg-gray-300 w-8 mx-2" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Progress Bar */}
-            {isGenerating && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span>Generation Progress</span>
-                  <span>{Math.round(generationProgress)}%</span>
-                </div>
-                <Progress value={generationProgress} className="h-2" />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Generation Form */}
       <Tabs defaultValue="simple" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -227,7 +124,7 @@ const MusicGenerationWorkflow = () => {
                   </Select>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 pt-6">
                   <Switch
                     id="instrumental"
                     checked={formData.instrumental}
@@ -376,24 +273,22 @@ const MusicGenerationWorkflow = () => {
       </Tabs>
 
       {/* Status Panel */}
-      {isGenerating && (
+      {isGenerating && currentTaskId && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 animate-spin" />
-              Generation Status
+              Generation in Progress
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                AI is composing your song...
+                AI is composing your song. It will appear in your library once complete.
               </p>
-              {currentTaskId && (
-                <p className="text-xs font-mono bg-muted p-2 rounded">
-                  Task ID: {currentTaskId}
-                </p>
-              )}
+              <p className="text-xs font-mono bg-muted p-2 rounded">
+                Task ID: {currentTaskId}
+              </p>
             </div>
           </CardContent>
         </Card>
