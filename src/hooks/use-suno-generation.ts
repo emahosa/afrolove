@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -41,7 +42,8 @@ export const useSunoGeneration = () => {
 
     try {
       setIsGenerating(true);
-      console.log('Starting song generation:', request);
+      console.log('useSunoGeneration: Starting song generation. isGenerating should be true.');
+      console.log('useSunoGeneration: Request:', request);
 
       const { data, error } = await supabase.functions.invoke('suno-generate', {
         body: {
@@ -49,6 +51,8 @@ export const useSunoGeneration = () => {
           userId: user.id
         }
       });
+      
+      console.log('useSunoGeneration: invoke returned.', { data, error });
 
       if (error) {
         console.error('Generation error:', error);
@@ -58,18 +62,21 @@ export const useSunoGeneration = () => {
 
       if (!data?.success) {
         const errorMsg = data?.error || 'Generation failed';
+        console.error('useSunoGeneration: Generation failed with message:', errorMsg);
         toast.error(errorMsg);
         return null;
       }
 
       const taskId = data.task_id;
       if (!taskId) {
+        console.error('useSunoGeneration: No task ID received');
         toast.error('No task ID received');
         return null;
       }
 
       setCurrentTaskId(taskId);
       toast.success('🎵 Song generation started! Check your library for progress.');
+      console.log('useSunoGeneration: Successfully started generation with task ID:', taskId);
       return taskId;
 
     } catch (error: any) {
@@ -78,6 +85,7 @@ export const useSunoGeneration = () => {
       return null;
     } finally {
       setIsGenerating(false);
+      console.log('useSunoGeneration: Generation process finished. isGenerating should be false.');
     }
   };
 

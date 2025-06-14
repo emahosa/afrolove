@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
     }
 
     // Create a callback URL for the Suno API
-    const callBackUrl = `${supabaseUrl}/functions/v1/suno-callback`
+    const callBackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
 
     // Prepare the Suno API request using the correct format from documentation
     const sunoRequestBody = {
@@ -119,7 +120,8 @@ Deno.serve(async (req) => {
       customMode: customMode,
       instrumental: instrumental,
       model: model,
-      callBackUrl: callBackUrl
+      callBackUrl: callBackUrl,
+      wait_audio: false // Ensure async response
     }
 
     // Add optional fields based on mode
