@@ -92,14 +92,40 @@ Deno.serve(async (req) => {
     // Check status using the correct API endpoint
     console.log(`🔍 Checking status with Suno API`)
     
-    const statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-        'Accept': 'application/json'
-      }
-    })
+    let statusResponse;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
 
+    try {
+      statusResponse = await fetch(`https://apibox.erweima.ai/api/v1/generate/record-info?taskId=${taskId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      })
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        console.error('❌ Suno status check timed out.')
+        // We don't want to fail the whole process, just log it and maybe try again later.
+        // Returning a "still processing" message.
+        return new Response(JSON.stringify({ 
+          success: true,
+          updated: false,
+          processing: true,
+          message: 'Still checking status - API timeout'
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      // Re-throw other errors
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    
     console.log('📥 Status API response status:', statusResponse.status)
     
     const responseText = await statusResponse.text()

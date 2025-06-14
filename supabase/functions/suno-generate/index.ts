@@ -139,15 +139,39 @@ Deno.serve(async (req) => {
     console.log('🎵 Using API Key ending in:', sunoApiKey.slice(-4))
 
     // Use the correct endpoint from documentation
-    const sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${sunoApiKey}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(sunoRequestBody)
-    })
+    let sunoResponse;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 seconds timeout
+
+    try {
+      sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sunoApiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(sunoRequestBody),
+        signal: controller.signal
+      })
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        console.error('❌ Suno API request timed out.')
+        return new Response(JSON.stringify({ 
+          error: 'Music generation service took too long to respond. Please try again.',
+          errorCode: 'SUNO_API_TIMEOUT',
+          success: false 
+        }), {
+          status: 504,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+      // Re-throw other errors to be handled by the main catch block
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
 
     console.log('📥 Suno API response status:', sunoResponse.status)
     console.log('📥 Suno API response headers:', Object.fromEntries(sunoResponse.headers.entries()))
