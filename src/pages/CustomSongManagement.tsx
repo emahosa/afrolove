@@ -4,11 +4,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { Search, RefreshCw, Music } from "lucide-react";
-import { useAdminSongRequests } from "@/hooks/use-admin-song-requests";
+import { useAdminSongRequests, CustomSongLyrics } from "@/hooks/use-admin-song-requests";
 import { AdminLyricsEditor } from "@/components/song-management/AdminLyricsEditor";
 import { AdminSongRequestTabs } from "@/components/song-management/AdminSongRequestTabs";
 import { Button } from "@/components/ui/button";
-import { CustomSongLyrics } from "@/integrations/supabase/types"; // Import this type if not already
 
 const CustomSongManagement = () => {
   const { isAdmin, isSuperAdmin, hasAdminPermission, user } = useAuth();
@@ -21,8 +20,8 @@ const CustomSongManagement = () => {
     error,
     updateRequestStatus,
     addLyrics,
-    fetchLyricsForRequest, // This is the correct function for fetching lyrics for a request to display
-    fetchSelectedLyrics, // This might be for a different purpose or if it returns the specific type
+    fetchLyricsForRequest, 
+    fetchSelectedLyrics, 
     refetch
   } = useAdminSongRequests();
 
@@ -34,7 +33,7 @@ const CustomSongManagement = () => {
   const filteredRequests = allRequests.filter(request => {
     const matchesSearch = 
       request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (request.user_id && request.user_id.toLowerCase().includes(searchQuery.toLowerCase())) || // Check if user_id exists
+      (request.user_id && request.user_id.toLowerCase().includes(searchQuery.toLowerCase())) || 
       request.title.toLowerCase().includes(searchQuery.toLowerCase());
       
     return matchesSearch;
@@ -42,19 +41,17 @@ const CustomSongManagement = () => {
 
   const handleStartWork = async (requestId: string) => {
     console.log('Admin: Starting work on request (opening editor):', requestId);
-    // Don't update status yet - just open the editor
     setSelectedRequestId(requestId);
   };
 
   const handleUploadLyricsForEditor = async (requestId: string, lyrics1: string, lyrics2: string): Promise<boolean> => {
     try {
       console.log('Admin: Uploading lyrics for request:', requestId);
-      await addLyrics(requestId, lyrics1, 1); // This comes from useAdminSongRequests
-      await addLyrics(requestId, lyrics2, 2); // This comes from useAdminSongRequests
-      // Only now update the status to lyrics_proposed
-      await updateRequestStatus(requestId, 'lyrics_proposed'); // This comes from useAdminSongRequests
+      await addLyrics(requestId, lyrics1, 1); 
+      await addLyrics(requestId, lyrics2, 2); 
+      await updateRequestStatus(requestId, 'lyrics_proposed'); 
       setSelectedRequestId(null);
-      refetch(); // Refetch requests to update the list
+      refetch(); 
       return true;
     } catch (error) {
       console.error('Error uploading lyrics:', error);
@@ -63,15 +60,9 @@ const CustomSongManagement = () => {
   };
   
   const handleFetchLyricsForTab = async (requestId: string): Promise<CustomSongLyrics | null> => {
-    // This function is expected by AdminSongRequestTabs for its 'fetchSelectedLyrics' prop
-    // It should fetch the *selected* lyrics for display in the tab.
-    // useAdminSongRequests has `fetchSelectedLyrics` which seems appropriate.
-    // Ensure it matches the expected return type.
-    // If fetchSelectedLyrics from the hook returns Promise<CustomSongLyrics[]>, adapt it.
-    // For now, assuming fetchSelectedLyrics from hook returns a single CustomSongLyrics or null/undefined
      try {
-        const lyrics = await fetchSelectedLyrics(requestId); // from useAdminSongRequests
-        return lyrics || null; // ensure it returns CustomSongLyrics or null
+        const lyrics = await fetchSelectedLyrics(requestId); 
+        return lyrics || null; 
     } catch (err) {
         console.error("Failed to fetch selected lyrics for tab", err);
         return null;
@@ -150,16 +141,16 @@ const CustomSongManagement = () => {
             </div>
           ) : (
             <AdminSongRequestTabs
-              songRequests={filteredRequests} // Pass filtered requests
-              onStartWork={handleStartWork} // Correct: (requestId: string) => void
-              onUpdateStatus={updateRequestStatus} // Correct: from hook (requestId: string, status: CustomSongStatus) => Promise<void>
-              fetchSelectedLyrics={handleFetchLyricsForTab} // Corrected: (requestId: string) => Promise<CustomSongLyrics | null>
+              songRequests={filteredRequests}
+              onStartWork={handleStartWork}
+              onUpdateStatus={updateRequestStatus}
+              fetchSelectedLyrics={handleFetchLyricsForTab}
             />
           )}
           
           <AdminLyricsEditor
             selectedRequestId={selectedRequestId}
-            onUploadLyrics={handleUploadLyricsForEditor} // Corrected: (requestId: string, lyrics1: string, lyrics2: string) => Promise<boolean>
+            onUploadLyrics={handleUploadLyricsForEditor}
             onCancel={() => setSelectedRequestId(null)}
           />
         </CardContent>
