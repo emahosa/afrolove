@@ -34,6 +34,7 @@ import {
   TableCell
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 
@@ -76,11 +77,11 @@ const userFormSchema = z.object({
 });
 
 export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementProps) => {
-  const { isSuperAdmin } = useAuth();
+  const { user: currentAuthUser, isSuperAdmin } = useAuth();
   const [usersList, setUsersList] = useState<User[]>(initialUsers);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUserToEdit, setCurrentUserToEdit] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
@@ -123,20 +124,19 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   };
 
   const handleEdit = (userId: string) => {
-    const user = usersList.find(user => user.id === userId);
-    if (user) {
-      setCurrentUser(user);
+    const userToEdit = usersList.find(user => user.id === userId);
+    if (userToEdit) {
+      setCurrentUserToEdit(userToEdit);
       form.reset({
-        name: user.name,
-        email: user.email,
-        credits: user.credits,
-        status: user.status as "active" | "suspended",
-        role: user.role as UserRole,
-        permissions: user.permissions || [], // Ensure permissions is an array
+        name: userToEdit.name,
+        email: userToEdit.email,
+        credits: userToEdit.credits,
+        status: userToEdit.status as "active" | "suspended",
+        role: userToEdit.role as UserRole,
+        permissions: userToEdit.permissions || [],
       });
-      // If the role is admin, set selectedPermissions from the user's permissions
-      if (user.role === 'admin' && user.permissions) {
-        setSelectedPermissions(user.permissions);
+      if (userToEdit.role === 'admin' && userToEdit.permissions) {
+        setSelectedPermissions(userToEdit.permissions);
       } else {
         setSelectedPermissions([]);
       }
@@ -166,7 +166,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   };
 
   const handleAddUser = () => {
-    setCurrentUser(null);
+    setCurrentUserToEdit(null);
     setSelectedPermissions([]);
     form.reset({
       name: "",
@@ -180,24 +180,23 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   };
 
   const onSubmitEdit = async (values: z.infer<typeof userFormSchema>) => {
-    if (currentUser) {
+    if (currentUserToEdit) {
       setIsLoading(true);
       try {
-        // Include selectedPermissions if the role is 'admin'
         const permissionsToUpdate = values.role === 'admin' ? selectedPermissions : undefined;
-        const success = await updateUserInDatabase(currentUser.id, { ...values, permissions: permissionsToUpdate });
+        const success = await updateUserInDatabase(currentUserToEdit.id, { ...values, permissions: permissionsToUpdate });
         if (success) {
-          setUsersList(usersList.map(user => 
-            user.id === currentUser.id 
-              ? { 
-                  ...user, 
-                  name: values.name, 
-                  email: values.email, 
+          setUsersList(usersList.map(user =>
+            user.id === currentUserToEdit.id
+              ? {
+                  ...user,
+                  name: values.name,
+                  email: values.email,
                   credits: values.credits,
                   status: values.status || user.status,
                   role: values.role || user.role,
-                  permissions: permissionsToUpdate || user.permissions, // Update permissions
-                } 
+                  permissions: permissionsToUpdate || user.permissions,
+                }
               : user
           ));
           toast.success("User updated successfully");
@@ -216,35 +215,39 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     setIsLoading(true);
     try {
       console.log("Adding user with values:", values);
-      const newUserId = await addUserToDatabase({
-        ...values,
-        permissions: selectedPermissions
+      const { name, email, credits, role } = values;
+
+      const { data: edgeFnData, error: edgeFnError } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email,
+          fullName: name,
+          role,
+          permissions: role === 'admin' ? selectedPermissions : undefined,
+          credits,
+        }
       });
-      
-      if (newUserId) {
-        toast.success("New user added successfully");
-        
-        const newUser: User = {
-          id: newUserId,
-          name: values.name,
-          email: values.email,
-          credits: values.credits,
-          status: values.status,
-          role: values.role,
-          joinDate: new Date().toISOString().split('T')[0]
-        };
-        
-        setUsersList([...usersList, newUser]);
-        setIsAddDialogOpen(false);
-        
-        // Refresh the user list to ensure we have the latest data
-        setTimeout(() => loadUsers(), 1000);
-      } else {
-        toast.error("Failed to add user");
+
+      if (edgeFnError) {
+        console.error("Error calling admin-create-user Edge Function:", edgeFnError);
+        throw new Error(edgeFnError.message || "Edge function call failed");
       }
-    } catch (error) {
+      
+      if (edgeFnData.error) {
+        console.error("Error from admin-create-user Edge Function:", edgeFnData.error);
+        throw new Error(edgeFnData.error || "Edge function returned an error");
+      }
+
+      toast.success(edgeFnData.message || "New user invited successfully. They will receive an email to set up their account.");
+      setIsAddDialogOpen(false);
+      
+      // Refresh the user list to ensure we have the latest data
+      // The new user won't appear immediately as they need to accept invite,
+      // but refreshing helps if other changes occurred.
+      setTimeout(() => loadUsers(), 1000);
+
+    } catch (error: any) {
       console.error("Failed to add user:", error);
-      toast.error("An error occurred while adding the user");
+      toast.error("Failed to add user", { description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -327,25 +330,25 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
               </TableRow>
             </TableHeader>
             <TableBody>
-              {usersList.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{renderStatusLabel(user.status)}</TableCell>
+              {usersList.map((userItem) => (
+                <TableRow key={userItem.id}>
+                  <TableCell className="font-medium">{userItem.name}</TableCell>
+                  <TableCell>{userItem.email}</TableCell>
+                  <TableCell>{renderStatusLabel(userItem.status)}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
-                      user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                      user.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
-                      user.role === 'subscriber' ? 'bg-green-100 text-green-800' :
-                      user.role === 'voter' ? 'bg-blue-100 text-blue-800' :
+                      userItem.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                      userItem.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      userItem.role === 'moderator' ? 'bg-yellow-100 text-yellow-800' :
+                      userItem.role === 'subscriber' ? 'bg-green-100 text-green-800' :
+                      userItem.role === 'voter' ? 'bg-blue-100 text-blue-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
-                      {user.role}
+                      {userItem.role}
                     </span>
                   </TableCell>
-                  <TableCell>{user.credits}</TableCell>
-                  <TableCell>{user.joinDate}</TableCell>
+                  <TableCell>{userItem.credits}</TableCell>
+                  <TableCell>{userItem.joinDate}</TableCell>
                   <TableCell className="text-right space-x-1">
                     {isSuperAdmin() && (
                       <>
@@ -353,7 +356,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                           variant="ghost" 
                           size="sm" 
                           className="h-8 px-2"
-                          onClick={() => handleEdit(user.id)}
+                          onClick={() => handleEdit(userItem.id)}
                           disabled={isLoading}
                         >
                           Edit
@@ -362,10 +365,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                           variant="ghost" 
                           size="sm" 
                           className="h-8 px-2"
-                          onClick={() => handleToggleBan(user.id, user.status)}
+                          onClick={() => handleToggleBan(userItem.id, userItem.status)}
                           disabled={isLoading}
                         >
-                          {user.status === 'suspended' ? 'Unban' : 'Ban'}
+                          {userItem.status === 'suspended' ? 'Unban' : 'Ban'}
                         </Button>
                       </>
                     )}
@@ -379,7 +382,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]"> {/* Increased width for permissions */}
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             <DialogDescription>
@@ -459,10 +462,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     <FormLabel>Role</FormLabel>
                     <Select 
                       onValueChange={(value) => {
-                        field.onChange(value); // Update RHF state
-                        handleRoleChange(value); // Custom logic (e.g., reset permissions)
+                        field.onChange(value); 
+                        handleRoleChange(value); 
                       }} 
-                      value={field.value} // Controlled component
+                      value={field.value} 
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -481,8 +484,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   </FormItem>
                 )}
               />
-
-              {/* Admin Permissions - Only show for admin role */}
               {form.watch('role') === 'admin' && (
                 <div className="space-y-3">
                   <FormLabel>Admin Permissions</FormLabel>
@@ -490,7 +491,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     {ADMIN_PERMISSIONS.map(permission => (
                       <div key={permission.id} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`edit-dialog-${permission.id}`} // Unique ID for checkbox
+                          id={`edit-dialog-${permission.id}`}
                           checked={selectedPermissions.includes(permission.id)}
                           onCheckedChange={(checked) => 
                             handlePermissionChange(permission.id, checked as boolean)
@@ -507,7 +508,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   </div>
                 </div>
               )}
-
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancel
@@ -528,7 +528,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
             <DialogHeader>
               <DialogTitle>Add New User</DialogTitle>
               <DialogDescription>
-                Enter details for the new user account.
+                Enter details for the new user account. An invitation email will be sent.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -538,9 +538,9 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="Enter user's full name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -553,7 +553,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} type="email" placeholder="Enter user's email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -564,7 +564,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   name="credits"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Credits</FormLabel>
+                      <FormLabel>Initial Credits</FormLabel>
                       <FormControl>
                         <Input type="number" {...field} />
                       </FormControl>
@@ -580,10 +580,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       <FormLabel>Role</FormLabel>
                       <Select 
                         onValueChange={(value) => {
-                           field.onChange(value); // Update RHF state
-                           handleRoleChange(value); // Custom logic
+                           field.onChange(value); 
+                           handleRoleChange(value); 
                         }}
-                        value={field.value} // Ensure it's a controlled component
+                        value={field.value} 
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -602,8 +602,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     </FormItem>
                   )}
                 />
-                
-                {/* Admin Permissions - Only show for admin role */}
                 {form.watch('role') === 'admin' && (
                   <div className="space-y-3">
                     <FormLabel>Admin Permissions</FormLabel>
@@ -611,7 +609,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                       {ADMIN_PERMISSIONS.map(permission => (
                         <div key={permission.id} className="flex items-center space-x-2">
                           <Checkbox
-                            id={`add-dialog-${permission.id}`} // Unique ID for checkbox
+                            id={`add-dialog-${permission.id}`}
                             checked={selectedPermissions.includes(permission.id)}
                             onCheckedChange={(checked) => 
                               handlePermissionChange(permission.id, checked as boolean)
@@ -628,13 +626,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                     </div>
                   </div>
                 )}
-
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Adding...' : 'Add User'}
+                    {isLoading ? 'Adding & Inviting...' : 'Add & Invite User'}
                   </Button>
                 </DialogFooter>
               </form>

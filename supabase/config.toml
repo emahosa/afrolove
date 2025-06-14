@@ -1,1 +1,59 @@
+
+# Supabase project ID, this should always be the first line.
 project_id = "bswfiynuvjvoaoyfdrso"
+
+[api]
+enabled = true
+# external_port = 54321
+# max_rows = 1000
+
+[db]
+# port = 5432
+# major_version = 15
+# pooler_enabled = true
+# pooler_default_pool_size = 15
+# pooler_default_pool_timeout = 10
+# pooler_default_pool_max_client_conn = 100
+# pooler_ignore_startup_parameters = "extra_float_digits"
+
+[studio]
+# port = 54323
+# enabled = true
+# api_url = "http://localhost:54321"
+# db_url = "postgresql://postgres:postgres@localhost:5432/postgres"
+
+[auth]
+# site_url = "http://localhost:3000" # Your app's base URL
+# additional_redirect_urls = ["http://localhost:3000/welcome"]
+# enable_signup = true
+# enable_email_autoverify = false # Set to true for production
+# enable_phone_autoverify = false
+# email_template_path_prefix = "supabase/templates/email"
+# password_min_length = 8
+
+[functions.suno-generate-v3]
+timeout_s = 300
+
+[functions.suno-generate-lyrics]
+timeout_s = 120
+
+[functions.get-suno-credits]
+verify_jwt = false
+
+[functions.suno-webhook]
+verify_jwt = false
+
+[functions.suno-callback]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = true # Important: Only authenticated (admin) users should call this
+timeout_s = 30 # Default timeout is 5s, might need more for multiple DB operations
+
+# You can add specific environment variables for functions here if needed
+# [functions.my-function.env]
+# MY_ENV_VAR = "value"
+
+[realtime]
+# enabled = true
+# max_connections = 100
