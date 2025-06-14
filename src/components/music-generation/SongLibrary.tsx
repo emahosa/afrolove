@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import GeneratedSongCard from './GeneratedSongCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 
 interface Song {
   id: string;
@@ -35,6 +37,7 @@ interface Song {
 
 const SongLibrary = () => {
   const { user } = useAuth();
+  const { playTrack } = useAudioPlayerContext();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +128,17 @@ const SongLibrary = () => {
   const statusCounts = getStatusCounts();
   console.log('📊 Status counts:', statusCounts);
 
+  const handleDebugPlayFirstSong = () => {
+    const firstCompletedSong = filteredAndSortedSongs.find(s => s.status === 'completed' && s.audio_url && s.audio_url.startsWith('http'));
+    if (firstCompletedSong) {
+      console.log('Debug playing first completed song:', firstCompletedSong);
+      playTrack({ title: firstCompletedSong.title, src: firstCompletedSong.audio_url });
+      toast.info(`Playing: ${firstCompletedSong.title}`);
+    } else {
+      toast.error('No completed songs with valid URLs found to play.');
+    }
+  };
+  
   if (loading) {
     console.log('⏳ Loading songs...');
     return (
@@ -157,6 +171,7 @@ const SongLibrary = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+               <Button onClick={handleDebugPlayFirstSong} variant="secondary" size="sm">Debug Play First</Button>
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'outline'}
                 size="sm"
