@@ -45,7 +45,8 @@ Deno.serve(async (req) => {
       customMode = false,
       model = 'V3_5',
       negativeTags,
-      userId
+      userId,
+      isAdminTest = false
     } = body
 
     console.log('📥 Generation request received:', {
@@ -77,34 +78,36 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Check user credits
-    const { data: userProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', userId)
-      .single()
+    if (!isAdminTest) {
+      // Check user credits
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', userId)
+        .single()
 
-    if (profileError || !userProfile) {
-      console.error('❌ User profile not found:', profileError)
-      return new Response(JSON.stringify({ 
-        error: 'User not found',
-        success: false 
-      }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
+      if (profileError || !userProfile) {
+        console.error('❌ User profile not found:', profileError)
+        return new Response(JSON.stringify({ 
+          error: 'User not found',
+          success: false 
+        }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
 
-    // Ensure user has exactly 5 credits (not more, not less)
-    if (userProfile.credits < 5) {
-      console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
-      return new Response(JSON.stringify({ 
-        error: 'Insufficient credits. You need exactly 5 credits to generate a song.',
-        success: false 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      // Ensure user has enough credits
+      if (userProfile.credits < 5) {
+        console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
+        return new Response(JSON.stringify({ 
+          error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+          success: false 
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
     }
 
     // Create a callback URL for the Suno API
@@ -235,16 +238,18 @@ Deno.serve(async (req) => {
 
     console.log('✅ Task ID received:', taskId)
 
-    // Deduct exactly 5 credits (negative amount)
-    const { error: creditError } = await supabase.rpc('update_user_credits', {
-      p_user_id: userId,
-      p_amount: -5
-    })
+    if (!isAdminTest) {
+      // Deduct exactly 5 credits (negative amount)
+      const { error: creditError } = await supabase.rpc('update_user_credits', {
+        p_user_id: userId,
+        p_amount: -5
+      })
 
-    if (creditError) {
-      console.error('❌ Failed to deduct credits:', creditError)
-    } else {
-      console.log('✅ Exactly 5 credits deducted for user:', userId)
+      if (creditError) {
+        console.error('❌ Failed to deduct credits:', creditError)
+      } else {
+        console.log('✅ Exactly 5 credits deducted for user:', userId)
+      }
     }
 
     // Create song record with exact credit amount
@@ -255,7 +260,7 @@ Deno.serve(async (req) => {
       audio_url: taskId, // Store task ID temporarily
       prompt,
       status: 'pending',
-      credits_used: 5  // Exactly 5 credits
+      credits_used: isAdminTest ? 0 : 5
     }
 
     const { data: newSong, error: songError } = await supabase
