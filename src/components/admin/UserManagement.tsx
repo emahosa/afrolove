@@ -297,7 +297,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           onPermissionChange={handlePermissionChange}
           roleOptions={getRoleOptions()}
           onRoleChange={handleRoleChange}
-          isSuperAdmin={isSuperAdmin()} {/* Pass isSuperAdmin prop */}
+          isSuperAdmin={isSuperAdmin()}
         />
       )}
     </div>
