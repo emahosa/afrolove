@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
@@ -33,6 +32,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       status: "active",
       role: "voter",
       permissions: [],
+      password: "", // Initialize explicitly
+      confirmPassword: "", // Initialize explicitly
     },
   });
 
@@ -47,7 +48,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       console.log("UserManagement: Loading users directly...");
       const loadedUsers = await fetchUsersFromDatabase();
       console.log(`UserManagement: Loaded ${loadedUsers.length} users:`, loadedUsers);
-      // Ensure loadedUsers conform to the User type, especially status and role
       const typedUsers = loadedUsers.map(u => ({
         ...u,
         status: u.status === 'suspended' ? 'suspended' : 'active',
@@ -79,6 +79,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         status: userToEdit.status,
         role: userToEdit.role,
         permissions: userToEdit.permissions || [],
+        password: "", // Ensure password fields are clear for edit form
+        confirmPassword: "",
       });
       if (userToEdit.role === 'admin' && userToEdit.permissions) {
         setSelectedPermissions(userToEdit.permissions);
@@ -114,13 +116,15 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const handleAddUser = () => {
     setCurrentUserToEdit(null);
     setSelectedPermissions([]);
-    form.reset({
+    form.reset({ // Reset with default values, including empty passwords
       name: "",
       email: "",
       credits: 5,
       status: "active",
       role: "voter",
       permissions: [],
+      password: "",
+      confirmPassword: "",
     });
     setIsAddDialogOpen(true);
   };
@@ -129,7 +133,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     if (currentUserToEdit) {
       setIsLoading(true);
       try {
-        const permissionsToUpdate = values.role === 'admin' ? selectedPermissions : undefined;
+        const permissionsToUpdate = (values.role === 'admin' || values.role === 'super_admin') ? selectedPermissions : undefined;
+        // Password is not edited through this form in the current design
         const success = await updateUserInDatabase(currentUserToEdit.id, { ...values, permissions: permissionsToUpdate });
         if (success) {
           setUsersList(usersList.map(user =>
@@ -139,8 +144,8 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
                   name: values.name,
                   email: values.email,
                   credits: values.credits,
-                  status: values.status || user.status,
-                  role: values.role || user.role,
+                  status: values.status || user.status, // status should always be provided by form
+                  role: values.role || user.role, // role should always be provided
                   permissions: permissionsToUpdate || user.permissions,
                 }
               : user
@@ -161,20 +166,27 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     setIsLoading(true);
     try {
       console.log("Adding user with values:", values);
-      const { name, email, credits, role } = values;
+      const { name, email, credits, role, password } = values; // Extract password
       
       const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
       console.log("UserManagement: Using appBaseUrl for invitation:", appBaseUrl);
 
+      const body: any = {
+        email,
+        fullName: name,
+        role,
+        permissions: (role === 'admin' || role === 'super_admin') ? selectedPermissions : undefined,
+        credits,
+        appBaseUrl: appBaseUrl,
+      };
+
+      // Only include password if it's provided and valid for the role
+      if (password && password.length >= 8 && (role === 'admin' || role === 'super_admin') && isSuperAdmin()) {
+        body.password = password;
+      }
+
       const { data: edgeFnData, error: edgeFnError } = await supabase.functions.invoke('admin-create-user', {
-        body: {
-          email,
-          fullName: name,
-          role,
-          permissions: role === 'admin' ? selectedPermissions : undefined,
-          credits,
-          appBaseUrl: appBaseUrl,
-        }
+        body: body
       });
 
       if (edgeFnError) {
@@ -187,10 +199,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
         throw new Error(edgeFnData.error || "Edge function returned an error");
       }
 
-      toast.success(edgeFnData.message || "New user invited successfully. They will receive an email to set up their account.");
+      toast.success(edgeFnData.message || "User processing complete.");
       setIsAddDialogOpen(false);
       
-      setTimeout(() => loadUsers(), 1000);
+      setTimeout(() => loadUsers(), 1000); // Reload users to see the new one
 
     } catch (error: any) {
       console.error("Failed to add user:", error);
@@ -202,9 +214,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   const handleRoleChange = (role: string) => {
     form.setValue('role', role as UserRole);
-    if (role !== 'admin') {
+    // Clear permissions if role is not admin/super_admin
+    if (role !== 'admin' && role !== 'super_admin') {
       setSelectedPermissions([]);
+      form.setValue('permissions', []);
     }
+    // Password fields visibility is handled within AddUserDialog via useEffect on watchedRole
   };
 
   const handlePermissionChange = (permission: string, checked: boolean) => {
@@ -282,6 +297,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           onPermissionChange={handlePermissionChange}
           roleOptions={getRoleOptions()}
           onRoleChange={handleRoleChange}
+          isSuperAdmin={isSuperAdmin()} {/* Pass isSuperAdmin prop */}
         />
       )}
     </div>

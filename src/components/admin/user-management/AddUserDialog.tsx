@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,7 @@ interface AddUserDialogProps {
   onPermissionChange: (permissionId: string, checked: boolean) => void;
   roleOptions: { value: string; label: string }[];
   onRoleChange: (role: string) => void;
+  isSuperAdmin: boolean; // New prop
 }
 
 export const AddUserDialog: React.FC<AddUserDialogProps> = ({
@@ -46,14 +47,31 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
   onPermissionChange,
   roleOptions,
   onRoleChange,
+  isSuperAdmin, // New prop
 }) => {
+  const watchedRole = form.watch('role');
+  const showPasswordFields = isSuperAdmin && (watchedRole === 'admin' || watchedRole === 'super_admin');
+
+  useEffect(() => {
+    if (!showPasswordFields) {
+      form.setValue('password', undefined);
+      form.setValue('confirmPassword', undefined);
+      form.clearErrors('password');
+      form.clearErrors('confirmPassword');
+    }
+  }, [showPasswordFields, form]);
+  
+  const dialogDescription = showPasswordFields
+    ? "Enter details for the new admin. You will set their initial password. They must confirm their email."
+    : "Enter details for the new user account. An invitation email will be sent.";
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
-            Enter details for the new user account. An invitation email will be sent.
+            {dialogDescription}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -91,7 +109,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
                 <FormItem>
                   <FormLabel>Initial Credits</FormLabel>
                   <FormControl>
-                    <Input type="number" {...field} />
+                    <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -106,7 +124,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
                   <Select
                     onValueChange={(value) => {
                        field.onChange(value as UserRole);
-                       onRoleChange(value);
+                       onRoleChange(value); // This callback might also clear permissions if role is not admin
                     }}
                     value={field.value}
                   >
@@ -127,7 +145,39 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
                 </FormItem>
               )}
             />
-            {form.watch('role') === 'admin' && (
+
+            {showPasswordFields && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} placeholder="Enter initial password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} placeholder="Confirm initial password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
+            {(watchedRole === 'admin' || watchedRole === 'super_admin') && (
               <AdminPermissionsFormSection
                 selectedPermissions={selectedPermissions}
                 onPermissionChange={onPermissionChange}
@@ -139,7 +189,7 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Adding & Inviting...' : 'Add & Invite User'}
+                {isLoading ? 'Processing...' : (showPasswordFields ? 'Create User & Set Password' : 'Add & Invite User')}
               </Button>
             </DialogFooter>
           </form>
@@ -148,3 +198,4 @@ export const AddUserDialog: React.FC<AddUserDialogProps> = ({
     </Dialog>
   );
 };
+
