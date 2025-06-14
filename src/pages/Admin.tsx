@@ -33,26 +33,28 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const [adminInitialized, setAdminInitialized] = useState(false);
 
   // Check admin access first
-  if (!isAdmin()) {
-    console.log("User is not admin, redirecting");
-    toast.error("You don't have admin permissions");
-    return <Navigate to="/dashboard" />;
-  }
+  useEffect(() => {
+    if (!isAdmin()) {
+      console.log("User is not admin, redirecting");
+      toast.error("You don't have admin permissions");
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAdmin, navigate]);
 
   // Initialize admin setup on component mount
   useEffect(() => {
     const initializeAdmin = async () => {
-      if (!user) return;
+      if (!user || !isAdmin()) {
+        setAdminInitialized(true);
+        setLoading(false);
+        return;
+      }
       
       try {
         console.log("Initializing admin setup...");
         const initialized = await ensureAdminUserExists();
         setAdminInitialized(true);
         console.log("Initialization result:", initialized);
-        
-        if (initialized) {
-          toast.success("Admin setup verified");
-        }
       } catch (error) {
         console.error("Failed to initialize admin:", error);
         setAdminInitialized(true);
@@ -60,32 +62,31 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       }
     };
 
-    if (user && isAdmin()) {
-      initializeAdmin();
-    }
+    initializeAdmin();
   }, [user, isAdmin]);
 
   useEffect(() => {
     const loadUsers = async () => {
-      if (!adminInitialized) {
-        console.log("Waiting for admin initialization...");
+      if (!adminInitialized || !isAdmin()) {
+        console.log("Waiting for admin initialization or admin rights...");
+        if (adminInitialized && !isAdmin()) setLoading(false);
         return;
       }
 
       try {
-        console.log("Loading users...");
+        console.log("Loading users for Admin page...");
         setLoading(true);
         const fetchedUsers = await fetchUsersFromDatabase();
-        console.log("Fetched users:", fetchedUsers);
+        console.log("Fetched users for Admin page:", fetchedUsers);
         setUsers(fetchedUsers);
         
-        if (fetchedUsers.length === 0) {
+        if (fetchedUsers.length === 0 && activeTab === 'users') {
           toast.info("No users found. You may need to create user profiles first.");
-        } else {
+        } else if (fetchedUsers.length > 0) {
           toast.success(`Loaded ${fetchedUsers.length} users successfully`);
         }
       } catch (error: any) {
-        console.error("Failed to load users:", error);
+        console.error("Failed to load users on Admin page:", error);
         toast.error("Failed to load users", {
           description: error.message || "There was an error loading user data"
         });
@@ -95,12 +96,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       }
     };
     
-    if (activeTab === 'users' && adminInitialized) {
+    if (adminInitialized && isAdmin()) {
       loadUsers();
-    } else if (adminInitialized) {
+    } else if (adminInitialized && !isAdmin()) {
       setLoading(false);
+      setUsers([]);
     }
-  }, [activeTab, adminInitialized]);
+  }, [adminInitialized, isAdmin]);
 
   useEffect(() => {
     const pathSegments = location.pathname.split('/');
@@ -133,7 +135,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   }, [location.pathname, activeTab, navigate]);
 
   const handleTabChange = (value: string) => {
-    // Check permissions for ordinary admins
     if (!isSuperAdmin() && !hasAdminPermission(value)) {
       toast.error("You don't have permission to access this section");
       return;
@@ -161,7 +162,6 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     }
   };
 
-  // Filter available tabs based on permissions
   const getAvailableTabs = () => {
     const allTabs = [
       { id: 'users', label: 'Users', icon: Users, permission: 'users' },
@@ -177,16 +177,18 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       { id: 'settings', label: 'Settings', icon: Settings, permission: 'settings' }
     ];
 
-    // Super admin can see all tabs
     if (isSuperAdmin()) {
       return allTabs;
     }
 
-    // Regular admin can only see tabs they have permission for
     return allTabs.filter(tab => hasAdminPermission(tab.permission));
   };
 
-  if (!adminInitialized && loading) {
+  if (!isAdmin() && adminInitialized) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (loading && !adminInitialized) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
@@ -209,6 +211,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
 
   const availableTabs = getAvailableTabs();
 
+  const adminUsersList = users.filter(u => u.role === 'admin' || u.role === 'super_admin');
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -229,14 +233,14 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         <div className="border-b">
           <div className="flex overflow-x-auto py-2 px-4">
             <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-              {availableTabs.map((tab) => (
+              {availableTabs.map((tabInfo) => (
                 <TabsTrigger 
-                  key={tab.id} 
-                  value={tab.id} 
+                  key={tabInfo.id} 
+                  value={tabInfo.id} 
                   className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium"
                 >
-                  <tab.icon className="mr-2 h-4 w-4" />
-                  {tab.label}
+                  <tabInfo.icon className="mr-2 h-4 w-4" />
+                  {tabInfo.label}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -244,9 +248,9 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         </div>
         
         <div className="mt-6">
-          {availableTabs.map((tab) => (
-            <TabsContent key={tab.id} value={tab.id} className="mt-0">
-              {tab.id === 'users' && (
+          {availableTabs.map((tabInfo) => (
+            <TabsContent key={tabInfo.id} value={tabInfo.id} className="mt-0">
+              {tabInfo.id === 'users' && (
                 loading ? (
                   <div className="flex justify-center p-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
@@ -259,16 +263,25 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
                   />
                 )
               )}
-              {tab.id === 'admins' && <AdminManagement users={users} renderStatusLabel={renderStatusLabel} />}
-              {tab.id === 'genres' && <GenreManagement />}
-              {tab.id === 'custom-songs' && <ContentManagement />}
-              {tab.id === 'suno-api' && <SunoApiManagement />}
-              {tab.id === 'contest' && <ContestManagement />}
-              {tab.id === 'content' && <ContentManagement />}
-              {tab.id === 'payments' && <PaymentManagement />}
-              {tab.id === 'support' && <SupportManagement />}
-              {tab.id === 'reports' && <ReportsAnalytics />}
-              {tab.id === 'settings' && <SettingsManagement />}
+              {tabInfo.id === 'admins' && (
+                loading ? (
+                  <div className="flex justify-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+                    <span className="ml-2">Loading admins...</span>
+                  </div>
+                ) : (
+                  <AdminManagement users={adminUsersList} renderStatusLabel={renderStatusLabel} />
+                )
+              )}
+              {tabInfo.id === 'genres' && <GenreManagement />}
+              {tabInfo.id === 'custom-songs' && <ContentManagement />}
+              {tabInfo.id === 'suno-api' && <SunoApiManagement />}
+              {tabInfo.id === 'contest' && <ContestManagement />}
+              {tabInfo.id === 'content' && <ContentManagement />}
+              {tabInfo.id === 'payments' && <PaymentManagement />}
+              {tabInfo.id === 'support' && <SupportManagement />}
+              {tabInfo.id === 'reports' && <ReportsAnalytics />}
+              {tabInfo.id === 'settings' && <SettingsManagement />}
             </TabsContent>
           ))}
         </div>

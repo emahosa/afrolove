@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
@@ -13,6 +12,15 @@ interface UserUpdateData {
   role?: UserRole;
   permissions?: string[];
 }
+
+// This list should ideally be sourced from a shared constants file or configuration.
+// Duplicating from UserManagement.tsx for now.
+const ADMIN_PERMISSION_IDS = [
+  'users', 'content', 'genres', 'custom-songs', 
+  'suno-api', 'contest', 'payments', 'support', 
+  'reports', 'settings'
+];
+
 
 export const updateUserInDatabase = async (userId: string, userData: UserUpdateData): Promise<boolean> => {
   try {
@@ -103,21 +111,16 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
   try {
     console.log("Fetching users from database");
     
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('Error getting current user:', userError);
-      return [];
-    }
+    // We don't strictly need the current auth.getUser() here unless for specific checks not related to listing all users.
+    // For listing, we primarily need profiles and their associated roles/permissions.
 
-    console.log('Current user:', user.email, user.id);
-    
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
       
     if (profilesError) {
       console.error("Error fetching user profiles:", profilesError);
+      toast.error("Failed to fetch profiles", { description: profilesError.message });
       return [];
     }
     
@@ -128,49 +131,84 @@ export const fetchUsersFromDatabase = async (): Promise<any[]> => {
       return [];
     }
     
-    const { data: userRoles, error: rolesError } = await supabase
+    const { data: userRolesData, error: rolesError } = await supabase
       .from('user_roles')
       .select('user_id, role');
       
     if (rolesError) {
       console.error("Error fetching user roles:", rolesError);
+      toast.error("Failed to fetch user roles", { description: rolesError.message });
+      // Continue, rolesMap will be empty or partially filled
     }
     
-    const rolesMap = new Map<string, string>();
-    if (userRoles) {
-      userRoles.forEach(roleRecord => {
-        rolesMap.set(roleRecord.user_id, roleRecord.role);
+    const rolesMap = new Map<string, UserRole>();
+    if (userRolesData) {
+      userRolesData.forEach(roleRecord => {
+        if (roleRecord.user_id && roleRecord.role) { // Ensure no null user_id or role
+          rolesMap.set(roleRecord.user_id, roleRecord.role as UserRole);
+        }
       });
     }
-    
     console.log("Roles map:", rolesMap);
     
+    // Fetch admin permissions for all users who might be admins
+    const { data: adminPermissionsData, error: permissionsFetchError } = await supabase
+      .from('admin_permissions')
+      .select('user_id, permission');
+
+    if (permissionsFetchError) {
+        console.error("Error fetching admin permissions:", permissionsFetchError);
+        toast.warning("Could not fetch admin permissions", { description: permissionsFetchError.message });
+    }
+
+    const permissionsMap = new Map<string, string[]>();
+    if (adminPermissionsData) {
+        adminPermissionsData.forEach(p => {
+            if (p.user_id && p.permission) { // Ensure no null user_id or permission
+                if (!permissionsMap.has(p.user_id)) {
+                    permissionsMap.set(p.user_id, []);
+                }
+                permissionsMap.get(p.user_id)!.push(p.permission);
+            }
+        });
+    }
+    console.log("Permissions map:", permissionsMap);
+
     const users = profiles.map(profile => {
-      let userRole = 'user';
-      
-      if (profile.username === 'ellaadahosa@gmail.com' || profile.id === user.id) {
-        userRole = 'admin';
-        console.log('Setting admin role for super admin:', profile.username || profile.id);
+      let determinedRole: UserRole;
+      // Assuming profile.username stores the email, which needs to be reliable.
+      // A more robust way would be to join with auth.users or fetch emails if profile.username is not guaranteed.
+      if (profile.username === 'ellaadahosa@gmail.com') {
+        determinedRole = 'super_admin';
       } else {
-        userRole = rolesMap.get(profile.id) || 'user';
+        determinedRole = rolesMap.get(profile.id) || 'voter'; // Default to 'voter'
       }
       
+      let userPermissions: string[] | undefined = undefined;
+      if (determinedRole === 'super_admin') {
+        userPermissions = ADMIN_PERMISSION_IDS; // Super admin gets all permissions
+      } else if (determinedRole === 'admin') {
+        userPermissions = permissionsMap.get(profile.id) || [];
+      }
+
       return {
         id: profile.id,
-        name: profile.full_name || 'No Name',
-        email: profile.username || 'No Email', 
+        name: profile.full_name || 'No Name Provided',
+        email: profile.username || 'No Email Provided', // This relies on profile.username being the email
         status: profile.is_suspended ? 'suspended' : 'active',
-        role: userRole,
+        role: determinedRole,
         credits: profile.credits || 0,
-        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown'
+        joinDate: profile.created_at ? new Date(profile.created_at).toISOString().split('T')[0] : 'Unknown',
+        permissions: userPermissions,
       };
     });
     
-    console.log("Processed users:", users);
+    console.log("Processed users with permissions:", users);
     return users;
     
   } catch (error: any) {
     console.error("Error in fetchUsersFromDatabase:", error);
+    toast.error("Data Fetch Error", { description: `An unexpected error occurred: ${error.message}` });
     return [];
   }
 };
