@@ -94,17 +94,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <>
-      {/* DEBUG INDICATOR */}
-      <div style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0, height: '24px',
-        background: 'crimson', color: 'white',
-        zIndex: 99999, fontWeight: 'bold',
-        fontSize: '14px', textAlign: 'center'
-      }}>
-        [AudioPlayerProvider MOUNTED]
-      </div>
-
+      {/* [AudioPlayerProvider MOUNTED] banner removed by request */}
       <AudioPlayerContext.Provider value={value}>
         {children}
       </AudioPlayerContext.Provider>
