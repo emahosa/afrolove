@@ -766,6 +766,32 @@ export type Database = {
         }
         Relationships: []
       }
+      unlocked_contests: {
+        Row: {
+          contest_id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          contest_id: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          contest_id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unlocked_contests_contest_id_fkey"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

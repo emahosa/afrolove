@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { checkUserCredits, updateUserCredits } from '@/utils/credits';
+import { checkUserCredits } from '@/utils/credits';
 
-console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes");
+console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes, unlocked_contests");
 
 export interface Contest {
   id: string;
@@ -21,6 +21,7 @@ export interface Contest {
   terms_conditions: string;
   created_at: string;
   entry_fee: number;
+  is_unlocked?: boolean;
 }
 
 export interface ContestEntry {
@@ -40,47 +41,64 @@ export interface ContestEntry {
 }
 
 export const useContest = () => {
-  const { user } = useAuth();
+  const { user, updateUserCredits } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
+  const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch active contests - ONLY contests table
-  const fetchContests = async () => {
+  const fetchContests = useCallback(async () => {
     try {
-      console.log('🔄 use-contest: fetchContests() - ONLY contests table, NO USERS');
+      console.log('🔄 use-contest: fetchContests()');
+      setLoading(true);
       setError(null);
-      
-      console.log('🔍 About to query supabase.from("contests") - NO USERS TABLE');
       
       const { data, error } = await supabase
         .from('contests')
         .select('*')
         .order('created_at', { ascending: false });
 
-      console.log('✅ Successfully queried contests table, no users table referenced');
-
       if (error) {
         console.error('Error fetching contests:', error);
         throw error;
       }
       
-      console.log('Contests fetched successfully:', data);
       setContests(data || []);
       
-      // Set all active contests
-      const activeContestsData = data?.filter(contest => contest.status === 'active') || [];
+      let newUnlockedIds = new Set<string>();
+      if (user) {
+        const { data: unlockedData, error: unlockedError } = await supabase
+          .from('unlocked_contests')
+          .select('contest_id')
+          .eq('user_id', user.id);
+
+        if (unlockedError) {
+          console.error('Error fetching unlocked contests:', unlockedError);
+        } else {
+          newUnlockedIds = new Set(unlockedData.map(item => item.contest_id));
+        }
+      }
+      setUnlockedContestIds(newUnlockedIds);
+      
+      const activeContestsData = data
+        ?.filter(contest => contest.status === 'active')
+        .map(contest => ({
+          ...contest,
+          is_unlocked: newUnlockedIds.has(contest.id)
+        })) || [];
+      
       setActiveContests(activeContestsData);
       
       if (activeContestsData.length > 0) {
-        setCurrentContest(activeContestsData[0]);
-        console.log('Set current contest:', activeContestsData[0]);
+        const firstContest = activeContestsData[0];
+        setCurrentContest(firstContest);
+        console.log('Set current contest:', firstContest);
       } else {
-        console.log('No active contests found');
         setCurrentContest(null);
       }
     } catch (error: any) {
@@ -88,8 +106,10 @@ export const useContest = () => {
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast.error('Failed to load contests: ' + errorMessage);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user]);
 
   // Create new contest - ONLY contests table
   const createContest = async (contestData: {
@@ -151,7 +171,7 @@ export const useContest = () => {
       toast.error('Please log in to update contests');
       return false;
     }
-
+    console.log('🔄 DEBUG: Attempting to update contest', contestId, 'with data:', contestData);
     try {
       console.log('🔄 use-contest: updateContest() - ONLY contests table, NO USERS');
       
@@ -166,7 +186,7 @@ export const useContest = () => {
       console.log('✅ Successfully updated contests table, no users table referenced');
 
       if (error) {
-        console.error('Error updating contest:', error);
+        console.error('❌ DEBUG: Error updating contest:', error);
         throw error;
       }
 
@@ -174,7 +194,7 @@ export const useContest = () => {
       await fetchContests();
       return true;
     } catch (error: any) {
-      console.error('Error updating contest:', error);
+      console.error('💥 DEBUG: Catch block error updating contest:', error);
       toast.error(error.message || 'Failed to update contest');
       return false;
     }
@@ -186,78 +206,46 @@ export const useContest = () => {
       toast.error('Please log in to delete contests');
       return false;
     }
-
+    console.log('🔄 DEBUG: Attempting to delete contest', contestId);
     try {
       console.log('🔄 use-contest: deleteContest() - Deleting dependencies first');
 
-      // Step 1: Get all entries for the contest
       const { data: entries, error: entriesError } = await supabase
         .from('contest_entries')
         .select('id')
         .eq('contest_id', contestId);
 
-      if (entriesError) {
-        console.error('Error fetching entries for deletion:', entriesError);
-        throw entriesError;
-      }
+      if (entriesError) throw entriesError;
 
       if (entries && entries.length > 0) {
         const entryIds = entries.map(e => e.id);
 
-        // Step 2a: Delete votes from 'votes' table
         console.log('🗑️ Deleting votes for entries:', entryIds);
-        const { error: votesError } = await supabase
-          .from('votes')
-          .delete()
-          .in('contest_entry_id', entryIds);
-        
-        if (votesError) {
-          console.error('Error deleting votes:', votesError);
-          throw votesError;
-        }
+        const { error: votesError } = await supabase.from('votes').delete().in('contest_entry_id', entryIds);
+        if (votesError) throw votesError;
 
-        // Step 2b: Delete votes from 'contest_votes' table if it's being used
         console.log('🗑️ Deleting contest_votes for contest:', contestId);
-        const { error: contestVotesError } = await supabase
-            .from('contest_votes')
-            .delete()
-            .eq('contest_id', contestId);
-        
-        if (contestVotesError) {
-            console.error('Error deleting contest_votes:', contestVotesError);
-            // We can ignore this error if the table is not used consistently
-        }
+        const { error: contestVotesError } = await supabase.from('contest_votes').delete().eq('contest_id', contestId);
+        if (contestVotesError) console.warn('Could not delete from contest_votes, continuing...', contestVotesError);
 
-        // Step 3: Delete the contest entries themselves
         console.log('🗑️ Deleting contest entries:', entryIds);
-        const { error: deleteEntriesError } = await supabase
-          .from('contest_entries')
-          .delete()
-          .in('id', entryIds);
-
-        if (deleteEntriesError) {
-          console.error('Error deleting contest entries:', deleteEntriesError);
-          throw deleteEntriesError;
-        }
+        const { error: deleteEntriesError } = await supabase.from('contest_entries').delete().in('id', entryIds);
+        if (deleteEntriesError) throw deleteEntriesError;
       }
+      
+      console.log('🗑️ Deleting unlocked_contests records for contest:', contestId);
+      const { error: unlockedError } = await supabase.from('unlocked_contests').delete().eq('contest_id', contestId);
+      if (unlockedError) console.warn('Could not delete from unlocked_contests, continuing...', unlockedError);
 
-      // Step 4: Delete the contest itself
-      console.log('🗑️ Deleting contest:', contestId);
-      const { error: contestError } = await supabase
-        .from('contests')
-        .delete()
-        .eq('id', contestId);
-
-      if (contestError) {
-        console.error('Error deleting contest:', contestError);
-        throw contestError;
-      }
+      console.log('🗑️ Deleting contest itself:', contestId);
+      const { error: contestError } = await supabase.from('contests').delete().eq('id', contestId);
+      if (contestError) throw contestError;
 
       toast.success('Contest deleted successfully!');
       await fetchContests();
       return true;
     } catch (error: any) {
-      console.error('Error deleting contest:', error);
+      console.error('💥 DEBUG: Error deleting contest:', error);
       toast.error(error.message || 'Failed to delete contest');
       return false;
     }
@@ -336,46 +324,67 @@ export const useContest = () => {
     }
   };
 
-  // Submit contest entry with file upload and credit check
+  // Unlock a contest
+  const unlockContest = async (contestId: string, fee: number) => {
+    if (!user) {
+      toast.error('Please log in to unlock contests');
+      return false;
+    }
+
+    if (fee === 0) {
+      // If contest is free, just mark as unlocked locally. No DB call needed.
+      setUnlockedContestIds(prev => new Set(prev).add(contestId));
+      setActiveContests(prev => prev.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c));
+      toast.success('Free contest unlocked!');
+      return true;
+    }
+
+    try {
+      setSubmitting(true);
+      const userCredits = await checkUserCredits(user.id);
+      if (userCredits < fee) {
+        toast.error(`You need ${fee} credits to unlock this contest. You only have ${userCredits}.`);
+        return false;
+      }
+
+      await updateUserCredits(-fee);
+
+      const { error: unlockError } = await supabase
+        .from('unlocked_contests')
+        .insert({ user_id: user.id, contest_id: contestId });
+
+      if (unlockError) {
+        await updateUserCredits(fee); // Refund
+        throw unlockError;
+      }
+
+      setUnlockedContestIds(prev => new Set(prev).add(contestId));
+      setActiveContests(prev => prev.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c));
+      if (currentContest?.id === contestId) {
+          setCurrentContest(prev => prev ? { ...prev, is_unlocked: true } : null);
+      }
+
+      toast.success('Contest unlocked!');
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to unlock contest.');
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Submit contest entry with file upload
   const submitEntry = async (contestId: string, videoFile: File, description: string, title: string) => {
     if (!user) {
       toast.error('Please log in to submit an entry');
       return false;
     }
 
-    // Get contest to check entry fee
-    const { data: contestData, error: contestError } = await supabase
-      .from('contests')
-      .select('entry_fee')
-      .eq('id', contestId)
-      .single();
-
-    if (contestError || !contestData) {
-      toast.error('Failed to retrieve contest information.');
-      return false;
-    }
-
-    const entryFee = contestData.entry_fee || 0;
-
-    // Check user credits if there is an entry fee
-    if (entryFee > 0) {
-      const userCredits = await checkUserCredits(user.id);
-      if (userCredits < entryFee) {
-        toast.error(`You need ${entryFee} credits to enter this contest. You only have ${userCredits}.`);
-        return false;
-      }
-    }
-
     setSubmitting(true);
     try {
       console.log('🔄 use-contest: submitEntry() - ONLY contest_entries table, NO USERS');
       
-      // Deduct credits before uploading
-      if (entryFee > 0) {
-        await updateUserCredits(user.id, -entryFee);
-      }
-
-      // Upload file to Supabase Storage
       const timestamp = Date.now();
       const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
       
@@ -388,17 +397,12 @@ export const useContest = () => {
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        // Refund credits if upload fails
-        if (entryFee > 0) await updateUserCredits(user.id, entryFee);
         throw new Error('Failed to upload file: ' + uploadError.message);
       }
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('instrumentals')
         .getPublicUrl(`entries/${filename}`);
-
-      console.log('🔍 About to insert into supabase.from("contest_entries") - NO USERS TABLE');
 
       const { error } = await supabase
         .from('contest_entries')
@@ -408,17 +412,16 @@ export const useContest = () => {
           video_url: publicUrl,
           description,
           media_type: videoFile.type.startsWith('video/') ? 'video' : 'audio',
-          approved: false // Pending admin approval
+          approved: false
         });
 
       if (error) {
         console.error('Error submitting entry:', error);
-        // Refund credits if insert fails
-        if (entryFee > 0) await updateUserCredits(user.id, entryFee);
         throw error;
       }
 
       toast.success('Entry submitted successfully!');
+      fetchContestEntries(contestId);
       return true;
     } catch (error: any) {
       console.error('Error submitting entry:', error);
@@ -507,15 +510,8 @@ export const useContest = () => {
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      console.log('🚀 use-contest: Loading contest data - WILL ONLY USE: contests, contest_entries, profiles, votes');
-      setLoading(true);
-      await fetchContests();
-      setLoading(false);
-    };
-
-    loadData();
-  }, []);
+    fetchContests();
+  }, [fetchContests]);
 
   useEffect(() => {
     if (currentContest) {
@@ -538,6 +534,7 @@ export const useContest = () => {
     submitEntry,
     voteForEntry,
     downloadInstrumental,
+    unlockContest,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
     setCurrentContest

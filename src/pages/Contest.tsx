@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Calendar, Clock, ChevronRight, Upload, Download } from "lucide-react";
+import { Trophy, Upload, Download, Lock, Unlock } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useContest } from "@/hooks/use-contest";
 import { ContestEntryCard } from "@/components/contest/ContestEntryCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const Contest = () => {
   const { user } = useAuth();
@@ -25,22 +25,29 @@ const Contest = () => {
     submitEntry,
     voteForEntry,
     downloadInstrumental,
-    setCurrentContest
+    unlockContest,
+    setCurrentContest,
   } = useContest();
 
-  const [showRulesModal, setShowRulesModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("current");
   const [entryTitle, setEntryTitle] = useState("");
   const [entryDescription, setEntryDescription] = useState("");
   const [entryFile, setEntryFile] = useState<File | null>(null);
 
-  const handleDownloadBeat = (contest: typeof currentContest) => {
-    if (contest?.instrumental_url) {
+  const handleDownloadBeat = (contest: NonNullable<typeof currentContest>) => {
+    if (contest.instrumental_url) {
       downloadInstrumental(contest.instrumental_url, contest.title);
     } else {
       toast.error("No instrumental available for download");
     }
+  };
+
+  const handleUnlockContest = async (contest: typeof activeContests[0]) => {
+    if (!user) {
+      toast.info("Please log in to unlock contests.");
+      return;
+    }
+    await unlockContest(contest.id, contest.entry_fee);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +83,6 @@ const Contest = () => {
     const success = await submitEntry(currentContest.id, entryFile, entryDescription, entryTitle);
     
     if (success) {
-      // Reset form and close modal
       setEntryTitle("");
       setEntryDescription("");
       setEntryFile(null);
@@ -97,18 +103,18 @@ const Contest = () => {
     );
   }
 
-  if (activeContests.length === 0) {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-              <Trophy className="h-7 w-7 text-melody-accent" /> Contest
-            </h1>
-            <p className="text-muted-foreground">Participate in music contests and win amazing prizes</p>
-          </div>
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+            <Trophy className="h-7 w-7 text-melody-accent" /> Contests
+          </h1>
+          <p className="text-muted-foreground">Participate in music contests and win amazing prizes</p>
         </div>
-        
+      </div>
+
+      {activeContests.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
@@ -116,217 +122,113 @@ const Contest = () => {
             <p className="text-muted-foreground">There are no contests running at the moment. Check back soon!</p>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Contests</CardTitle>
+            <CardDescription>Unlock contests to participate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Contest</TableHead>
+                  <TableHead>Prize</TableHead>
+                  <TableHead>Ends In</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activeContests.map((contest) => {
+                  const endDate = new Date(contest.end_date);
+                  const now = new Date();
+                  const timeRemaining = endDate.getTime() - now.getTime();
+                  const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
+                  const isUnlocked = contest.is_unlocked || contest.entry_fee === 0;
 
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            <Trophy className="h-7 w-7 text-melody-accent" /> Contest
-          </h1>
-          <p className="text-muted-foreground">Participate in music contests and win amazing prizes</p>
-        </div>
-      </div>
-
-      <Tabs defaultValue="current" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="current">Current Contests</TabsTrigger>
-          <TabsTrigger value="past">Past Contests</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="current" className="space-y-6">
-          {/* Display all active contests */}
-          {activeContests.map((contest) => {
-            // Calculate progress based on time elapsed
-            const startDate = new Date(contest.start_date);
-            const endDate = new Date(contest.end_date);
-            const now = new Date();
-            const totalTime = endDate.getTime() - startDate.getTime();
-            const elapsedTime = now.getTime() - startDate.getTime();
-            const progress = Math.min(Math.max((elapsedTime / totalTime) * 100, 0), 100);
-
-            // Calculate time remaining
-            const timeRemaining = endDate.getTime() - now.getTime();
-            const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
-
-            return (
-              <Card key={contest.id} className="border border-melody-secondary/30">
-                <CardHeader className="bg-gradient-to-r from-melody-primary/50 to-melody-secondary/30 rounded-t-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <Badge variant="secondary" className="mb-2 bg-melody-secondary text-white">
-                        {contest.id === currentContest?.id ? 'Viewing' : 'Active Contest'}
-                      </Badge>
-                      <CardTitle className="text-2xl">{contest.title}</CardTitle>
-                      <CardDescription className="text-white/70 mt-1">{contest.description}</CardDescription>
-                    </div>
-                    <div className="text-right hidden md:block">
-                      <div className="text-sm text-white/80 mb-1 flex items-center justify-end gap-2">
-                        <Calendar className="h-4 w-4" /> Deadline
-                      </div>
-                      <div className="font-semibold">{new Date(contest.end_date).toLocaleDateString()}</div>
-                      <div className="text-sm text-white/80 mt-2 flex items-center justify-end gap-2">
-                        <Clock className="h-4 w-4" /> Time Remaining
-                      </div>
-                      <div className="font-semibold">{daysRemaining} days</div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div className="md:hidden space-y-4">
-                    <div className="flex justify-between">
-                      <div>
-                        <div className="text-sm text-muted-foreground mb-1">Deadline</div>
-                        <div className="font-semibold">{new Date(contest.end_date).toLocaleDateString()}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-muted-foreground mb-1">Time Remaining</div>
-                        <div className="font-semibold">{daysRemaining} days</div>
-                      </div>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                  </div>
-                  
-                  <div className="hidden md:block">
-                    <Progress value={progress} className="h-2 mb-2" />
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <div>Contest Started</div>
-                      <div>Contest Ends</div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="bg-muted/30">
-                      <CardHeader className="py-3 px-4">
-                        <CardTitle className="text-base">Prize Pool</CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-3 px-4">
-                        <p className="text-xl font-bold text-melody-secondary">{contest.prize}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30">
-                      <CardHeader className="py-3 px-4">
-                        <CardTitle className="text-base">Rules</CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-3 px-4">
-                        <Button 
-                          variant="link" 
-                          className="p-0 h-auto text-melody-secondary"
-                          onClick={() => {
-                            setCurrentContest(contest);
-                            setShowRulesModal(true);
-                          }}
-                        >
-                          View Rules <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30">
-                      <CardHeader className="py-3 px-4">
-                        <CardTitle className="text-base">Actions</CardTitle>
-                      </CardHeader>
-                      <CardContent className="py-3 px-4">
-                        <div className="space-y-2">
+                  return (
+                    <TableRow 
+                      key={contest.id} 
+                      onClick={() => setCurrentContest(contest)}
+                      className={`cursor-pointer ${currentContest?.id === contest.id ? 'bg-muted/50' : ''}`}
+                    >
+                      <TableCell>
+                        <div className="font-medium">{contest.title}</div>
+                        <div className="text-sm text-muted-foreground truncate max-w-xs">{contest.description}</div>
+                      </TableCell>
+                      <TableCell>{contest.prize}</TableCell>
+                      <TableCell>{daysRemaining} days</TableCell>
+                      <TableCell className="text-right">
+                        {isUnlocked ? (
+                          <div className="flex gap-2 justify-end">
+                            <Button 
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { e.stopPropagation(); setShowSubmitModal(true); }}
+                              disabled={!user || submitting}
+                            >
+                              <Upload className="mr-2 h-4 w-4" /> Submit
+                            </Button>
+                            <Button 
+                              size="sm"
+                              className="bg-melody-secondary hover:bg-melody-secondary/90"
+                              onClick={(e) => { e.stopPropagation(); handleDownloadBeat(contest); }}
+                              disabled={!user || !contest.instrumental_url}
+                            >
+                              <Download className="mr-2 h-4 w-4" /> Beat
+                            </Button>
+                          </div>
+                        ) : (
                           <Button 
                             size="sm"
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => {
-                              setCurrentContest(contest);
-                              setShowSubmitModal(true);
-                            }}
-                            disabled={!user}
+                            onClick={(e) => { e.stopPropagation(); handleUnlockContest(contest); }}
+                            disabled={!user || submitting}
                           >
-                            <Upload className="mr-2 h-4 w-4" />
-                            {user 
-                              ? (contest.entry_fee > 0 ? `Submit (${contest.entry_fee} Credits)`: 'Submit Entry (Free)')
-                              : 'Login Required'}
+                            <Lock className="mr-2 h-4 w-4" />
+                            {`Unlock (${contest.entry_fee} Credits)`}
                           </Button>
-                          <Button 
-                            size="sm"
-                            className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                            onClick={() => handleDownloadBeat(contest)}
-                            disabled={!user}
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            {user ? 'Download Beat (1 Credit)' : 'Login Required'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">Contest Rules</h3>
-                    <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      {contest.rules.split(', ').map((rule, index) => (
-                        <li key={index}>{rule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+      
+      {currentContest && (
+        <div className="space-y-4 pt-8">
+          <div className="flex justify-between items-end">
+            <h2 className="text-2xl font-bold">Entries for {currentContest.title} ({contestEntries.length})</h2>
+            <div className="text-right">
+              <Badge variant="secondary">Rules</Badge>
+              <p className="text-sm text-muted-foreground mt-1 max-w-md">{currentContest.rules}</p>
+            </div>
+          </div>
           
-          {/* Show entries for current contest if one is selected */}
-          {currentContest && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Entries for {currentContest.title} ({contestEntries.length})</h2>
-              
-              {contestEntries.length === 0 ? (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Entries Yet</h3>
-                    <p className="text-muted-foreground">Be the first to submit an entry!</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {contestEntries.map((entry) => (
-                    <ContestEntryCard
-                      key={entry.id}
-                      entry={entry}
-                      onVote={handleVote}
-                    />
-                  ))}
-                </div>
-              )}
+          {contestEntries.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Trophy className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-semibold mb-2">No Entries Yet</h3>
+                <p className="text-muted-foreground">Be the first to submit an entry!</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {contestEntries.map((entry) => (
+                <ContestEntryCard
+                  key={entry.id}
+                  entry={entry}
+                  onVote={handleVote}
+                />
+              ))}
             </div>
           )}
-        </TabsContent>
-        
-        <TabsContent value="past">
-          <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/20">
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">Past Contests</h3>
-              <p className="text-muted-foreground">No past contests to display</p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Rules Modal */}
-      <Dialog open={showRulesModal} onOpenChange={setShowRulesModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Contest Rules - {currentContest?.title}</DialogTitle>
-            <DialogDescription>
-              Please read all rules carefully before participating.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            <div className="space-y-2">
-              <h3 className="font-semibold">Terms & Conditions:</h3>
-              <p className="text-sm">{currentContest?.terms_conditions}</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Submit Entry Modal */}
       <Dialog open={showSubmitModal} onOpenChange={setShowSubmitModal}>
@@ -335,6 +237,8 @@ const Contest = () => {
             <DialogTitle>Submit Your Entry</DialogTitle>
             <DialogDescription>
               Fill out the form below to submit your entry to {currentContest?.title}.
+              <br />
+              {currentContest?.is_unlocked ? <span className="text-green-500">Contest Unlocked! Submission is free.</span> : ''}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEntrySubmission} className="space-y-4">
