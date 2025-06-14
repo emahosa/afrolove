@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
 export interface PlayingRequest {
@@ -50,20 +49,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentTrack, showPlayer]);
 
-  // Make sure showPlayer is always set with currentTrack for proper rendering
+  // FIX: Set currentTrack, isPlaying, showPlayer in explicit order
   const playTrack = useCallback((track: PlayingRequest) => {
     console.log('🎵 AudioPlayerContext: playTrack called with:', track);
 
-    setCurrentTrack(prevTrack => {
-      if (!prevTrack || prevTrack.id !== track.id) {
-        setIsPlaying(true);
-      } else {
-        setIsPlaying(prev => !prev);
-      }
-      return track;
-    });
+    setCurrentTrack(track);
+    setIsPlaying(true);
     setShowPlayer(true);
-    console.log('🎵 AudioPlayerContext: playTrack showPlayer forced true');
+    console.log('🎵 AudioPlayerContext: currentTrack, isPlaying, and showPlayer set');
   }, []);
 
   const togglePlayPause = useCallback(() => {
