@@ -21,7 +21,6 @@ import GeneratedSongCard from './GeneratedSongCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 
 interface Song {
   id: string;
@@ -36,7 +35,6 @@ interface Song {
 
 const SongLibrary = () => {
   const { user } = useAuth();
-  const { playTrack } = useAudioPlayerContext();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');

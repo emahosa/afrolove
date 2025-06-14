@@ -1,12 +1,12 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, Play, Download, Eye, EyeOff } from "lucide-react";
+import { Trash2, Download, Eye, EyeOff, Music } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAudioPlayerContext } from "@/contexts/AudioPlayerContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,6 @@ import {
 
 interface CompletedSongItemProps {
   request: CustomSongRequest;
-  onPlay: (request: CustomSongRequest) => void;
   onDownload: (request: CustomSongRequest) => void;
   onDelete: (requestId: string) => void;
   downloadingAudio: boolean;
@@ -29,7 +28,6 @@ interface CompletedSongItemProps {
 
 export const CompletedSongItem = ({ 
   request, 
-  onPlay, 
   onDownload, 
   onDelete,
   downloadingAudio 
@@ -39,7 +37,6 @@ export const CompletedSongItem = ({
   const [showLyrics, setShowLyrics] = useState(false);
   const [selectedLyrics, setSelectedLyrics] = useState<string | null>(null);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
-  const { playTrack } = useAudioPlayerContext();
 
   const fetchSelectedLyrics = async () => {
     if (selectedLyrics) return; // Already loaded
@@ -112,10 +109,6 @@ export const CompletedSongItem = ({
     }
   };
 
-  const handlePlayClick = () => {
-    onPlay(request); // CHANGED: Use the onPlay prop from the parent
-  };
-
   const handleDownloadClick = () => {
     onDownload(request);
   };
@@ -143,15 +136,6 @@ export const CompletedSongItem = ({
               </div>
               
               <div className="flex items-center gap-2 ml-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handlePlayClick}
-                  className="h-8 w-8 rounded-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-400"
-                >
-                  <Play className="h-4 w-4" />
-                </Button>
-
                 <Button
                   variant="ghost"
                   size="sm"
@@ -216,21 +200,13 @@ export const CompletedSongItem = ({
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-                    <Play className="h-5 w-5 text-white" />
+                    <Music className="h-5 w-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-white">{request.title}</p>
                     <p className="text-xs text-gray-400">AI Generated</p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePlayClick}
-                  className="text-purple-400 border-purple-600 hover:bg-purple-600 hover:text-white"
-                >
-                  Play
-                </Button>
               </div>
             </div>
           </div>

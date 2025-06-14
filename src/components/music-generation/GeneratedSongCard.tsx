@@ -1,10 +1,10 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Pause, Download, Share2, Music, Clock, Calendar, Trash, AlertCircle, FileText } from 'lucide-react';
+import { Download, Music, Clock, Calendar, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 import { Loader2 } from 'lucide-react';
 
 interface Song {
@@ -23,25 +23,9 @@ interface GeneratedSongCardProps {
 }
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
-  const { playTrack, currentTrack, isPlaying } = useAudioPlayerContext();
   const [showPrompt, setShowPrompt] = useState(false);
 
   const isPlayable = song.status === 'completed' && !!song.audio_url && song.audio_url.startsWith('http');
-  const isCurrentlyPlaying = isPlaying && currentTrack?.id === song.id;
-
-  const handlePlayClick = () => {
-    console.log(`▶️ Play clicked for "${song.title}". Is playable?`, isPlayable, "URL:", song.audio_url);
-    if (isPlayable) {
-      playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url,
-      });
-    } else {
-      toast.error('This song is not yet ready for playback.');
-      console.error('Playback failed check:', { status: song.status, audio_url: song.audio_url });
-    }
-  };
 
   const getStatusContent = () => {
     switch (song.status) {
@@ -143,24 +127,15 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         <div>
           <div className="flex items-center gap-2">
             <Button
-              variant="default"
-              size="sm"
-              onClick={handlePlayClick}
-              disabled={!isPlayable}
-              className="flex-grow"
-            >
-              {isCurrentlyPlaying ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-              {isCurrentlyPlaying ? 'Pause' : 'Play'}
-            </Button>
-
-            <Button
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={handleDownload}
               disabled={!isPlayable}
               title="Download song"
+              className="flex-grow"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4 mr-2" />
+              Download
             </Button>
             
             {song.prompt && (

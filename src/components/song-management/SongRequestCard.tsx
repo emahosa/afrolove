@@ -47,18 +47,6 @@ export const SongRequestCard = ({
             </div>
           )}
           
-          {request.audio_url && (
-            <div className="mb-4">
-              <Label className="text-sm font-medium">Final Audio</Label>
-              <div className="mt-1">
-                <audio controls className="w-full">
-                  <source src={request.audio_url} type="audio/mp3" />
-                  Your browser does not support the audio element.
-                </audio>
-              </div>
-            </div>
-          )}
-          
           <div className="flex justify-end gap-2 mt-4">
             {request.status === "pending" && (
               <Button variant="outline" onClick={() => onStartWork(request.id)}>
