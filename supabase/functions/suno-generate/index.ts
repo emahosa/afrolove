@@ -221,16 +221,26 @@ Deno.serve(async (req) => {
     // Extract task ID from the response
     let taskId = null
     
-    if (responseData.data && responseData.data.taskId) {
-      taskId = responseData.data.taskId
-    } else if (responseData.data && typeof responseData.data === 'string') {
-      taskId = responseData.data
+    // Suno API can return task ID in different shapes, so we check multiple possibilities
+    if (responseData.data) {
+      if (responseData.data.taskId) {
+        taskId = responseData.data.taskId;
+      } else if (responseData.data.task_id) { // snake_case in data
+        taskId = responseData.data.task_id;
+      } else if (typeof responseData.data === 'string') {
+        taskId = responseData.data;
+      }
+    } else if (responseData.taskId) { // camelCase at root
+      taskId = responseData.taskId;
+    } else if (responseData.task_id) { // snake_case at root
+      taskId = responseData.task_id;
     }
 
     if (!taskId) {
-      console.error('❌ No task ID found in response')
+      console.error('❌ No task ID found in response', responseData)
       return new Response(JSON.stringify({ 
         error: 'No task ID received from Suno API',
+        details: responseData,
         success: false
       }), {
         status: 400,
