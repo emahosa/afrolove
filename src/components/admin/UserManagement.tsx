@@ -23,7 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus, addUserToDatabase } from '@/utils/adminOperations';
+import { fetchUsersFromDatabase, updateUserInDatabase, toggleUserBanStatus } from '@/utils/adminOperations';
 import { Database } from "@/integrations/supabase/types";
 import { 
   Table,
@@ -216,6 +216,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     try {
       console.log("Adding user with values:", values);
       const { name, email, credits, role } = values;
+      
+      // Use VITE_APP_BASE_URL if available, otherwise fallback to window.location.origin
+      const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
+      console.log("UserManagement: Using appBaseUrl for invitation:", appBaseUrl);
 
       const { data: edgeFnData, error: edgeFnError } = await supabase.functions.invoke('admin-create-user', {
         body: {
@@ -224,7 +228,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           role,
           permissions: role === 'admin' ? selectedPermissions : undefined,
           credits,
-          appBaseUrl: window.location.origin, // Added appBaseUrl
+          appBaseUrl: appBaseUrl, // Use the determined appBaseUrl
         }
       });
 
