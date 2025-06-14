@@ -1,4 +1,3 @@
-
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -9,7 +8,7 @@ import { AudioPlayerProvider, useAudioPlayerContext, PlayingRequest } from "@/co
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
-  const { showPlayer, currentTrack, closePlayer } = useAudioPlayerContext();
+  const { currentTrack, closePlayer } = useAudioPlayerContext();
 
   const handleDownloadAudio = async (targetRequest?: PlayingRequest) => {
     const requestToDownload = targetRequest || currentTrack;
@@ -137,8 +136,7 @@ const AppLayoutContent = () => {
           <Outlet />
         </main>
       </div>
-      
-      {showPlayer && currentTrack && (
+      {currentTrack && (
         <BottomAudioPlayer
           onClose={closePlayer}
           onDownload={() => handleDownloadAudio(currentTrack)}
