@@ -31,20 +31,12 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminInitialized, setAdminInitialized] = useState(false);
-
-  // Check admin access first
-  useEffect(() => {
-    if (!isAdmin()) {
-      console.log("User is not admin, redirecting");
-      toast.error("You don't have admin permissions");
-      navigate("/dashboard", { replace: true });
-    }
-  }, [isAdmin, navigate]);
+  const isUserAdmin = isAdmin();
 
   // Initialize admin setup on component mount
   useEffect(() => {
     const initializeAdmin = async () => {
-      if (!user || !isAdmin()) {
+      if (!user || !isUserAdmin) {
         setAdminInitialized(true);
         setLoading(false);
         return;
@@ -63,13 +55,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     };
 
     initializeAdmin();
-  }, [user, isAdmin]);
+  }, [user, isUserAdmin]);
 
   useEffect(() => {
     const loadUsers = async () => {
-      if (!adminInitialized || !isAdmin()) {
+      if (!adminInitialized || !isUserAdmin) {
         console.log("Waiting for admin initialization or admin rights...");
-        if (adminInitialized && !isAdmin()) setLoading(false);
+        if (adminInitialized && !isUserAdmin) setLoading(false);
         return;
       }
 
@@ -96,13 +88,13 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       }
     };
     
-    if (adminInitialized && isAdmin()) {
+    if (adminInitialized && isUserAdmin) {
       loadUsers();
-    } else if (adminInitialized && !isAdmin()) {
+    } else if (adminInitialized && !isUserAdmin) {
       setLoading(false);
       setUsers([]);
     }
-  }, [adminInitialized, isAdmin]);
+  }, [adminInitialized, isUserAdmin]);
 
   useEffect(() => {
     const pathSegments = location.pathname.split('/');
@@ -184,7 +176,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     return allTabs.filter(tab => hasAdminPermission(tab.permission));
   };
 
-  if (!isAdmin() && adminInitialized) {
+  if (!isUserAdmin && adminInitialized) {
     return <Navigate to="/dashboard" replace />;
   }
 
