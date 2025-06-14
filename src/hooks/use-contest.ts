@@ -492,7 +492,7 @@ export const useContest = () => {
       }
 
       // Deduct credit
-      await updateUserCredits(user.id, -1);
+      await updateUserCredits(-1);
       
       // Download the file
       const link = document.createElement('a');
