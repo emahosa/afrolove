@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -114,7 +113,7 @@ export const CompletedSongItem = ({
   };
 
   const handlePlayClick = () => {
-    playTrack({ id: request.id, title: request.title, type: 'custom' });
+    onPlay(request); // CHANGED: Use the onPlay prop from the parent
   };
 
   const handleDownloadClick = () => {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,7 @@ export const SunoApiManagement = () => {
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>('');
   
-  const { generateSong, isGenerating, generationStatus } = useSunoGeneration();
+  const { generateSong, isGenerating } = useSunoGeneration();
 
   const checkApiKeyStatus = async () => {
     setIsChecking(true);
@@ -146,8 +145,7 @@ export const SunoApiManagement = () => {
         title: 'API Test Track',
         instrumental: true,
         customMode: false,
-        model: 'V3_5',
-        isAdminTest: true
+        model: 'V3_5'
       });
     } catch (error: any) {
       console.error('Test generation error:', error);
@@ -162,21 +160,6 @@ export const SunoApiManagement = () => {
       checkApiKeyStatus();
     }, 1000);
   };
-
-  // Show generation status updates
-  useEffect(() => {
-    if (generationStatus) {
-      console.log('Admin test generation status:', generationStatus);
-      
-      if (generationStatus.status === 'SUCCESS') {
-        toast.success('🎵 Test generation completed successfully!');
-      } else if (generationStatus.status === 'FAIL') {
-        toast.error('Test generation failed - check API key and credits');
-      } else if (generationStatus.status === 'TEXT_SUCCESS') {
-        toast.info('Test: Lyrics stage complete, generating audio...');
-      }
-    }
-  }, [generationStatus]);
 
   return (
     <div className="space-y-6">
@@ -262,24 +245,6 @@ export const SunoApiManagement = () => {
                 </Button>
               )}
             </div>
-
-            {/* Show current generation status */}
-            {generationStatus && (
-              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm font-medium">Test Generation Status:</p>
-                <p className="text-sm text-muted-foreground">
-                  Task ID: {generationStatus.task_id}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Status: {generationStatus.status}
-                </p>
-                {generationStatus.audio_url && (
-                  <p className="text-sm text-green-600">
-                    ✅ Audio generated successfully!
-                  </p>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -7,7 +6,6 @@ import { Loader2, Music, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
-import AudioPlayer from "@/components/AudioPlayer";
 
 export interface Song {
   id: string;
@@ -160,8 +158,6 @@ const Library = () => {
           </div>
         </div>
       )}
-
-      <AudioPlayer />
     </div>
   );
 };

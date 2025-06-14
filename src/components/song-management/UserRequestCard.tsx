@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +21,34 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
   const { playTrack, togglePlayPause, currentTrack, isPlaying } = useAudioPlayerContext();
   const [showLyrics, setShowLyrics] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+
+  const fetchAudioUrl = async (requestId: string): Promise<string | null> => {
+    const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('audio_url, is_selected')
+        .eq('request_id', requestId)
+        .order('created_at', { ascending: false });
+
+    if (audioError) {
+      console.error('User Dashboard: Database error:', audioError);
+      toast.error('Failed to fetch audio data: ' + audioError.message);
+      return null;
+    }
+
+    if (!audioData || audioData.length === 0) {
+      toast.error('No audio files found for this request.');
+      return null;
+    }
+
+    let audioRecord = audioData.find(record => record.is_selected === true) || audioData[0];
+    
+    if (!audioRecord?.audio_url) {
+      toast.error('Audio file URL is missing');
+      return null;
+    }
+    return audioRecord.audio_url;
+  };
 
   const handleDownloadAudio = async (targetRequest?: CustomSongRequest) => {
     const requestToDownload = targetRequest || request;
@@ -95,21 +122,31 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     }
   };
 
-  const handlePlay = (targetRequest: CustomSongRequest) => {
-    // The previous comment suggested this was unused. We are implementing it
-    // to correctly connect to the global audio player.
+  const handlePlay = async (targetRequest: CustomSongRequest) => {
     if (!targetRequest) return;
     
-    const isCurrentlyPlaying = isPlaying && currentTrack?.id === targetRequest.id;
+    const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === targetRequest.id;
 
-    if (isCurrentlyPlaying) {
+    if (isCurrentlyPlayingThisTrack) {
       togglePlayPause();
-    } else {
-      playTrack({
-        id: targetRequest.id,
-        title: targetRequest.title,
-        type: 'custom',
-      });
+      return;
+    }
+
+    try {
+      setIsFetchingAudio(true);
+      const audioUrl = await fetchAudioUrl(targetRequest.id);
+      if (audioUrl) {
+        playTrack({
+          id: targetRequest.id,
+          title: targetRequest.title,
+          audio_url: audioUrl,
+        });
+      }
+    } catch (error) {
+      toast.error("Failed to load audio for playback.");
+      console.error("Playback error:", error);
+    } finally {
+      setIsFetchingAudio(false);
     }
   };
 
@@ -157,7 +194,7 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
     return (
       <CompletedSongItem
         request={request}
-        onPlay={() => handlePlay(request)}
+        onPlay={handlePlay} // Corrected to pass the async handler
         onDownload={() => handleDownloadAudio(request)}
         onDelete={() => handleDelete(request.id)}
         downloadingAudio={downloadingAudio}

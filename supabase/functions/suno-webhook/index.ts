@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const status = taskData.status;
     const audioUrl = taskData.audio_url;
     const title = taskData.title;
-    const lyrics = taskData.metadata?.prompt;
+    const lyrics = taskData.lyrics; // CORRECTED: Get lyrics from the root of the payload
     const duration = taskData.metadata?.duration;
     const errorMessage = taskData.error_message || (status === 'failed' ? 'Generation failed' : null);
 
