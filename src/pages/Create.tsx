@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import CustomSongCreation from "@/components/CustomSongCreation";
 import { CreateSongRequestDialog } from "@/components/song-management/CreateSongRequestDialog";
-import { useSunoGeneration } from "@/hooks/use-suno-generation";
+import { useSunoGeneration, SunoGenerationRequest } from "@/hooks/use-suno-generation";
 import { useGenres } from "@/hooks/use-genres";
 
 type CreationMode = 'prompt' | 'lyrics';
@@ -32,7 +32,11 @@ const Create = () => {
   const { genres, loading: genresLoading } = useGenres();
 
   const getMaxUserPromptLength = () => {
-    // User prompt is limited to 99 characters (199 total - 100 max for admin genre template)
+    if (creationMode === 'lyrics') {
+      // Suno API V4.5 allows up to 5000 characters for lyrics in custom mode.
+      return 5000;
+    }
+    // For prompt mode, user input is limited to 99 characters to keep the combined prompt short.
     return 99;
   };
 
@@ -58,29 +62,37 @@ const Create = () => {
       return;
     }
 
-    // Combine admin genre prompt with user prompt
-    const combinedPrompt = `${selectedGenreData.prompt_template}. ${userPrompt}`;
-    
-    if (combinedPrompt.length > 199) {
-      toast.error(`Combined prompt is too long (${combinedPrompt.length}/199 characters). Please shorten your input.`);
-      return;
-    }
-
-    if ((user?.credits || 0) <= 0) {
+    if ((user?.credits || 0) < 5) {
       toast.error("Insufficient credits. Please purchase more credits to continue");
       return;
     }
 
-    const request = {
-      prompt: combinedPrompt,
-      instrumental,
-      customMode: creationMode === 'lyrics',
-      model: 'V4_5' as const,
-      ...(creationMode === 'lyrics' && {
+    let request: SunoGenerationRequest;
+
+    if (creationMode === 'prompt') {
+      const combinedPrompt = `${selectedGenreData.prompt_template}. ${userPrompt}`;
+      
+      if (combinedPrompt.length > 199) {
+        toast.error(`Combined prompt is too long (${combinedPrompt.length}/199 characters). Please shorten your input.`);
+        return;
+      }
+
+      request = {
+        prompt: combinedPrompt,
+        instrumental,
+        customMode: false,
+        model: 'V4_5' as const,
+      };
+    } else { // lyrics mode
+      request = {
+        prompt: userPrompt,
+        instrumental,
+        customMode: true,
+        model: 'V4_5' as const,
         title: songTitle,
-        style: selectedGenreData.name
-      })
-    };
+        style: selectedGenreData.name,
+      };
+    }
 
     const taskId = await generateSong(request);
     if (taskId) {
