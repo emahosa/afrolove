@@ -1,11 +1,11 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Music, Clock, Calendar, AlertCircle, FileText } from 'lucide-react';
+import { Download, Music, Clock, Calendar, AlertCircle, FileText, Play, Pause } from 'lucide-react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 
 interface Song {
   id: string;
@@ -24,8 +24,10 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [showPrompt, setShowPrompt] = useState(false);
+  const { playTrack, currentTrack, isPlaying } = useAudioPlayer();
 
   const isPlayable = song.status === 'completed' && !!song.audio_url && song.audio_url.startsWith('http');
+  const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === song.id;
 
   const getStatusContent = () => {
     switch (song.status) {
@@ -102,6 +104,20 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     toast.info('Delete feature coming soon!');
   };
 
+  const handlePlay = () => {
+    if (!isPlayable) {
+      toast.error('Song is not ready for playback yet.');
+      return;
+    }
+    
+    playTrack({
+      id: song.id,
+      title: song.title,
+      audio_url: song.audio_url,
+      artist: 'AI Generated',
+    });
+  };
+
   return (
     <Card className="group hover:shadow-lg transition-all duration-200 flex flex-col">
       <CardHeader className="pb-3">
@@ -127,15 +143,24 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         <div>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
+              onClick={handlePlay}
+              disabled={!isPlayable}
+              title={isCurrentlyPlayingThisTrack ? "Pause song" : "Play song"}
+              className="flex-grow"
+            >
+              {isCurrentlyPlayingThisTrack ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+              {isCurrentlyPlayingThisTrack ? 'Pause' : 'Play'}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
               onClick={handleDownload}
               disabled={!isPlayable}
               title="Download song"
-              className="flex-grow"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download
+              <Download className="h-4 w-4" />
             </Button>
             
             {song.prompt && (

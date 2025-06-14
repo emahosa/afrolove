@@ -1,12 +1,12 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, Download, Eye, EyeOff, Music } from "lucide-react";
+import { Trash2, Download, Eye, EyeOff, Music, Play, Pause } from "lucide-react";
 import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +33,14 @@ export const CompletedSongItem = ({
   downloadingAudio 
 }: CompletedSongItemProps) => {
   const { user } = useAuth();
+  const { playTrack, togglePlayPause, currentTrack, isPlaying } = useAudioPlayer();
   const [isDeleting, setIsDeleting] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [selectedLyrics, setSelectedLyrics] = useState<string | null>(null);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+
+  const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === request.id;
 
   const fetchSelectedLyrics = async () => {
     if (selectedLyrics) return; // Already loaded
@@ -70,6 +74,49 @@ export const CompletedSongItem = ({
       fetchSelectedLyrics();
     }
     setShowLyrics(!showLyrics);
+  };
+
+  const handlePlay = async () => {
+    if (isCurrentlyPlayingThisTrack) {
+      togglePlayPause();
+      return;
+    }
+
+    try {
+      setIsFetchingAudio(true);
+      const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('audio_url, is_selected')
+        .eq('request_id', request.id)
+        .order('created_at', { ascending: false });
+
+      if (audioError) throw audioError;
+
+      if (!audioData || audioData.length === 0) {
+        toast.error('No audio files found for this request.');
+        return;
+      }
+
+      let audioRecord = audioData.find(record => record.is_selected === true) || audioData[0];
+    
+      if (!audioRecord?.audio_url) {
+        toast.error('Audio file URL is missing');
+        return;
+      }
+
+      playTrack({
+        id: request.id,
+        title: request.title,
+        audio_url: audioRecord.audio_url,
+        artist: 'Custom Request'
+      });
+      
+    } catch (error: any) {
+      toast.error('Failed to load audio for playback.');
+      console.error('Playback error:', error);
+    } finally {
+      setIsFetchingAudio(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -199,9 +246,20 @@ export const CompletedSongItem = ({
             <div className="px-4 pb-4">
               <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-                    <Music className="h-5 w-5 text-white" />
-                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={handlePlay}
+                    disabled={isFetchingAudio}
+                    className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white p-0"
+                  >
+                    {isFetchingAudio ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                    ) : isCurrentlyPlayingThisTrack ? (
+                      <Pause className="h-6 w-6" />
+                    ) : (
+                      <Play className="h-6 w-6" />
+                    )}
+                  </Button>
                   <div>
                     <p className="text-sm font-medium text-white">{request.title}</p>
                     <p className="text-xs text-gray-400">AI Generated</p>
