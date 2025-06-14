@@ -81,16 +81,22 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
       return defaultSettings;
     }
 
+    // Create a copy of default settings
     const loadedSettings = { ...defaultSettings };
     
+    // Process each setting section individually
     data.forEach((setting) => {
       if (setting.key in loadedSettings && setting.value && typeof setting.value === 'object') {
         const sectionKey = setting.key as keyof SystemSettings;
-        // Properly merge the section data
-        loadedSettings[sectionKey] = {
+        
+        // Create a merged object for this specific section
+        const mergedSectionData = {
           ...loadedSettings[sectionKey],
           ...setting.value
-        } as SystemSettings[typeof sectionKey];
+        };
+        
+        // Assign the merged data back to the settings object
+        loadedSettings[sectionKey] = mergedSectionData as any;
       }
     });
 
