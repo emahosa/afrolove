@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,7 @@ import {
   Trash
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAudioPlayer } from '@/hooks/use-audio-player';
+import { useAudioPlayerContext } from '@/contexts/AudioPlayerContext';
 
 interface Song {
   id: string;
@@ -34,7 +33,7 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
-  const { handlePlay, isPlaying, currentTrack } = useAudioPlayer();
+  const { playTrack, togglePlayPause, currentTrack, isPlaying } = useAudioPlayerContext();
 
   console.log('🎵 GeneratedSongCard: Rendering song:', {
     title: song.title,
@@ -105,13 +104,15 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     console.log('🎵 GeneratedSongCard: Play button clicked for song:', song.title, 'ID:', song.id, 'Status:', song.status);
     
     if (isPlayable) {
-      console.log('🎵 GeneratedSongCard: Song is playable, calling handlePlay');
-      handlePlay({
-        id: song.id,
-        title: song.title,
-        type: 'suno'
-      });
-      console.log('🎵 GeneratedSongCard: handlePlay called successfully');
+      if (currentTrack?.id === song.id) {
+        togglePlayPause();
+      } else {
+        playTrack({
+          id: song.id,
+          title: song.title,
+          type: 'suno'
+        });
+      }
     } else {
       console.log('❌ GeneratedSongCard: Song not playable:', song.status, song.audio_url);
       
@@ -146,7 +147,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     });
   };
 
-  // A song is playable if it's completed and has a valid HTTP URL
   const isPlayable = song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http');
   const isCurrentlyPlaying = isPlaying && currentTrack?.id === song.id;
 
@@ -174,7 +174,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Waveform placeholder */}
         <div className="h-20 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
           <div className="flex items-center gap-1">
             {Array.from({ length: 40 }, (_, i) => (
@@ -190,14 +189,12 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </div>
         </div>
 
-        {/* Song metadata */}
         {song.prompt && (
           <p className="text-sm text-muted-foreground line-clamp-2">
             {song.prompt}
           </p>
         )}
 
-        {/* Audio controls - DIRECTLY VISIBLE, NOT IN DROPDOWN */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button
@@ -260,7 +257,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </Button>
         </div>
 
-        {/* Footer info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />

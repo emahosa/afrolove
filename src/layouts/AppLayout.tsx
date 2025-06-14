@@ -2,63 +2,17 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { BottomAudioPlayer } from "@/components/song-management/BottomAudioPlayer";
+import { AudioPlayerProvider, useAudioPlayerContext, PlayingRequest } from "@/contexts/AudioPlayerContext";
 
-interface PlayingRequest {
-  id: string;
-  title: string;
-  type?: 'suno' | 'custom';
-}
-
-const AppLayout = () => {
+const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPlayingRequest, setCurrentPlayingRequest] = useState<PlayingRequest | null>(null);
-  const [showBottomPlayer, setShowBottomPlayer] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
-
-  const handlePlay = (request: PlayingRequest) => {
-    console.log('🔥 AppLayout: handlePlay called with request:', request);
-    setCurrentPlayingRequest(request);
-    setShowBottomPlayer(true);
-    console.log('🔥 AppLayout: State updated - showBottomPlayer:', true, 'currentPlayingRequest:', request);
-  };
-
-  const handleClosePlayer = () => {
-    console.log('AppLayout: Closing audio player');
-    setShowBottomPlayer(false);
-    setCurrentPlayingRequest(null);
-  };
-
-  // Listen for audio player events from child components
-  useEffect(() => {
-    const handleAudioPlayerPlay = (event: Event) => {
-      console.log('🔥 AppLayout: Audio player event received!', event);
-      console.log('🔥 AppLayout: Event type:', event.type);
-      const customEvent = event as CustomEvent<PlayingRequest>;
-      console.log('🔥 AppLayout: Custom event detail:', customEvent.detail);
-      if (customEvent.detail) {
-        console.log('🔥 AppLayout: Calling handlePlay with detail:', customEvent.detail);
-        handlePlay(customEvent.detail);
-      } else {
-        console.log('❌ AppLayout: No detail found in event');
-      }
-    };
-
-    console.log('🔥 AppLayout: Adding event listener for audioPlayerPlay');
-    window.addEventListener('audioPlayerPlay', handleAudioPlayerPlay);
-    
-    // Test if the event listener is working
-    console.log('🔥 AppLayout: Testing event listener setup');
-
-    return () => {
-      console.log('🔥 AppLayout: Removing event listener for audioPlayerPlay');
-      window.removeEventListener('audioPlayerPlay', handleAudioPlayerPlay);
-    };
-  }, []);
+  const { showPlayer, currentTrack, closePlayer } = useAudioPlayerContext();
 
   const handleDownloadAudio = async (targetRequest?: PlayingRequest) => {
-    const requestToDownload = targetRequest || currentPlayingRequest;
+    const requestToDownload = targetRequest || currentTrack;
     if (!requestToDownload) return;
 
     try {
@@ -69,7 +23,6 @@ const AppLayout = () => {
       const { toast } = await import("sonner");
 
       if (requestToDownload.type === 'suno') {
-        // For Suno songs, get the audio URL directly from the songs table
         const { data: songData, error: songError } = await supabase
           .from('songs')
           .select('audio_url, title')
@@ -82,7 +35,6 @@ const AppLayout = () => {
           return;
         }
 
-        // Download the Suno song
         const response = await fetch(songData.audio_url);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -108,7 +60,6 @@ const AppLayout = () => {
 
         toast.success('Suno song downloaded successfully!');
       } else {
-        // For custom songs, use the existing logic
         const { data: audioData, error: audioError } = await supabase
           .from('custom_song_audio')
           .select('*')
@@ -187,18 +138,22 @@ const AppLayout = () => {
         </main>
       </div>
       
-      {showBottomPlayer && currentPlayingRequest && (
+      {showPlayer && currentTrack && (
         <BottomAudioPlayer
-          requestId={currentPlayingRequest.id}
-          title={currentPlayingRequest.title}
-          type={currentPlayingRequest.type}
-          isVisible={showBottomPlayer}
-          onClose={handleClosePlayer}
-          onDownload={() => handleDownloadAudio(currentPlayingRequest)}
+          onClose={closePlayer}
+          onDownload={() => handleDownloadAudio(currentTrack)}
           downloadingAudio={downloadingAudio}
         />
       )}
     </div>
+  );
+};
+
+const AppLayout = () => {
+  return (
+    <AudioPlayerProvider>
+      <AppLayoutContent />
+    </AudioPlayerProvider>
   );
 };
 
