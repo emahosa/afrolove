@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -8,39 +8,12 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Shield, Server, Database, Globe, Bell, Lock } from 'lucide-react';
+import { loadSystemSettings, saveSystemSettings, defaultSettings, type SystemSettings } from '@/services/settingsService';
 
 export const SettingsManagement = () => {
-  const [settings, setSettings] = useState({
-    general: {
-      siteName: "MelodyVerse",
-      supportEmail: "support@melodyverse.com",
-      maximumFileSize: 50,
-      autoDeleteDays: 30
-    },
-    api: {
-      rateLimit: 100,
-      cacheDuration: 15,
-      enableThrottling: true,
-      logApiCalls: true
-    },
-    security: {
-      passwordMinLength: 8,
-      passwordRequiresSymbol: true,
-      sessionTimeout: 60,
-      twoFactorEnabled: false
-    },
-    notifications: {
-      emailNotifications: true,
-      songCompletionNotices: true,
-      systemAnnouncements: true,
-      marketingEmails: false
-    },
-    adminProfile: {
-      adminType: "super_admin",
-      joinedDate: "January 15, 2025",
-      email: "admin@melodyverse.com"
-    }
-  });
+  const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [recentActivity] = useState([
     { action: "Updated system settings", timestamp: "Today, 10:15 AM" },
@@ -49,6 +22,24 @@ export const SettingsManagement = () => {
     { action: "Modified pricing plan", timestamp: "Apr 23, 2025, 2:10 PM" },
     { action: "Approved 5 contest entries", timestamp: "Apr 20, 2025, 9:30 AM" },
   ]);
+
+  // Load settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+        const loadedSettings = await loadSystemSettings();
+        setSettings(loadedSettings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        toast.error('Failed to load settings, using defaults');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   const handleInputChange = (section: string, field: string, value: any) => {
     setSettings({
@@ -70,15 +61,35 @@ export const SettingsManagement = () => {
     });
   };
 
-  const handleSaveSettings = () => {
-    toast.success("Settings saved successfully");
+  const handleSaveSettings = async () => {
+    try {
+      setSaving(true);
+      await saveSystemSettings(settings);
+      toast.success("Settings saved successfully");
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error("Failed to save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <span className="ml-2">Loading settings...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">System Settings</h2>
-        <Button onClick={handleSaveSettings}>Save All Settings</Button>
+        <Button onClick={handleSaveSettings} disabled={saving}>
+          {saving ? "Saving..." : "Save All Settings"}
+        </Button>
       </div>
 
       <Tabs defaultValue="general">
