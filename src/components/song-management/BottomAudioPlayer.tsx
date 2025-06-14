@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -21,7 +20,10 @@ export const BottomAudioPlayer = ({
   downloadingAudio = false,
 }: BottomAudioPlayerProps) => {
   const { currentTrack, isPlaying, togglePlayPause, showPlayer } = useAudioPlayerContext();
-  
+
+  // Debug context state at render
+  console.log('[BottomAudioPlayer] Rendered. showPlayer:', showPlayer, 'currentTrack:', currentTrack);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -201,7 +203,10 @@ export const BottomAudioPlayer = ({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (!showPlayer || !currentTrack) return null;
+  if (!currentTrack) {
+    console.log('[BottomAudioPlayer] No currentTrack, returning null');
+    return null;
+  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50 animate-slide-in-up">

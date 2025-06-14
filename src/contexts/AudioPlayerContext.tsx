@@ -83,6 +83,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
   console.log('🎵 AudioPlayerContext: Current state:', { currentTrack: currentTrack?.title, isPlaying, showPlayer });
 
+  // Add strong console log at every render
+  console.log('[AudioPlayerProvider] Render. currentTrack:', currentTrack, 'isPlaying:', isPlaying, 'showPlayer:', showPlayer);
+
   return (
     <AudioPlayerContext.Provider value={value}>
       {children}

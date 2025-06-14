@@ -10,6 +10,9 @@ const AppLayoutContent = () => {
   const [downloadingAudio, setDownloadingAudio] = useState(false);
   const { currentTrack, closePlayer } = useAudioPlayerContext();
 
+  // NEW LOG: Check currentTrack value
+  console.log('[AppLayout] Rendering. currentTrack:', currentTrack);
+
   const handleDownloadAudio = async (targetRequest?: PlayingRequest) => {
     const requestToDownload = targetRequest || currentTrack;
     if (!requestToDownload) return;
