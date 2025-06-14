@@ -20,6 +20,7 @@ export interface Contest {
   instrumental_url: string;
   terms_conditions: string;
   created_at: string;
+  entry_fee: number;
 }
 
 export interface ContestEntry {
@@ -99,6 +100,7 @@ export const useContest = () => {
     start_date: string;
     end_date: string;
     instrumental_url: string;
+    entry_fee: number;
   }) => {
     if (!user) {
       toast.error('Please log in to create contests');
@@ -143,6 +145,7 @@ export const useContest = () => {
     start_date: string;
     end_date: string;
     instrumental_url: string;
+    entry_fee: number;
   }) => {
     if (!user) {
       toast.error('Please log in to update contests');

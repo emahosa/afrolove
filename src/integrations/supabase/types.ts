@@ -262,6 +262,7 @@ export type Database = {
           created_by: string | null
           description: string
           end_date: string
+          entry_fee: number
           id: string
           instrumental_url: string | null
           max_entries_per_user: number | null
@@ -283,6 +284,7 @@ export type Database = {
           created_by?: string | null
           description: string
           end_date: string
+          entry_fee?: number
           id?: string
           instrumental_url?: string | null
           max_entries_per_user?: number | null
@@ -304,6 +306,7 @@ export type Database = {
           created_by?: string | null
           description?: string
           end_date?: string
+          entry_fee?: number
           id?: string
           instrumental_url?: string | null
           max_entries_per_user?: number | null

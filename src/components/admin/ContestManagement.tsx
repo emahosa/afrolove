@@ -73,6 +73,7 @@ interface Contest {
   created_at: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
+  entry_fee?: number;
 }
 
 export const ContestManagement = () => {
@@ -107,7 +108,8 @@ export const ContestManagement = () => {
     rules: '',
     start_date: null as Date | null,
     end_date: null as Date | null,
-    instrumental_url: ''
+    instrumental_url: '',
+    entry_fee: 0,
   });
 
   // Reset form
@@ -119,7 +121,8 @@ export const ContestManagement = () => {
       rules: '',
       start_date: null,
       end_date: null,
-      instrumental_url: ''
+      instrumental_url: '',
+      entry_fee: 0,
     });
     setInstrumentalFile(null);
   };
@@ -311,7 +314,8 @@ export const ContestManagement = () => {
       rules: contest.rules || '',
       start_date: new Date(contest.start_date),
       end_date: new Date(contest.end_date),
-      instrumental_url: contest.instrumental_url || ''
+      instrumental_url: contest.instrumental_url || '',
+      entry_fee: contest.entry_fee || 0,
     });
     setIsEditDialogOpen(true);
   };
@@ -356,7 +360,8 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: instrumentalUrl
+        instrumental_url: instrumentalUrl,
+        entry_fee: contestForm.entry_fee || 0,
       };
 
       const success = await createContest(contestData);
@@ -411,7 +416,8 @@ export const ContestManagement = () => {
         rules: contestForm.rules,
         start_date: formatDateForSubmission(contestForm.start_date)!,
         end_date: formatDateForSubmission(contestForm.end_date)!,
-        instrumental_url: instrumentalUrl
+        instrumental_url: instrumentalUrl,
+        entry_fee: contestForm.entry_fee || 0,
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -929,6 +935,20 @@ export const ContestManagement = () => {
                 </p>
               </div>
             </div>
+            
+            <div>
+              <Label>Entry Fee (Credits)</Label>
+              <Input
+                type="number"
+                value={contestForm.entry_fee}
+                onChange={(e) => setContestForm({ ...contestForm, entry_fee: Number(e.target.value) })}
+                placeholder="0"
+                min="0"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                The number of credits required to enter. Set to 0 for free entry.
+              </p>
+            </div>
           </div>
           
           <DialogFooter>
@@ -1095,6 +1115,20 @@ export const ContestManagement = () => {
                   Upload a new audio file to replace the current one (max 50MB)
                 </p>
               </div>
+            </div>
+            
+            <div>
+              <Label>Entry Fee (Credits)</Label>
+              <Input
+                type="number"
+                value={contestForm.entry_fee}
+                onChange={(e) => setContestForm({ ...contestForm, entry_fee: Number(e.target.value) })}
+                placeholder="0"
+                min="0"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                The number of credits required to enter. Set to 0 for free entry.
+              </p>
             </div>
           </div>
           
