@@ -1,3 +1,4 @@
+
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -8,10 +9,10 @@ import { AudioPlayerProvider, useAudioPlayerContext, PlayingRequest } from "@/co
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [downloadingAudio, setDownloadingAudio] = useState(false);
-  const { currentTrack, closePlayer } = useAudioPlayerContext();
+  const { currentTrack, closePlayer, showPlayer } = useAudioPlayerContext();
 
   // NEW LOG: Check currentTrack value
-  console.log('[AppLayout] Rendering. currentTrack:', currentTrack);
+  console.log('[AppLayout] Rendering. currentTrack:', currentTrack, 'showPlayer:', showPlayer);
 
   const handleDownloadAudio = async (targetRequest?: PlayingRequest) => {
     const requestToDownload = targetRequest || currentTrack;
@@ -139,7 +140,7 @@ const AppLayoutContent = () => {
           <Outlet />
         </main>
       </div>
-      {currentTrack && (
+      {showPlayer && currentTrack && (
         <BottomAudioPlayer
           onClose={closePlayer}
           onDownload={() => handleDownloadAudio(currentTrack)}
