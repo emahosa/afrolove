@@ -224,6 +224,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
           role,
           permissions: role === 'admin' ? selectedPermissions : undefined,
           credits,
+          appBaseUrl: window.location.origin, // Added appBaseUrl
         }
       });
 
@@ -240,9 +241,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       toast.success(edgeFnData.message || "New user invited successfully. They will receive an email to set up their account.");
       setIsAddDialogOpen(false);
       
-      // Refresh the user list to ensure we have the latest data
-      // The new user won't appear immediately as they need to accept invite,
-      // but refreshing helps if other changes occurred.
       setTimeout(() => loadUsers(), 1000);
 
     } catch (error: any) {

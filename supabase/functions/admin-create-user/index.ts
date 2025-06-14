@@ -1,4 +1,3 @@
-
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -8,6 +7,7 @@ interface NewUserDetails {
   role: string; // UserRole from your types, e.g., "admin", "voter", "subscriber"
   permissions?: string[];
   credits?: number;
+  appBaseUrl?: string; // Added appBaseUrl
 }
 
 Deno.serve(async (req: Request) => {
@@ -16,8 +16,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { email, fullName, role, permissions, credits }: NewUserDetails = await req.json();
-    console.log('admin-create-user: Received request:', { email, fullName, role, permissions, credits });
+    const { email, fullName, role, permissions, credits, appBaseUrl }: NewUserDetails = await req.json();
+    console.log('admin-create-user: Received request:', { email, fullName, role, permissions, credits, appBaseUrl });
 
     if (!email || !fullName || !role) {
       return new Response(JSON.stringify({ error: 'Missing required fields: email, fullName, role' }), {
@@ -26,11 +26,21 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Construct redirectTo URL if appBaseUrl is provided
+    let redirectTo;
+    if (appBaseUrl) {
+      // Assuming your login page is at /login relative to the app's base URL
+      redirectTo = `${appBaseUrl}/login`; 
+      console.log('admin-create-user: Redirect URL set to:', redirectTo);
+    }
+
+
     // Step 1: Invite the user. This creates an auth.users entry.
     // The handle_new_user trigger will create the public.profiles entry,
     // a default user_roles entry ('voter'), and a default user_subscriptions entry.
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName },
+      redirectTo: redirectTo, // Pass the redirectTo option
     });
 
     if (inviteError) {
@@ -133,7 +143,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ message: 'User created and invited successfully', userId: newUser.id }), {
+    return new Response(JSON.stringify({ message: 'User created and invited successfully. They will be redirected to login after setting their password.', userId: newUser.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
