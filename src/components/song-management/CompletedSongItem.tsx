@@ -7,7 +7,7 @@ import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAudioPlayer } from "@/hooks/use-audio-player";
+import { useAudioPlayerContext } from "@/contexts/AudioPlayerContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,7 +40,7 @@ export const CompletedSongItem = ({
   const [showLyrics, setShowLyrics] = useState(false);
   const [selectedLyrics, setSelectedLyrics] = useState<string | null>(null);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
-  const { handlePlay } = useAudioPlayer();
+  const { playTrack } = useAudioPlayerContext();
 
   const fetchSelectedLyrics = async () => {
     if (selectedLyrics) return; // Already loaded
@@ -114,7 +114,7 @@ export const CompletedSongItem = ({
   };
 
   const handlePlayClick = () => {
-    handlePlay({ id: request.id, title: request.title });
+    playTrack({ id: request.id, title: request.title, type: 'custom' });
   };
 
   const handleDownloadClick = () => {
