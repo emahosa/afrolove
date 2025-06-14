@@ -14,7 +14,7 @@ interface BottomAudioPlayerProps {
 
 type RepeatMode = 'none' | 'one' | 'all';
 
-export const BottomAudioPlayer = ({ 
+export const BottomAudioPlayer = ({
   onClose,
   onDownload,
   downloadingAudio = false,
@@ -209,104 +209,115 @@ export const BottomAudioPlayer = ({
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50 animate-slide-in-up">
-      <div className="px-6 py-2">
-        <Slider
-          value={[currentTime]}
-          onValueChange={handleSeek}
-          max={duration || 100}
-          step={0.1}
-          className="w-full"
-        />
+    <>
+      <div style={{
+        position: 'fixed',
+        bottom: 0, left: 0, right: 0, height: '24px',
+        background: 'green', color: 'white',
+        zIndex: 100000, fontWeight: 'bold',
+        fontSize: '14px', textAlign: 'center'
+      }}>
+        [BottomAudioPlayer VISIBLE]
       </div>
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 shadow-2xl z-50 animate-slide-in-up">
+        <div className="px-6 py-2">
+          <Slider
+            value={[currentTime]}
+            onValueChange={handleSeek}
+            max={duration || 100}
+            step={0.1}
+            className="w-full"
+          />
+        </div>
 
-      <div className="px-6 py-4">
-        <div className="flex items-center gap-6">
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={togglePlayPause}
-            disabled={loadingAudio}
-            className="h-14 w-14 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
-          >
-            {loadingAudio ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : isPlaying ? (
-              <Pause className="h-6 w-6" />
-            ) : (
-              <Play className="h-6 w-6 ml-1" />
-            )}
-          </Button>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-white truncate text-lg">{currentTrack.title}</h3>
-              <span className="text-sm text-gray-400">by AI Generated</span>
-            </div>
-            
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span>{formatTime(currentTime)}</span>
-              <span>/</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
+        <div className="px-6 py-4">
+          <div className="flex items-center gap-6">
             <Button
               variant="ghost"
-              size="sm"
-              onClick={() => setIsLiked(!isLiked)}
-              className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
+              size="lg"
+              onClick={togglePlayPause}
+              disabled={loadingAudio}
+              className="h-14 w-14 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0"
             >
-              <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleRepeatMode}
-              className={`h-10 w-10 rounded-full ${repeatMode === 'none' ? 'text-gray-400 hover:text-white' : 'text-purple-400 hover:text-purple-300'}`}
-              title={`Repeat: ${repeatMode}`}
-            >
-              {getRepeatIcon()}
-            </Button>
-
-            <Button variant="ghost" size="sm" className="h-10 w-10 rounded-full text-gray-400 hover:text-white">
-              <Share2 className="h-5 w-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDownload}
-              disabled={downloadingAudio}
-              className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
-            >
-              {downloadingAudio ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+              {loadingAudio ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="h-6 w-6" />
               ) : (
-                <Download className="h-5 w-5" />
+                <Play className="h-6 w-6 ml-1" />
               )}
             </Button>
 
-            <div className="hidden sm:flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-gray-400" />
-              <div className="w-24">
-                <Slider
-                  value={[volume * 100]}
-                  onValueChange={handleVolumeChange}
-                  max={100}
-                  step={1}
-                />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-white truncate text-lg">{currentTrack.title}</h3>
+                <span className="text-sm text-gray-400">by AI Generated</span>
+              </div>
+              
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <span>{formatTime(currentTime)}</span>
+                <span>/</span>
+                <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500">
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsLiked(!isLiked)}
+                className={`h-10 w-10 rounded-full ${isLiked ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
+              >
+                <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleRepeatMode}
+                className={`h-10 w-10 rounded-full ${repeatMode === 'none' ? 'text-gray-400 hover:text-white' : 'text-purple-400 hover:text-purple-300'}`}
+                title={`Repeat: ${repeatMode}`}
+              >
+                {getRepeatIcon()}
+              </Button>
+
+              <Button variant="ghost" size="sm" className="h-10 w-10 rounded-full text-gray-400 hover:text-white">
+                <Share2 className="h-5 w-5" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDownload}
+                disabled={downloadingAudio}
+                className="h-10 w-10 rounded-full text-gray-400 hover:text-white"
+              >
+                {downloadingAudio ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Download className="h-5 w-5" />
+                )}
+              </Button>
+
+              <div className="hidden sm:flex items-center gap-2">
+                <Volume2 className="h-5 w-5 text-gray-400" />
+                <div className="w-24">
+                  <Slider
+                    value={[volume * 100]}
+                    onValueChange={handleVolumeChange}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+              </div>
+
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-10 w-10 rounded-full text-gray-400 hover:text-red-500">
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };

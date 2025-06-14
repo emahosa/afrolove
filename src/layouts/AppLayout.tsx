@@ -151,7 +151,19 @@ const AppLayoutContent = () => {
 };
 
 const AppLayout = () => {
+  // DEBUG BANNER
   return (
+    <div style={{
+      position: 'fixed',
+      top: 24, left: 0, right: 0, height: '24px',
+      background: 'blue', color: 'white',
+      zIndex: 99998, fontWeight: 'bold',
+      fontSize: '14px', textAlign: 'center'
+    }}>
+      [AppLayout MOUNTED]
+    </div>
+  ),
+  (
     <AudioPlayerProvider>
       <AppLayoutContent />
     </AudioPlayerProvider>

@@ -49,6 +49,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [currentTrack, showPlayer]);
 
+  // ===== DEBUG: Mark presence of AudioPlayerProvider =====
+  useEffect(() => {
+    window.__TEST_AUDIO_PROVIDER = true;
+    console.log('[AudioPlayerProvider][DEBUG]: Provider is mounted on page.');
+  }, []);
+
   // FIX: Set currentTrack, isPlaying, showPlayer in explicit order
   const playTrack = useCallback((track: PlayingRequest) => {
     console.log('🎵 AudioPlayerContext: playTrack called with:', track);
@@ -87,9 +93,22 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   console.log('[AudioPlayerProvider] Render. currentTrack:', currentTrack, 'isPlaying:', isPlaying, 'showPlayer:', showPlayer);
 
   return (
-    <AudioPlayerContext.Provider value={value}>
-      {children}
-    </AudioPlayerContext.Provider>
+    <>
+      {/* DEBUG INDICATOR */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, height: '24px',
+        background: 'crimson', color: 'white',
+        zIndex: 99999, fontWeight: 'bold',
+        fontSize: '14px', textAlign: 'center'
+      }}>
+        [AudioPlayerProvider MOUNTED]
+      </div>
+
+      <AudioPlayerContext.Provider value={value}>
+        {children}
+      </AudioPlayerContext.Provider>
+    </>
   );
 };
 
