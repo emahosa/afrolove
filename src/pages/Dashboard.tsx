@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -99,7 +100,11 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <Tabs defaultValue={userIsOnlyVoter ? "locked" : "generate"} className="space-y-6">
+      <Tabs 
+        key={userIsOnlyVoter ? 'voter-view' : 'subscriber-view'}
+        defaultValue={userIsOnlyVoter ? "locked" : "generate"} 
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger 
             value="generate" 
