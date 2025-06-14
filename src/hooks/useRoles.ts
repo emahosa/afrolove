@@ -1,17 +1,33 @@
 
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 type Role = 'admin' | 'moderator' | 'user' | 'super_admin' | 'voter' | 'subscriber';
 
 export const useRoles = () => {
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [isSubscriberStatus, setIsSubscriberStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    const fetchCurrentSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
+    };
+    fetchCurrentSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const fetchRoles = useCallback(async () => {
     if (!user) {
@@ -24,8 +40,6 @@ export const useRoles = () => {
     }
 
     try {
-      console.log("useRoles: Fetching roles for user:", user.id);
-      
       // Fetch user roles
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
@@ -36,7 +50,6 @@ export const useRoles = () => {
         console.error("useRoles: Error fetching roles:", rolesError);
         setRoles([]);
       } else {
-        console.log("useRoles: Roles fetched:", rolesData);
         const fetchedRoles = rolesData.map(item => item.role as Role);
         setRoles(fetchedRoles);
       }
@@ -78,19 +91,21 @@ export const useRoles = () => {
   }, [user]);
 
   useEffect(() => {
-    if (user) {
-      fetchRoles();
-    } else {
+    if (user === null) {
+      // No user, stop loading
+      setLoading(false);
+      setInitialized(true);
       setRoles([]);
       setAdminPermissions([]);
       setIsSubscriberStatus(false);
-      setLoading(false);
-      setInitialized(true);
+    } else if (user) {
+      // User is present, fetch roles
+      fetchRoles();
     }
+    // if user is undefined, we are still waiting for the initial session
   }, [user, fetchRoles]);
 
   const hasRole = useCallback((role: Role): boolean => {
-    console.log(`useRoles: Checking if user has role ${role}:`, roles.includes(role));
     return roles.includes(role);
   }, [roles]);
 
@@ -123,15 +138,6 @@ export const useRoles = () => {
     
     return false;
   }, [isSuperAdmin, isAdminValue, isSubscriber, isVoter, hasAdminPermission]);
-
-  console.log("useRoles: Current state:", { 
-    roles, 
-    isAdminValue, 
-    isSuperAdmin, 
-    isVoter, 
-    isSubscriber,
-    adminPermissions 
-  });
 
   return {
     roles,
