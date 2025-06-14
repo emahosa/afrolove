@@ -27,7 +27,7 @@ interface GenerationStep {
 const MusicGenerationWorkflow = () => {
   const { user } = useAuth();
   const { genres } = useGenres();
-  const { generateSong, isGenerating, currentTaskId } = useSunoGeneration();
+  const { generateSong, isGenerating } = useSunoGeneration();
   const { checkAllPendingSongs, isChecking } = useSongStatusChecker();
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -40,6 +40,7 @@ const MusicGenerationWorkflow = () => {
     customMode: false,
     negativeTags: ''
   });
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
   const [steps, setSteps] = useState<GenerationStep[]>([
     { id: 'setup', title: 'Setup', description: 'Configure your song parameters', status: 'active' },
@@ -88,6 +89,7 @@ const MusicGenerationWorkflow = () => {
     updateStepStatus('setup', 'completed');
     setCurrentStep(1);
     setGenerationProgress(0);
+    setCurrentTaskId(null);
 
     const request = {
       prompt: formData.prompt,
@@ -101,6 +103,7 @@ const MusicGenerationWorkflow = () => {
 
     const taskId = await generateSong(request);
     if (taskId) {
+      setCurrentTaskId(taskId);
       toast.success('🎵 Generation started! We\'ll notify you when it\'s ready.');
     }
   };
