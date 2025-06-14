@@ -24,7 +24,7 @@ interface AdminProps {
 }
 
 const Admin = ({ tab = 'users' }: AdminProps) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin, hasAdminPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(tab);
@@ -133,6 +133,12 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
   }, [location.pathname, activeTab, navigate]);
 
   const handleTabChange = (value: string) => {
+    // Check permissions for ordinary admins
+    if (!isSuperAdmin() && !hasAdminPermission(value)) {
+      toast.error("You don't have permission to access this section");
+      return;
+    }
+    
     setActiveTab(value);
     
     const tabToUrlMapping: Record<string, string> = {
@@ -153,6 +159,31 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     if (targetUrl) {
       navigate(targetUrl);
     }
+  };
+
+  // Filter available tabs based on permissions
+  const getAvailableTabs = () => {
+    const allTabs = [
+      { id: 'users', label: 'Users', icon: Users, permission: 'users' },
+      { id: 'admins', label: 'Admins', icon: ShieldCheck, permission: 'admins' },
+      { id: 'genres', label: 'Genres', icon: Music, permission: 'genres' },
+      { id: 'custom-songs', label: 'Custom Songs', icon: Music, permission: 'custom-songs' },
+      { id: 'suno-api', label: 'Suno API', icon: Key, permission: 'suno-api' },
+      { id: 'contest', label: 'Contest', icon: Trophy, permission: 'contest' },
+      { id: 'content', label: 'Content', icon: FileText, permission: 'content' },
+      { id: 'payments', label: 'Payments', icon: DollarSign, permission: 'payments' },
+      { id: 'support', label: 'Support', icon: Users, permission: 'support' },
+      { id: 'reports', label: 'Reports', icon: BarChart, permission: 'reports' },
+      { id: 'settings', label: 'Settings', icon: Settings, permission: 'settings' }
+    ];
+
+    // Super admin can see all tabs
+    if (isSuperAdmin()) {
+      return allTabs;
+    }
+
+    // Regular admin can only see tabs they have permission for
+    return allTabs.filter(tab => hasAdminPermission(tab.permission));
   };
 
   if (!adminInitialized && loading) {
@@ -176,12 +207,21 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
     );
   };
 
+  const availableTabs = getAvailableTabs();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage all aspects of your MelodyVerse platform</p>
+          <h1 className="text-3xl font-bold">
+            {isSuperAdmin() ? 'Super Admin Dashboard' : 'Admin Dashboard'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isSuperAdmin() 
+              ? 'Manage all aspects of your MelodyVerse platform' 
+              : 'Manage your assigned sections of MelodyVerse'
+            }
+          </p>
         </div>
       </div>
 
@@ -189,111 +229,48 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
         <div className="border-b">
           <div className="flex overflow-x-auto py-2 px-4">
             <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground">
-              <TabsTrigger value="users" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Users className="mr-2 h-4 w-4" />
-                Users
-              </TabsTrigger>
-              <TabsTrigger value="admins" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                Admins
-              </TabsTrigger>
-              <TabsTrigger value="genres" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Music className="mr-2 h-4 w-4" />
-                Genres
-              </TabsTrigger>
-              <TabsTrigger value="custom-songs" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Music className="mr-2 h-4 w-4" />
-                Custom Songs
-              </TabsTrigger>
-              <TabsTrigger value="suno-api" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Key className="mr-2 h-4 w-4" />
-                Suno API
-              </TabsTrigger>
-              <TabsTrigger value="contest" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Trophy className="mr-2 h-4 w-4" />
-                Contest
-              </TabsTrigger>
-              <TabsTrigger value="content" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <FileText className="mr-2 h-4 w-4" />
-                Content
-              </TabsTrigger>
-              <TabsTrigger value="payments" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <DollarSign className="mr-2 h-4 w-4" />
-                Payments
-              </TabsTrigger>
-              <TabsTrigger value="support" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Users className="mr-2 h-4 w-4" />
-                Support
-              </TabsTrigger>
-              <TabsTrigger value="reports" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <BarChart className="mr-2 h-4 w-4" />
-                Reports
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </TabsTrigger>
+              {availableTabs.map((tab) => (
+                <TabsTrigger 
+                  key={tab.id} 
+                  value={tab.id} 
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium"
+                >
+                  <tab.icon className="mr-2 h-4 w-4" />
+                  {tab.label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
         </div>
         
         <div className="mt-6">
-          <TabsContent value="users" className="mt-0">
-            {loading ? (
-              <div className="flex justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
-                <span className="ml-2">Loading users...</span>
-              </div>
-            ) : (
-              <UserManagement 
-                users={users} 
-                renderStatusLabel={renderStatusLabel}
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="admins" className="mt-0">
-            <AdminManagement 
-              users={users}
-              renderStatusLabel={renderStatusLabel}
-            />
-          </TabsContent>
-
-          <TabsContent value="genres" className="mt-0">
-            <GenreManagement />
-          </TabsContent>
-
-          <TabsContent value="custom-songs" className="mt-0">
-            <ContentManagement />
-          </TabsContent>
-
-          <TabsContent value="suno-api" className="mt-0">
-            <SunoApiManagement />
-          </TabsContent>
-
-          <TabsContent value="contest" className="mt-0">
-            <ContestManagement />
-          </TabsContent>
-
-          <TabsContent value="content" className="mt-0">
-            <ContentManagement />
-          </TabsContent>
-
-          <TabsContent value="payments" className="mt-0">
-            <PaymentManagement />
-          </TabsContent>
-
-          <TabsContent value="support" className="mt-0">
-            <SupportManagement />
-          </TabsContent>
-
-          <TabsContent value="reports" className="mt-0">
-            <ReportsAnalytics />
-          </TabsContent>
-
-          <TabsContent value="settings" className="mt-0">
-            <SettingsManagement />
-          </TabsContent>
+          {availableTabs.map((tab) => (
+            <TabsContent key={tab.id} value={tab.id} className="mt-0">
+              {tab.id === 'users' && (
+                loading ? (
+                  <div className="flex justify-center p-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+                    <span className="ml-2">Loading users...</span>
+                  </div>
+                ) : (
+                  <UserManagement 
+                    users={users} 
+                    renderStatusLabel={renderStatusLabel}
+                  />
+                )
+              )}
+              {tab.id === 'admins' && <AdminManagement users={users} renderStatusLabel={renderStatusLabel} />}
+              {tab.id === 'genres' && <GenreManagement />}
+              {tab.id === 'custom-songs' && <ContentManagement />}
+              {tab.id === 'suno-api' && <SunoApiManagement />}
+              {tab.id === 'contest' && <ContestManagement />}
+              {tab.id === 'content' && <ContentManagement />}
+              {tab.id === 'payments' && <PaymentManagement />}
+              {tab.id === 'support' && <SupportManagement />}
+              {tab.id === 'reports' && <ReportsAnalytics />}
+              {tab.id === 'settings' && <SettingsManagement />}
+            </TabsContent>
+          ))}
         </div>
       </Tabs>
     </div>

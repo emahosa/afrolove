@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const ProtectedRoute = () => {
-  const { user, loading, isAdmin, session } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -40,9 +40,13 @@ const ProtectedRoute = () => {
 
   // Handle admin routes
   if (isAdminRoute) {
-    const isSuperAdmin = user.email === "ellaadahosa@gmail.com";
-    
-    if (!isSuperAdmin && !isAdmin()) {
+    // Super admin can access everything
+    if (isSuperAdmin()) {
+      console.log('ProtectedRoute: Super admin access granted');
+    } else if (isAdmin()) {
+      console.log('ProtectedRoute: Regular admin access granted');
+      // Regular admins will have their permissions checked in the admin components
+    } else {
       console.log('ProtectedRoute: User lacks admin privileges');
       if (!hasShownToast) {
         toast.error("You don't have admin privileges to access this page");

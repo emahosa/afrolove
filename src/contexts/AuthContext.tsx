@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +18,13 @@ interface AuthContextType {
   register: (fullName: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
+  isSuperAdmin: () => boolean;
+  isVoter: () => boolean;
+  isSubscriber: () => boolean;
+  hasAdminPermission: (permission: string) => boolean;
+  canAccessFeature: (feature: string) => boolean;
   userRoles: string[];
+  adminPermissions: string[];
   updateUserCredits: (amount: number) => Promise<void>;
 }
 
@@ -30,13 +35,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
+  const [subscriberStatus, setSubscriberStatus] = useState(false);
   const initialized = useRef(false);
+
+  const isSuperAdmin = () => {
+    console.log('AuthContext: Checking super admin status for user:', user?.email);
+    
+    // Check if super admin by email first
+    if (user?.email === 'ellaadahosa@gmail.com') {
+      console.log('AuthContext: Super admin detected by email');
+      return true;
+    }
+    
+    // Check if user has super_admin role
+    const hasSuperAdminRole = userRoles.includes('super_admin');
+    console.log('AuthContext: Super admin role check:', hasSuperAdminRole);
+    return hasSuperAdminRole;
+  };
 
   const isAdmin = () => {
     console.log('AuthContext: Checking admin status for user:', user?.email);
     
-    // Check if super admin first
-    if (user?.email === 'ellaadahosa@gmail.com') {
+    // Super admin is also admin
+    if (isSuperAdmin()) {
       console.log('AuthContext: Super admin detected');
       return true;
     }
@@ -45,6 +67,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const hasAdminRole = userRoles.includes('admin');
     console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
     return hasAdminRole;
+  };
+
+  const isVoter = () => {
+    return userRoles.includes('voter');
+  };
+
+  const isSubscriber = () => {
+    return userRoles.includes('subscriber') || subscriberStatus;
+  };
+
+  const hasAdminPermission = (permission: string) => {
+    // Super admin has all permissions
+    if (isSuperAdmin()) return true;
+    // Regular admin only has specific permissions
+    return adminPermissions.includes(permission);
+  };
+
+  const canAccessFeature = (feature: string) => {
+    // Super admin can access everything
+    if (isSuperAdmin()) return true;
+    
+    // Regular admin needs specific permissions for admin features
+    if (isAdmin() && feature.startsWith('admin_')) {
+      return hasAdminPermission(feature.replace('admin_', ''));
+    }
+    
+    // Subscribers can access all regular features
+    if (isSubscriber()) return true;
+    
+    // Voters can only access contest features
+    if (isVoter()) {
+      return feature === 'contest' || feature === 'voting';
+    }
+    
+    return false;
   };
 
   const updateUserCredits = async (amount: number) => {
@@ -65,26 +122,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const fetchUserRoles = async (userId: string) => {
+  const fetchUserData = async (userId: string) => {
     try {
-      console.log('AuthContext: Fetching roles for user:', userId);
+      console.log('AuthContext: Fetching user data for:', userId);
       
-      const { data: userRoleData, error } = await supabase
+      // Fetch user roles
+      const { data: userRoleData, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
       
-      if (error) {
-        console.error('AuthContext: Error fetching roles:', error);
-        return ['user']; // Default fallback
+      if (rolesError) {
+        console.error('AuthContext: Error fetching roles:', rolesError);
+        setUserRoles(['voter']); // Default fallback
+      } else {
+        const roles = userRoleData?.map(r => r.role) || ['voter'];
+        console.log('AuthContext: Fetched roles:', roles);
+        setUserRoles(roles);
+      }
+
+      // Fetch admin permissions
+      const { data: permissionsData, error: permissionsError } = await supabase
+        .from('admin_permissions')
+        .select('permission')
+        .eq('user_id', userId);
+      
+      if (permissionsError) {
+        console.error('AuthContext: Error fetching permissions:', permissionsError);
+        setAdminPermissions([]);
+      } else {
+        const permissions = permissionsData?.map(p => p.permission) || [];
+        console.log('AuthContext: Fetched permissions:', permissions);
+        setAdminPermissions(permissions);
+      }
+
+      // Check subscription status
+      const { data: isSubscriberResult, error: subscriberError } = await supabase
+        .rpc('is_subscriber', { _user_id: userId });
+      
+      if (subscriberError) {
+        console.error('AuthContext: Error checking subscription:', subscriberError);
+        setSubscriberStatus(false);
+      } else {
+        console.log('AuthContext: Subscription status:', isSubscriberResult);
+        setSubscriberStatus(isSubscriberResult);
       }
       
-      const roles = userRoleData?.map(r => r.role) || ['user'];
-      console.log('AuthContext: Fetched roles:', roles);
-      return roles;
     } catch (error) {
-      console.error('AuthContext: Error in fetchUserRoles:', error);
-      return ['user']; // Default fallback
+      console.error('AuthContext: Error in fetchUserData:', error);
+      setUserRoles(['voter']); // Default fallback
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
     }
   };
 
@@ -122,20 +210,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(basicUser);
         setSession(session);
         
-        // Fetch roles after setting user
-        const roles = await fetchUserRoles(session.user.id);
-        setUserRoles(roles);
+        // Fetch user data after setting user
+        await fetchUserData(session.user.id);
         
         console.log('AuthContext: User setup complete for:', basicUser.name);
       } else {
         setUser(null);
         setUserRoles([]);
+        setAdminPermissions([]);
+        setSubscriberStatus(false);
         setSession(null);
       }
     } catch (error) {
       console.error('AuthContext: Error processing session:', error);
       setUser(null);
       setUserRoles([]);
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
       setSession(null);
     } finally {
       setLoading(false);
@@ -213,6 +304,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRoles([]);
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
       initialized.current = false;
     } catch (error: any) {
       console.error('Logout error:', error);
@@ -275,7 +368,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     isAdmin,
+    isSuperAdmin,
+    isVoter,
+    isSubscriber,
+    hasAdminPermission,
+    canAccessFeature,
     userRoles,
+    adminPermissions,
     updateUserCredits
   };
 

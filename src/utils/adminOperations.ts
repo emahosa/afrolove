@@ -11,6 +11,7 @@ interface UserUpdateData {
   credits?: number;
   status?: string;
   role?: UserRole;
+  permissions?: string[];
 }
 
 export const updateUserInDatabase = async (userId: string, userData: UserUpdateData): Promise<boolean> => {
@@ -60,6 +61,32 @@ export const updateUserInDatabase = async (userId: string, userData: UserUpdateD
         if (insertRoleError) {
           console.error("Error inserting user role:", insertRoleError);
           throw new Error(`Role insert failed: ${insertRoleError.message}`);
+        }
+      }
+
+      // Handle admin permissions if role is admin
+      if (userData.role === 'admin' && userData.permissions) {
+        // Delete existing permissions
+        await supabase
+          .from('admin_permissions')
+          .delete()
+          .eq('user_id', userId);
+
+        // Insert new permissions
+        if (userData.permissions.length > 0) {
+          const permissionsToInsert = userData.permissions.map(permission => ({
+            user_id: userId,
+            permission: permission
+          }));
+
+          const { error: permissionsError } = await supabase
+            .from('admin_permissions')
+            .insert(permissionsToInsert);
+
+          if (permissionsError) {
+            console.error("Error updating admin permissions:", permissionsError);
+            throw new Error(`Permissions update failed: ${permissionsError.message}`);
+          }
         }
       }
     }
@@ -199,7 +226,7 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
     
     console.log("Created profile successfully with ID:", newUserId);
     
-    const roleToAdd: UserRole = (userData.role as UserRole) || 'user';
+    const roleToAdd: UserRole = (userData.role as UserRole) || 'voter';
     
     const { error: roleError } = await supabase
       .from('user_roles')
@@ -213,6 +240,37 @@ export const addUserToDatabase = async (userData: UserUpdateData): Promise<strin
       toast.warning("User created but role assignment failed", { description: roleError.message });
     } else {
       console.log("Added role successfully:", roleToAdd);
+    }
+
+    // Add admin permissions if role is admin
+    if (roleToAdd === 'admin' && userData.permissions && userData.permissions.length > 0) {
+      const permissionsToInsert = userData.permissions.map(permission => ({
+        user_id: newUserId,
+        permission: permission
+      }));
+
+      const { error: permissionsError } = await supabase
+        .from('admin_permissions')
+        .insert(permissionsToInsert);
+
+      if (permissionsError) {
+        console.error("Error adding admin permissions:", permissionsError);
+        toast.warning("User created but permissions assignment failed", { description: permissionsError.message });
+      }
+    }
+
+    // Create subscription record
+    const { error: subscriptionError } = await supabase
+      .from('user_subscriptions')
+      .insert({
+        user_id: newUserId,
+        subscription_type: roleToAdd === 'subscriber' ? 'premium' : 'free',
+        subscription_status: roleToAdd === 'subscriber' ? 'active' : 'inactive'
+      });
+
+    if (subscriptionError) {
+      console.error("Error creating subscription record:", subscriptionError);
+      // Not critical, continue
     }
     
     return newUserId;
