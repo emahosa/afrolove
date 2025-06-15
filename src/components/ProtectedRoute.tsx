@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+
+import { useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -9,12 +10,6 @@ const ProtectedRoute = () => {
   const [hasShownToast, setHasShownToast] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
   
-  useEffect(() => {
-    if (!loading) {
-      setIsInitialized(true);
-    }
-  }, [loading]);
-
   // Show loading state only during initial auth check
   if (loading) {
     console.log('ProtectedRoute: Loading auth state');
@@ -74,7 +69,7 @@ const ProtectedRoute = () => {
     }
   }
 
-  console.log('ProtectedRoute: Access granted for user:', user.id, 'to path:', location.pathname);
+  console.log('ProtectedRoute: Access granted for user:', user?.id, 'to path:', location.pathname);
   return <Outlet />;
 };
 
