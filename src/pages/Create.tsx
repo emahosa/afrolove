@@ -59,7 +59,7 @@ const Create = () => {
     const adminPrompt = selectedGenre.prompt_template;
 
     const request: SunoGenerationRequest = {
-      prompt: creationMode === 'prompt' ? `${adminPrompt}, ${userPrompt}` : userPrompt,
+      prompt: `${adminPrompt}, ${userPrompt}`,
       customMode: creationMode === 'lyrics',
       instrumental,
       title: creationMode === 'lyrics' ? title : undefined,
