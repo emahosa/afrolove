@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -187,19 +186,26 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       const audioUrl = track.audio_url;
       let finalUrl = audioUrl;
 
-      // Handle different URL types - Suno URLs typically need proxy
+      // Handle different URL types
       if (audioUrl.includes('cdn1.suno.ai') || audioUrl.includes('suno.ai')) {
+        // Suno CDN URLs need proxy
         const supabaseUrl = 'https://bswfiynuvjvoaoyfdrso.supabase.co';
         finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
         console.log(`🎵 Using Suno proxy for URL: ${finalUrl}`);
-      } else if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:') || audioUrl.includes('storage.googleapis.com')) {
+      } else if (
+        audioUrl.startsWith('blob:') || 
+        audioUrl.startsWith('data:') || 
+        audioUrl.includes('storage.googleapis.com') ||
+        audioUrl.includes('apiboxfiles.erweima.ai')
+      ) {
+        // Direct URLs that don't need proxy
         finalUrl = audioUrl;
         console.log(`🎵 Using direct URL: ${finalUrl}`);
       } else if (audioUrl.startsWith('http')) {
-        // For other HTTP URLs, try proxy as fallback
+        // For other HTTP URLs that might require CORS headers, use the proxy as a fallback.
         const supabaseUrl = 'https://bswfiynuvjvoaoyfdrso.supabase.co';
         finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
-        console.log(`🎵 Using proxy for external URL: ${finalUrl}`);
+        console.log(`🎵 Using proxy as fallback for external URL: ${finalUrl}`);
       }
 
       console.log(`🎵 Setting audio source: ${finalUrl}`);
