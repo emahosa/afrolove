@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Music, Zap, Clock, TrendingUp, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
+import { AiSongGeneratorForm } from "@/components/ai-song/AiSongGeneratorForm";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -169,7 +168,7 @@ const Dashboard = () => {
           </TabsList>
           
           <TabsContent value="generate" className="space-y-6">
-            <MusicGenerationWorkflow />
+            <AiSongGeneratorForm />
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">

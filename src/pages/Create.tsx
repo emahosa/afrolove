@@ -9,7 +9,7 @@ const Create = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">Create</h1>
+      <h1 className="text-3xl font-bold mb-2">Create Music</h1>
       <p className="text-muted-foreground mb-6">Generate high-quality songs with AI or request a custom-made track.</p>
       
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
