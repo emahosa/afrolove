@@ -32,75 +32,101 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
 
-    const handleTimeUpdate = () => setProgress(audio.currentTime);
-    const handleDurationChange = () => setDuration(audio.duration);
-    const handleEnded = () => {
-        setIsPlaying(false);
-        setProgress(0);
+    const handleTimeUpdate = () => {
+      setProgress(audio.currentTime);
     };
-    const handleError = () => {
-        if (currentTrack) {
-            toast.error(`Failed to load: ${currentTrack.title}`);
-        }
-        setCurrentTrack(null);
-        setIsPlaying(false);
-    }
+    
+    const handleDurationChange = () => {
+      setDuration(audio.duration || 0);
+    };
+    
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setProgress(0);
+    };
+    
+    const handleError = (e: any) => {
+      console.error('Audio error:', e);
+      if (currentTrack) {
+        toast.error(`Failed to load: ${currentTrack.title}`);
+      }
+      setIsPlaying(false);
+    };
+
+    const handleCanPlay = () => {
+      console.log('Audio can play, starting playback...');
+      audio.play()
+        .then(() => {
+          console.log('Audio started playing successfully');
+          setIsPlaying(true);
+        })
+        .catch(e => {
+          console.error("Error playing audio:", e);
+          toast.error("Could not play audio.");
+          setIsPlaying(false);
+        });
+    };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('durationchange', handleDurationChange);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.pause();
       audioRef.current = null;
     };
-  }, []);
-
-  useEffect(() => {
-    if (audioRef.current && currentTrack) {
-        audioRef.current.src = currentTrack.audio_url;
-        audioRef.current.play()
-            .then(() => setIsPlaying(true))
-            .catch(e => {
-                console.error("Error playing audio:", e);
-                toast.error("Could not play audio.");
-                setIsPlaying(false);
-            });
-    }
   }, [currentTrack]);
 
-
   const playTrack = (track: Track) => {
+    console.log('🎵 PlayTrack called with:', track);
+    
     if (currentTrack?.id === track.id) {
+      console.log('Same track, toggling play/pause');
       togglePlayPause();
     } else {
+      console.log('New track, loading:', track.audio_url);
       setCurrentTrack(track);
+      setProgress(0);
+      setDuration(0);
+      
+      if (audioRef.current) {
+        audioRef.current.src = track.audio_url;
+        audioRef.current.load(); // Force reload
+      }
     }
   };
 
   const togglePlayPause = () => {
+    console.log('🎵 TogglePlayPause called, isPlaying:', isPlaying);
+    
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
+        console.log('Audio paused');
       } else {
-        if(audioRef.current.src) {
-            audioRef.current.play()
-                .then(() => setIsPlaying(true))
-                .catch(e => {
-                    console.error("Error resuming audio:", e)
-                    toast.error("Could not resume audio.");
-                });
+        if (audioRef.current.src) {
+          audioRef.current.play()
+            .then(() => {
+              setIsPlaying(true);
+              console.log('Audio resumed');
+            })
+            .catch(e => {
+              console.error("Error resuming audio:", e);
+              toast.error("Could not resume audio.");
+            });
         }
       }
     }
   };
-  
+
   const value = {
     currentTrack,
     isPlaying,
