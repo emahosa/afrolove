@@ -17,12 +17,9 @@ export const AudioPlayer = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (isAdminRoute || (!currentTrack && !isLoading)) {
+  if (isAdminRoute || !currentTrack) {
     return null;
   }
-
-  const trackTitle = isLoading && !currentTrack ? "Loading track..." : currentTrack?.title || "Select a song";
-  const trackArtist = isLoading && !currentTrack ? "Please wait..." : currentTrack?.artist || 'AI Generated';
 
   return (
     <div 
@@ -39,14 +36,14 @@ export const AudioPlayer = () => {
             size="icon" 
             onClick={togglePlayPause} 
             className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20 flex-shrink-0"
-            disabled={!currentTrack || (isLoading && !isPlaying)}
+            disabled={isLoading || !currentTrack}
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
           </Button>
 
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate text-white">{trackTitle}</p>
-            <p className="text-sm text-gray-400">{trackArtist}</p>
+            <p className="font-semibold truncate text-white">{currentTrack.title}</p>
+            <p className="text-sm text-gray-400">{currentTrack.artist || 'AI Generated'}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs w-10 text-right text-gray-300">{formatTime(progress)}</span>
               <div className="flex-1">

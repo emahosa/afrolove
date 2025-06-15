@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -66,11 +65,41 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       setProgress(0);
     };
     
-    const handleError = (e: any) => {
-      console.error('🎵 Audio error:', e);
-      if (currentTrack) {
-        toast.error(`Failed to load: ${currentTrack.title}`);
+    const handleError = (e: Event) => {
+      console.error('🎵 Audio error event:', e);
+      const audioEl = e.target as HTMLAudioElement;
+      if (audioEl.error) {
+        console.error('🎵 Audio element error details:', {
+          code: audioEl.error.code,
+          message: audioEl.error.message,
+        });
+        
+        let errorMessage = `Failed to load audio.`;
+        switch(audioEl.error.code) {
+          case 1: // MEDIA_ERR_ABORTED
+            errorMessage = 'Audio playback was aborted.';
+            break;
+          case 2: // MEDIA_ERR_NETWORK
+            errorMessage = 'A network error caused the audio to fail to load. This might be a CORS issue.';
+            break;
+          case 3: // MEDIA_ERR_DECODE
+            errorMessage = 'The audio is corrupted or in an unsupported format.';
+            break;
+          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+            errorMessage = 'The audio format is not supported or the resource is unavailable (check CORS).';
+            break;
+          default:
+             errorMessage = 'An unknown error occurred with the audio player.';
+        }
+        if (currentTrack) {
+          toast.error(`${errorMessage}`, { description: `Track: ${currentTrack.title}`});
+        } else {
+          toast.error(errorMessage);
+        }
+      } else {
+        toast.error('An unknown audio error occurred.');
       }
+      
       setIsPlaying(false);
       setIsLoading(false);
     };
@@ -129,9 +158,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   
     console.log(`🎵 New track selected. Setting state and loading "${track.title}".`);
-    // Set loading and track info. React will batch these updates.
-    setIsLoading(true);
+    // Re-ordered state updates to prevent race conditions
     setCurrentTrack(track); 
+    setIsLoading(true);
     setIsPlaying(false);
     setProgress(0);
     setDuration(0);
