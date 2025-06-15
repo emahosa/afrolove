@@ -314,16 +314,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: Logging out user');
       const { error } = await supabase.auth.signOut();
       if (error) {
+        console.error('Logout error:', error);
+        toast.error(error.message || 'Logout failed.');
         throw error;
       }
-      setUser(null);
-      setSession(null);
-      setUserRoles([]);
-      setAdminPermissions([]);
-      setSubscriberStatus(false);
-      initialized.current = false;
+      // The onAuthStateChange listener will handle clearing user state and session.
     } catch (error: any) {
       console.error('Logout error:', error);
+      toast.error(error.message || 'An unexpected error occurred during logout.');
       throw error;
     }
   };
