@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [subscriberStatus, setSubscriberStatus] = useState(false);
+  const processedUserId = useRef<string | null>(null);
 
   console.log('🔐 AuthContext state:', { 
     userEmail: user?.email, 
@@ -141,106 +142,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const fetchUserData = async (userId: string) => {
-    try {
-      console.log('AuthContext: Fetching user data for:', userId);
-      
-      // Fetch user roles
-      const { data: userRoleData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
-      
-      if (rolesError) {
-        console.error('AuthContext: Error fetching roles:', rolesError);
-        setUserRoles(['voter']); // Default fallback
-      } else {
-        const roles = userRoleData?.map(r => r.role) || ['voter'];
-        console.log('AuthContext: Fetched roles:', roles);
-        setUserRoles(roles);
-      }
-
-      // Fetch admin permissions
-      const { data: permissionsData, error: permissionsError } = await supabase
-        .from('admin_permissions')
-        .select('permission')
-        .eq('user_id', userId);
-      
-      if (permissionsError) {
-        console.error('AuthContext: Error fetching permissions:', permissionsError);
-        setAdminPermissions([]);
-      } else {
-        const permissions = permissionsData?.map(p => p.permission) || [];
-        console.log('AuthContext: Fetched permissions:', permissions);
-        setAdminPermissions(permissions);
-      }
-
-      // Check subscription status
-      const { data: isSubscriberResult, error: subscriberError } = await supabase
-        .rpc('is_subscriber', { _user_id: userId });
-      
-      if (subscriberError) {
-        console.error('AuthContext: Error checking subscription:', subscriberError);
-        setSubscriberStatus(false);
-      } else {
-        console.log('AuthContext: Subscription status:', isSubscriberResult);
-        setSubscriberStatus(isSubscriberResult);
-      }
-      
-    } catch (error) {
-      console.error('AuthContext: Error in fetchUserData:', error);
-      setUserRoles(['voter']); // Default fallback
-      setAdminPermissions([]);
-      setSubscriberStatus(false);
-    }
-  };
-
-  const processSession = async (sessionWithUser: Session) => {
-    console.log('AuthContext: Processing session for user:', sessionWithUser.user.id);
-    
-    try {
-      // First set up the basic user object
-      let basicUser: ExtendedUser = {
-        ...sessionWithUser.user,
-        name: sessionWithUser.user.user_metadata.full_name || sessionWithUser.user.email?.split('@')[0] || 'User',
-        avatar: sessionWithUser.user.user_metadata.avatar_url || '',
-        credits: 5, // Default credits
-        subscription: 'free'
-      };
-
-      // Try to get profile data
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', sessionWithUser.user.id)
-        .maybeSingle();
-      
-      if (profile && !profileError) {
-        console.log('AuthContext: Using profile data:', profile);
-        basicUser = {
-          ...basicUser,
-          name: profile.full_name || basicUser.name,
-          avatar: profile.avatar_url || basicUser.avatar,
-          credits: profile.credits || 5,
-        };
-      }
-      
-      setUser(basicUser);
-      
-      // Fetch user data after setting user
-      await fetchUserData(sessionWithUser.user.id);
-      
-      console.log('AuthContext: User setup complete for:', basicUser.name);
-    } catch (error) {
-      console.error('AuthContext: Error processing session:', error);
-      // Clear all user state on error
-      setUser(null);
-      setUserRoles([]);
-      setAdminPermissions([]);
-      setSubscriberStatus(false);
-    }
-  };
-
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     console.log('AuthContext: Attempting login for:', email);
     // The onAuthStateChange listener will handle the session and user state updates.
@@ -297,15 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      // Manually clear state immediately after sign-out succeeds.
-      // This is a more robust way to handle logout and prevents getting stuck.
-      setUser(null);
-      setSession(null);
-      setUserRoles([]);
-      setAdminPermissions([]);
-      setSubscriberStatus(false);
-      console.log('AuthContext: User state cleared manually after logout.');
-      
+      // State is now cleared by the useEffect watching `session`
       toast.success("You have been logged out.");
     } catch (error: any) {
       console.error('Logout error:', error);
@@ -315,49 +208,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    console.log('AuthContext: Initializing auth state listener');
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('AuthContext: Initial session check:', initialSession ? 'found' : 'none');
-      setSession(initialSession);
-      setLoading(false); // Initial loading is done here.
-    });
-    
-    // Set up auth state listener
+    setLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log(`AuthContext: Auth state change: ${event}`);
-        // This is a synchronous call.
-        setSession(newSession);
+      (_event, session) => {
+        setSession(session);
       }
     );
 
+    // This helps to set loading to false faster if user is not logged in.
+    supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) {
+            setLoading(false);
+        }
+    });
+
     return () => {
-      console.log('AuthContext: Cleaning up auth listener');
       subscription.unsubscribe();
     };
   }, []);
 
   useEffect(() => {
-    // This effect runs whenever the session changes.
-    const handleSessionChange = async () => {
+    const processAndFetch = async () => {
       if (session) {
-        await processSession(session);
+        // Prevent re-processing on token refresh if user is the same
+        if (processedUserId.current === session.user.id) {
+          if (loading) setLoading(false);
+          return;
+        }
+
+        try {
+          const userId = session.user.id;
+          console.log('AuthContext: Processing session for user:', userId);
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+            
+          const { data: userRoleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId);
+          const roles = userRoleData?.map(r => r.role) || ['voter'];
+          setUserRoles(roles);
+
+          const { data: permissionsData } = await supabase
+            .from('admin_permissions')
+            .select('permission')
+            .eq('user_id', userId);
+          const permissions = permissionsData?.map(p => p.permission) || [];
+          setAdminPermissions(permissions);
+
+          const { data: isSubscriberResult } = await supabase
+            .rpc('is_subscriber', { _user_id: userId });
+          setSubscriberStatus(!!isSubscriberResult);
+          
+          const fullUser: ExtendedUser = {
+            ...session.user,
+            name: profile?.full_name || session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
+            avatar: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
+            credits: profile?.credits ?? 5,
+            subscription: 'free' // This can be enhanced later based on subscription status
+          };
+
+          setUser(fullUser);
+          processedUserId.current = userId;
+          console.log('AuthContext: User setup complete for:', fullUser.name);
+
+        } catch (error) {
+          console.error('AuthContext: Error processing session:', error);
+          setUser(null);
+          setUserRoles([]);
+          setAdminPermissions([]);
+          setSubscriberStatus(false);
+          processedUserId.current = null;
+        }
       } else {
-        // Clear user state if session is null (e.g., after logout)
+        // Session is null, clear everything
         setUser(null);
+        setSession(null);
         setUserRoles([]);
         setAdminPermissions([]);
         setSubscriberStatus(false);
-        console.log('AuthContext: Session is null, user state cleared.');
+        processedUserId.current = null;
+      }
+      
+      if (loading) {
+        setLoading(false);
       }
     };
-    
-    // Only run this logic after the initial loading is complete
-    if (!loading) {
-      handleSessionChange();
-    }
+
+    processAndFetch();
   }, [session, loading]);
 
   const value = {

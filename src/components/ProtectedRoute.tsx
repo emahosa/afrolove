@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +7,6 @@ const ProtectedRoute = () => {
   const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
   
   useEffect(() => {
@@ -18,7 +16,7 @@ const ProtectedRoute = () => {
   }, [loading]);
 
   // Show loading state only during initial auth check
-  if (loading && !isInitialized) {
+  if (loading) {
     console.log('ProtectedRoute: Loading auth state');
     return (
       <div className="flex justify-center items-center h-screen">
