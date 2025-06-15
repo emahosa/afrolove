@@ -14,13 +14,13 @@ export const AudioPlayer = () => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Don't render if no track is loaded
+  // Always render the player when there's a current track
   if (!currentTrack) {
     console.log('🎵 AudioPlayer: No current track, not rendering');
     return null;
   }
 
-  console.log('🎵 AudioPlayer rendering with track:', currentTrack.title, 'isPlaying:', isPlaying);
+  console.log('🎵 AudioPlayer: RENDERING with track:', currentTrack.title, 'isPlaying:', isPlaying);
 
   return (
     <div 
@@ -30,7 +30,9 @@ export const AudioPlayer = () => {
         minHeight: '80px',
         display: 'flex',
         alignItems: 'center',
-        gap: '1rem'
+        gap: '1rem',
+        visibility: 'visible',
+        opacity: 1
       }}
     >
       <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center rounded-md flex-shrink-0">

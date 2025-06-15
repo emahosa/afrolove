@@ -29,7 +29,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    audioRef.current = new Audio();
+    console.log('🎵 AudioPlayerContext: State changed - currentTrack:', currentTrack?.title, 'isPlaying:', isPlaying);
+  }, [currentTrack, isPlaying]);
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+    
     const audio = audioRef.current;
 
     const handleTimeUpdate = () => {
@@ -38,15 +45,17 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     
     const handleDurationChange = () => {
       setDuration(audio.duration || 0);
+      console.log('🎵 Duration loaded:', audio.duration);
     };
     
     const handleEnded = () => {
+      console.log('🎵 Audio ended');
       setIsPlaying(false);
       setProgress(0);
     };
     
     const handleError = (e: any) => {
-      console.error('Audio error:', e);
+      console.error('🎵 Audio error:', e);
       if (currentTrack) {
         toast.error(`Failed to load: ${currentTrack.title}`);
       }
@@ -54,17 +63,25 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const handleCanPlay = () => {
-      console.log('Audio can play, starting playback...');
+      console.log('🎵 Audio can play, starting playback...');
       audio.play()
         .then(() => {
-          console.log('Audio started playing successfully');
+          console.log('🎵 Audio started playing successfully');
           setIsPlaying(true);
         })
         .catch(e => {
-          console.error("Error playing audio:", e);
+          console.error("🎵 Error playing audio:", e);
           toast.error("Could not play audio.");
           setIsPlaying(false);
         });
+    };
+
+    const handleLoadStart = () => {
+      console.log('🎵 Audio loading started');
+    };
+
+    const handleLoadedData = () => {
+      console.log('🎵 Audio data loaded');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -72,33 +89,42 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('loadeddata', handleLoadedData);
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('durationchange', handleDurationChange);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.pause();
-      audioRef.current = null;
+      if (audio) {
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('durationchange', handleDurationChange);
+        audio.removeEventListener('ended', handleEnded);
+        audio.removeEventListener('error', handleError);
+        audio.removeEventListener('canplay', handleCanPlay);
+        audio.removeEventListener('loadstart', handleLoadStart);
+        audio.removeEventListener('loadeddata', handleLoadedData);
+        audio.pause();
+      }
     };
   }, [currentTrack]);
 
   const playTrack = (track: Track) => {
     console.log('🎵 PlayTrack called with:', track);
     
+    // Force set the current track immediately so UI shows
+    setCurrentTrack(track);
+    
     if (currentTrack?.id === track.id) {
-      console.log('Same track, toggling play/pause');
+      console.log('🎵 Same track, toggling play/pause');
       togglePlayPause();
     } else {
-      console.log('New track, loading:', track.audio_url);
-      setCurrentTrack(track);
+      console.log('🎵 New track, loading:', track.audio_url);
       setProgress(0);
       setDuration(0);
+      setIsPlaying(false); // Will be set to true in canplay handler
       
       if (audioRef.current) {
+        audioRef.current.pause();
         audioRef.current.src = track.audio_url;
-        audioRef.current.load(); // Force reload
+        audioRef.current.load();
       }
     }
   };
@@ -110,16 +136,16 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
-        console.log('Audio paused');
+        console.log('🎵 Audio paused');
       } else {
         if (audioRef.current.src) {
           audioRef.current.play()
             .then(() => {
               setIsPlaying(true);
-              console.log('Audio resumed');
+              console.log('🎵 Audio resumed');
             })
             .catch(e => {
-              console.error("Error resuming audio:", e);
+              console.error("🎵 Error resuming audio:", e);
               toast.error("Could not resume audio.");
             });
         }
