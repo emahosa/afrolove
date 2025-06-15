@@ -477,6 +477,47 @@ export type Database = {
           },
         ]
       }
+      error_logs: {
+        Row: {
+          context: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          level: string
+          message: string
+          stack_trace: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          level?: string
+          message: string
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          level?: string
+          message?: string
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "error_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genres: {
         Row: {
           created_at: string

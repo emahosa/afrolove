@@ -1,5 +1,7 @@
+
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
+import { logErrorToSupabase } from '@/utils/errorLogger';
 
 export interface Track {
   id: string;
@@ -70,12 +72,21 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       const audioEl = e.target as HTMLAudioElement;
       let errorMessage = "Failed to play audio.";
       
+      const errorDetails: Record<string, unknown> = {
+        src: audioEl.src,
+        trackTitle: currentTrack?.title || 'Unknown',
+        trackId: currentTrack?.id || 'Unknown',
+      };
+
       if (audioEl.error) {
         console.error('🎵 Audio element error details:', {
           code: audioEl.error.code,
           message: audioEl.error.message,
           src: audioEl.src
         });
+        
+        errorDetails.errorCode = audioEl.error.code;
+        errorDetails.errorMessage = audioEl.error.message;
         
         switch(audioEl.error.code) {
           case 1: errorMessage = 'Audio playback was aborted.'; break;
@@ -86,6 +97,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
       
       toast.error(errorMessage, { description: `Track: ${currentTrack?.title || 'Unknown'}` });
+      
+      logErrorToSupabase({
+        message: errorMessage,
+        context: 'AudioPlayerContext:handleError',
+        error: new Error(audioEl.error?.message || 'Audio player error'),
+        details: errorDetails
+      });
+
       setIsLoading(false);
       setIsPlaying(false);
     };
