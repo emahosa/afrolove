@@ -28,13 +28,15 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Debug state changes
   useEffect(() => {
-    console.log('🎵 AudioPlayerContext: State changed - currentTrack:', currentTrack?.title, 'isPlaying:', isPlaying);
+    console.log('🎵 AudioPlayerContext: State updated - currentTrack:', currentTrack?.title || 'null', 'isPlaying:', isPlaying);
   }, [currentTrack, isPlaying]);
 
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
+      console.log('🎵 Audio element created');
     }
     
     const audio = audioRef.current;
@@ -103,13 +105,17 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audio.removeEventListener('loadeddata', handleLoadedData);
       }
     };
-  }, [currentTrack]);
+  }, []); // Remove currentTrack dependency to prevent audio element recreation
 
   const playTrack = (track: Track) => {
     console.log('🎵 PlayTrack called with:', track);
+    console.log('🎵 Setting currentTrack to:', track.title);
     
-    // IMMEDIATELY set the current track so UI shows instantly
-    setCurrentTrack(track);
+    // Set current track immediately using functional update to ensure it takes effect
+    setCurrentTrack(prevTrack => {
+      console.log('🎵 CurrentTrack state update: from', prevTrack?.title || 'null', 'to', track.title);
+      return track;
+    });
     
     if (currentTrack?.id === track.id) {
       console.log('🎵 Same track, toggling play/pause');
@@ -123,6 +129,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = track.audio_url;
+        console.log('🎵 Audio src set to:', track.audio_url);
         audioRef.current.load();
       }
     }
@@ -160,6 +167,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     playTrack,
     togglePlayPause,
   };
+
+  console.log('🎵 AudioPlayerProvider rendering with currentTrack:', currentTrack?.title || 'null');
 
   return (
     <AudioPlayerContext.Provider value={value}>

@@ -7,6 +7,9 @@ import { Button } from './ui/button';
 export const AudioPlayer = () => {
   const { currentTrack, isPlaying, progress, duration, togglePlayPause } = useAudioPlayer();
 
+  console.log('🎵 AudioPlayer: Rendering with currentTrack:', currentTrack?.title || 'null', 'isPlaying:', isPlaying);
+  console.log('🎵 AudioPlayer: currentTrack object:', currentTrack);
+
   const formatTime = (time: number) => {
     if (isNaN(time) || time === 0) return '0:00';
     const minutes = Math.floor(time / 60);
@@ -16,7 +19,7 @@ export const AudioPlayer = () => {
 
   // Show the player as soon as there's a current track
   if (!currentTrack) {
-    console.log('🎵 AudioPlayer: No current track, not rendering');
+    console.log('🎵 AudioPlayer: No current track, not rendering. CurrentTrack value:', currentTrack);
     return null;
   }
 
