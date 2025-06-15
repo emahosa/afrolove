@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,11 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
-// Admin credentials constants - update to use the correct admin email
 const ADMIN_EMAIL = "ellaadahosa@gmail.com";
 const ADMIN_PASSWORD = "Admin123!";
 
@@ -20,16 +18,11 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState("user");
-  // MFA verification state
-  const [factorId, setFactorId] = useState<string | null>(null);
-  const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [showMFAVerification, setShowMFAVerification] = useState(false);
   
-  const { user, login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Auto-fill admin credentials when on admin tab
   useEffect(() => {
     if (userType === "admin") {
       setEmail(ADMIN_EMAIL);
@@ -40,10 +33,9 @@ const Login = () => {
     }
   }, [userType]);
 
-  // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user) {
-      console.log("Login: User already logged in, redirecting to dashboard");
+      console.log("Login: User already logged in, redirecting...");
       const from = location.state?.from?.pathname || "/dashboard";
       navigate(from, { replace: true });
     }
@@ -52,123 +44,28 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim()) {
-      toast.error("Email cannot be empty");
-      return;
-    }
-
-    if (!password.trim()) {
-      toast.error("Password cannot be empty");
+    if (!email.trim() || !password.trim()) {
+      toast.error(email.trim() ? "Password cannot be empty" : "Email cannot be empty");
       return;
     }
     
     setLoading(true);
     try {
-      console.log("Login: Attempting login with:", { email, userType });
-      
-      // First attempt to authenticate with email/password
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Check if MFA is required
-      if (data.session === null && data.user !== null) {
-        // This means MFA is required - check for enrolled factors
-        const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        
-        if (factorError) throw factorError;
-        
-        if (factorData.currentLevel === 'aal1' && factorData.nextLevel === 'aal2') {
-          // User has MFA enabled, get all enrolled factors
-          const { data: enrolledFactors, error: enrolledError } = await supabase.auth.mfa.listFactors();
-          
-          if (enrolledError) throw enrolledError;
-          
-          if (enrolledFactors.totp && enrolledFactors.totp.length > 0) {
-            // TOTP factor exists, create a challenge
-            const factor = enrolledFactors.totp[0];
-            
-            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-              factorId: factor.id
-            });
-            
-            if (challengeError) throw challengeError;
-            
-            // Store factor and challenge IDs and show MFA verification
-            setFactorId(factor.id);
-            setChallengeId(challengeData.id);
-            setShowMFAVerification(true);
-            setLoading(false);
-            return;
-          }
-        }
-      }
-      
-      // If we reach here, MFA was not required or has been completed
       const success = await login(email, password);
-      
-      if (success) {
-        // Get the intended destination or default to dashboard/admin based on login type
-        let destination = userType === "admin" ? "/admin" : "/dashboard";
-        if (location.state?.from?.pathname) {
-          destination = location.state.from.pathname;
-        }
-        console.log("Login: Login successful, redirecting to:", destination);
-        navigate(destination, { replace: true });
-      } else {
+      // Navigation is handled by AuthLayout and ProtectedRoute reacting to the 'user' state change.
+      // If login is successful, the `user` object in AuthContext will be populated,
+      // and the app will automatically navigate away from the login page.
+      if (!success) {
+        // If login fails, stay on the page and show error (handled in context).
+        // The button's loading state should be reset.
         setLoading(false);
       }
-    } catch (error: any) {
-      console.error("Login: Error in component:", error);
-      toast.error(error.message || "An unexpected error occurred during login");
+    } catch (error) {
+      // This catch is for unexpected errors in the login component itself.
+      console.error("Login component error:", error);
       setLoading(false);
     }
   };
-
-  const handleMFAVerified = async () => {
-    setShowMFAVerification(false);
-    
-    // After MFA is verified, complete the login process
-    const success = await login(email, password);
-    
-    if (success) {
-      let destination = userType === "admin" ? "/admin" : "/dashboard";
-      if (location.state?.from?.pathname) {
-        destination = location.state.from.pathname;
-      }
-      navigate(destination, { replace: true });
-    }
-  };
-
-  const handleCancelMFA = () => {
-    setShowMFAVerification(false);
-    // Sign out the incomplete session
-    supabase.auth.signOut();
-  };
-
-  // Show MFA verification screen if needed
-  if (showMFAVerification && factorId && challengeId) {
-    return (
-      <div className="w-full max-w-md p-4 md:p-8 mx-auto">
-        <div className="flex items-center justify-center mb-6">
-          <Music className="h-10 w-10 text-melody-secondary" />
-          <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
-        </div>
-        
-        <OTPVerification 
-          factorId={factorId}
-          challengeId={challengeId}
-          onVerified={handleMFAVerified}
-          onCancel={handleCancelMFA}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="w-full max-w-md p-4 md:p-0 mx-auto">
@@ -199,6 +96,7 @@ const Login = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div>
@@ -215,6 +113,7 @@ const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <Button 
