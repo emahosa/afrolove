@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,11 +34,11 @@ const Profile = () => {
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={user?.avatar || ""} />
-            <AvatarFallback className="text-xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+            <AvatarImage src={user?.avatarUrl || ""} />
+            <AvatarFallback className="text-xl">{user?.fullName?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold">{user?.name}</h1>
+            <h1 className="text-3xl font-bold">{user?.fullName}</h1>
             <p className="text-muted-foreground">{user?.email}</p>
             {adminStatus && (
               <Badge variant="outline" className="mt-1">
@@ -75,7 +76,7 @@ const Profile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Full Name</div>
-                  <div className="font-medium">{user?.name}</div>
+                  <div className="font-medium">{user?.fullName}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Email Address</div>

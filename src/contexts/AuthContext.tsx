@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +12,7 @@ interface ExtendedUser extends User {
   roles: string[];
   permissions: string[];
   isSubscriber: boolean;
+  subscription?: string;
 }
 
 interface AuthContextType {
@@ -45,17 +47,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("AuthContext: Session found, fetching user profile...");
         
         // Fetch all user-related data in one go
-        const [profileRes, rolesRes, permissionsRes, subscriberRes] = await Promise.all([
+        const [profileRes, rolesRes, permissionsRes, subscriberRes, subscriptionRes] = await Promise.all([
           supabase.from('profiles').select('full_name, avatar_url, credits').eq('id', session.user.id).single(),
           supabase.from('user_roles').select('role').eq('user_id', session.user.id),
           supabase.from('admin_permissions').select('permission').eq('user_id', session.user.id),
-          supabase.rpc('is_subscriber', { _user_id: session.user.id })
+          supabase.rpc('is_subscriber', { _user_id: session.user.id }),
+          supabase.from('user_subscriptions').select('subscription_type').eq('user_id', session.user.id).eq('subscription_status', 'active').single()
         ]);
 
         const profile = profileRes.data;
         const roles = rolesRes.data?.map(r => r.role) || [];
         const permissions = permissionsRes.data?.map(p => p.permission) || [];
         const isSubscriberResult = subscriberRes.data || false;
+        const subscriptionPlan = subscriptionRes.data?.subscription_type || 'free';
 
         const userProfile: ExtendedUser = {
           ...session.user,
@@ -65,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           roles,
           permissions,
           isSubscriber: isSubscriberResult || roles.includes('subscriber'),
+          subscription: subscriptionPlan,
         };
 
         setUser(userProfile);

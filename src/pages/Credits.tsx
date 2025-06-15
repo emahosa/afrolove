@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,12 +68,18 @@ const Credits = () => {
   const { user, updateUserCredits: authUpdateUserCredits } = useAuth();
   const [activeTab, setActiveTab] = useState("credits");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState<string | undefined>(user?.subscription);
+  const [currentPlan, setCurrentPlan] = useState<string | undefined>(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setCurrentPlan(user.subscription);
+    }
+  }, [user]);
 
   // Update credit balance when user changes
   useEffect(() => {

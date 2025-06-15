@@ -42,8 +42,8 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar || ""} />
-                  <AvatarFallback className="text-sm">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  <AvatarImage src={user?.avatarUrl || ""} />
+                  <AvatarFallback className="text-sm">{user?.fullName?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
