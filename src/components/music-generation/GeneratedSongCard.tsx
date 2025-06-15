@@ -25,22 +25,37 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [showPrompt, setShowPrompt] = useState(false);
-  const { playTrack, currentTrack, isPlaying } = useAudioPlayer();
+  const { playTrack, currentTrack, isPlaying, isLoading } = useAudioPlayer();
 
-  // More lenient check for playable songs - any completed song with an audio URL
-  const isPlayable = (song.status === 'completed' || song.status === 'approved') && 
-                    !!song.audio_url && 
-                    song.audio_url.trim() !== '';
+  // Enhanced playable check with more detailed logging
+  const isPlayable = () => {
+    const statusValid = song.status === 'completed' || song.status === 'approved';
+    const urlValid = !!song.audio_url && song.audio_url.trim() !== '';
+    
+    console.log('🎵 Playable check for song:', {
+      id: song.id,
+      title: song.title,
+      status: song.status,
+      statusValid,
+      audio_url: song.audio_url,
+      urlValid,
+      isPlayable: statusValid && urlValid
+    });
+    
+    return statusValid && urlValid;
+  };
   
   const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === song.id;
+  const isCurrentTrackLoading = isLoading && currentTrack?.id === song.id;
 
   console.log('🎵 GeneratedSongCard render:', {
     id: song.id,
     title: song.title,
     status: song.status,
-    audio_url: song.audio_url,
-    isPlayable,
-    isCurrentlyPlayingThisTrack
+    audio_url: song.audio_url?.substring(0, 50) + '...',
+    isPlayable: isPlayable(),
+    isCurrentlyPlayingThisTrack,
+    isCurrentTrackLoading
   });
 
   const getStatusContent = () => {
@@ -76,15 +91,21 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const handleDownload = () => {
     console.log('⬇️ Download requested for:', song.title, 'URL:', song.audio_url);
     
-    if (isPlayable) {
-      const link = document.createElement('a');
-      link.href = song.audio_url;
-      link.download = `${song.title}.mp3`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Download started!');
-      console.log('✅ Download initiated for:', song.title);
+    if (isPlayable()) {
+      try {
+        const link = document.createElement('a');
+        link.href = song.audio_url;
+        link.download = `${song.title}.mp3`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Download started!');
+        console.log('✅ Download initiated for:', song.title);
+      } catch (error) {
+        console.error('❌ Download failed:', error);
+        toast.error('Download failed. Please try again.');
+      }
     } else {
       console.log('❌ Download not available - song not ready or invalid URL:', song.audio_url);
       toast.error('Song is not ready for download yet');
@@ -92,15 +113,29 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   };
 
   const handlePlay = () => {
-    console.log('🎵 Play button clicked for:', song.title, 'Playable:', isPlayable);
+    console.log('🎵 Play button clicked for:', song.title);
+    console.log('🎵 Song details:', {
+      id: song.id,
+      title: song.title,
+      status: song.status,
+      audio_url: song.audio_url,
+      playable: isPlayable()
+    });
     
-    if (!isPlayable) {
+    if (!isPlayable()) {
       console.log('❌ Song not playable:', {
         status: song.status,
         audio_url: song.audio_url,
         url_valid: !!song.audio_url && song.audio_url.trim() !== ''
       });
-      toast.error('Song is not ready for playback yet.');
+      
+      if (song.status === 'pending') {
+        toast.error('Song is still generating. Please wait.');
+      } else if (song.status === 'rejected') {
+        toast.error('This song failed to generate and cannot be played.');
+      } else {
+        toast.error('Song is not ready for playback yet.');
+      }
       return;
     }
     
@@ -118,6 +153,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         artist: 'AI Generated',
       });
       console.log('✅ playTrack call completed');
+      toast.success(`Playing: ${song.title}`);
     } catch (error) {
       console.error('❌ Error calling playTrack:', error);
       toast.error('Failed to start playback');
@@ -152,18 +188,32 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               variant="default"
               size="sm"
               onClick={handlePlay}
-              disabled={!isPlayable}
+              disabled={!isPlayable() || isCurrentTrackLoading}
               title={isCurrentlyPlayingThisTrack ? "Pause song" : "Play song"}
               className="flex-grow"
             >
-              {isCurrentlyPlayingThisTrack ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-              {isCurrentlyPlayingThisTrack ? 'Pause' : 'Play'}
+              {isCurrentTrackLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Loading...
+                </>
+              ) : isCurrentlyPlayingThisTrack ? (
+                <>
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pause
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Play
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
               size="icon"
               onClick={handleDownload}
-              disabled={!isPlayable}
+              disabled={!isPlayable()}
               title="Download song"
             >
               <Download className="h-4 w-4" />

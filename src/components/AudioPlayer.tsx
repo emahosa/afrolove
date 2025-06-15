@@ -10,11 +10,11 @@ export const AudioPlayer = () => {
   const { currentTrack, isPlaying, progress, duration, togglePlayPause, isLoading, seek } = useAudioPlayer();
   const location = useLocation();
   
-  // Only hide on specific admin routes, but show on all other pages including library, dashboard, etc.
-  const shouldHidePlayer = location.pathname.startsWith('/admin') || 
+  // Show on all user pages, hide only on public/auth routes
+  const shouldHidePlayer = location.pathname === '/' || 
                           location.pathname === '/login' || 
                           location.pathname === '/register' ||
-                          location.pathname === '/';
+                          location.pathname.startsWith('/admin');
   
   const progressContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -23,7 +23,9 @@ export const AudioPlayer = () => {
     isPlaying,
     isLoading,
     shouldHidePlayer,
-    pathname: location.pathname
+    pathname: location.pathname,
+    trackId: currentTrack?.id,
+    audioUrl: currentTrack?.audio_url?.substring(0, 50) + '...'
   });
 
   const formatTime = (time: number) => {
@@ -50,11 +52,11 @@ export const AudioPlayer = () => {
     return null;
   }
 
-  console.log('🎛️ AudioPlayer visible and rendering');
+  console.log('🎛️ AudioPlayer visible and rendering with track:', currentTrack.title);
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-md text-white p-3 border-t border-gray-700 shadow-lg z-50 animate-slide-in-up"
+      className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md text-white p-3 border-t border-gray-700 shadow-lg z-50 animate-slide-in-up"
       style={{ animation: 'slide-in-up 0.5s ease-out' }}
     >
       <style>{`
@@ -87,7 +89,13 @@ export const AudioPlayer = () => {
             className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20"
             disabled={isLoading || !currentTrack}
           >
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : isPlaying ? (
+              <Pause className="h-5 w-5" />
+            ) : (
+              <Play className="h-5 w-5 fill-current" />
+            )}
           </Button>
 
           <div className="w-full flex items-center gap-2">

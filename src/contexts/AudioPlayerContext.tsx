@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -37,7 +38,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       isPlaying, 
       isLoading,
       progress: progress.toFixed(2),
-      duration: duration.toFixed(2)
+      duration: duration.toFixed(2),
+      audioUrl: currentTrack?.audio_url || 'null'
     });
   }, [currentTrack, isPlaying, isLoading, progress, duration]);
 
@@ -67,19 +69,20 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     const handleError = (e: Event) => {
       console.error('🎵 Audio error event:', e);
       const audioEl = e.target as HTMLAudioElement;
-      let errorMessage = "An unknown error occurred while playing audio.";
+      let errorMessage = "Failed to play audio.";
       
       if (audioEl.error) {
         console.error('🎵 Audio element error details:', {
           code: audioEl.error.code,
           message: audioEl.error.message,
+          src: audioEl.src
         });
         
         switch(audioEl.error.code) {
           case 1: errorMessage = 'Audio playback was aborted.'; break;
-          case 2: errorMessage = 'A network error occurred. This could be a CORS issue with the audio source or the proxy.'; break;
-          case 3: errorMessage = 'The audio is corrupted or in an unsupported format.'; break;
-          case 4: errorMessage = 'The audio resource is not supported or unavailable. Check if the URL is correct and the proxy is working.'; break;
+          case 2: errorMessage = 'Network error occurred while loading audio.'; break;
+          case 3: errorMessage = 'The audio file is corrupted or in an unsupported format.'; break;
+          case 4: errorMessage = 'The audio source is not available. Please try again.'; break;
         }
       }
       
@@ -91,7 +94,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     const handleCanPlay = () => {
       console.log('🎵 Audio is ready to be played (canplay).');
       setIsLoading(false);
-      // We don't auto-play here anymore. Playback is initiated by user via togglePlayPause or playTrack.
     };
     
     const handleLoadStart = () => {
@@ -110,6 +112,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         setIsPlaying(false);
     };
 
+    const handleLoadedData = () => {
+      console.log('🎵 Audio data loaded successfully');
+      setIsLoading(false);
+    };
+
     audio.addEventListener('playing', handlePlaying);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -118,7 +125,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('loadstart', handleLoadStart);
-    // loadeddata is not strictly needed with this new flow
+    audio.addEventListener('loadeddata', handleLoadedData);
     
     return () => {
       if (audio) {
@@ -130,9 +137,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audio.removeEventListener('error', handleError);
         audio.removeEventListener('canplay', handleCanPlay);
         audio.removeEventListener('loadstart', handleLoadStart);
+        audio.removeEventListener('loadeddata', handleLoadedData);
       }
     };
-  }, []); // Empty dependency array is correct here
+  }, [currentTrack]);
 
   const seek = (time: number) => {
     if (audioRef.current && isFinite(time)) {
@@ -144,10 +152,23 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const playTrack = (track: Track) => {
     console.log(`🎵 playTrack called for "${track.title}".`);
+    console.log('🎵 Track data:', {
+      id: track.id,
+      title: track.title,
+      audio_url: track.audio_url,
+      url_valid: !!track.audio_url && track.audio_url.trim() !== ''
+    });
     
     if (currentTrack?.id === track.id) {
       console.log('🎵 Same track detected, toggling play/pause.');
       togglePlayPause();
+      return;
+    }
+
+    // Validate audio URL
+    if (!track.audio_url || track.audio_url.trim() === '') {
+      console.error('🎵 Invalid audio URL:', track.audio_url);
+      toast.error('Audio file not available for this track');
       return;
     }
   
@@ -159,37 +180,47 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setDuration(0);
     
     if (audioRef.current) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      // Stop current audio if playing
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
 
-      if (!supabaseUrl) {
-        toast.error("Player configuration error. Cannot find Supabase URL.");
-        console.error("VITE_SUPABASE_URL environment variable not set.");
-        setIsLoading(false);
-        return;
-      }
-      
       const audioUrl = track.audio_url;
+      let finalUrl = audioUrl;
 
-      let finalUrl;
-      // URLs from Google Storage are CORS-enabled, no need to proxy them.
-      if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:') || audioUrl.includes('storage.googleapis.com')) {
-          finalUrl = audioUrl;
-          console.log(`🎵 Setting audio source to direct URL: ${finalUrl}`);
-      } else {
-          finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
-          console.log(`🎵 Setting audio source to proxy: ${finalUrl}`);
+      // Handle different URL types - Suno URLs typically need proxy
+      if (audioUrl.includes('cdn1.suno.ai') || audioUrl.includes('suno.ai')) {
+        const supabaseUrl = 'https://bswfiynuvjvoaoyfdrso.supabase.co';
+        finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
+        console.log(`🎵 Using Suno proxy for URL: ${finalUrl}`);
+      } else if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:') || audioUrl.includes('storage.googleapis.com')) {
+        finalUrl = audioUrl;
+        console.log(`🎵 Using direct URL: ${finalUrl}`);
+      } else if (audioUrl.startsWith('http')) {
+        // For other HTTP URLs, try proxy as fallback
+        const supabaseUrl = 'https://bswfiynuvjvoaoyfdrso.supabase.co';
+        finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
+        console.log(`🎵 Using proxy for external URL: ${finalUrl}`);
       }
+
+      console.log(`🎵 Setting audio source: ${finalUrl}`);
       audioRef.current.src = finalUrl;
 
-      // This is a direct response to a user click, so we can call play()
+      // Preload the audio
+      audioRef.current.load();
+
+      // Auto-play the track
       const playPromise = audioRef.current.play();
 
       if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error('🎵 Failed to auto-play new track. The audio element will raise a more specific error event.', error);
-          // The 'error' event listener on the audio element will handle the UI feedback.
-          setIsPlaying(false); 
-        });
+        playPromise
+          .then(() => {
+            console.log('🎵 Audio playback started successfully');
+          })
+          .catch(error => {
+            console.error('🎵 Failed to auto-play track:', error);
+            setIsLoading(false);
+            toast.error('Failed to play audio. Click play button to try again.');
+          });
       }
 
     } else {
@@ -213,8 +244,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       if (playPromise !== undefined) {
         playPromise.catch(error => {
           console.error("🎵 Error playing audio:", error);
-          toast.error("Could not play audio. There might be a network issue or the source is invalid.");
+          toast.error("Could not play audio. Please check your connection and try again.");
           setIsPlaying(false);
+          setIsLoading(false);
         });
       }
     }
