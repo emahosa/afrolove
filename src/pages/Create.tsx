@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +63,7 @@ const Create = () => {
       customMode: creationMode === 'lyrics',
       instrumental,
       title: creationMode === 'lyrics' ? title : undefined,
-      style: creationMode === 'lyrics' ? `${adminPrompt}, ${selectedGenre.name}` : undefined,
+      style: creationMode === 'lyrics' ? adminPrompt : undefined,
       model: 'V4_5',
     };
 
@@ -81,12 +80,12 @@ const Create = () => {
       <h1 className="text-3xl font-bold mb-2">Create Music</h1>
       <p className="text-muted-foreground mb-6">Generate high-quality songs using our AI tools</p>
       
-      <Tabs defaultValue="suno" className="w-full">
+      <Tabs defaultValue="create-song" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="suno">Create with Suno</TabsTrigger>
+          <TabsTrigger value="create-song">Create Song</TabsTrigger>
           <TabsTrigger value="custom">Create Custom Song</TabsTrigger>
         </TabsList>
-        <TabsContent value="suno" className="mt-6">
+        <TabsContent value="create-song" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle>AI Song Generation</CardTitle>
