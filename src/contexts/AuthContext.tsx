@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -37,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [subscriberStatus, setSubscriberStatus] = useState(false);
+  const initialized = useRef(false);
 
   const isSuperAdmin = useCallback(() => {
     console.log('AuthContext: Checking super admin status for user:', user?.email);
@@ -215,18 +216,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthContext: User setup complete for:', basicUser.name);
       } else {
         setUser(null);
-        setSession(null);
         setUserRoles([]);
         setAdminPermissions([]);
         setSubscriberStatus(false);
+        setSession(null);
       }
     } catch (error) {
       console.error('AuthContext: Error processing session:', error);
       setUser(null);
-      setSession(null);
       setUserRoles([]);
       setAdminPermissions([]);
       setSubscriberStatus(false);
+      setSession(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -303,6 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserRoles([]);
       setAdminPermissions([]);
       setSubscriberStatus(false);
+      initialized.current = false;
     } catch (error: any) {
       console.error('Logout error:', error);
       throw error;
@@ -310,16 +314,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    setLoading(true);
+    console.log('AuthContext: Initializing auth state');
+    
+    let mounted = true;
+    
+    const initAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting session:', error);
+          if (mounted) setLoading(false);
+          return;
+        }
+        
+        console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
+        
+        if (mounted) {
+          await processSession(session);
+          initialized.current = true;
+        }
+      } catch (error) {
+        console.error('AuthContext: Error initializing auth:', error);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log('AuthContext: Auth state change event:', _event);
-        await processSession(session);
-        setLoading(false);
+      async (event, session) => {
+        console.log('AuthContext: Auth state change:', event);
+        if (mounted && initialized.current) {
+          await processSession(session);
+        }
       }
     );
 
+    initAuth();
+
     return () => {
+      mounted = false;
+      console.log('AuthContext: Cleaning up auth listener');
       subscription.unsubscribe();
     };
   }, []);
