@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Wand2, Settings, Clock, AlertCircle } from 'lucide-react';
+import { Music, Wand2, Settings, Clock } from 'lucide-react';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
 import { useGenres } from '@/hooks/use-genres';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 
 const MusicGenerationWorkflow = () => {
   const { user } = useAuth();
-  const { genres } = useGenres();
+  const { genres, loading: genresLoading } = useGenres();
   const { generateSong, isGenerating } = useSunoGeneration();
 
   const [formData, setFormData] = useState({
@@ -37,15 +37,28 @@ const MusicGenerationWorkflow = () => {
       return;
     }
 
-    if (formData.customMode && (!formData.style || !formData.title)) {
-      toast.error('Style and title are required for custom mode');
+    if (!formData.style) {
+      toast.error('Please select a genre/style');
+      return;
+    }
+
+    if (formData.customMode && !formData.title) {
+      toast.error('Title is required for custom mode');
       return;
     }
 
     setCurrentTaskId(null);
 
+    const selectedGenre = genres.find(g => g.name === formData.style);
+    if (!selectedGenre) {
+        toast.error('Selected genre not found. Please choose one from the list.');
+        return;
+    }
+
+    const finalPrompt = (selectedGenre.prompt_template ? selectedGenre.prompt_template + ' ' : '') + formData.prompt;
+
     const request = {
-      prompt: formData.prompt,
+      prompt: finalPrompt,
       style: formData.style,
       title: formData.title,
       instrumental: formData.instrumental,
@@ -60,6 +73,8 @@ const MusicGenerationWorkflow = () => {
       toast.success('🎵 Generation started! Your song will appear in your library when ready.');
     }
   };
+
+  const selectedGenreForPreview = genres.find(g => g.name === formData.style);
 
   return (
     <div className="space-y-6">
@@ -85,8 +100,32 @@ const MusicGenerationWorkflow = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+               <div className="space-y-2">
+                <Label htmlFor="style-simple">Genre/Style <span className="text-destructive">*</span></Label>
+                <Select 
+                  value={formData.style} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
+                >
+                  <SelectTrigger disabled={genresLoading}>
+                    <SelectValue placeholder="Select genre..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {genres.map((genre) => (
+                      <SelectItem key={genre.id} value={genre.name}>
+                        {genre.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedGenreForPreview?.prompt_template && (
+                  <p className="text-xs text-muted-foreground p-2 bg-muted rounded-md mt-2">
+                    <span className="font-semibold">Genre pre-prompt:</span> "{selectedGenreForPreview.prompt_template}"
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="prompt">Song Description</Label>
+                <Label htmlFor="prompt">Song Description <span className="text-destructive">*</span></Label>
                 <Textarea
                   id="prompt"
                   placeholder="e.g., A heartfelt acoustic ballad about summer love with gentle guitar melodies..."
@@ -138,7 +177,7 @@ const MusicGenerationWorkflow = () => {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || !formData.prompt.trim()}
+                disabled={isGenerating || !formData.prompt.trim() || !formData.style}
                 className="w-full"
                 size="lg"
               >
@@ -179,12 +218,12 @@ const MusicGenerationWorkflow = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="style">Genre/Style</Label>
+                  <Label htmlFor="style">Genre/Style <span className="text-destructive">*</span></Label>
                   <Select 
                     value={formData.style} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger disabled={genresLoading}>
                       <SelectValue placeholder="Select genre..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -193,19 +232,18 @@ const MusicGenerationWorkflow = () => {
                           {genre.name}
                         </SelectItem>
                       ))}
-                      <SelectItem value="Pop">Pop</SelectItem>
-                      <SelectItem value="Rock">Rock</SelectItem>
-                      <SelectItem value="Hip Hop">Hip Hop</SelectItem>
-                      <SelectItem value="Electronic">Electronic</SelectItem>
-                      <SelectItem value="Jazz">Jazz</SelectItem>
-                      <SelectItem value="Country">Country</SelectItem>
                     </SelectContent>
                   </Select>
+                  {selectedGenreForPreview?.prompt_template && (
+                    <p className="text-xs text-muted-foreground p-2 bg-muted rounded-md mt-2">
+                      <span className="font-semibold">Genre pre-prompt:</span> "{selectedGenreForPreview.prompt_template}"
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lyrics">Lyrics or Description</Label>
+                <Label htmlFor="lyrics">Lyrics or Description <span className="text-destructive">*</span></Label>
                 <Textarea
                   id="lyrics"
                   placeholder="Enter full lyrics or detailed description..."
@@ -251,7 +289,7 @@ const MusicGenerationWorkflow = () => {
 
               <Button
                 onClick={handleGenerate}
-                disabled={isGenerating || !formData.prompt.trim()}
+                disabled={isGenerating || !formData.prompt.trim() || !formData.style}
                 className="w-full"
                 size="lg"
               >
