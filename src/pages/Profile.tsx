@@ -1,4 +1,6 @@
+
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +21,7 @@ const Profile = () => {
   const { user, logout, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
   const adminStatus = isAdmin();
+  const navigate = useNavigate();
   
   useEffect(() => {
     console.log("Profile: Admin status:", adminStatus);
@@ -27,6 +30,11 @@ const Profile = () => {
   if (!user) {
     return <div className="flex justify-center items-center h-64">Loading profile...</div>;
   }
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -51,7 +59,7 @@ const Profile = () => {
             <Settings className="mr-2 h-4 w-4" />
             Edit Profile
           </Button>
-          <Button variant="outline" onClick={logout}>
+          <Button variant="outline" onClick={handleLogout}>
             Log Out
           </Button>
         </div>
