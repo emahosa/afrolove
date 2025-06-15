@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,68 +26,128 @@ const Library = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   
   const fetchSongs = async (showRefreshingIndicator = false) => {
-    if (!user?.id) return;
-    
-    if (showRefreshingIndicator) setIsRefreshing(true);
-    else setIsLoading(true);
-      
-    const { data, error } = await supabase
-      .from('songs')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-        
-    if (error) {
-      toast.error('Failed to load songs: ' + error.message);
-    } else if (data) {
-      setSongs(data as Song[]);
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
     }
     
-    setIsLoading(false);
-    setIsRefreshing(false);
+    try {
+      if (showRefreshingIndicator) setIsRefreshing(true);
+      else setIsLoading(true);
+      
+      console.log('🔍 Library: Fetching songs for user:', user.id);
+      
+      const { data, error } = await supabase
+        .from('songs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      console.log('📊 Library: Raw songs data from database:', data);
+      console.log('❌ Library: Database error (if any):', error);
+        
+      if (error) {
+        console.error('❌ Library: Error fetching songs:', error);
+        toast.error('Failed to load songs: ' + error.message);
+        return;
+      }
+      
+      console.log('✅ Library: Songs fetched successfully:', data?.length || 0, 'songs');
+      
+      // Enhanced logging for each song
+      data?.forEach((song, index) => {
+        console.log(`🎵 Library: Song ${index + 1}:`, {
+          id: song.id,
+          title: song.title,
+          status: song.status,
+          audio_url: song.audio_url,
+          url_length: song.audio_url?.length,
+          url_starts_with_http: song.audio_url?.startsWith('http'),
+          url_contains_suno: song.audio_url?.includes('suno'),
+          url_contains_cdn: song.audio_url?.includes('cdn'),
+          created_at: song.created_at,
+          prompt: song.prompt?.substring(0, 50) + '...',
+          credits_used: song.credits_used,
+          duration: song.duration
+        });
+      });
+      
+      setSongs(data || []);
+    } catch (error) {
+      console.error('💥 Library: Error in fetchSongs:', error);
+      toast.error('Failed to load songs');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
-    if (user) fetchSongs();
+    if (user) {
+      console.log('👤 Library: User found, fetching songs');
+      fetchSongs();
+    } else {
+      console.log('👤 Library: No user found');
+      setIsLoading(false);
+    }
   }, [user]);
 
   // Realtime subscription for song updates
   useEffect(() => {
     if (!user?.id) return;
 
+    console.log('🔄 Library: Setting up realtime subscription for user:', user.id);
+
     const channel = supabase
-      .channel('songs-changes')
+      .channel('songs-library-page-changes')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('Library: Realtime update received!', payload);
-          const updatedSong = payload.new as Song;
+          console.log('🔄 Library: Realtime update received!', payload);
           
-          // Optimistically update the local state
-          setSongs(currentSongs =>
-            currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
-          );
+          if (payload.eventType === 'INSERT') {
+            const newSong = payload.new as Song;
+            console.log('➕ Library: New song added via realtime:', newSong);
+            setSongs(currentSongs => [newSong, ...currentSongs]);
+            if (newSong.status === 'completed') {
+              toast.success(`🎵 "${newSong.title}" is ready!`);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedSong = payload.new as Song;
+            console.log('🔄 Library: Song updated via realtime:', updatedSong);
+            setSongs(currentSongs =>
+              currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
+            );
 
-          if (updatedSong.status === 'completed') {
-            toast.success(`🎵 "${updatedSong.title}" is ready!`);
-          } else if (updatedSong.status === 'rejected') {
-            toast.error(`❌ "${updatedSong.title}" failed to generate.`);
+            if (updatedSong.status === 'completed') {
+              toast.success(`🎵 "${updatedSong.title}" is ready!`);
+            } else if (updatedSong.status === 'rejected') {
+              toast.error(`❌ "${updatedSong.title}" failed to generate.`);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            console.log('🗑️ Library: Song deleted via realtime:', payload.old);
+            setSongs(currentSongs => 
+              currentSongs.filter(song => song.id !== payload.old.id)
+            );
           }
         }
       )
       .subscribe();
 
     return () => {
+      console.log('🔄 Library: Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
   
   const handleRefresh = () => {
+    console.log('🔄 Library: Manual refresh triggered');
     fetchSongs(true);
   };
   
   if (isLoading) {
+    console.log('⏳ Library: Loading state');
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -96,12 +157,20 @@ const Library = () => {
   }
 
   if (!user) {
+    console.log('👤 Library: No user, showing login message');
     return <p className="text-muted-foreground">Please log in to view your songs.</p>
   }
 
   const pendingSongs = songs.filter(s => s.status === 'pending');
   const completedSongs = songs.filter(s => s.status === 'completed' || s.status === 'approved');
   const failedSongs = songs.filter(s => s.status === 'rejected');
+
+  console.log('📊 Library: Song counts:', {
+    total: songs.length,
+    pending: pendingSongs.length,
+    completed: completedSongs.length,
+    failed: failedSongs.length
+  });
 
   return (
     <div className="space-y-8 pb-24"> {/* Padding bottom to avoid overlap with player */}

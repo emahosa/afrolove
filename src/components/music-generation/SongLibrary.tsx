@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import GeneratedSongCard from './GeneratedSongCard';
@@ -37,48 +38,51 @@ const SongLibrary = () => {
   const { user } = useAuth();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [filterStatus, setFilterStatus] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  useEffect(() => {
-    if (user) {
-      fetchSongs();
+  const fetchSongs = async (showRefreshing = false) => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
     }
-  }, [user]);
 
-  const fetchSongs = async () => {
     try {
-      setLoading(true);
-      console.log('🔍 Fetching songs for user:', user?.id);
+      if (showRefreshing) setRefreshing(true);
+      else setLoading(true);
+      
+      console.log('🔍 SongLibrary: Fetching songs for user:', user.id);
       
       const { data, error } = await supabase
         .from('songs')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      console.log('📊 Raw songs data from database:', data);
-      console.log('❌ Database error (if any):', error);
+      console.log('📊 SongLibrary: Raw songs data from database:', data);
+      console.log('❌ SongLibrary: Database error (if any):', error);
 
       if (error) {
-        console.error('❌ Error fetching songs:', error);
+        console.error('❌ SongLibrary: Error fetching songs:', error);
         toast.error('Failed to load songs: ' + error.message);
         return;
       }
 
-      console.log('✅ Songs fetched successfully:', data?.length || 0, 'songs');
+      console.log('✅ SongLibrary: Songs fetched successfully:', data?.length || 0, 'songs');
       
       // Log each song's details for debugging
       data?.forEach((song, index) => {
-        console.log(`🎵 Song ${index + 1}:`, {
+        console.log(`🎵 SongLibrary: Song ${index + 1}:`, {
           id: song.id,
           title: song.title,
           status: song.status,
           audio_url: song.audio_url,
           url_length: song.audio_url?.length,
-          url_valid: song.audio_url?.startsWith('http'),
+          url_starts_with_http: song.audio_url?.startsWith('http'),
+          url_contains_suno: song.audio_url?.includes('suno'),
           created_at: song.created_at,
           prompt: song.prompt?.substring(0, 50) + '...'
         });
@@ -86,11 +90,66 @@ const SongLibrary = () => {
 
       setSongs(data || []);
     } catch (error) {
-      console.error('💥 Error in fetchSongs:', error);
+      console.error('💥 SongLibrary: Error in fetchSongs:', error);
       toast.error('Failed to load songs');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    fetchSongs();
+  }, [user]);
+
+  // Realtime subscription for song updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    console.log('🔄 SongLibrary: Setting up realtime subscription for user:', user.id);
+    
+    const channel = supabase
+      .channel('songs-library-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('🔄 SongLibrary: Realtime update received!', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const newSong = payload.new as Song;
+            setSongs(currentSongs => [newSong, ...currentSongs]);
+            if (newSong.status === 'completed') {
+              toast.success(`🎵 "${newSong.title}" is ready!`);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedSong = payload.new as Song;
+            setSongs(currentSongs =>
+              currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
+            );
+            if (updatedSong.status === 'completed') {
+              toast.success(`🎵 "${updatedSong.title}" is ready!`);
+            } else if (updatedSong.status === 'rejected') {
+              toast.error(`❌ "${updatedSong.title}" failed to generate.`);
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setSongs(currentSongs => 
+              currentSongs.filter(song => song.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔄 SongLibrary: Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const handleRefresh = () => {
+    console.log('🔄 SongLibrary: Manual refresh triggered');
+    fetchSongs(true);
   };
 
   const filteredAndSortedSongs = songs
@@ -123,10 +182,10 @@ const SongLibrary = () => {
   };
 
   const statusCounts = getStatusCounts();
-  console.log('📊 Status counts:', statusCounts);
+  console.log('📊 SongLibrary: Status counts:', statusCounts);
 
   if (loading) {
-    console.log('⏳ Loading songs...');
+    console.log('⏳ SongLibrary: Loading songs...');
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
@@ -139,7 +198,7 @@ const SongLibrary = () => {
     );
   }
 
-  console.log('🎵 Rendering SongLibrary with', songs.length, 'songs');
+  console.log('🎵 SongLibrary: Rendering with', songs.length, 'songs');
 
   return (
     <div className="space-y-6">
@@ -157,6 +216,15 @@ const SongLibrary = () => {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                title="Refresh library"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </Button>
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'outline'}
                 size="sm"
