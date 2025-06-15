@@ -168,7 +168,9 @@ const Dashboard = () => {
           </TabsList>
           
           <TabsContent value="generate" className="space-y-6">
-            <AiSongGeneratorForm />
+            <div key="ai-song-form">
+              <AiSongGeneratorForm />
+            </div>
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">
