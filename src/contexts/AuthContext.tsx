@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { User, Session, AuthResponse } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -10,11 +10,13 @@ interface ExtendedUser extends User {
   subscription?: 'free' | 'premium' | 'enterprise';
 }
 
+type LoginResponse = Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+
 interface AuthContextType {
   user: ExtendedUser | null;
   session: Session | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<AuthResponse>;
+  login: (email: string, password: string) => Promise<LoginResponse>;
   register: (fullName: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
@@ -251,24 +253,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string): Promise<AuthResponse> => {
+  const login = async (email: string, password: string): Promise<LoginResponse> => {
     console.log('AuthContext: Attempting login for:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const response = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) {
-      console.error('AuthContext: Login error:', error);
+    if (response.error) {
+      console.error('AuthContext: Login error:', response.error);
     }
 
-    if (data.session) {
-      console.log('AuthContext: Login successful, processing session for:', data.user.id);
-      await processSession(data.session);
+    if (response.data.session) {
+      console.log('AuthContext: Login successful, processing session for:', response.data.user.id);
+      await processSession(response.data.session);
     }
     
-    return { data, error };
+    return response;
   };
 
   const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
