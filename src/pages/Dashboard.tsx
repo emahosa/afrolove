@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Music, Zap, Clock, TrendingUp, Lock, LogOut } from "lucide-react";
+import { Music, Zap, Clock, TrendingUp, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
 import SongLibrary from "@/components/music-generation/SongLibrary";
@@ -11,13 +11,11 @@ import { useNavigate } from "react-router-dom";
 import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, session, logout } = useAuth();
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
-  // Debug output to track auth/session state
   console.log('🏠 Dashboard rendered for user:', user?.id);
   console.log('👤 User data:', user);
-  console.log('🔑 Supabase session:', session);
 
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
 
