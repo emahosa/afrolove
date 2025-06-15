@@ -72,62 +72,8 @@ const Dashboard = () => {
     alert("Subscription required to access this feature. Please visit our subscription page.");
   };
 
-  // Force logout then reload to login page (step 1 of plan)
-  const handleForceLogout = async () => {
-    console.log("[DEBUG] 🔒 Force logout and redirect to /login");
-    await logout();
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = "/login?force=1";
-  };
-
   return (
     <div className="space-y-8">
-      {/* SESSION DEBUG PANEL */}
-      <div className="mb-4 p-3 rounded bg-amber-100 border border-amber-200 text-xs text-amber-900 flex flex-col gap-2 shadow">
-        <div className="flex justify-between items-center">
-          <span>
-            <b>Session Debug:</b>{" "}
-            <span>
-              {session 
-                ? (
-                  <>
-                    <span className="text-green-600">Session found</span> | <b>User ID:</b> {user?.id || <span className="text-red-600">N/A</span>}
-                  </>
-                )
-                : (
-                  <>
-                    <span className="text-red-600">No session! <b>Your backend session is missing.</b></span>
-                  </>
-                )
-              }
-            </span>
-          </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs flex gap-1 items-center"
-            onClick={handleForceLogout}
-            type="button"
-            title="Force clear session and re-login"
-          >
-            <LogOut className="w-4 h-4" /> Force Logout &amp; Re-Login
-          </Button>
-        </div>
-        <pre className="overflow-x-auto bg-white border border-amber-200 rounded p-2 text-amber-900 max-h-32">
-{JSON.stringify({ 
-  userId: user?.id, 
-  email: user?.email, 
-  session: !!session, 
-  accessToken: session?.access_token?.slice?.(0,6) ? session.access_token.slice(0, 12) + "..." : undefined,
-  rlsDebug: session?.user?.role || "N/A"
-}, null, 2)}
-        </pre>
-        <div>
-          <span>🔍 If you see <b>No session</b> above, you are NOT correctly authenticated in the backend and RLS will prevent access to your data. Click "Force Logout & Re-Login" and try again.</span>
-        </div>
-      </div>
-
       <div className="space-y-2">
         <h1 className="text-3xl font-bold">
           Welcome back, {displayName}! 
