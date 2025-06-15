@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Music, Zap, Clock, TrendingUp, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import MusicGenerationForm from "@/components/music-generation/MusicGenerationForm";
+import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -169,7 +169,7 @@ const Dashboard = () => {
           </TabsList>
           
           <TabsContent value="generate" className="space-y-6">
-            <MusicGenerationForm />
+            <MusicGenerationWorkflow />
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">
