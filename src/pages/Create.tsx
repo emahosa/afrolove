@@ -81,7 +81,7 @@ const Create = () => {
                 {!loading && !error && userRequests.length > 0 && (
                   <div className="space-y-4">
                     {userRequests.map((request) => (
-                      <UserRequestCard key={request.id} request={request} />
+                      <UserRequestCard key={request.id} request={request} onUpdate={refetch} />
                     ))}
                   </div>
                 )}
