@@ -608,16 +608,22 @@ export type Database = {
       }
       songs: {
         Row: {
-          audio_url: string
+          audio_url: string | null
           created_at: string
           credits_used: number
           duration: number | null
+          error_message: string | null
           genre_id: string | null
           id: string
+          image_url: string | null
           instrumental_url: string | null
           lyrics: string | null
+          model_name: string | null
           prompt: string | null
           status: Database["public"]["Enums"]["song_status"] | null
+          suno_id: string | null
+          tags: string | null
+          task_id: string | null
           title: string
           type: Database["public"]["Enums"]["song_type"]
           updated_at: string
@@ -625,16 +631,22 @@ export type Database = {
           vocal_url: string | null
         }
         Insert: {
-          audio_url: string
+          audio_url?: string | null
           created_at?: string
           credits_used?: number
           duration?: number | null
+          error_message?: string | null
           genre_id?: string | null
           id?: string
+          image_url?: string | null
           instrumental_url?: string | null
           lyrics?: string | null
+          model_name?: string | null
           prompt?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
+          suno_id?: string | null
+          tags?: string | null
+          task_id?: string | null
           title: string
           type: Database["public"]["Enums"]["song_type"]
           updated_at?: string
@@ -642,16 +654,22 @@ export type Database = {
           vocal_url?: string | null
         }
         Update: {
-          audio_url?: string
+          audio_url?: string | null
           created_at?: string
           credits_used?: number
           duration?: number | null
+          error_message?: string | null
           genre_id?: string | null
           id?: string
+          image_url?: string | null
           instrumental_url?: string | null
           lyrics?: string | null
+          model_name?: string | null
           prompt?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
+          suno_id?: string | null
+          tags?: string | null
+          task_id?: string | null
           title?: string
           type?: Database["public"]["Enums"]["song_type"]
           updated_at?: string
