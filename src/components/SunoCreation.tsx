@@ -85,18 +85,23 @@ const SunoCreation = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label className="font-semibold">1. Choose a Genre <span className="text-destructive">*</span></Label>
+          <Label className="font-semibold text-base">1. Choose a Genre <span className="text-destructive">*</span></Label>
+          <p className="text-sm text-muted-foreground">Select the style for your song. This is required.</p>
           {genresLoading ? (
             <div className="flex items-center justify-center p-4">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
+          ) : genres.length === 0 ? (
+            <div className="text-center text-muted-foreground p-4 border border-dashed rounded-md">
+                No genres available. An administrator needs to add them.
+            </div>
           ) : (
-            <RadioGroup value={selectedGenreId} onValueChange={setSelectedGenreId} className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <RadioGroup value={selectedGenreId} onValueChange={setSelectedGenreId} className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-2">
               {genres.map((genre) => (
                 <div key={genre.id}>
-                  <RadioGroupItem value={genre.id} id={genre.id} className="peer sr-only" />
-                  <Label htmlFor={genre.id} className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-                    {genre.name}
+                  <RadioGroupItem value={genre.id} id={`genre-${genre.id}`} className="peer sr-only" />
+                  <Label htmlFor={`genre-${genre.id}`} className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 h-full hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors">
+                    <span className="font-semibold">{genre.name}</span>
                   </Label>
                 </div>
               ))}
@@ -105,20 +110,20 @@ const SunoCreation = () => {
         </div>
 
         <div className="space-y-2">
-          <Label className="font-semibold">2. Choose a Mode</Label>
-          <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
+          <Label className="font-semibold text-base">2. Choose a Mode</Label>
+          <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4 pt-2">
             <div>
-              <RadioGroupItem value="prompt" id="prompt" className="peer sr-only" />
-              <Label htmlFor="prompt" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+              <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
+              <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 h-full hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors">
                 Prompt Mode
-                <span className="text-xs font-normal text-muted-foreground">Simple description</span>
+                <span className="text-xs font-normal text-muted-foreground text-center">Simple description of your song</span>
               </Label>
             </div>
             <div>
-              <RadioGroupItem value="lyrics" id="lyrics" className="peer sr-only" />
-              <Label htmlFor="lyrics" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+              <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
+              <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 h-full hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors">
                 Lyrics Mode
-                <span className="text-xs font-normal text-muted-foreground">Use your own lyrics</span>
+                <span className="text-xs font-normal text-muted-foreground text-center">Use your own lyrics</span>
               </Label>
             </div>
           </RadioGroup>
@@ -126,13 +131,13 @@ const SunoCreation = () => {
         
         {creationMode === 'lyrics' && (
           <div className="space-y-2">
-            <Label htmlFor="title">Song Title <span className="text-destructive">*</span></Label>
+            <Label htmlFor="title" className="font-semibold text-base">Song Title <span className="text-destructive">*</span></Label>
             <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
         )}
         
         <div className="space-y-2">
-          <Label htmlFor="prompt-input">{creationMode === 'prompt' ? 'Song Description' : 'Your Lyrics'} <span className="text-destructive">*</span></Label>
+          <Label htmlFor="prompt-input" className="font-semibold text-base">{creationMode === 'prompt' ? '3. Song Description' : '3. Your Lyrics'} <span className="text-destructive">*</span></Label>
           <Textarea
             id="prompt-input"
             placeholder={creationMode === 'prompt' ? "e.g., an upbeat pop song about summer nights" : "Paste your full lyrics here, like:\n[Verse 1]\n...\n[Chorus]\n..."}

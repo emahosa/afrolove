@@ -7,8 +7,8 @@ import SunoCreation from "@/components/SunoCreation";
 const Create = () => {
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">Create</h1>
-      <p className="text-muted-foreground mb-6">Generate high-quality songs using AI or work with our team for a custom track</p>
+      <h1 className="text-3xl font-bold mb-2">Create Music</h1>
+      <p className="text-muted-foreground mb-6">Generate high-quality songs using AI or work with our team for a custom track.</p>
       
       <Tabs defaultValue="create-song" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
