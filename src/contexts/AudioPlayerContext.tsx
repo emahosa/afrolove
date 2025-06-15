@@ -72,7 +72,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       const audioEl = e.target as HTMLAudioElement;
       let errorMessage = "Failed to play audio.";
       
-      const errorDetails: Record<string, unknown> = {
+      const errorDetails: { [key: string]: string | number } = {
         src: audioEl.src,
         trackTitle: currentTrack?.title || 'Unknown',
         trackId: currentTrack?.id || 'Unknown',

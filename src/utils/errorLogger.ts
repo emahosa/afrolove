@@ -1,11 +1,12 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 interface LogErrorOptions {
   message: string;
   context: string;
   error?: Error | unknown;
-  details?: Record<string, unknown>;
+  details?: Json;
 }
 
 export const logErrorToSupabase = async ({ message, context, error, details }: LogErrorOptions) => {
