@@ -17,6 +17,7 @@ interface AudioPlayerContextType {
   isLoading: boolean;
   playTrack: (track: Track) => void;
   togglePlayPause: () => void;
+  seek: (time: number) => void;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
@@ -148,6 +149,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []); // Empty dependency array is correct here
 
+  const seek = (time: number) => {
+    if (audioRef.current && isFinite(time)) {
+      console.log(`🎵 Seeking to ${time.toFixed(2)}s`);
+      audioRef.current.currentTime = time;
+      setProgress(time);
+    }
+  };
+
   const playTrack = (track: Track) => {
     console.log(`🎵 playTrack called for "${track.title}".`);
     
@@ -158,7 +167,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   
     console.log(`🎵 New track selected. Setting state and loading "${track.title}".`);
-    // Re-ordered state updates to prevent race conditions
     setCurrentTrack(track); 
     setIsLoading(true);
     setIsPlaying(false);
@@ -166,9 +174,26 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setDuration(0);
     
     if (audioRef.current) {
-      console.log(`🎵 Setting audio source to: ${track.audio_url}`);
-      audioRef.current.src = track.audio_url;
-      audioRef.current.load(); // Triggers 'loadstart', 'durationchange', 'loadeddata', 'canplay' etc.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      if (!supabaseUrl) {
+        toast.error("Player configuration error. Cannot find Supabase URL.");
+        console.error("VITE_SUPABASE_URL environment variable not set.");
+        setIsLoading(false);
+        return;
+      }
+      
+      const audioUrl = track.audio_url;
+
+      if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:')) {
+          audioRef.current.src = audioUrl;
+      } else {
+          const proxyUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
+          console.log(`🎵 Setting audio source to proxy: ${proxyUrl}`);
+          audioRef.current.src = proxyUrl;
+      }
+
+      audioRef.current.load();
     } else {
       console.error("🎵 Audio element ref is not available!");
       toast.error("Audio player not initialized.");
@@ -210,6 +235,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     playTrack,
     togglePlayPause,
+    seek,
   };
 
   return (
