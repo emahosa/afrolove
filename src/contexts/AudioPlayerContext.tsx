@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -159,14 +160,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     setDuration(0);
     
     if (audioRef.current) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-      if (!supabaseUrl) {
-        toast.error("Player configuration error. Cannot find Supabase URL.");
-        console.error("VITE_SUPABASE_URL environment variable not set.");
-        setIsLoading(false);
-        return;
-      }
+      // Use hardcoded Supabase URL instead of environment variable
+      const supabaseUrl = "https://bswfiynuvjvoaoyfdrso.supabase.co";
       
       const audioUrl = track.audio_url;
 
