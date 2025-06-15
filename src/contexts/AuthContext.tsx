@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -39,7 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [subscriberStatus, setSubscriberStatus] = useState(false);
-  const initialized = useRef(false);
 
   console.log('🔐 AuthContext state:', { 
     userEmail: user?.email, 
@@ -196,81 +195,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const processSession = async (session: Session | null) => {
-    console.log('AuthContext: Processing session:', session ? 'exists' : 'null');
+  const processSession = async (sessionWithUser: Session) => {
+    console.log('AuthContext: Processing session for user:', sessionWithUser.user.id);
     
     try {
-      if (session?.user) {
-        // First set up the basic user object
-        let basicUser: ExtendedUser = {
-          ...session.user,
-          name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-          avatar: session.user.user_metadata.avatar_url || '',
-          credits: 5, // Default credits
-          subscription: 'free'
-        };
+      // First set up the basic user object
+      let basicUser: ExtendedUser = {
+        ...sessionWithUser.user,
+        name: sessionWithUser.user.user_metadata.full_name || sessionWithUser.user.email?.split('@')[0] || 'User',
+        avatar: sessionWithUser.user.user_metadata.avatar_url || '',
+        credits: 5, // Default credits
+        subscription: 'free'
+      };
 
-        // Try to get profile data
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
-        
-        if (profile && !profileError) {
-          console.log('AuthContext: Using profile data:', profile);
-          basicUser = {
-            ...basicUser,
-            name: profile.full_name || basicUser.name,
-            avatar: profile.avatar_url || basicUser.avatar,
-            credits: profile.credits || 5,
-          };
-        }
-        
-        setUser(basicUser);
-        setSession(session);
-        
-        // Fetch user data after setting user
-        await fetchUserData(session.user.id);
-        
-        console.log('AuthContext: User setup complete for:', basicUser.name);
-      } else {
-        setUser(null);
-        setUserRoles([]);
-        setAdminPermissions([]);
-        setSubscriberStatus(false);
-        setSession(null);
+      // Try to get profile data
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionWithUser.user.id)
+        .maybeSingle();
+      
+      if (profile && !profileError) {
+        console.log('AuthContext: Using profile data:', profile);
+        basicUser = {
+          ...basicUser,
+          name: profile.full_name || basicUser.name,
+          avatar: profile.avatar_url || basicUser.avatar,
+          credits: profile.credits || 5,
+        };
       }
+      
+      setUser(basicUser);
+      
+      // Fetch user data after setting user
+      await fetchUserData(sessionWithUser.user.id);
+      
+      console.log('AuthContext: User setup complete for:', basicUser.name);
     } catch (error) {
       console.error('AuthContext: Error processing session:', error);
+      // Clear all user state on error
       setUser(null);
       setUserRoles([]);
       setAdminPermissions([]);
       setSubscriberStatus(false);
-      setSession(null);
-    } finally {
-      setLoading(false);
     }
   };
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     console.log('AuthContext: Attempting login for:', email);
-    
-    const response = await supabase.auth.signInWithPassword({
+    // The onAuthStateChange listener will handle the session and user state updates.
+    return supabase.auth.signInWithPassword({
       email,
       password,
     });
-
-    if (response.error) {
-      console.error('AuthContext: Login error:', response.error);
-    }
-
-    if (response.data.session) {
-      console.log('AuthContext: Login successful, processing session for:', response.data.user.id);
-      await processSession(response.data.session);
-    }
-    
-    return response;
   };
 
   const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
@@ -327,51 +304,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    console.log('AuthContext: Initializing auth state');
-    
-    let mounted = true;
-    
-    const initAuth = async () => {
-      try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('AuthContext: Error getting session:', error);
-          if (mounted) setLoading(false);
-          return;
-        }
-        
-        console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
-        
-        if (mounted) {
-          await processSession(session);
-          initialized.current = true;
-        }
-      } catch (error) {
-        console.error('AuthContext: Error initializing auth:', error);
-        if (mounted) setLoading(false);
-      }
-    };
+    console.log('AuthContext: Initializing auth state listener');
 
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      console.log('AuthContext: Initial session check:', initialSession ? 'found' : 'none');
+      setSession(initialSession);
+      setLoading(false); // Initial loading is done here.
+    });
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state change:', event);
-        if (mounted && initialized.current) {
-          await processSession(session);
-        }
+      (event, newSession) => {
+        console.log(`AuthContext: Auth state change: ${event}`);
+        // This is a synchronous call.
+        setSession(newSession);
       }
     );
 
-    initAuth();
-
     return () => {
-      mounted = false;
       console.log('AuthContext: Cleaning up auth listener');
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    // This effect runs whenever the session changes.
+    const handleSessionChange = async () => {
+      if (session) {
+        await processSession(session);
+      } else {
+        // Clear user state if session is null (e.g., after logout)
+        setUser(null);
+        setUserRoles([]);
+        setAdminPermissions([]);
+        setSubscriberStatus(false);
+        console.log('AuthContext: Session is null, user state cleared.');
+      }
+    };
+    
+    // Only run this logic after the initial loading is complete
+    if (!loading) {
+      handleSessionChange();
+    }
+  }, [session]);
 
   const value = {
     user,
