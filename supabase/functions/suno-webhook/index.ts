@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -23,7 +22,7 @@ Deno.serve(async (req) => {
     // Simplified data extraction logic
     const taskData = Array.isArray(payload) ? payload[0] : payload;
     
-    const taskId = taskData.id;
+    const taskId = taskData.id || taskData.task_id; // Support both id and task_id for robustness
     const status = taskData.status;
     const audioUrl = taskData.audio_url;
     const title = taskData.title;

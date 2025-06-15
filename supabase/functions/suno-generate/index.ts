@@ -114,12 +114,12 @@ Deno.serve(async (req) => {
     const callBackUrl = `${supabaseUrl}/functions/v1/suno-webhook`
 
     // Prepare the Suno API request using the correct format from documentation
-    const sunoRequestBody = {
+    const sunoRequestBody: any = {
       prompt: prompt.trim(),
       customMode: customMode,
       instrumental: instrumental,
       model: model,
-      callBackUrl: callBackUrl,
+      callback_url: callBackUrl, // Use snake_case for the callback URL, a common convention.
       wait_audio: false // Ensure async response
     }
 
