@@ -30,10 +30,10 @@ import AuthLayout from "./layouts/AuthLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => (
-  <AuthProvider>
-    <TooltipProvider>
-      <Toaster />
-      <BrowserRouter>
+  <BrowserRouter>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Index />} />
@@ -78,9 +78,9 @@ const App = () => (
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </AuthProvider>
+      </TooltipProvider>
+    </AuthProvider>
+  </BrowserRouter>
 );
 
 export default App;
