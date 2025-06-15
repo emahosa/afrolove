@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +8,7 @@ import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerati
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
   const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
@@ -100,70 +100,57 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <Tabs 
-        key={userIsOnlyVoter ? 'voter-view' : 'subscriber-view'}
-        defaultValue={userIsOnlyVoter ? "locked" : "generate"} 
-        className="space-y-6"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger 
-            value="generate" 
-            className="flex items-center gap-2" 
-            disabled={userIsOnlyVoter}
-            onClick={userIsOnlyVoter ? handleSubscribeClick : undefined}
-          >
-            {userIsOnlyVoter && <Lock className="h-4 w-4 mr-1" />}
-            <Music className="h-4 w-4" />
-            Generate Music
-          </TabsTrigger>
-          <TabsTrigger 
-            value="library" 
-            className="flex items-center gap-2" 
-            disabled={userIsOnlyVoter}
-            onClick={userIsOnlyVoter ? handleSubscribeClick : undefined}
-          >
-            {userIsOnlyVoter && <Lock className="h-4 w-4 mr-1" />}
-            <Clock className="h-4 w-4" />
-            My Library
-          </TabsTrigger>
-        </TabsList>
-
-        {userIsOnlyVoter && (
-          <TabsContent value="locked">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-yellow-500" />
-                  Features Locked
-                </CardTitle>
-                <CardDescription>
-                  You are currently on a Voter account. Subscribe to unlock all features.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p>
-                  As a voter, you have access to participate in contests. To generate music, access your full library, and use other premium features, a subscription is required.
-                </p>
-                <Button onClick={handleSubscribeClick} className="w-full sm:w-auto">
-                  View Subscription Plans
-                </Button>
-              </CardContent>
-            </Card>
+      {userIsOnlyVoter ? (
+        <div className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-yellow-500" />
+                Features Locked
+              </CardTitle>
+              <CardDescription>
+                You are currently on a Voter account. Subscribe to unlock all features.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>
+                As a voter, you have access to participate in contests. To generate music, access your full library, and use other premium features, a subscription is required.
+              </p>
+              <Button onClick={handleSubscribeClick} className="w-full sm:w-auto">
+                View Subscription Plans
+              </Button>
+            </CardContent>
+          </Card>
+          <SampleMusic />
+        </div>
+      ) : (
+        <Tabs defaultValue="generate" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger 
+              value="generate" 
+              className="flex items-center gap-2"
+            >
+              <Music className="h-4 w-4" />
+              Generate Music
+            </TabsTrigger>
+            <TabsTrigger 
+              value="library" 
+              className="flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              My Library
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="generate" className="space-y-6">
+            <MusicGenerationWorkflow />
           </TabsContent>
-        )}
 
-        {!userIsOnlyVoter && (
-          <>
-            <TabsContent value="generate" className="space-y-6">
-              <MusicGenerationWorkflow />
-            </TabsContent>
-
-            <TabsContent value="library" className="space-y-6">
-              <SongLibrary />
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+          <TabsContent value="library" className="space-y-6">
+            <SongLibrary />
+          </TabsContent>
+        </Tabs>
+      )}
 
       <Card>
         <CardHeader>
