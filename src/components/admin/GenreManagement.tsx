@@ -9,14 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Music, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useGenres, Genre } from "@/hooks/use-genres";
 import { toast } from "sonner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 export const GenreManagement = () => {
   const { genres, loading, createGenre, updateGenre, deleteGenre } = useGenres();
@@ -182,57 +174,57 @@ export const GenreManagement = () => {
         </Dialog>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Description</TableHead>
-                  <TableHead>Prompt Template</TableHead>
-                  <TableHead className="w-[100px] text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {genres.length > 0 ? (
-                  genres.map((genre) => (
-                    <TableRow key={genre.id}>
-                      <TableCell className="font-medium">{genre.name}</TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {genre.description || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <p className="max-w-xs truncate" title={genre.prompt_template}>
-                          {genre.prompt_template}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(genre)}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit</span>
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(genre)}>
-                            <Trash2 className="h-4 w-4" />
-                             <span className="sr-only">Delete</span>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      No genres to display.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {genres.map((genre) => (
+          <Card key={genre.id}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Music className="h-5 w-5" />
+                  <CardTitle className="text-lg">{genre.name}</CardTitle>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(genre)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(genre)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {genre.description && (
+                <CardDescription>{genre.description}</CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label className="text-sm font-medium">Prompt Template:</Label>
+                <p className="text-sm text-muted-foreground mt-1 break-words">
+                  {genre.prompt_template}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {genres.length === 0 && (
+        <div className="text-center py-12">
+          <Music className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No genres found</h3>
+          <p className="text-muted-foreground mb-4">
+            Create your first genre to get started with AI music generation.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

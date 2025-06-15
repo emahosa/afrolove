@@ -1,101 +1,140 @@
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Music, PlusCircle } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SunoGenerationForm } from '@/components/suno/SunoGenerationForm';
-import { CreateSongRequestDialog } from '@/components/song-management/CreateSongRequestDialog';
-import { useUserSongRequests } from '@/hooks/use-user-song-requests';
-import { UserRequestCard } from '@/components/song-management/UserRequestCard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Music, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { useSunoGeneration, SunoGenerationRequest } from "@/hooks/use-suno-generation";
+import { useAuth } from "@/contexts/AuthContext";
+
+type CreationMode = 'prompt' | 'lyrics';
 
 const Create = () => {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const { userRequests, loading, error, refetch } = useUserSongRequests();
+  const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
+  const [prompt, setPrompt] = useState("");
+  const [title, setTitle] = useState("");
+  const [style, setStyle] = useState(""); // For custom mode
+  const [instrumental, setInstrumental] = useState(false);
+  
+  const { user } = useAuth();
+  const { generateSong, isGenerating } = useSunoGeneration();
 
-  const handleRequestCreated = () => {
-    refetch();
-    setIsCreateDialogOpen(false);
+  const handleGenerate = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt or lyrics.");
+      return;
+    }
+    
+    if (creationMode === 'lyrics' && (!title.trim() || !style.trim())) {
+      toast.error("Title and Style are required for Lyrics Mode.");
+      return;
+    }
+
+    if ((user?.credits || 0) < 5) {
+      toast.error("Insufficient credits. Please purchase more to continue.");
+      return;
+    }
+
+    const request: SunoGenerationRequest = {
+      prompt: prompt,
+      customMode: creationMode === 'lyrics',
+      instrumental,
+      title: creationMode === 'lyrics' ? title : undefined,
+      style: creationMode === 'lyrics' ? style : undefined,
+      model: 'V4_5',
+    };
+
+    const taskId = await generateSong(request);
+    if (taskId) {
+      setPrompt("");
+      setTitle("");
+      setStyle("");
+    }
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2 tracking-tight">Create Music</h1>
-        <p className="text-muted-foreground mb-8">
-          Generate songs with AI, or request a custom track from our professional artists.
-        </p>
+    <div className="max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-2">Create Music</h1>
+      <p className="text-muted-foreground mb-6">Generate high-quality songs using AI</p>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>🎵 AI Song Generation</CardTitle>
+          <CardDescription>
+            Create songs from a simple description or provide your own lyrics.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
+            <div>
+              <RadioGroupItem value="prompt" id="prompt" className="peer sr-only" />
+              <Label htmlFor="prompt" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                Prompt Mode
+                <span className="text-xs font-normal text-muted-foreground">Simple description</span>
+              </Label>
+            </div>
+            <div>
+              <RadioGroupItem value="lyrics" id="lyrics" className="peer sr-only" />
+              <Label htmlFor="lyrics" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                Lyrics Mode
+                <span className="text-xs font-normal text-muted-foreground">Use your own lyrics</span>
+              </Label>
+            </div>
+          </RadioGroup>
 
-        <Tabs defaultValue="ai-generation" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-auto">
-            <TabsTrigger value="ai-generation" className="py-3 text-sm md:text-base flex items-center gap-2">
-              <Music className="h-4 w-4" /> AI Song Generation
-            </TabsTrigger>
-            <TabsTrigger value="custom-requests" className="py-3 text-sm md:text-base flex items-center gap-2">
-              <PlusCircle className="h-4 w-4" /> Custom Song Requests
-            </TabsTrigger>
-          </TabsList>
+          {creationMode === 'lyrics' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Song Title <span className="text-destructive">*</span></Label>
+                <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="style">Style / Genre <span className="text-destructive">*</span></Label>
+                <Input id="style" placeholder="e.g., Synthwave Pop" value={style} onChange={(e) => setStyle(e.target.value)} />
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="prompt-input">{creationMode === 'prompt' ? 'Song Description' : 'Lyrics'}</Label>
+            <Textarea
+              id="prompt-input"
+              placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[120px]"
+            />
+          </div>
 
-          <TabsContent value="ai-generation" className="mt-4">
-            <SunoGenerationForm onSuccess={() => refetch()} />
-          </TabsContent>
+          <div className="flex items-center space-x-2">
+            <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} />
+            <Label htmlFor="instrumental">Generate instrumental only</Label>
+          </div>
 
-          <TabsContent value="custom-requests" className="mt-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-wrap justify-between items-center gap-4">
-                  <div>
-                    <CardTitle>Your Custom Song Requests</CardTitle>
-                    <CardDescription>
-                      Track the status of your custom song requests here.
-                    </CardDescription>
-                  </div>
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Request
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading && (
-                  <div className="flex justify-center items-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!loading && error && (
-                  <div className="text-center py-10 text-destructive">
-                    <p>Error loading requests: {error}</p>
-                    <Button variant="outline" className="mt-4" onClick={() => refetch()}>
-                      Try Again
-                    </Button>
-                  </div>
-                )}
-                {!loading && !error && userRequests.length === 0 && (
-                  <div className="text-center py-10 border-2 border-dashed rounded-lg">
-                    <h3 className="text-lg font-semibold">No requests yet</h3>
-                    <p className="text-muted-foreground mt-1">
-                      Click "New Request" to get started on a custom song.
-                    </p>
-                  </div>
-                )}
-                {!loading && !error && userRequests.length > 0 && (
-                  <div className="space-y-4">
-                    {userRequests.map((request) => (
-                      <UserRequestCard key={request.id} request={request} onUpdate={refetch} />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          <Button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="w-full"
+            size="lg"
+          >
+            {isGenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Music className="mr-2 h-4 w-4" />
+            )}
+            Generate Song (5 Credits)
+          </Button>
 
-        <CreateSongRequestDialog
-          open={isCreateDialogOpen}
-          onOpenChange={setIsCreateDialogOpen}
-          onSuccess={handleRequestCreated}
-        />
-      </div>
+          <p className="text-xs text-muted-foreground text-center">
+            Generation takes 1-2 minutes. Your song will appear in the Library.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
