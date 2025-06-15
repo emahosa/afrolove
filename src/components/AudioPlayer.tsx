@@ -9,8 +9,22 @@ import React from 'react';
 export const AudioPlayer = () => {
   const { currentTrack, isPlaying, progress, duration, togglePlayPause, isLoading, seek } = useAudioPlayer();
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  
+  // Only hide on specific admin routes, but show on all other pages including library, dashboard, etc.
+  const shouldHidePlayer = location.pathname.startsWith('/admin') || 
+                          location.pathname === '/login' || 
+                          location.pathname === '/register' ||
+                          location.pathname === '/';
+  
   const progressContainerRef = React.useRef<HTMLDivElement>(null);
+
+  console.log('🎛️ AudioPlayer render:', {
+    currentTrack: currentTrack?.title || 'none',
+    isPlaying,
+    isLoading,
+    shouldHidePlayer,
+    pathname: location.pathname
+  });
 
   const formatTime = (time: number) => {
     if (isNaN(time) || time <= 0) return '0:00';
@@ -30,9 +44,13 @@ export const AudioPlayer = () => {
     seek(seekTime);
   };
 
-  if (isAdminRoute || !currentTrack) {
+  // Show player if we have a track and we're not on restricted routes
+  if (shouldHidePlayer || !currentTrack) {
+    console.log('🎛️ AudioPlayer hidden:', { shouldHidePlayer, hasTrack: !!currentTrack });
     return null;
   }
+
+  console.log('🎛️ AudioPlayer visible and rendering');
 
   return (
     <div 

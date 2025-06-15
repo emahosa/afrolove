@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,13 +12,38 @@ import { useNavigate } from "react-router-dom";
 import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
   const navigate = useNavigate();
 
   console.log('🏠 Dashboard rendered for user:', user?.id);
-  console.log('👤 User data:', user);
+  console.log('👤 User roles check:', { 
+    isVoter: isVoter(), 
+    isSubscriber: isSubscriber(), 
+    isAdmin: isAdmin(), 
+    isSuperAdmin: isSuperAdmin(),
+    loading 
+  });
 
+  // Show loading state while auth is loading
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <span className="ml-2">Loading dashboard...</span>
+      </div>
+    );
+  }
+
+  // Check user roles properly - voter only (not subscriber, not admin)
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+  
+  console.log('🔍 Role determination:', {
+    userIsOnlyVoter,
+    hasVoterRole: isVoter(),
+    hasSubscriberRole: isSubscriber(),
+    hasAdminRole: isAdmin(),
+    hasSuperAdminRole: isSuperAdmin()
+  });
 
   const stats = [
     {

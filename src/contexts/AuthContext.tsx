@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +40,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [subscriberStatus, setSubscriberStatus] = useState(false);
   const initialized = useRef(false);
 
+  console.log('🔐 AuthContext state:', { 
+    userEmail: user?.email, 
+    roles: userRoles, 
+    permissions: adminPermissions,
+    subscriberStatus,
+    loading 
+  });
+
   const isSuperAdmin = useCallback(() => {
     console.log('AuthContext: Checking super admin status for user:', user?.email);
     
@@ -70,11 +79,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isSuperAdmin, userRoles]);
 
   const isVoter = useCallback(() => {
-    return userRoles.includes('voter');
+    const hasVoterRole = userRoles.includes('voter');
+    console.log('AuthContext: Voter check:', { roles: userRoles, hasVoterRole });
+    return hasVoterRole;
   }, [userRoles]);
 
   const isSubscriber = useCallback(() => {
-    return userRoles.includes('subscriber') || subscriberStatus;
+    const hasSubscriberRole = userRoles.includes('subscriber');
+    const result = hasSubscriberRole || subscriberStatus;
+    console.log('AuthContext: Subscriber check:', { 
+      roles: userRoles, 
+      hasSubscriberRole, 
+      subscriberStatus, 
+      result 
+    });
+    return result;
   }, [userRoles, subscriberStatus]);
 
   const hasAdminPermission = useCallback((permission: string) => {

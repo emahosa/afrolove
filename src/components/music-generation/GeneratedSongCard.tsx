@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,21 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [showPrompt, setShowPrompt] = useState(false);
   const { playTrack, currentTrack, isPlaying } = useAudioPlayer();
 
-  const isPlayable = song.status === 'completed' && !!song.audio_url && song.audio_url.startsWith('http');
+  // More lenient check for playable songs - any completed song with an audio URL
+  const isPlayable = (song.status === 'completed' || song.status === 'approved') && 
+                    !!song.audio_url && 
+                    song.audio_url.trim() !== '';
+  
   const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === song.id;
+
+  console.log('🎵 GeneratedSongCard render:', {
+    id: song.id,
+    title: song.title,
+    status: song.status,
+    audio_url: song.audio_url,
+    isPlayable,
+    isCurrentlyPlayingThisTrack
+  });
 
   const getStatusContent = () => {
     switch (song.status) {
@@ -62,7 +76,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const handleDownload = () => {
     console.log('⬇️ Download requested for:', song.title, 'URL:', song.audio_url);
     
-    if (song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http')) {
+    if (isPlayable) {
       const link = document.createElement('a');
       link.href = song.audio_url;
       link.download = `${song.title}.mp3`;
@@ -77,45 +91,37 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     }
   };
 
-  const handleShare = () => {
-    console.log('📤 Share requested for:', song.title);
-    
-    if (song.status === 'completed' && song.audio_url && song.audio_url.startsWith('http')) {
-      if (navigator.share) {
-        navigator.share({
-          title: song.title,
-          text: `Check out this AI-generated song: ${song.title}`,
-          url: song.audio_url,
-        });
-        console.log('✅ Native share triggered');
-      } else {
-        navigator.clipboard.writeText(song.audio_url);
-        toast.success('Song link copied to clipboard!');
-        console.log('✅ Link copied to clipboard');
-      }
-    } else {
-      console.log('❌ Share not available - song not ready');
-      toast.error('Song is not ready for sharing yet');
-    }
-  };
-
-  const handleDelete = () => {
-    console.log('🗑️ Delete requested for:', song.title);
-    toast.info('Delete feature coming soon!');
-  };
-
   const handlePlay = () => {
+    console.log('🎵 Play button clicked for:', song.title, 'Playable:', isPlayable);
+    
     if (!isPlayable) {
+      console.log('❌ Song not playable:', {
+        status: song.status,
+        audio_url: song.audio_url,
+        url_valid: !!song.audio_url && song.audio_url.trim() !== ''
+      });
       toast.error('Song is not ready for playback yet.');
       return;
     }
     
-    playTrack({
+    console.log('✅ Calling playTrack with:', {
       id: song.id,
       title: song.title,
-      audio_url: song.audio_url,
-      artist: 'AI Generated',
+      audio_url: song.audio_url
     });
+    
+    try {
+      playTrack({
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url,
+        artist: 'AI Generated',
+      });
+      console.log('✅ playTrack call completed');
+    } catch (error) {
+      console.error('❌ Error calling playTrack:', error);
+      toast.error('Failed to start playback');
+    }
   };
 
   return (
