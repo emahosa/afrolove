@@ -1,18 +1,13 @@
-
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// A more robust user object that includes roles and profile data
 interface ExtendedUser extends User {
-  fullName?: string;
-  avatarUrl?: string;
-  credits: number;
-  roles: string[];
-  permissions: string[];
-  isSubscriber: boolean;
-  subscription?: string;
+  name?: string;
+  avatar?: string;
+  credits?: number;
+  subscription?: 'free' | 'premium' | 'enterprise';
 }
 
 interface AuthContextType {
@@ -28,6 +23,8 @@ interface AuthContextType {
   isSubscriber: () => boolean;
   hasAdminPermission: (permission: string) => boolean;
   canAccessFeature: (feature: string) => boolean;
+  userRoles: string[];
+  adminPermissions: string[];
   updateUserCredits: (amount: number) => Promise<void>;
 }
 
@@ -37,69 +34,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
+  const [subscriberStatus, setSubscriberStatus] = useState(false);
+  const initialized = useRef(false);
 
-  useEffect(() => {
-    // This listener is the single source of truth for auth state.
-    // It runs once on initial load and whenever the auth state changes.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`AuthContext: Auth event: ${event}`);
-      if (session?.user) {
-        console.log("AuthContext: Session found, fetching user profile...");
-        
-        // Fetch all user-related data in one go
-        const [profileRes, rolesRes, permissionsRes, subscriberRes, subscriptionRes] = await Promise.all([
-          supabase.from('profiles').select('full_name, avatar_url, credits').eq('id', session.user.id).single(),
-          supabase.from('user_roles').select('role').eq('user_id', session.user.id),
-          supabase.from('admin_permissions').select('permission').eq('user_id', session.user.id),
-          supabase.rpc('is_subscriber', { _user_id: session.user.id }),
-          supabase.from('user_subscriptions').select('subscription_type').eq('user_id', session.user.id).eq('subscription_status', 'active').single()
-        ]);
+  const isSuperAdmin = useCallback(() => {
+    console.log('AuthContext: Checking super admin status for user:', user?.email);
+    
+    // Check if super admin by email first
+    if (user?.email === 'ellaadahosa@gmail.com') {
+      console.log('AuthContext: Super admin detected by email');
+      return true;
+    }
+    
+    // Check if user has super_admin role
+    const hasSuperAdminRole = userRoles.includes('super_admin');
+    console.log('AuthContext: Super admin role check:', hasSuperAdminRole);
+    return hasSuperAdminRole;
+  }, [user, userRoles]);
 
-        const profile = profileRes.data;
-        const roles = rolesRes.data?.map(r => r.role) || [];
-        const permissions = permissionsRes.data?.map(p => p.permission) || [];
-        const isSubscriberResult = subscriberRes.data || false;
-        const subscriptionPlan = subscriptionRes.data?.subscription_type || 'free';
+  const isAdmin = useCallback(() => {
+    console.log('AuthContext: Checking admin status for user:', user?.email);
+    
+    // Super admin is also admin
+    if (isSuperAdmin()) {
+      console.log('AuthContext: Super admin detected');
+      return true;
+    }
+    
+    // Check if user has admin role
+    const hasAdminRole = userRoles.includes('admin');
+    console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
+    return hasAdminRole;
+  }, [isSuperAdmin, userRoles]);
 
-        const userProfile: ExtendedUser = {
-          ...session.user,
-          fullName: profile?.full_name || session.user.user_metadata.full_name,
-          avatarUrl: profile?.avatar_url || session.user.user_metadata.avatar_url,
-          credits: profile?.credits ?? 5,
-          roles,
-          permissions,
-          isSubscriber: isSubscriberResult || roles.includes('subscriber'),
-          subscription: subscriptionPlan,
-        };
+  const isVoter = useCallback(() => {
+    return userRoles.includes('voter');
+  }, [userRoles]);
 
-        setUser(userProfile);
-        setSession(session);
-        console.log("AuthContext: User state updated:", userProfile);
-      } else {
-        console.log("AuthContext: No session. Clearing user state.");
-        setUser(null);
-        setSession(null);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      console.log("AuthContext: Unsubscribing from auth state changes.");
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const isSuperAdmin = useCallback(() => user?.email === 'ellaadahosa@gmail.com' || (user?.roles.includes('super_admin') ?? false), [user]);
-  const isAdmin = useCallback(() => isSuperAdmin() || (user?.roles.includes('admin') ?? false), [user, isSuperAdmin]);
-  const isVoter = useCallback(() => user?.roles.includes('voter') ?? false, [user]);
-  const isSubscriber = useCallback(() => user?.isSubscriber ?? false, [user]);
+  const isSubscriber = useCallback(() => {
+    return userRoles.includes('subscriber') || subscriberStatus;
+  }, [userRoles, subscriberStatus]);
 
   const hasAdminPermission = useCallback((permission: string) => {
+    // Super admin has all permissions
     if (isSuperAdmin()) return true;
-    return user?.permissions.includes(permission) ?? false;
-  }, [user, isSuperAdmin]);
+    // Regular admin only has specific permissions
+    return adminPermissions.includes(permission);
+  }, [isSuperAdmin, adminPermissions]);
 
   const canAccessFeature = useCallback((feature: string) => {
+    // Super admin can access everything
     if (isSuperAdmin()) return true;
     
     // Regular admin needs specific permissions for admin features
@@ -120,59 +106,259 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateUserCredits = async (amount: number) => {
     if (!user) return;
-    const { data, error } = await supabase.rpc('update_user_credits', {
-      p_user_id: user.id,
-      p_amount: amount
-    });
-    if (error) {
+    
+    try {
+      const { data, error } = await supabase.rpc('update_user_credits', {
+        p_user_id: user.id,
+        p_amount: amount
+      });
+      
+      if (error) throw error;
+      
+      setUser(prev => prev ? { ...prev, credits: data } : null);
+    } catch (error) {
       console.error('Error updating credits:', error);
       throw error;
     }
-    setUser(prev => prev ? { ...prev, credits: data } : null);
+  };
+
+  const fetchUserData = async (userId: string) => {
+    try {
+      console.log('AuthContext: Fetching user data for:', userId);
+      
+      // Fetch user roles
+      const { data: userRoleData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      
+      if (rolesError) {
+        console.error('AuthContext: Error fetching roles:', rolesError);
+        setUserRoles(['voter']); // Default fallback
+      } else {
+        const roles = userRoleData?.map(r => r.role) || ['voter'];
+        console.log('AuthContext: Fetched roles:', roles);
+        setUserRoles(roles);
+      }
+
+      // Fetch admin permissions
+      const { data: permissionsData, error: permissionsError } = await supabase
+        .from('admin_permissions')
+        .select('permission')
+        .eq('user_id', userId);
+      
+      if (permissionsError) {
+        console.error('AuthContext: Error fetching permissions:', permissionsError);
+        setAdminPermissions([]);
+      } else {
+        const permissions = permissionsData?.map(p => p.permission) || [];
+        console.log('AuthContext: Fetched permissions:', permissions);
+        setAdminPermissions(permissions);
+      }
+
+      // Check subscription status
+      const { data: isSubscriberResult, error: subscriberError } = await supabase
+        .rpc('is_subscriber', { _user_id: userId });
+      
+      if (subscriberError) {
+        console.error('AuthContext: Error checking subscription:', subscriberError);
+        setSubscriberStatus(false);
+      } else {
+        console.log('AuthContext: Subscription status:', isSubscriberResult);
+        setSubscriberStatus(isSubscriberResult);
+      }
+      
+    } catch (error) {
+      console.error('AuthContext: Error in fetchUserData:', error);
+      setUserRoles(['voter']); // Default fallback
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
+    }
+  };
+
+  const processSession = async (session: Session | null) => {
+    console.log('AuthContext: Processing session:', session ? 'exists' : 'null');
+    
+    try {
+      if (session?.user) {
+        // First set up the basic user object
+        let basicUser: ExtendedUser = {
+          ...session.user,
+          name: session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
+          avatar: session.user.user_metadata.avatar_url || '',
+          credits: 5, // Default credits
+          subscription: 'free'
+        };
+
+        // Try to get profile data
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        
+        if (profile && !profileError) {
+          console.log('AuthContext: Using profile data:', profile);
+          basicUser = {
+            ...basicUser,
+            name: profile.full_name || basicUser.name,
+            avatar: profile.avatar_url || basicUser.avatar,
+            credits: profile.credits || 5,
+          };
+        }
+        
+        setUser(basicUser);
+        setSession(session);
+        
+        // Fetch user data after setting user
+        await fetchUserData(session.user.id);
+        
+        console.log('AuthContext: User setup complete for:', basicUser.name);
+      } else {
+        setUser(null);
+        setUserRoles([]);
+        setAdminPermissions([]);
+        setSubscriberStatus(false);
+        setSession(null);
+      }
+    } catch (error) {
+      console.error('AuthContext: Error processing session:', error);
+      setUser(null);
+      setUserRoles([]);
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
+      setSession(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('Login error:', error.message);
-      toast.error(error.message);
+    try {
+      console.log('AuthContext: Attempting login for:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('AuthContext: Login error:', error);
+        throw error;
+      }
+
+      if (data.user) {
+        console.log('AuthContext: Login successful for:', data.user.id);
+        return true;
+      }
       return false;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw error;
     }
-    return true;
   };
 
   const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`
-        },
-        emailRedirectTo: `${window.location.origin}/dashboard`
+    try {
+      console.log('AuthContext: Attempting registration for:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`
+          }
+        }
+      });
+
+      if (error) {
+        console.error('AuthContext: Registration error:', error);
+        throw error;
       }
-    });
 
-    if (error) {
-      console.error('Registration error:', error.message);
-      toast.error(error.message);
+      if (data.user) {
+        console.log('AuthContext: Registration successful for:', data.user.id);
+        if (data.session) {
+          return true;
+        } else {
+          toast.success('Registration successful! Please check your email to verify your account.');
+          return true;
+        }
+      }
       return false;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      throw error;
     }
-
-    if (!data.session) {
-      toast.success('Registration successful! Please check your email to verify your account.');
-    }
-    return true;
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
+    try {
+      console.log('AuthContext: Logging out user');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      setUser(null);
+      setSession(null);
+      setUserRoles([]);
+      setAdminPermissions([]);
+      setSubscriberStatus(false);
+      initialized.current = false;
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      throw error;
     }
-    // The auth listener will handle clearing user state.
   };
+
+  useEffect(() => {
+    console.log('AuthContext: Initializing auth state');
+    
+    let mounted = true;
+    
+    const initAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting session:', error);
+          if (mounted) setLoading(false);
+          return;
+        }
+        
+        console.log('AuthContext: Initial session check:', session ? 'found' : 'none');
+        
+        if (mounted) {
+          await processSession(session);
+          initialized.current = true;
+        }
+      } catch (error) {
+        console.error('AuthContext: Error initializing auth:', error);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('AuthContext: Auth state change:', event);
+        if (mounted && initialized.current) {
+          await processSession(session);
+        }
+      }
+    );
+
+    initAuth();
+
+    return () => {
+      mounted = false;
+      console.log('AuthContext: Cleaning up auth listener');
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const value = {
     user,
@@ -187,6 +373,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSubscriber,
     hasAdminPermission,
     canAccessFeature,
+    userRoles,
+    adminPermissions,
     updateUserCredits
   };
 
