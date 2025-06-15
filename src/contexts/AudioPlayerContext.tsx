@@ -101,7 +101,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audio.removeEventListener('canplay', handleCanPlay);
         audio.removeEventListener('loadstart', handleLoadStart);
         audio.removeEventListener('loadeddata', handleLoadedData);
-        audio.pause();
       }
     };
   }, [currentTrack]);
@@ -109,7 +108,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const playTrack = (track: Track) => {
     console.log('🎵 PlayTrack called with:', track);
     
-    // Force set the current track immediately so UI shows
+    // IMMEDIATELY set the current track so UI shows instantly
     setCurrentTrack(track);
     
     if (currentTrack?.id === track.id) {
@@ -119,7 +118,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       console.log('🎵 New track, loading:', track.audio_url);
       setProgress(0);
       setDuration(0);
-      setIsPlaying(false); // Will be set to true in canplay handler
+      setIsPlaying(false);
       
       if (audioRef.current) {
         audioRef.current.pause();
