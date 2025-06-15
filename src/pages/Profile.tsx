@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { Star, Music, Trophy, Clock, Settings, Mic } from "lucide-react";
+import { Star, Music, Trophy, Clock, Settings, Mic, Loader2 } from "lucide-react";
 import VoiceProfileManager from "@/components/VoiceProfileManager";
 
 const activities = [
@@ -16,7 +17,7 @@ const activities = [
 ];
 
 const Profile = () => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
   const adminStatus = isAdmin();
   
@@ -24,8 +25,21 @@ const Profile = () => {
     console.log("Profile: Admin status:", adminStatus);
   }, [adminStatus]);
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-melody-secondary" />
+        <span className="ml-3">Loading profile...</span>
+      </div>
+    );
+  }
+
   if (!user) {
-    return <div className="flex justify-center items-center h-64">Loading profile...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        Could not load profile. You may need to log in.
+      </div>
+    );
   }
 
   return (

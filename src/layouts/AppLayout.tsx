@@ -3,8 +3,6 @@ import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
-import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
-import { AudioPlayer } from "@/components/AudioPlayer";
 
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,16 +16,13 @@ const AppLayoutContent = () => {
           <Outlet />
         </main>
       </div>
-      <AudioPlayer />
     </div>
   );
 };
 
 const AppLayout = () => {
   return (
-    <AudioPlayerProvider>
-      <AppLayoutContent />
-    </AudioPlayerProvider>
+    <AppLayoutContent />
   );
 };
 

@@ -9,7 +9,7 @@ import React from 'react';
 export const AudioPlayer = () => {
   const { currentTrack, isPlaying, progress, duration, togglePlayPause, isLoading, seek } = useAudioPlayer();
   const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  const { pathname } = location;
   const progressContainerRef = React.useRef<HTMLDivElement>(null);
 
   const formatTime = (time: number) => {
@@ -30,7 +30,13 @@ export const AudioPlayer = () => {
     seek(seekTime);
   };
 
-  if (isAdminRoute || !currentTrack) {
+  const isHiddenRoute =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname === '/';
+
+  if (isHiddenRoute || !currentTrack) {
     return null;
   }
 
