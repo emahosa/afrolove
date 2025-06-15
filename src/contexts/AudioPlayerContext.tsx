@@ -49,9 +49,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     
     const audio = audioRef.current;
 
-    const handleTimeUpdate = () => {
-      setProgress(audio.currentTime);
-    };
+    const handleTimeUpdate = () => setProgress(audio.currentTime);
     
     const handleDurationChange = () => {
       if (audio.duration && audio.duration !== Infinity) {
@@ -69,82 +67,69 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     const handleError = (e: Event) => {
       console.error('🎵 Audio error event:', e);
       const audioEl = e.target as HTMLAudioElement;
+      let errorMessage = "An unknown error occurred while playing audio.";
+      
       if (audioEl.error) {
         console.error('🎵 Audio element error details:', {
           code: audioEl.error.code,
           message: audioEl.error.message,
         });
         
-        let errorMessage = `Failed to load audio.`;
         switch(audioEl.error.code) {
-          case 1: // MEDIA_ERR_ABORTED
-            errorMessage = 'Audio playback was aborted.';
-            break;
-          case 2: // MEDIA_ERR_NETWORK
-            errorMessage = 'A network error caused the audio to fail to load. This might be a CORS issue.';
-            break;
-          case 3: // MEDIA_ERR_DECODE
-            errorMessage = 'The audio is corrupted or in an unsupported format.';
-            break;
-          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
-            errorMessage = 'The audio format is not supported or the resource is unavailable (check CORS).';
-            break;
-          default:
-             errorMessage = 'An unknown error occurred with the audio player.';
+          case 1: errorMessage = 'Audio playback was aborted.'; break;
+          case 2: errorMessage = 'A network error occurred. This could be a CORS issue with the audio source or the proxy.'; break;
+          case 3: errorMessage = 'The audio is corrupted or in an unsupported format.'; break;
+          case 4: errorMessage = 'The audio resource is not supported or unavailable. Check if the URL is correct and the proxy is working.'; break;
         }
-        if (currentTrack) {
-          toast.error(`${errorMessage}`, { description: `Track: ${currentTrack.title}`});
-        } else {
-          toast.error(errorMessage);
-        }
-      } else {
-        toast.error('An unknown audio error occurred.');
       }
       
-      setIsPlaying(false);
+      toast.error(errorMessage, { description: `Track: ${currentTrack?.title || 'Unknown'}` });
       setIsLoading(false);
+      setIsPlaying(false);
     };
 
     const handleCanPlay = () => {
-      console.log('🎵 Audio can play, starting playback...');
+      console.log('🎵 Audio is ready to be played (canplay).');
       setIsLoading(false);
-      audio.play()
-        .then(() => {
-          console.log('🎵 Audio started playing successfully');
-          setIsPlaying(true);
-        })
-        .catch(e => {
-          console.error("🎵 Error playing audio:", e);
-          toast.error("Could not play audio.");
-          setIsPlaying(false);
-        });
+      // We don't auto-play here anymore. Playback is initiated by user via togglePlayPause or playTrack.
     };
-
+    
     const handleLoadStart = () => {
-      console.log('🎵 Audio loading started');
+      console.log('🎵 Audio loading started (loadstart).');
+      setIsLoading(true);
     };
 
-    const handleLoadedData = () => {
-      console.log('🎵 Audio data loaded');
+    const handlePlaying = () => {
+        console.log('🎵 Audio is now playing.');
+        setIsPlaying(true);
+        setIsLoading(false);
     };
 
+    const handlePause = () => {
+        console.log('🎵 Audio is paused.');
+        setIsPlaying(false);
+    };
+
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('pause', handlePause);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('loadstart', handleLoadStart);
-    audio.addEventListener('loadeddata', handleLoadedData);
-
+    // loadeddata is not strictly needed with this new flow
+    
     return () => {
       if (audio) {
+        audio.removeEventListener('playing', handlePlaying);
+        audio.removeEventListener('pause', handlePause);
         audio.removeEventListener('timeupdate', handleTimeUpdate);
         audio.removeEventListener('durationchange', handleDurationChange);
         audio.removeEventListener('ended', handleEnded);
         audio.removeEventListener('error', handleError);
         audio.removeEventListener('canplay', handleCanPlay);
         audio.removeEventListener('loadstart', handleLoadStart);
-        audio.removeEventListener('loadeddata', handleLoadedData);
       }
     };
   }, []); // Empty dependency array is correct here
@@ -166,7 +151,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
   
-    console.log(`🎵 New track selected. Setting state and loading "${track.title}".`);
+    console.log(`🎵 New track selected. Preparing to load and play "${track.title}".`);
     setCurrentTrack(track); 
     setIsLoading(true);
     setIsPlaying(false);
@@ -185,15 +170,28 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       
       const audioUrl = track.audio_url;
 
-      if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:')) {
-          audioRef.current.src = audioUrl;
+      let finalUrl;
+      // URLs from Google Storage are CORS-enabled, no need to proxy them.
+      if (audioUrl.startsWith('blob:') || audioUrl.startsWith('data:') || audioUrl.includes('storage.googleapis.com')) {
+          finalUrl = audioUrl;
+          console.log(`🎵 Setting audio source to direct URL: ${finalUrl}`);
       } else {
-          const proxyUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
-          console.log(`🎵 Setting audio source to proxy: ${proxyUrl}`);
-          audioRef.current.src = proxyUrl;
+          finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
+          console.log(`🎵 Setting audio source to proxy: ${finalUrl}`);
+      }
+      audioRef.current.src = finalUrl;
+
+      // This is a direct response to a user click, so we can call play()
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error('🎵 Failed to auto-play new track. The audio element will raise a more specific error event.', error);
+          // The 'error' event listener on the audio element will handle the UI feedback.
+          setIsPlaying(false); 
+        });
       }
 
-      audioRef.current.load();
     } else {
       console.error("🎵 Audio element ref is not available!");
       toast.error("Audio player not initialized.");
@@ -202,28 +200,23 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const togglePlayPause = () => {
-    console.log(`🎵 togglePlayPause called. isPlaying: ${isPlaying}, src: ${audioRef.current?.src}`);
-    
     if (!audioRef.current || !audioRef.current.src) {
       console.log("🎵 Cannot toggle: no audio element or src.");
       return;
     }
 
+    console.log(`🎵 togglePlayPause called. isPlaying: ${isPlaying}`);
     if (isPlaying) {
       audioRef.current.pause();
-      setIsPlaying(false);
-      console.log('🎵 Audio paused');
     } else {
-      audioRef.current.play()
-        .then(() => {
-          setIsPlaying(true);
-          console.log('🎵 Audio resumed/played');
-        })
-        .catch(e => {
-          console.error("🎵 Error playing audio:", e);
-          toast.error("Could not play audio.");
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("🎵 Error playing audio:", error);
+          toast.error("Could not play audio. There might be a network issue or the source is invalid.");
           setIsPlaying(false);
         });
+      }
     }
   };
 
