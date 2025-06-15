@@ -1,12 +1,12 @@
 
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import { Play, Pause, Music } from 'lucide-react';
+import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { Progress } from './ui/progress';
 import { Button } from './ui/button';
 import { useLocation } from 'react-router-dom';
 
 export const AudioPlayer = () => {
-  const { currentTrack, isPlaying, progress, duration, togglePlayPause } = useAudioPlayer();
+  const { currentTrack, isPlaying, progress, duration, togglePlayPause, isLoading } = useAudioPlayer();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
@@ -27,7 +27,7 @@ export const AudioPlayer = () => {
     >
       <div className="flex items-center gap-4 max-w-7xl mx-auto">
         <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center rounded-md flex-shrink-0">
-          <Music className="h-6 w-6" />
+          {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Music className="h-6 w-6" />}
         </div>
 
         <div className="flex-1 flex items-center gap-4 min-w-0">
@@ -36,13 +36,18 @@ export const AudioPlayer = () => {
             size="icon" 
             onClick={togglePlayPause} 
             className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20 flex-shrink-0"
+            disabled={isLoading}
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
           </Button>
 
           <div className="flex-1 min-w-0">
             <p className="font-semibold truncate text-white">{currentTrack.title}</p>
-            <p className="text-sm text-gray-400">{currentTrack.artist || 'AI Generated'}</p>
+            {isLoading ? (
+              <p className="text-sm text-gray-400">Loading...</p>
+            ) : (
+              <p className="text-sm text-gray-400">{currentTrack.artist || 'AI Generated'}</p>
+            )}
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs w-10 text-right text-gray-300">{formatTime(progress)}</span>
               <div className="flex-1">

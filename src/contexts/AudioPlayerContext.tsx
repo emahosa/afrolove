@@ -15,6 +15,7 @@ interface AudioPlayerContextType {
   isPlaying: boolean;
   progress: number;
   duration: number;
+  isLoading: boolean;
   playTrack: (track: Track) => void;
   togglePlayPause: () => void;
 }
@@ -26,12 +27,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Debug state changes
   useEffect(() => {
-    console.log('🎵 AudioPlayerContext: State updated - currentTrack:', currentTrack?.title || 'null', 'isPlaying:', isPlaying);
-  }, [currentTrack, isPlaying]);
+    console.log('🎵 AudioPlayerContext: State updated - track:', currentTrack?.title || 'null', 'playing:', isPlaying, 'loading:', isLoading);
+  }, [currentTrack, isPlaying, isLoading]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -62,10 +64,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         toast.error(`Failed to load: ${currentTrack.title}`);
       }
       setIsPlaying(false);
+      setIsLoading(false);
     };
 
     const handleCanPlay = () => {
       console.log('🎵 Audio can play, starting playback...');
+      setIsLoading(false);
       audio.play()
         .then(() => {
           console.log('🎵 Audio started playing successfully');
@@ -105,33 +109,27 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audio.removeEventListener('loadeddata', handleLoadedData);
       }
     };
-  }, []); // Remove currentTrack dependency to prevent audio element recreation
+  }, []); // Empty dependency array is correct here
 
   const playTrack = (track: Track) => {
-    console.log('🎵 PlayTrack called with:', track);
-    console.log('🎵 Setting currentTrack to:', track.title);
-    
-    // Set current track immediately using functional update to ensure it takes effect
-    setCurrentTrack(prevTrack => {
-      console.log('🎵 CurrentTrack state update: from', prevTrack?.title || 'null', 'to', track.title);
-      return track;
-    });
+    console.log(`🎵 playTrack called for "${track.title}". Current track is "${currentTrack?.title}".`);
     
     if (currentTrack?.id === track.id) {
-      console.log('🎵 Same track, toggling play/pause');
+      console.log('🎵 Same track detected, toggling play/pause.');
       togglePlayPause();
-    } else {
-      console.log('🎵 New track, loading:', track.audio_url);
-      setProgress(0);
-      setDuration(0);
-      setIsPlaying(false);
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = track.audio_url;
-        console.log('🎵 Audio src set to:', track.audio_url);
-        audioRef.current.load();
-      }
+      return;
+    }
+  
+    console.log(`🎵 New track selected. Loading "${track.title}".`);
+    setCurrentTrack(track);
+    setIsLoading(true);
+    setIsPlaying(false);
+    setProgress(0);
+    setDuration(0);
+    
+    if (audioRef.current) {
+      audioRef.current.src = track.audio_url;
+      audioRef.current.load();
     }
   };
 
@@ -164,11 +162,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     isPlaying,
     progress,
     duration,
+    isLoading,
     playTrack,
     togglePlayPause,
   };
-
-  console.log('🎵 AudioPlayerProvider rendering with currentTrack:', currentTrack?.title || 'null');
 
   return (
     <AudioPlayerContext.Provider value={value}>
