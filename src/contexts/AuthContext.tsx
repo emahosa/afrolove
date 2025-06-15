@@ -1,6 +1,5 @@
-
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthResponse } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -15,7 +14,7 @@ interface AuthContextType {
   user: ExtendedUser | null;
   session: Session | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<AuthResponse>;
   register: (fullName: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
@@ -252,29 +251,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      console.log('AuthContext: Attempting login for:', email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  const login = async (email: string, password: string): Promise<AuthResponse> => {
+    console.log('AuthContext: Attempting login for:', email);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (error) {
-        console.error('AuthContext: Login error:', error);
-        throw error;
-      }
-
-      if (data.user) {
-        console.log('AuthContext: Login successful for:', data.user.id);
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      console.error('Login error:', error);
-      throw error;
+    if (error) {
+      console.error('AuthContext: Login error:', error);
     }
+
+    if (data.session) {
+      console.log('AuthContext: Login successful, processing session for:', data.user.id);
+      await processSession(data.session);
+    }
+    
+    return { data, error };
   };
 
   const register = async (fullName: string, email: string, password: string): Promise<boolean> => {

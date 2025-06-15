@@ -66,14 +66,12 @@ const Login = () => {
     try {
       console.log("Login: Attempting login with:", { email, userType });
       
-      // First attempt to authenticate with email/password
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { data, error } = await login(email, password);
       
       if (error) {
-        throw error;
+        toast.error(error.message || "An unexpected error occurred during login");
+        setLoading(false);
+        return;
       }
       
       // Check if MFA is required
@@ -109,18 +107,18 @@ const Login = () => {
         }
       }
       
-      // If we reach here, MFA was not required or has been completed
-      const success = await login(email, password);
-      
-      if (success) {
-        // Get the intended destination or default to dashboard/admin based on login type
+      if (data.session) {
+        toast.success("Login successful!");
         let destination = userType === "admin" ? "/admin" : "/dashboard";
         if (location.state?.from?.pathname) {
           destination = location.state.from.pathname;
         }
         console.log("Login: Login successful, redirecting to:", destination);
         navigate(destination, { replace: true });
-      } else {
+      } else if (!showMFAVerification) {
+        // This case would be if MFA is not enabled but session is still null.
+        // It's an unlikely edge case if there's no error.
+        toast.error("Login failed. Please try again.");
         setLoading(false);
       }
     } catch (error: any) {
@@ -130,19 +128,17 @@ const Login = () => {
     }
   };
 
-  const handleMFAVerified = async () => {
+  const handleMFAVerified = () => {
     setShowMFAVerification(false);
+    toast.success("Login successful!");
     
-    // After MFA is verified, complete the login process
-    const success = await login(email, password);
-    
-    if (success) {
-      let destination = userType === "admin" ? "/admin" : "/dashboard";
-      if (location.state?.from?.pathname) {
-        destination = location.state.from.pathname;
-      }
-      navigate(destination, { replace: true });
+    // After MFA is verified, the session is active and context is updated via onAuthStateChange.
+    // We can now navigate.
+    let destination = userType === "admin" ? "/admin" : "/dashboard";
+    if (location.state?.from?.pathname) {
+      destination = location.state.from.pathname;
     }
+    navigate(destination, { replace: true });
   };
 
   const handleCancelMFA = () => {
