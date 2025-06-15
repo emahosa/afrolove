@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       customMode: customMode,
       instrumental: instrumental,
       model: model,
-      callback_url: callBackUrl, // Use snake_case for the callback URL, a common convention.
+      callBackUrl: callBackUrl, // Corrected from callback_url to align with documentation
       wait_audio: false // Ensure async response
     }
 
