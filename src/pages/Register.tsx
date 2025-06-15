@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
-import { logErrorToSupabase } from "@/utils/errorLogger";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -63,12 +62,6 @@ const Register = () => {
     } catch (error) {
       console.error("Register: Registration error:", error);
       toast.error("Registration failed. Please try again.");
-      logErrorToSupabase({
-        message: 'Registration failed',
-        context: 'Register:handleSubmit',
-        error,
-        details: { email }
-      });
     } finally {
       setLoading(false);
     }

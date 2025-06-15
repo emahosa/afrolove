@@ -9,20 +9,6 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-// Helper to log errors to the new table
-const logError = async (supabase: ReturnType<typeof createClient>, message: string, context: string, error?: unknown, details?: object) => {
-    const errorObj = error instanceof Error ? error : new Error(String(error));
-    console.error(`[${context}] ${message}`, errorObj, details);
-    
-    await supabase.from('error_logs').insert({
-        level: 'error',
-        message,
-        context: `suno-webhook: ${context}`,
-        stack_trace: errorObj.stack,
-        details: { ...(details || {}), errorMessage: errorObj.message },
-    });
-};
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -36,8 +22,7 @@ Deno.serve(async (req) => {
 
     // Handle failed generations or invalid payloads
     if (payload.code !== 200 || !payload.data) {
-        const errorMsg = 'Webhook received non-successful payload or no data';
-        await logError(supabase, errorMsg, 'invalid_payload', new Error(payload.msg), payload);
+        console.error('❌ Webhook received non-successful payload or no data:', payload.msg);
         
         // Attempt to find task_id to update status to rejected
         const taskId = payload?.data?.task_id;
@@ -59,8 +44,7 @@ Deno.serve(async (req) => {
     const { task_id, data: songDataArray, callbackType } = payload.data;
 
     if (!task_id) {
-      const errorMsg = 'NO TASK ID FOUND in webhook payload';
-      await logError(supabase, errorMsg, 'missing_task_id', undefined, payload.data);
+      console.error('❌ NO TASK ID FOUND in webhook payload');
       return new Response(JSON.stringify({ error: 'Task ID missing' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
@@ -96,9 +80,8 @@ Deno.serve(async (req) => {
       .single()
 
     if (findError || !originalSong) {
-      const errorMsg = 'Original pending song for task ID not found or already processed';
-      await logError(supabase, errorMsg, 'find_original_song_failed', findError, { task_id });
-      return new Response(JSON.stringify({ error: errorMsg }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      console.error('❌ Original pending song for task ID not found:', task_id, findError);
+      return new Response(JSON.stringify({ error: 'Original song request not found or already processed' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
     console.log(`✅ Found original song request: ${originalSong.id} for task: ${task_id}`);
 
@@ -124,8 +107,7 @@ Deno.serve(async (req) => {
       .eq('id', originalSong.id)
 
     if (updateError) {
-      const errorMsg = `FAILED TO UPDATE first song (${originalSong.id})`;
-      await logError(supabase, errorMsg, 'update_first_song_failed', updateError, { song_id: originalSong.id });
+      console.error(`❌ FAILED TO UPDATE first song (${originalSong.id}):`, updateError);
     } else {
       console.log(`🎉 First song UPDATED SUCCESSFULLY for song ID: ${originalSong.id}`);
     }
@@ -156,8 +138,7 @@ Deno.serve(async (req) => {
         .insert(newSongsToInsert);
 
       if (insertError) {
-        const errorMsg = `FAILED TO INSERT ${newSongsToInsert.length} subsequent songs`;
-        await logError(supabase, errorMsg, 'insert_subsequent_songs_failed', insertError, { task_id });
+        console.error(`❌ FAILED TO INSERT ${newSongsToInsert.length} subsequent songs:`, insertError);
       } else {
         console.log(`🎉 ${newSongsToInsert.length} subsequent songs INSERTED SUCCESSFULLY for task ID: ${task_id}`);
       }
@@ -166,9 +147,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (error) {
-    // We need to create a client instance here again for the catch block
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    await logError(supabase, 'Critical webhook error', 'main_catch_block', error, { request_method: req.method });
+    console.error('❌ CRITICAL WEBHOOK ERROR:', error.message, error.stack);
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
 })
