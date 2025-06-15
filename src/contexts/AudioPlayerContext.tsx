@@ -32,8 +32,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
   // Debug state changes
   useEffect(() => {
-    console.log('🎵 AudioPlayerContext: State updated - track:', currentTrack?.title || 'null', 'playing:', isPlaying, 'loading:', isLoading);
-  }, [currentTrack, isPlaying, isLoading]);
+    console.log('🎵 CTX STATE UPDATE:', { 
+      track: currentTrack?.title || 'null', 
+      isPlaying, 
+      isLoading,
+      progress: progress.toFixed(2),
+      duration: duration.toFixed(2)
+    });
+  }, [currentTrack, isPlaying, isLoading, progress, duration]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -48,8 +54,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     };
     
     const handleDurationChange = () => {
-      setDuration(audio.duration || 0);
-      console.log('🎵 Duration loaded:', audio.duration);
+      if (audio.duration && audio.duration !== Infinity) {
+        setDuration(audio.duration);
+        console.log('🎵 Duration loaded:', audio.duration);
+      }
     };
     
     const handleEnded = () => {
@@ -112,7 +120,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   }, []); // Empty dependency array is correct here
 
   const playTrack = (track: Track) => {
-    console.log(`🎵 playTrack called for "${track.title}". Current track is "${currentTrack?.title}".`);
+    console.log(`🎵 playTrack called for "${track.title}".`);
     
     if (currentTrack?.id === track.id) {
       console.log('🎵 Same track detected, toggling play/pause.');
@@ -120,40 +128,48 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
   
-    console.log(`🎵 New track selected. Loading "${track.title}".`);
-    setCurrentTrack(track);
+    console.log(`🎵 New track selected. Setting state and loading "${track.title}".`);
+    // Set loading and track info. React will batch these updates.
     setIsLoading(true);
+    setCurrentTrack(track); 
     setIsPlaying(false);
     setProgress(0);
     setDuration(0);
     
     if (audioRef.current) {
+      console.log(`🎵 Setting audio source to: ${track.audio_url}`);
       audioRef.current.src = track.audio_url;
-      audioRef.current.load();
+      audioRef.current.load(); // Triggers 'loadstart', 'durationchange', 'loadeddata', 'canplay' etc.
+    } else {
+      console.error("🎵 Audio element ref is not available!");
+      toast.error("Audio player not initialized.");
+      setIsLoading(false);
     }
   };
 
   const togglePlayPause = () => {
-    console.log('🎵 TogglePlayPause called, isPlaying:', isPlaying);
+    console.log(`🎵 togglePlayPause called. isPlaying: ${isPlaying}, src: ${audioRef.current?.src}`);
     
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        console.log('🎵 Audio paused');
-      } else {
-        if (audioRef.current.src) {
-          audioRef.current.play()
-            .then(() => {
-              setIsPlaying(true);
-              console.log('🎵 Audio resumed');
-            })
-            .catch(e => {
-              console.error("🎵 Error resuming audio:", e);
-              toast.error("Could not resume audio.");
-            });
-        }
-      }
+    if (!audioRef.current || !audioRef.current.src) {
+      console.log("🎵 Cannot toggle: no audio element or src.");
+      return;
+    }
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      console.log('🎵 Audio paused');
+    } else {
+      audioRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          console.log('🎵 Audio resumed/played');
+        })
+        .catch(e => {
+          console.error("🎵 Error playing audio:", e);
+          toast.error("Could not play audio.");
+          setIsPlaying(false);
+        });
     }
   };
 

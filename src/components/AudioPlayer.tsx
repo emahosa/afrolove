@@ -11,15 +11,18 @@ export const AudioPlayer = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   const formatTime = (time: number) => {
-    if (isNaN(time) || time === 0) return '0:00';
+    if (isNaN(time) || time <= 0) return '0:00';
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (isAdminRoute || !currentTrack) {
+  if (isAdminRoute || (!currentTrack && !isLoading)) {
     return null;
   }
+
+  const trackTitle = isLoading && !currentTrack ? "Loading track..." : currentTrack?.title || "Select a song";
+  const trackArtist = isLoading && !currentTrack ? "Please wait..." : currentTrack?.artist || 'AI Generated';
 
   return (
     <div 
@@ -36,23 +39,19 @@ export const AudioPlayer = () => {
             size="icon" 
             onClick={togglePlayPause} 
             className="rounded-full h-10 w-10 bg-white/10 hover:bg-white/20 flex-shrink-0"
-            disabled={isLoading}
+            disabled={!currentTrack || (isLoading && !isPlaying)}
           >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
           </Button>
 
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate text-white">{currentTrack.title}</p>
-            {isLoading ? (
-              <p className="text-sm text-gray-400">Loading...</p>
-            ) : (
-              <p className="text-sm text-gray-400">{currentTrack.artist || 'AI Generated'}</p>
-            )}
+            <p className="font-semibold truncate text-white">{trackTitle}</p>
+            <p className="text-sm text-gray-400">{trackArtist}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs w-10 text-right text-gray-300">{formatTime(progress)}</span>
               <div className="flex-1">
                 <Progress 
-                  value={(progress / duration) * 100 || 0} 
+                  value={duration > 0 ? (progress / duration) * 100 : 0} 
                   className="h-2 bg-gray-700 [&>div]:bg-white"
                 />
               </div>
