@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -288,13 +287,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create song record with proper task_id field and null audio_url
+    // Create song record with exact credit amount
     const songData = {
       user_id: userId,
       title: title || 'Generating...',
       type: instrumental ? 'instrumental' : 'song',
-      task_id: taskId, // Store task ID in the proper field
-      audio_url: null, // Keep audio_url null initially
+      audio_url: taskId, // Store task ID temporarily
       prompt,
       status: 'pending',
       credits_used: isAdminTest ? 0 : 5
