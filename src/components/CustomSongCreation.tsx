@@ -366,10 +366,22 @@ const CustomSongCreation = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Choose Your Lyrics</CardTitle>
-              <CardDescription>
-                Our team has created these lyric options for you. Select one to continue.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Choose Your Lyrics</CardTitle>
+                  <CardDescription>
+                    Our team has created these lyric options for you. Select one to continue.
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={handleStartNewRequest}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create New Request
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
@@ -467,10 +479,22 @@ const CustomSongCreation = () => {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Create Your Instrumental</CardTitle>
-              <CardDescription>
-                Choose how many instrumental versions you want and select your favorite
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Create Your Instrumental</CardTitle>
+                  <CardDescription>
+                    Choose how many instrumental versions you want and select your favorite
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={handleStartNewRequest}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Request
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="rounded-md bg-amber-50 p-4 border border-amber-200">
@@ -637,18 +661,7 @@ const CustomSongCreation = () => {
               <Button
                 variant="ghost"
                 className="w-full"
-                onClick={() => {
-                  setStep('initial');
-                  setSelectedGenre("");
-                  setDescription("");
-                  setSelectedLyric(null);
-                  setSelectedVersion(null);
-                  setVersionCount(2);
-                  setSelectedVoiceId(null);
-                  setCurrentRequestId(null);
-                  setAvailableLyrics([]);
-                  setForceNewRequest(true);
-                }}
+                onClick={handleStartNewRequest}
               >
                 Create Another Custom Song
               </Button>
