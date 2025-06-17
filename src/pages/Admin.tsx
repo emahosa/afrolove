@@ -17,6 +17,7 @@ import { SupportManagement } from '@/components/admin/SupportManagement';
 import { ReportsAnalytics } from '@/components/admin/ReportsAnalytics';
 import { SettingsManagement } from '@/components/admin/SettingsManagement';
 import { GenreManagement } from '@/components/admin/GenreManagement';
+import { AffiliateManagementTab } from '@/components/admin/affiliate/AffiliateManagementTab'; // Added
 import { fetchUsersFromDatabase, ensureAdminUserExists } from '@/utils/adminOperations';
 
 interface AdminProps {
@@ -113,7 +114,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'reports': 'reports',
       'settings': 'settings',
       'custom-songs': 'custom-songs',
-      'genres': 'genres'
+      'genres': 'genres',
+      'affiliates': 'affiliates' // Added
     };
     
     const newTab = tabMapping[lastSegment] || 'users';
@@ -146,6 +148,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       'support': '/admin/support',
       'reports': '/admin/reports',
       'settings': '/admin/settings',
+      'affiliates': '/admin/affiliates', // Added
     };
     
     const targetUrl = tabToUrlMapping[value];
@@ -166,7 +169,8 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
       { id: 'payments', label: 'Payments', icon: DollarSign, permission: 'payments' },
       { id: 'support', label: 'Support', icon: Users, permission: 'support' },
       { id: 'reports', label: 'Reports', icon: BarChart, permission: 'reports' },
-      { id: 'settings', label: 'Settings', icon: Settings, permission: 'settings' }
+      { id: 'settings', label: 'Settings', icon: Settings, permission: 'settings' },
+      { id: 'affiliates', label: 'Affiliates', icon: Users, permission: 'affiliates' } // Added
     ];
 
     if (isSuperAdmin()) {
@@ -274,6 +278,7 @@ const Admin = ({ tab = 'users' }: AdminProps) => {
               {tabInfo.id === 'support' && <SupportManagement />}
               {tabInfo.id === 'reports' && <ReportsAnalytics />}
               {tabInfo.id === 'settings' && <SettingsManagement />}
+              {tabInfo.id === 'affiliates' && <AffiliateManagementTab />}
             </TabsContent>
           ))}
         </div>
