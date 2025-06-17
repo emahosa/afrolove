@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -119,8 +120,8 @@ Deno.serve(async (req) => {
       customMode: customMode,
       instrumental: instrumental,
       model: model,
-      callBackUrl: callBackUrl, // Corrected from callback_url to align with documentation
-      wait_audio: false // Ensure async response
+      callBackUrl: callBackUrl,
+      wait_audio: false
     }
 
     // Add optional fields based on mode
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
     // Use the correct endpoint from documentation
     let sunoResponse;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     try {
       sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
@@ -165,12 +166,10 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
-      // Re-throw other errors to be handled by the main catch block
       throw e;
     } finally {
       clearTimeout(timeoutId);
     }
-
 
     console.log('📥 Suno API response status:', sunoResponse.status)
     console.log('📥 Suno API response headers:', Object.fromEntries(sunoResponse.headers.entries()))
@@ -229,7 +228,6 @@ Deno.serve(async (req) => {
 
     console.log('📋 Parsed Suno response:', responseData)
 
-    // Check if the API returned success
     if (responseData.code !== 200) {
       console.error('❌ Suno API returned error code:', responseData.code, responseData.msg)
       return new Response(JSON.stringify({ 
@@ -244,18 +242,17 @@ Deno.serve(async (req) => {
     // Extract task ID from the response
     let taskId = null
     
-    // Suno API can return task ID in different shapes, so we check multiple possibilities
     if (responseData.data) {
       if (responseData.data.taskId) {
         taskId = responseData.data.taskId;
-      } else if (responseData.data.task_id) { // snake_case in data
+      } else if (responseData.data.task_id) {
         taskId = responseData.data.task_id;
       } else if (typeof responseData.data === 'string') {
         taskId = responseData.data;
       }
-    } else if (responseData.taskId) { // camelCase at root
+    } else if (responseData.taskId) {
       taskId = responseData.taskId;
-    } else if (responseData.task_id) { // snake_case at root
+    } else if (responseData.task_id) {
       taskId = responseData.task_id;
     }
 
@@ -274,7 +271,7 @@ Deno.serve(async (req) => {
     console.log('✅ Task ID received:', taskId)
 
     if (!isAdminTest) {
-      // Deduct exactly 5 credits (negative amount)
+      // Deduct exactly 5 credits
       const { error: creditError } = await supabase.rpc('update_user_credits', {
         p_user_id: userId,
         p_amount: -5
@@ -287,16 +284,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create song record with exact credit amount
+    // Create song record with the task_id properly stored
     const songData = {
       user_id: userId,
       title: title || 'Generating...',
       type: instrumental ? 'instrumental' : 'song',
-      audio_url: taskId, // Store task ID temporarily
       prompt,
       status: 'pending',
-      credits_used: isAdminTest ? 0 : 5
+      credits_used: isAdminTest ? 0 : 5,
+      task_id: taskId // This is the key fix - store task_id in the correct column
     }
+
+    console.log('💾 Creating song record with data:', songData)
 
     const { data: newSong, error: songError } = await supabase
       .from('songs')
@@ -316,6 +315,7 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ Song record created with ID:', newSong.id)
+    console.log('✅ Song record task_id stored as:', newSong.task_id)
     console.log('🎉 GENERATION REQUEST COMPLETED SUCCESSFULLY')
 
     return new Response(JSON.stringify({ 
