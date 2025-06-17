@@ -5,10 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const ProtectedRoute = () => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, isAffiliate, session } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAffiliateRoute = location.pathname.startsWith('/affiliate');
   
   // Show loading state only during initial auth check
   if (loading) {
@@ -46,9 +47,23 @@ const ProtectedRoute = () => {
       }
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
-  } else {
-    // Handle non-admin routes for Voters
-    const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+  }
+  
+  // Handle affiliate routes
+  if (isAffiliateRoute && location.pathname !== '/affiliate/apply') {
+    if (!isAffiliate()) {
+      console.log('ProtectedRoute: User lacks affiliate privileges for affiliate route');
+      if (!hasShownToast) {
+        toast.error("You don't have affiliate access. Please apply to become an affiliate first.");
+        setHasShownToast(true);
+      }
+      return <Navigate to="/affiliate/apply" state={{ from: location }} replace />;
+    }
+  }
+  
+  // Handle non-admin routes for Voters
+  if (!isAdminRoute && !isAffiliateRoute) {
+    const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin() && !isAffiliate();
     if (userIsOnlyVoter) {
       const allowedVoterPaths = ['/contest', '/dashboard', '/profile']; // Voters can see dashboard (locked features) and profile
       const isAllowedPathForVoter = allowedVoterPaths.some(p => location.pathname.startsWith(p));

@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleReferralParams } from '@/utils/referralTracking';
 
 interface ExtendedUser extends User {
   name?: string;
@@ -23,6 +25,7 @@ interface AuthContextType {
   isSuperAdmin: () => boolean;
   isVoter: () => boolean;
   isSubscriber: () => boolean;
+  isAffiliate: () => boolean;
   hasAdminPermission: (permission: string) => boolean;
   canAccessFeature: (feature: string) => boolean;
   userRoles: string[];
@@ -97,6 +100,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result;
   }, [userRoles, subscriberStatus]);
 
+  const isAffiliate = useCallback(() => {
+    const hasAffiliateRole = userRoles.includes('affiliate');
+    console.log('AuthContext: Affiliate check:', { roles: userRoles, hasAffiliateRole });
+    return hasAffiliateRole;
+  }, [userRoles]);
+
   const hasAdminPermission = useCallback((permission: string) => {
     // Super admin has all permissions
     if (isSuperAdmin()) return true;
@@ -113,6 +122,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return hasAdminPermission(feature.replace('admin_', ''));
     }
     
+    // Affiliates can access affiliate features
+    if (isAffiliate() && feature === 'affiliate') return true;
+    
     // Subscribers can access all regular features
     if (isSubscriber()) return true;
     
@@ -122,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     return false;
-  }, [isAdmin, isSuperAdmin, isSubscriber, isVoter, hasAdminPermission]);
+  }, [isAdmin, isSuperAdmin, isSubscriber, isVoter, isAffiliate, hasAdminPermission]);
 
   const updateUserCredits = async (amount: number) => {
     if (!user) return;
@@ -173,6 +185,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         console.log('AuthContext: Registration successful for:', data.user.id);
+        
+        // Handle referral tracking for new users
+        if (data.session) {
+          await handleReferralParams(data.user.id);
+        }
+        
         if (data.session) {
           return true;
         } else {
@@ -263,6 +281,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { data: isSubscriberResult } = await supabase
             .rpc('is_subscriber', { _user_id: userId });
           setSubscriberStatus(!!isSubscriberResult);
+
+          // Handle referral tracking for existing users (if they have a ref param)
+          await handleReferralParams(userId);
           
           const fullUser: ExtendedUser = {
             ...session.user,
@@ -313,6 +334,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSuperAdmin,
     isVoter,
     isSubscriber,
+    isAffiliate,
     hasAdminPermission,
     canAccessFeature,
     userRoles,
