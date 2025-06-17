@@ -15,6 +15,7 @@ interface Song {
   status: 'pending' | 'completed' | 'rejected' | 'approved';
   created_at: string;
   prompt?: string;
+  lyrics?: string;
   credits_used: number;
   duration?: number;
 }
@@ -24,7 +25,7 @@ interface GeneratedSongCardProps {
 }
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
-  const [showPrompt, setShowPrompt] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const { playTrack, currentTrack, isPlaying, isLoading } = useAudioPlayer();
 
   // Enhanced playable check with more detailed logging
@@ -219,22 +220,22 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               <Download className="h-4 w-4" />
             </Button>
             
-            {song.prompt && (
+            {song.lyrics && (
               <Button 
                 variant="outline" 
                 size="icon" 
-                onClick={() => setShowPrompt(!showPrompt)}
-                title={showPrompt ? "Hide Prompt" : "Show Prompt"}
+                onClick={() => setShowLyrics(!showLyrics)}
+                title={showLyrics ? "Hide Lyrics" : "Show Lyrics"}
               >
                 <FileText className="h-4 w-4" />
               </Button>
             )}
           </div>
           
-          {showPrompt && song.prompt && (
+          {showLyrics && song.lyrics && (
             <div className="mt-4 p-3 bg-muted/50 rounded-md border text-sm max-h-48 overflow-y-auto whitespace-pre-wrap">
-              <p className="font-semibold mb-2 text-primary">Prompt:</p>
-              {song.prompt}
+              <p className="font-semibold mb-2 text-primary">Lyrics:</p>
+              {song.lyrics}
             </div>
           )}
         </div>
