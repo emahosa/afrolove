@@ -21,6 +21,8 @@ import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
+import BecomeAffiliatePage from "./pages/BecomeAffiliate";
+import AffiliateDashboard from "./pages/AffiliateDashboard"; // Added
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -57,6 +59,7 @@ const App = () => (
               <Route path="/support" element={<Support />} />
               <Route path="/my-custom-songs" element={<UserCustomSongs />} />
               <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
+              <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
               
               {/* Admin routes */}
               <Route path="/admin" element={<Admin />} />
@@ -72,6 +75,15 @@ const App = () => (
               <Route path="/admin/support" element={<Admin tab="support" />} />
               <Route path="/admin/reports" element={<Admin tab="reports" />} />
               <Route path="/admin/settings" element={<Admin tab="settings" />} />
+            </Route>
+          </Route>
+
+          {/* Affiliate Panel Routes */}
+          <Route element={<ProtectedRoute allowedRoles={['affiliate', 'admin', 'super_admin']} />}> {/* admin/super_admin for testing */}
+            <Route element={<AppLayout />}>
+              <Route path="/affiliate" element={<AffiliateDashboard />} />
+              {/* <Route path="/affiliate/payouts" element={<AffiliatePayoutsPage />} /> */}
+              {/* <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} /> */}
             </Route>
           </Route>
           

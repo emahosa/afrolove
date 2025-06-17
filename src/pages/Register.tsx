@@ -46,8 +46,11 @@ const Register = () => {
     
     setLoading(true);
     try {
-      console.log("Register: Registering user:", { email, name });
-      const success = await register(name, email, password);
+      const queryParams = new URLSearchParams(window.location.search);
+      const referralCode = queryParams.get('ref');
+
+      console.log("Register: Registering user:", { email, name, referralCode });
+      const success = await register(name, email, password, referralCode);
       
       if (success) {
         toast.success("Registration successful! Welcome to Afroverse!");

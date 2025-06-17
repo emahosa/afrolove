@@ -4,8 +4,12 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-const ProtectedRoute = () => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session } = useAuth();
+interface ProtectedRouteProps {
+  allowedRoles?: string[];
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -31,8 +35,36 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Handle role-based access if allowedRoles is provided
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
+    if (!hasRequiredRole) {
+      console.log(`ProtectedRoute: User ${user.id} lacks required roles for this route. Needed: ${allowedRoles.join(', ')}, Has: ${userRoles.join(', ')}`);
+      if (!hasShownToast) {
+        toast.error("You do not have the necessary permissions to access this page.");
+        setHasShownToast(true);
+      }
+      return <Navigate to="/dashboard" state={{ from: location }} replace />;
+    }
+  }
+  // Note: The duplicated login check that was here has been removed.
+
   // Handle admin routes
+  // This check is specific to /admin/* paths and can coexist with allowedRoles for non-admin paths.
+  // For admin paths, this provides more granular control or specific logic if needed beyond just role presence.
   if (isAdminRoute) {
+    // If user is not admin or super_admin, they shouldn't access admin routes.
+    // This also implies that admin routes don't *need* to pass allowedRoles if this block is sufficient.
+    // Or, if they do, this becomes a secondary check.
+    if (!isAdmin() && !isSuperAdmin()) {
+      console.log('ProtectedRoute: User lacks admin privileges for admin route.');
+      if (!hasShownToast) {
+        toast.error("You don't have admin privileges to access this page");
+        setHasShownToast(true);
+      }
+      return <Navigate to="/dashboard" state={{ from: location }} replace />;
+    }
+    // If user is admin/super_admin, further checks inside admin pages can handle specific permissions.
     if (isSuperAdmin()) {
       console.log('ProtectedRoute: Super admin access granted for admin route');
     } else if (isAdmin()) {

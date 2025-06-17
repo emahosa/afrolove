@@ -17,7 +17,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<LoginResponse>;
-  register: (fullName: string, email: string, password: string) => Promise<boolean>;
+  register: (fullName: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
@@ -28,6 +28,7 @@ interface AuthContextType {
   userRoles: string[];
   adminPermissions: string[];
   updateUserCredits: (amount: number) => Promise<void>;
+  isAffiliate: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -97,6 +98,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result;
   }, [userRoles, subscriberStatus]);
 
+  const isAffiliate = useCallback(() => {
+    const hasAffiliateRole = userRoles.includes('affiliate');
+    console.log('AuthContext: Affiliate check:', { roles: userRoles, hasAffiliateRole });
+    return hasAffiliateRole;
+  }, [userRoles]);
+
   const hasAdminPermission = useCallback((permission: string) => {
     // Super admin has all permissions
     if (isSuperAdmin()) return true;
@@ -151,9 +158,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const register = async (fullName: string, email: string, password: string): Promise<boolean> => {
+  const register = async (fullName: string, email: string, password: string, referralCode?: string | null): Promise<boolean> => {
     try {
-      console.log('AuthContext: Attempting registration for:', email);
+      console.log('AuthContext: Attempting registration for:', email, 'Referral Code:', referralCode);
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -173,9 +180,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         console.log('AuthContext: Registration successful for:', data.user.id);
+
+        if (referralCode) {
+          try {
+            console.log('AuthContext: Processing referral code:', referralCode);
+            const { data: affiliateData, error: affiliateError } = await supabase
+              .from('affiliate_applications')
+              .select('user_id')
+              .eq('unique_referral_code', referralCode)
+              .eq('status', 'approved')
+              .limit(1)
+              .single();
+
+            if (affiliateError) {
+              console.error('AuthContext: Error querying affiliate application by referral code:', affiliateError.message);
+              // Do not throw, let registration proceed
+            }
+
+            if (affiliateData && affiliateData.user_id) {
+              const affiliateUserId = affiliateData.user_id;
+              console.log('AuthContext: Found affiliate user ID:', affiliateUserId, 'for referral code:', referralCode);
+
+              const { error: profileUpdateError } = await supabase
+                .from('profiles')
+                .update({ referrer_id: affiliateUserId })
+                .eq('id', data.user.id);
+
+              if (profileUpdateError) {
+                console.error('AuthContext: Error updating profile with referrer_id:', profileUpdateError.message);
+                // Do not throw, let registration proceed
+              } else {
+                console.log('AuthContext: Successfully updated profile for user', data.user.id, 'with referrer_id', affiliateUserId);
+              }
+            } else {
+              console.log('AuthContext: No approved affiliate found for referral code:', referralCode);
+            }
+          } catch (referralProcessingError: any) {
+            console.error('AuthContext: Unexpected error during referral processing:', referralProcessingError.message);
+            // Do not throw, let registration proceed
+          }
+        }
+
         if (data.session) {
+          // User might be auto-logged in if email verification is not required or already verified.
           return true;
         } else {
+          // Standard flow: email verification required.
           toast.success('Registration successful! Please check your email to verify your account.');
           return true;
         }
@@ -317,7 +367,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     canAccessFeature,
     userRoles,
     adminPermissions,
-    updateUserCredits
+    updateUserCredits,
+    isAffiliate
   };
 
   return (
