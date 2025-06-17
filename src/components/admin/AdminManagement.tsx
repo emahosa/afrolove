@@ -8,7 +8,6 @@ import { SupportManagement } from "./SupportManagement";
 import { SettingsManagement } from "./SettingsManagement";
 import { ContestManagement } from "./ContestManagement";
 import { GenreManagement } from "./GenreManagement";
-import AffiliateManagement from "./AffiliateManagement";
 
 interface AdminManagementProps {
   users?: any[];
@@ -31,12 +30,11 @@ export const AdminManagement = ({
       </div>
       
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-9">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-8">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
           <TabsTrigger value="genres">Genres</TabsTrigger>
           <TabsTrigger value="contests">Contests</TabsTrigger>
-          <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
@@ -57,10 +55,6 @@ export const AdminManagement = ({
         
         <TabsContent value="contests">
           <ContestManagement />
-        </TabsContent>
-        
-        <TabsContent value="affiliates">
-          <AffiliateManagement />
         </TabsContent>
         
         <TabsContent value="payments">

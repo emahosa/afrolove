@@ -1,35 +1,65 @@
+import * as z from 'zod';
+import { UserRole } from './types';
 
-import { z } from 'zod';
+// Define an array of UserRole values for Zod enum
+const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber"] as const;
+
+export const ADMIN_PERMISSIONS = [
+  { id: 'users', label: 'User Management' },
+  { id: 'content', label: 'Content Management' },
+  { id: 'genres', label: 'Genre Management' },
+  { id: 'custom-songs', label: 'Custom Songs' },
+  { id: 'suno-api', label: 'Suno API' },
+  { id: 'contest', label: 'Contest Management' },
+  { id: 'payments', label: 'Payment Management' },
+  { id: 'support', label: 'Support Management' },
+  { id: 'reports', label: 'Reports & Analytics' },
+  { id: 'settings', label: 'Settings Management' }
+];
 
 export const userFormSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Valid email is required'),
-  credits: z.number().min(0, 'Credits must be non-negative'),
-  status: z.enum(['active', 'suspended']).optional(),
-  role: z.enum(['admin', 'moderator', 'user', 'super_admin', 'voter', 'subscriber', 'affiliate']).default('voter'),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
+  status: z.enum(["active", "suspended"]).default("active"),
+  role: z.enum(userRoleValues).default("voter" as UserRole),
   permissions: z.array(z.string()).optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
-  confirmPassword: z.string().optional().or(z.literal('')),
-}).refine((data) => {
-  if (data.password && data.confirmPassword) {
-    return data.password === data.confirmPassword;
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // This refine is for AddUserDialog where password might be set.
+  // For EditUserDialog, password is not part of this form schema directly handled.
+  if (data.password || data.confirmPassword) { // If either password field is touched or has a value
+    if (!data.password || data.password.length === 0) {
+      // If confirmPassword has a value but password doesn't.
+      if (data.confirmPassword && data.confirmPassword.length > 0) {
+         ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Password is required if confirm password is set.",
+          path: ["password"],
+        });
+      }
+      // If both are empty or undefined, this block is skipped, which is fine.
+    } else { // Password has a value
+      if (data.password.length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          minimum: 8,
+          type: "string",
+          inclusive: true,
+          message: "Password must be at least 8 characters.",
+          path: ["password"],
+        });
+      }
+      if (data.password !== data.confirmPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Passwords do not match.",
+          path: ["confirmPassword"],
+        });
+      }
+    }
   }
-  return true;
-}, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
 });
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
-
-export const adminPermissions = [
-  'manage_users',
-  'manage_content',
-  'manage_payments',
-  'manage_settings',
-  'view_analytics',
-  'manage_contests',
-  'manage_genres',
-  'manage_affiliates',
-  'manage_api_keys'
-];

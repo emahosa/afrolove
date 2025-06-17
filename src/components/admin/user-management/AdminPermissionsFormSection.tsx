@@ -2,7 +2,7 @@
 import React from 'react';
 import { FormLabel } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { adminPermissions } from './config';
+import { ADMIN_PERMISSIONS } from './config';
 
 interface AdminPermissionsFormSectionProps {
   selectedPermissions: string[];
@@ -19,20 +19,20 @@ export const AdminPermissionsFormSection: React.FC<AdminPermissionsFormSectionPr
     <div className="space-y-3">
       <FormLabel>Admin Permissions</FormLabel>
       <div className="grid grid-cols-2 gap-2">
-        {adminPermissions.map(permission => (
-          <div key={permission} className="flex items-center space-x-2">
+        {ADMIN_PERMISSIONS.map(permission => (
+          <div key={permission.id} className="flex items-center space-x-2">
             <Checkbox
-              id={`${dialogType}-dialog-${permission}`}
-              checked={selectedPermissions.includes(permission)}
+              id={`${dialogType}-dialog-${permission.id}`}
+              checked={selectedPermissions.includes(permission.id)}
               onCheckedChange={(checked) => 
-                onPermissionChange(permission, checked as boolean)
+                onPermissionChange(permission.id, checked as boolean)
               }
             />
             <label
-              htmlFor={`${dialogType}-dialog-${permission}`}
+              htmlFor={`${dialogType}-dialog-${permission.id}`}
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {permission.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {permission.label}
             </label>
           </div>
         ))}
