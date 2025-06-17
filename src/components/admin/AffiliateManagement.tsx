@@ -46,7 +46,6 @@ interface Affiliate {
     username: string;
   };
   referrals: { count: number }[];
-  affiliate_commissions: { sum: { commission_amount: number } }[];
 }
 
 interface WithdrawalRequest {
@@ -89,21 +88,38 @@ const AffiliateManagement = () => {
         .order('created_at', { ascending: false });
 
       if (applicationsError) throw applicationsError;
-      setApplications(applicationsData || []);
+      
+      const typedApplications = (applicationsData || []).map(app => ({
+        ...app,
+        status: app.status as 'pending' | 'approved' | 'rejected'
+      }));
+      setApplications(typedApplications);
 
       // Load affiliates with stats
       const { data: affiliatesData, error: affiliatesError } = await supabase
         .from('affiliates')
         .select(`
           *,
-          profiles!affiliates_user_id_fkey (full_name, username),
-          referrals (count),
-          affiliate_commissions (commission_amount.sum())
+          profiles!affiliates_user_id_fkey (full_name, username)
         `)
         .order('created_at', { ascending: false });
 
       if (affiliatesError) throw affiliatesError;
-      setAffiliates(affiliatesData || []);
+      
+      // Get referral counts separately
+      const affiliatesWithCounts = await Promise.all((affiliatesData || []).map(async (affiliate) => {
+        const { count } = await supabase
+          .from('referrals')
+          .select('*', { count: 'exact', head: true })
+          .eq('referrer_id', affiliate.id);
+        
+        return {
+          ...affiliate,
+          referrals: [{ count: count || 0 }]
+        };
+      }));
+      
+      setAffiliates(affiliatesWithCounts);
 
       // Load withdrawal requests
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
@@ -118,7 +134,12 @@ const AffiliateManagement = () => {
         .order('requested_at', { ascending: false });
 
       if (withdrawalsError) throw withdrawalsError;
-      setWithdrawals(withdrawalsData || []);
+      
+      const typedWithdrawals = (withdrawalsData || []).map(withdrawal => ({
+        ...withdrawal,
+        status: withdrawal.status as 'pending' | 'approved' | 'rejected' | 'paid'
+      }));
+      setWithdrawals(typedWithdrawals);
 
     } catch (error: any) {
       console.error('Error loading affiliate data:', error);

@@ -73,19 +73,32 @@ const AffiliateDashboard = () => {
       if (affiliateError) throw affiliateError;
       setAffiliateData(affiliate);
 
-      // Load referrals
+      // Load referrals with proper join
       const { data: referralsData, error: referralsError } = await supabase
         .from('referrals')
         .select(`
           *,
-          profiles!referrals_referred_user_id_fkey (full_name, username),
-          user_roles!inner (role)
+          profiles!referrals_referred_user_id_fkey (full_name, username)
         `)
         .eq('referrer_id', affiliate.id)
         .order('created_at', { ascending: false });
 
       if (referralsError) throw referralsError;
-      setReferrals(referralsData || []);
+
+      // Get user roles separately for each referral
+      const referralsWithRoles = await Promise.all((referralsData || []).map(async (referral) => {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', referral.referred_user_id);
+        
+        return {
+          ...referral,
+          user_roles: roles || []
+        };
+      }));
+
+      setReferrals(referralsWithRoles);
 
       // Load commissions
       const { data: commissionsData, error: commissionsError } = await supabase

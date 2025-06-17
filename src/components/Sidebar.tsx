@@ -80,7 +80,6 @@ const Sidebar = ({ open, setOpen }: SidebarProps) => {
               <Link
                 key={item.name}
                 to={item.href}
-                onClick={() => setOpen(false)}
                 className={cn(
                   'flex items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors',
                   location.pathname === item.href

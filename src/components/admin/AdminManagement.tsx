@@ -8,7 +8,7 @@ import { SupportManagement } from "./SupportManagement";
 import { SettingsManagement } from "./SettingsManagement";
 import { ContestManagement } from "./ContestManagement";
 import { GenreManagement } from "./GenreManagement";
-import { AffiliateManagement } from "./AffiliateManagement";
+import AffiliateManagement from "./AffiliateManagement";
 
 interface AdminManagementProps {
   users?: any[];
