@@ -1,8 +1,8 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Function to initialize Supabase admin client
 const getSupabaseAdmin = (): SupabaseClient => {
   return createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -14,7 +14,7 @@ interface UserRole {
   role: string;
 }
 
-interface ApprovePayoutPayload {
+interface ApprovePayload {
   payout_request_id: string;
   admin_notes?: string;
 }
@@ -25,7 +25,6 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Authentication & Authorization
     const userSupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -56,15 +55,13 @@ serve(async (req) => {
     const userRoles = userRolesData?.map((item: UserRole) => item.role) || [];
     const knownSuperAdminEmail = Deno.env.get('SUPER_ADMIN_EMAIL') || 'ellaadahosa@gmail.com';
 
-
     if (user.email !== knownSuperAdminEmail && !userRoles.includes('super_admin')) {
       return new Response(JSON.stringify({ error: 'Forbidden: You do not have permission to perform this action.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403,
       });
     }
 
-    // 2. Request Parameters
-    const payload: ApprovePayoutPayload = await req.json();
+    const payload: ApprovePayload = await req.json();
     const { payout_request_id, admin_notes } = payload;
 
     if (!payout_request_id) {
@@ -73,8 +70,6 @@ serve(async (req) => {
       });
     }
 
-    // 3. Logic
-    // Fetch the payout request
     const { data: payoutRequest, error: fetchError } = await supabaseAdmin
       .from('affiliate_payout_requests')
       .select('id, status')
@@ -83,7 +78,7 @@ serve(async (req) => {
 
     if (fetchError || !payoutRequest) {
       console.error('Error fetching payout request or not found:', fetchError?.message);
-      return new Response(JSON.stringify({ error: 'Affiliate payout request not found.' }), {
+      return new Response(JSON.stringify({ error: 'Payout request not found.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404,
       });
     }
@@ -94,33 +89,32 @@ serve(async (req) => {
       });
     }
 
-    // Prepare update payload
-    const updateData: { status: string; processed_at: string; updated_at: string; admin_notes?: string } = {
+    const updatePayload: { status: string; processed_at: string; updated_at: string; admin_notes?: string } = {
       status: 'approved',
       processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     if (admin_notes) {
-      updateData.admin_notes = admin_notes;
+      updatePayload.admin_notes = admin_notes;
     }
 
     const { data: updatedRequest, error: updateError } = await supabaseAdmin
       .from('affiliate_payout_requests')
-      .update(updateData)
+      .update(updatePayload)
       .eq('id', payout_request_id)
-      .select() // Select all fields of the updated record
+      .select()
       .single();
 
     if (updateError || !updatedRequest) {
-      console.error('Error approving payout request:', updateError?.message);
+      console.error('Error updating payout request to approved:', updateError?.message);
       return new Response(JSON.stringify({ error: 'Failed to approve payout request.', details: updateError?.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
       });
     }
 
     return new Response(JSON.stringify({
-      message: 'Affiliate payout request approved successfully.',
+      message: 'Payout request approved successfully.',
       payout_request: updatedRequest
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
@@ -128,11 +122,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unhandled error in approve-affiliate-payout-request:', error);
-    if (error instanceof SyntaxError) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload.' , details: error.message}), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
-        });
-    }
     return new Response(JSON.stringify({ error: 'An unexpected error occurred.', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
     });

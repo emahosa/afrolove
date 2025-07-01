@@ -1,8 +1,8 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Function to initialize Supabase admin client
 const getSupabaseAdmin = (): SupabaseClient => {
   return createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -14,9 +14,9 @@ interface UserRole {
   role: string;
 }
 
-interface RejectPayoutPayload {
+interface RejectPayload {
   payout_request_id: string;
-  admin_notes: string; // Required for rejection
+  admin_notes: string;
 }
 
 serve(async (req) => {
@@ -25,7 +25,6 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Authentication & Authorization
     const userSupabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -62,8 +61,7 @@ serve(async (req) => {
       });
     }
 
-    // 2. Request Parameters
-    const payload: RejectPayoutPayload = await req.json();
+    const payload: RejectPayload = await req.json();
     const { payout_request_id, admin_notes } = payload;
 
     if (!payout_request_id) {
@@ -71,14 +69,13 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
       });
     }
+
     if (!admin_notes || admin_notes.trim() === '') {
-      return new Response(JSON.stringify({ error: 'admin_notes (rejection reason) is required' }), {
+      return new Response(JSON.stringify({ error: 'admin_notes is required for rejection' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
       });
     }
 
-    // 3. Logic
-    // Fetch the payout request
     const { data: payoutRequest, error: fetchError } = await supabaseAdmin
       .from('affiliate_payout_requests')
       .select('id, status')
@@ -87,7 +84,7 @@ serve(async (req) => {
 
     if (fetchError || !payoutRequest) {
       console.error('Error fetching payout request or not found:', fetchError?.message);
-      return new Response(JSON.stringify({ error: 'Affiliate payout request not found.' }), {
+      return new Response(JSON.stringify({ error: 'Payout request not found.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404,
       });
     }
@@ -98,30 +95,29 @@ serve(async (req) => {
       });
     }
 
-    // Prepare update payload
-    const updateData = {
+    const updatePayload = {
       status: 'rejected',
       processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      admin_notes: admin_notes.trim(),
+      admin_notes: admin_notes,
     };
 
     const { data: updatedRequest, error: updateError } = await supabaseAdmin
       .from('affiliate_payout_requests')
-      .update(updateData)
+      .update(updatePayload)
       .eq('id', payout_request_id)
-      .select() // Select all fields of the updated record
+      .select()
       .single();
 
     if (updateError || !updatedRequest) {
-      console.error('Error rejecting payout request:', updateError?.message);
+      console.error('Error updating payout request to rejected:', updateError?.message);
       return new Response(JSON.stringify({ error: 'Failed to reject payout request.', details: updateError?.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
       });
     }
 
     return new Response(JSON.stringify({
-      message: 'Affiliate payout request rejected successfully.',
+      message: 'Payout request rejected successfully.',
       payout_request: updatedRequest
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
@@ -129,11 +125,6 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unhandled error in reject-affiliate-payout-request:', error);
-     if (error instanceof SyntaxError) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON payload.' , details: error.message}), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
-        });
-    }
     return new Response(JSON.stringify({ error: 'An unexpected error occurred.', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
     });

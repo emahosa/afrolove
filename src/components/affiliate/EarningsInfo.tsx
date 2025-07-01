@@ -1,84 +1,89 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { DollarSign, TrendingUp, AlertCircle, Loader2, Send } from 'lucide-react';
-import { format, startOfMonth, isSameMonth } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, AlertCircle, DollarSign, TrendingUp, Wallet } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EarningsInfoProps {
   affiliateId: string;
 }
 
-interface Commission {
-  amount_earned: number;
-  commission_month: string; // YYYY-MM-DD
+interface EarningsData {
+  totalEarned: number;
+  availableBalance: number;
+  pendingPayouts: number;
+  totalPaidOut: number;
+  thisMonthEarnings: number;
 }
-
-interface PayoutRequest {
-  requested_amount: number;
-  status: 'pending' | 'approved' | 'rejected' | 'paid';
-}
-
-const MINIMUM_PAYOUT_THRESHOLD = parseFloat(process.env.NEXT_PUBLIC_MINIMUM_PAYOUT_THRESHOLD || "10");
-
 
 const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
-  const [totalEarned, setTotalEarned] = useState(0);
-  const [currentMonthEarned, setCurrentMonthEarned] = useState(0);
-  const [pendingPayouts, setPendingPayouts] = useState(0);
-  const [availableBalance, setAvailableBalance] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [earnings, setEarnings] = useState<EarningsData>({
+    totalEarned: 0,
+    availableBalance: 0,
+    pendingPayouts: 0,
+    totalPaidOut: 0,
+    thisMonthEarnings: 0,
+  });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestAmount, setRequestAmount] = useState('');
+  const [requestingPayout, setRequestingPayout] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const [payoutAmount, setPayoutAmount] = useState('');
-  const [payoutLoading, setPayoutLoading] = useState(false);
-
-  const fetchEarningsData = useCallback(async () => {
+  const fetchEarnings = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      // Fetch all commissions
-      const { data: commissionsData, error: commissionsError } = await supabase
+      // Fetch total commissions
+      const { data: commissions, error: commissionsError } = await supabase
         .from('affiliate_commissions')
-        .select('amount_earned, commission_month')
+        .select('amount_earned')
         .eq('affiliate_user_id', affiliateId);
 
-      if (commissionsError) throw new Error(`Fetching commissions: ${commissionsError.message}`);
+      if (commissionsError) throw new Error(`Failed to fetch commissions: ${commissionsError.message}`);
 
-      const total = commissionsData?.reduce((sum, r) => sum + Number(r.amount_earned), 0) || 0;
-      setTotalEarned(total);
+      const totalEarned = commissions?.reduce((sum, record) => sum + Number(record.amount_earned), 0) || 0;
 
-      const today = new Date();
-      const currentMonth = commissionsData
-        ?.filter(r => isSameMonth(parseISO(r.commission_month), today))
-        .reduce((sum, r) => sum + Number(r.amount_earned), 0) || 0;
-      setCurrentMonthEarned(currentMonth);
+      // Fetch this month's earnings
+      const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+      const thisMonthCommissions = commissions?.filter(c => 
+        new Date(c.commission_month || currentMonth).toISOString().substring(0, 7) === new Date().toISOString().substring(0, 7)
+      ) || [];
+      const thisMonthEarnings = thisMonthCommissions.reduce((sum, record) => sum + Number(record.amount_earned), 0);
 
-      // Fetch all payout requests
-      const { data: payoutsData, error: payoutsError } = await supabase
+      // Fetch payout requests
+      const { data: payouts, error: payoutsError } = await supabase
         .from('affiliate_payout_requests')
         .select('requested_amount, status')
         .eq('affiliate_user_id', affiliateId);
 
-      if (payoutsError) throw new Error(`Fetching payout requests: ${payoutsError.message}`);
+      if (payoutsError) throw new Error(`Failed to fetch payouts: ${payoutsError.message}`);
 
-      const pending = payoutsData
-        ?.filter(p => p.status === 'pending' || p.status === 'approved')
-        .reduce((sum, p) => sum + Number(p.requested_amount), 0) || 0;
-      setPendingPayouts(pending);
+      const pendingPayouts = payouts?.filter(p => p.status === 'pending' || p.status === 'approved')
+        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
 
-      setAvailableBalance(total - pending);
+      const totalPaidOut = payouts?.filter(p => p.status === 'paid')
+        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
+
+      const availableBalance = totalEarned - pendingPayouts - totalPaidOut;
+
+      setEarnings({
+        totalEarned,
+        availableBalance: Math.max(0, availableBalance),
+        pendingPayouts,
+        totalPaidOut,
+        thisMonthEarnings,
+      });
 
     } catch (err: any) {
-      console.error("Error fetching earnings data:", err);
-      setError(err.message);
-      setTotalEarned(0);
-      setCurrentMonthEarned(0);
-      setPendingPayouts(0);
-      setAvailableBalance(0);
+      console.error("Error in fetchEarnings:", err);
+      setError(err.message || "An unexpected error occurred while fetching earnings.");
     } finally {
       setLoading(false);
     }
@@ -86,47 +91,45 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
 
   useEffect(() => {
     if (affiliateId) {
-      fetchEarningsData();
+      fetchEarnings();
     }
-  }, [affiliateId, fetchEarningsData]);
+  }, [affiliateId, fetchEarnings]);
 
-  const handlePayoutRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amount = parseFloat(payoutAmount);
-
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Please enter a valid positive amount.");
+  const handleRequestPayout = async () => {
+    const amount = parseFloat(requestAmount);
+    
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount.");
       return;
     }
-    if (amount > availableBalance) {
+
+    if (amount > earnings.availableBalance) {
       toast.error("Requested amount exceeds available balance.");
       return;
     }
-    if (amount < MINIMUM_PAYOUT_THRESHOLD) {
-        toast.error(`Minimum payout amount is $${MINIMUM_PAYOUT_THRESHOLD.toFixed(2)}.`);
-        return;
+
+    if (amount < 10) {
+      toast.error("Minimum payout amount is $10.");
+      return;
     }
 
-
-    setPayoutLoading(true);
+    setRequestingPayout(true);
     try {
-      const { data, error } = await supabase.functions.invoke('request-affiliate-payout', {
+      const { error } = await supabase.functions.invoke('request-affiliate-payout', {
         body: { requested_amount: amount },
       });
 
-      if (error) {
-         const errMessage = error.context?.error_details || error.message || "Failed to request payout.";
-         toast.error(errMessage, { description: error.context?.error });
-      } else {
-        toast.success(data?.message || "Payout request submitted successfully!");
-        setPayoutAmount(''); // Clear input
-        fetchEarningsData(); // Refresh earnings data
-      }
+      if (error) throw error;
+
+      toast.success("Payout request submitted successfully!");
+      setRequestAmount('');
+      setIsDialogOpen(false);
+      fetchEarnings(); // Refresh earnings data
     } catch (err: any) {
-      console.error("Unexpected error requesting payout:", err);
-      toast.error("An unexpected error occurred while requesting payout.");
+      console.error("Error requesting payout:", err);
+      toast.error(err.message || "Failed to request payout.");
     } finally {
-      setPayoutLoading(false);
+      setRequestingPayout(false);
     }
   };
 
@@ -134,15 +137,15 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
   };
 
-  if (loading) {
+  if (loading && earnings.totalEarned === 0) {
     return (
-      <Card className="col-span-1 md:col-span-2">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5" />Earnings & Payout</CardTitle>
+          <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5" /> Earnings Overview</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center items-center p-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading earnings data...</span>
+          <span className="ml-2">Loading earnings...</span>
         </CardContent>
       </Card>
     );
@@ -150,9 +153,9 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
 
   if (error) {
     return (
-      <Card className="col-span-1 md:col-span-2">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5" />Earnings & Payout</CardTitle>
+          <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5" /> Earnings Overview</CardTitle>
         </CardHeader>
         <CardContent className="text-red-600 p-4 bg-red-100 border border-red-300 rounded-md flex items-center">
           <AlertCircle className="h-5 w-5 mr-2" />Error: {error}
@@ -162,53 +165,107 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
   }
 
   return (
-    <Card className="col-span-1 md:col-span-2">
+    <Card>
       <CardHeader>
-        <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5" />Earnings & Payout</CardTitle>
-        <CardDescription>View your earnings summary and request payouts.</CardDescription>
+        <CardTitle className="flex items-center">
+          <DollarSign className="mr-2 h-5 w-5" /> Earnings Overview
+        </CardTitle>
+        <CardDescription>Track your affiliate commissions and manage payouts</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center md:text-left">
-          <div>
-            <p className="text-sm text-muted-foreground">Total Earned</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalEarned)}</p>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Total Earned</p>
+                <p className="text-2xl font-bold text-green-700">{formatCurrency(earnings.totalEarned)}</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-green-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Earned This Month ({format(new Date(), 'MMMM')})</p>
-            <p className="text-2xl font-bold">{formatCurrency(currentMonthEarned)}</p>
+          
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Available Balance</p>
+                <p className="text-2xl font-bold text-blue-700">{formatCurrency(earnings.availableBalance)}</p>
+              </div>
+              <Wallet className="h-8 w-8 text-blue-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Available for Payout</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(availableBalance)}</p>
+          
+          <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-yellow-600">Pending Payouts</p>
+                <p className="text-2xl font-bold text-yellow-700">{formatCurrency(earnings.pendingPayouts)}</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-yellow-600" />
+            </div>
+          </div>
+          
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">This Month</p>
+                <p className="text-2xl font-bold text-purple-700">{formatCurrency(earnings.thisMonthEarnings)}</p>
+              </div>
+              <TrendingUp className="h-8 w-8 text-purple-600" />
+            </div>
           </div>
         </div>
-        <form onSubmit={handlePayoutRequest} className="space-y-4 pt-4 border-t">
-          <div>
-            <Label htmlFor="payoutAmount" className="text-base">Request Payout</Label>
-            <div className="flex items-center space-x-2 mt-1">
-              <Input
-                id="payoutAmount"
-                type="number"
-                step="0.01"
-                placeholder={`Min. ${formatCurrency(MINIMUM_PAYOUT_THRESHOLD)}`}
-                value={payoutAmount}
-                onChange={(e) => setPayoutAmount(e.target.value)}
-                className="max-w-xs"
-                disabled={payoutLoading || availableBalance < MINIMUM_PAYOUT_THRESHOLD}
-              />
-              <Button type="submit" disabled={payoutLoading || availableBalance < MINIMUM_PAYOUT_THRESHOLD || parseFloat(payoutAmount) > availableBalance}>
-                {payoutLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                {payoutLoading ? 'Requesting...' : 'Request Payout'}
+
+        <div className="flex justify-center">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="w-full md:w-auto" 
+                disabled={earnings.availableBalance < 10}
+              >
+                Request Payout
               </Button>
-            </div>
-            {availableBalance < MINIMUM_PAYOUT_THRESHOLD && (
-                <p className="text-xs text-amber-600 mt-1">
-                    You need at least {formatCurrency(MINIMUM_PAYOUT_THRESHOLD)} in available balance to request a payout.
-                </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">Pending payouts: {formatCurrency(pendingPayouts)}</p>
-          </div>
-        </form>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Request Payout</DialogTitle>
+                <DialogDescription>
+                  Enter the amount you'd like to withdraw. Minimum payout is $10.
+                  Available balance: {formatCurrency(earnings.availableBalance)}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="amount">Payout Amount ($)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                    value={requestAmount}
+                    onChange={(e) => setRequestAmount(e.target.value)}
+                    min="10"
+                    max={earnings.availableBalance}
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleRequestPayout} disabled={requestingPayout}>
+                  {requestingPayout ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Request Payout
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {earnings.availableBalance < 10 && (
+          <p className="text-sm text-muted-foreground text-center mt-2">
+            Minimum payout amount is $10. Keep earning to unlock payouts!
+          </p>
+        )}
       </CardContent>
     </Card>
   );
