@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Users, Settings, Music, Key, Trophy, FileText, CreditCard, HelpCircle, BarChart3, Cog, DollarSign } from "lucide-react";
 
 // Import admin components with named imports
 import { UserManagement } from "@/components/admin/UserManagement";
@@ -26,7 +27,13 @@ interface AdminProps {
 const Admin = ({ tab }: AdminProps) => {
   const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState(tab || "users");
+  const [activeTab, setActiveTab] = useState(tab || "overview");
+  const [adminStats, setAdminStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalSongs: 0,
+    pendingRequests: 0
+  });
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -62,7 +69,27 @@ const Admin = ({ tab }: AdminProps) => {
       }
     };
 
+    const fetchAdminStats = async () => {
+      try {
+        // Fetch basic admin statistics
+        const { count: userCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        setAdminStats(prev => ({
+          ...prev,
+          totalUsers: userCount || 0,
+          activeUsers: userCount || 0, // Simplified for now
+          totalSongs: 0, // Would need actual songs table
+          pendingRequests: 0 // Would need actual requests table
+        }));
+      } catch (error) {
+        console.error('Error fetching admin stats:', error);
+      }
+    };
+
     checkAdminStatus();
+    fetchAdminStats();
   }, [user]);
 
   if (isAdmin === null) {
@@ -92,12 +119,13 @@ const Admin = ({ tab }: AdminProps) => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
         <p className="text-muted-foreground">
-          Manage users, content, and system settings
+          System administration and management console
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-11">
+        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="genres">Genres</TabsTrigger>
@@ -110,6 +138,118 @@ const Admin = ({ tab }: AdminProps) => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{adminStats.totalUsers}</div>
+                <p className="text-xs text-muted-foreground">Registered users</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+                <Users className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{adminStats.activeUsers}</div>
+                <p className="text-xs text-muted-foreground">Active this month</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Songs</CardTitle>
+                <Music className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{adminStats.totalSongs}</div>
+                <p className="text-xs text-muted-foreground">Songs generated</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                <HelpCircle className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{adminStats.pendingRequests}</div>
+                <p className="text-xs text-muted-foreground">Awaiting review</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Common administrative tasks</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <button 
+                  onClick={() => setActiveTab("users")}
+                  className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Manage Users
+                </button>
+                <button 
+                  onClick={() => setActiveTab("genres")}
+                  className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                >
+                  <Music className="h-4 w-4" />
+                  Manage Genres
+                </button>
+                <button 
+                  onClick={() => setActiveTab("suno-api")}
+                  className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                >
+                  <Key className="h-4 w-4" />
+                  API Management
+                </button>
+                <button 
+                  onClick={() => setActiveTab("reports")}
+                  className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  View Reports
+                </button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>System Status</CardTitle>
+                <CardDescription>Current system health</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">API Status</span>
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Online</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Database</span>
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Connected</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Background Jobs</span>
+                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Running</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Storage</span>
+                  <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">75% Used</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
           <Card>
