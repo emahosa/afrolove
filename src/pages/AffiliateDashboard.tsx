@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Copy, Link as LinkIcon } from 'lucide-react'; // Removed unused icons like ArrowRight, DollarSign, Gift, Users
+import { Copy, Link as LinkIcon } from 'lucide-react';
 import ReferralsList from '@/components/affiliate/ReferralsList';
 import EarningsInfo from '@/components/affiliate/EarningsInfo';
 import PayoutHistory from '@/components/affiliate/PayoutHistory';
@@ -25,7 +26,7 @@ const ReferralLinkDisplay: React.FC<{ referralCode: string | null }> = ({ referr
   const copyToClipboard = () => {
     navigator.clipboard.writeText(referralLink)
       .then(() => toast.success("Referral link copied to clipboard!"))
-      .catch(()_ => toast.error("Failed to copy referral link."));
+      .catch(() => toast.error("Failed to copy referral link."));
   };
 
   return (
@@ -83,7 +84,7 @@ const AffiliateDashboard: React.FC = () => {
           setLoadingCode(false);
         }
       } else {
-         setLoadingCode(false); // Not a logged-in user, stop loading
+         setLoadingCode(false);
       }
     };
 
@@ -100,18 +101,18 @@ const AffiliateDashboard: React.FC = () => {
       </div>
 
       {loadingCode ? (
-        <div className="flex justify-center items-center h-48"> {/* Increased height for better centering */}
+        <div className="flex justify-center items-center h-48">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           <p className="ml-4 text-lg text-muted-foreground">Loading your affiliate details...</p>
         </div>
-      ) : user && referralCode ? ( // Check for user and referralCode
+      ) : user && referralCode ? (
         <div className="space-y-8">
           <ReferralLinkDisplay referralCode={referralCode} />
           <EarningsInfo affiliateId={user.id} />
-          <ReferralsList affiliateId={user.id} /> {/* Changed prop name to match common pattern */}
+          <ReferralsList affiliateId={user.id} />
           <PayoutHistory affiliateId={user.id} />
         </div>
-      ) : user && !referralCode ? ( // User is logged in but not an approved affiliate
+      ) : user && !referralCode ? (
          <Card>
           <CardHeader>
             <CardTitle>Become an Affiliate</CardTitle>
@@ -126,7 +127,7 @@ const AffiliateDashboard: React.FC = () => {
             </Link>
           </CardContent>
         </Card>
-      ) : ( // User is not logged in (should ideally be caught by ProtectedRoute, but as a fallback)
+      ) : (
         <Card>
             <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
             <CardContent><p>Please log in to view your affiliate dashboard.</p></CardContent>
