@@ -1,13 +1,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagement } from "./UserManagement";
-import { ContentManagement } from "./ContentManagement";
-import { PaymentManagement } from "./PaymentManagement";
-import { ReportsAnalytics } from "./ReportsAnalytics";
-import { SupportManagement } from "./SupportManagement";
-import { SettingsManagement } from "./SettingsManagement";
-import { ContestManagement } from "./ContestManagement";
-import { GenreManagement } from "./GenreManagement";
 
 interface AdminManagementProps {
   users?: any[];
@@ -41,7 +34,6 @@ export const AdminManagement = ({
           <UserManagement 
             users={admins} 
             renderStatusLabel={renderStatusLabel}
-            adminOnly={true}
           />
         </TabsContent>
         
