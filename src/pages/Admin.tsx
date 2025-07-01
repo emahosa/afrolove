@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,15 +7,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Import admin components with named imports
 import { UserManagement } from "@/components/admin/UserManagement";
-import AdminManagement from "@/components/admin/AdminManagement";
-import GenreManagement from "@/components/admin/GenreManagement";
-import SunoApiManagement from "@/components/admin/SunoApiManagement";
-import ContestManagement from "@/components/admin/ContestManagement";
-import ContentManagement from "@/components/admin/ContentManagement";
-import PaymentManagement from "@/components/admin/PaymentManagement";
-import SupportManagement from "@/components/admin/SupportManagement";
-import ReportsAnalytics from "@/components/admin/ReportsAnalytics";
-import SettingsManagement from "@/components/admin/SettingsManagement";
+import { AdminManagement } from "@/components/admin/AdminManagement";
+import { GenreManagement } from "@/components/admin/GenreManagement";
+import { SunoApiManagement } from "@/components/admin/SunoApiManagement";
+import { ContestManagement } from "@/components/admin/ContestManagement";
+import { ContentManagement } from "@/components/admin/ContentManagement";
+import { PaymentManagement } from "@/components/admin/PaymentManagement";
+import { SupportManagement } from "@/components/admin/SupportManagement";
+import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
+import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
 
 interface AdminProps {

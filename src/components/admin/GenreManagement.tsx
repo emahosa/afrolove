@@ -228,3 +228,5 @@ export const GenreManagement = () => {
     </div>
   );
 };
+
+export default GenreManagement;

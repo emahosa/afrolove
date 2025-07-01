@@ -76,3 +76,5 @@ export const AdminManagement = ({
     </div>
   );
 };
+
+export default AdminManagement;
