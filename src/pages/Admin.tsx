@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -139,39 +140,129 @@ const Admin = ({ tab }: AdminProps) => {
         </TabsContent>
 
         <TabsContent value="genres" className="space-y-4">
-          <GenreManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Genre Management</CardTitle>
+              <CardDescription>
+                Manage music genres and AI prompt templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <GenreManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="suno-api" className="space-y-4">
-          <SunoApiManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Suno API Management</CardTitle>
+              <CardDescription>
+                Manage Suno API keys and configuration
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SunoApiManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="contest" className="space-y-4">
-          <ContestManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Contest Management</CardTitle>
+              <CardDescription>
+                Manage contests, entries, and voting
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ContestManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="content" className="space-y-4">
-          <ContentManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Content Management</CardTitle>
+              <CardDescription>
+                Manage content moderation and flags
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ContentManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <PaymentManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Management</CardTitle>
+              <CardDescription>
+                Manage payments, transactions, and billing
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PaymentManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="support" className="space-y-4">
-          <SupportManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>Support Management</CardTitle>
+              <CardDescription>
+                Manage support tickets and user inquiries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SupportManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-4">
-          <ReportsAnalytics />
+          <Card>
+            <CardHeader>
+              <CardTitle>Reports & Analytics</CardTitle>
+              <CardDescription>
+                View system analytics and generate reports
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ReportsAnalytics />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <SettingsManagement />
+          <Card>
+            <CardHeader>
+              <CardTitle>System Settings</CardTitle>
+              <CardDescription>
+                Configure system-wide settings and preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SettingsManagement />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="affiliates" className="space-y-4">
-          <AffiliateManagementTab />
+          <Card>
+            <CardHeader>
+              <CardTitle>Affiliate Management</CardTitle>
+              <CardDescription>
+                Manage affiliate programs and commissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AffiliateManagementTab />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

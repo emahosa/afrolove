@@ -25,52 +25,45 @@ export const AdminManagement = ({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Admin Panel</h1>
-        <p className="text-muted-foreground">Manage your application settings and data</p>
+        <h1 className="text-3xl font-bold">Admin Management</h1>
+        <p className="text-muted-foreground">Manage administrator accounts and permissions</p>
       </div>
       
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-8">
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="genres">Genres</TabsTrigger>
-          <TabsTrigger value="contests">Contests</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="support">Support</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+      <Tabs defaultValue="admin-users" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+          <TabsTrigger value="admin-users">Admin Users</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="access">Access Control</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="users">
-          <UserManagement users={users} renderStatusLabel={renderStatusLabel} />
+        <TabsContent value="admin-users">
+          <UserManagement 
+            users={admins} 
+            renderStatusLabel={renderStatusLabel}
+            adminOnly={true}
+          />
         </TabsContent>
         
-        <TabsContent value="content">
-          <ContentManagement />
+        <TabsContent value="permissions">
+          <div className="text-center py-8">
+            <h3 className="text-lg font-semibold mb-2">Admin Permissions</h3>
+            <p className="text-muted-foreground">Configure admin permissions and access levels</p>
+          </div>
         </TabsContent>
         
-        <TabsContent value="genres">
-          <GenreManagement />
+        <TabsContent value="roles">
+          <div className="text-center py-8">
+            <h3 className="text-lg font-semibold mb-2">Admin Roles</h3>
+            <p className="text-muted-foreground">Manage admin role assignments</p>
+          </div>
         </TabsContent>
         
-        <TabsContent value="contests">
-          <ContestManagement />
-        </TabsContent>
-        
-        <TabsContent value="payments">
-          <PaymentManagement />
-        </TabsContent>
-        
-        <TabsContent value="reports">
-          <ReportsAnalytics />
-        </TabsContent>
-        
-        <TabsContent value="support">
-          <SupportManagement />
-        </TabsContent>
-        
-        <TabsContent value="settings">
-          <SettingsManagement />
+        <TabsContent value="access">
+          <div className="text-center py-8">
+            <h3 className="text-lg font-semibold mb-2">Access Control</h3>
+            <p className="text-muted-foreground">Configure access control settings</p>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
