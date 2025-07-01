@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,10 +15,10 @@ interface ReferralsListProps {
 interface ReferredUser {
   id: string;
   full_name: string | null;
-  email: string | null;
+  username: string | null; // Changed from email to username to match actual schema
   created_at: string;
-  roles: string[]; // e.g., ['voter', 'subscriber']
-  status: string; // Derived status like "Subscriber", "Voter"
+  roles: string[];
+  status: string;
 }
 
 const PAGE_SIZE = 10;
@@ -37,10 +38,10 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Fetch referred user profiles with count
+      // Fetch referred user profiles with count - using username instead of email
       const { data: profilesData, error: profilesError, count } = await supabase
         .from('profiles')
-        .select('id, full_name, email, created_at', { count: 'exact' })
+        .select('id, full_name, username, created_at', { count: 'exact' })
         .eq('referrer_id', affiliateId)
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -64,7 +65,6 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
         .in('user_id', userIds);
 
       if (rolesError) {
-        // Non-fatal, we can proceed without roles, but log it.
         console.warn(`Failed to fetch roles for referred users: ${rolesError.message}`);
       }
 
@@ -79,17 +79,19 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
       }
 
       const enrichedUsers: ReferredUser[] = profilesData.map(profile => {
-        const userRoles = rolesMap.get(profile.id) || ['voter']; // Default to 'voter' if no roles found
+        const userRoles = rolesMap.get(profile.id) || ['voter'];
         let status = "Voter";
         if (userRoles.includes('subscriber')) {
           status = "Subscriber";
         } else if (userRoles.includes('admin')) {
-          status = "Admin"; // Should generally not happen for referrals
+          status = "Admin";
         }
-        // Add more status logic if needed
 
         return {
-          ...profile,
+          id: profile.id,
+          full_name: profile.full_name,
+          username: profile.username,
+          created_at: profile.created_at,
           roles: userRoles,
           status,
         };
@@ -165,7 +167,7 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
           <TableHeader>
             <TableRow>
               <TableHead>User Name</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Email/Username</TableHead>
               <TableHead>Registration Date</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -174,10 +176,10 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
             {referredUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>{user.full_name || 'N/A'}</TableCell>
-                <TableCell>{user.email || 'N/A'}</TableCell>
+                <TableCell>{user.username || 'N/A'}</TableCell>
                 <TableCell>{format(parseISO(user.created_at), 'MMM d, yyyy')}</TableCell>
                 <TableCell>
-                  <Badge variant={user.status === "Subscriber" ? "success" : "outline"}>
+                  <Badge variant={user.status === "Subscriber" ? "default" : "outline"}>
                     {user.status}
                   </Badge>
                 </TableCell>

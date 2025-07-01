@@ -6,8 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
-// Import admin components
-import UserManagement from "@/components/admin/UserManagement";
+// Import admin components with named imports
+import { UserManagement } from "@/components/admin/UserManagement";
 import AdminManagement from "@/components/admin/AdminManagement";
 import GenreManagement from "@/components/admin/GenreManagement";
 import SunoApiManagement from "@/components/admin/SunoApiManagement";
@@ -77,6 +77,16 @@ const Admin = ({ tab }: AdminProps) => {
     return <Navigate to="/dashboard" replace />;
   }
 
+  const renderStatusLabel = (status: string) => {
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium ${
+        status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+      }`}>
+        {status === 'active' ? 'Active' : 'Suspended'}
+      </span>
+    );
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
       <div className="mb-8">
@@ -110,7 +120,7 @@ const Admin = ({ tab }: AdminProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <UserManagement />
+              <UserManagement users={[]} renderStatusLabel={renderStatusLabel} />
             </CardContent>
           </Card>
         </TabsContent>

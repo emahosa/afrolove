@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input"; // For notes on approval
-import { Textarea } from "@/components/ui/textarea"; // For rejection reason input dialog (conceptual)
 import { toast } from "sonner";
 import { Loader2, AlertCircle, CheckCircle, XCircle, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -61,7 +59,6 @@ const AffiliateManagementTab: React.FC = () => {
 
   const [activePayoutStatusFilter, setActivePayoutStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'paid' | null>('pending');
 
-
   const [activeSubTab, setActiveSubTab] = useState<ActiveSubTabType>('pendingApps');
   const pageSize = 10;
 
@@ -70,7 +67,7 @@ const AffiliateManagementTab: React.FC = () => {
     setAppsError(null);
     try {
       const { data, error: funcError } = await supabase.functions.invoke('list-affiliate-applications', {
-        query: { status, page, pageSize },
+        body: { status, page, pageSize },
       });
 
       if (funcError) throw new Error(funcError.message || 'Failed to fetch applications');
@@ -104,12 +101,12 @@ const AffiliateManagementTab: React.FC = () => {
     setPayoutsLoading(true);
     setPayoutsError(null);
     try {
-      const queryParams: { page: number, pageSize: number, status?: string } = { page, pageSize };
+      const requestBody: { page: number, pageSize: number, status?: string } = { page, pageSize };
       if (status) {
-        queryParams.status = status;
+        requestBody.status = status;
       }
       const { data, error: funcError } = await supabase.functions.invoke('list-affiliate-payout-requests', {
-        query: queryParams,
+        body: requestBody,
       });
 
       if (funcError) throw new Error(funcError.message || 'Failed to fetch payout requests');
@@ -146,7 +143,6 @@ const AffiliateManagementTab: React.FC = () => {
     else if (activeSubTab === 'rejectedApps') fetchApplications('rejected', appsCurrentPage);
     else if (activeSubTab === 'payoutRequests') fetchPayoutRequests(activePayoutStatusFilter, payoutsCurrentPage);
   }, [activeSubTab, fetchApplications, fetchPayoutRequests, appsCurrentPage, payoutsCurrentPage, activePayoutStatusFilter]);
-
 
   const handleApproveApplication = async (applicationId: string) => {
     // setLoading/setAppsLoading appropriately if needed for individual row, or overall
@@ -300,12 +296,12 @@ const AffiliateManagementTab: React.FC = () => {
                 <TableCell>{app.full_name}</TableCell>
                 <TableCell>{app.email}</TableCell>
                 <TableCell>{format(parseISO(app.created_at), 'MMM d, yyyy HH:mm')}</TableCell>
-                <TableCell><Badge variant={app.status === 'approved' ? 'success' : app.status === 'rejected' ? 'destructive' : 'outline'}>{app.status}</Badge></TableCell>
+                <TableCell><Badge variant={app.status === 'approved' ? 'default' : app.status === 'rejected' ? 'destructive' : 'outline'}>{app.status}</Badge></TableCell>
                 {statusToRender === 'approved' && <TableCell>{app.unique_referral_code || 'N/A'}</TableCell>}
                 {statusToRender === 'pending' && (
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="success" onClick={() => handleApproveApplication(app.id)} disabled={appsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
+                      <Button size="sm" variant="default" onClick={() => handleApproveApplication(app.id)} disabled={appsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
                       <Button size="sm" variant="destructive" onClick={() => handleRejectApplication(app.id)} disabled={appsLoading}><XCircle className="h-4 w-4 mr-1"/>Reject</Button>
                     </div>
                   </TableCell>
@@ -359,18 +355,18 @@ const AffiliateManagementTab: React.FC = () => {
               <TableRow key={req.id}>
                 <TableCell>{req.profile?.full_name || req.profile?.email || req.affiliate_user_id}</TableCell>
                 <TableCell><DollarSign className="h-4 w-4 inline mr-1"/>{Number(req.requested_amount).toFixed(2)}</TableCell>
-                <TableCell><Badge variant={req.status === 'approved' || req.status === 'paid' ? 'success' : req.status === 'rejected' ? 'destructive' : 'outline'}>{req.status}</Badge></TableCell>
+                <TableCell><Badge variant={req.status === 'approved' || req.status === 'paid' ? 'default' : req.status === 'rejected' ? 'destructive' : 'outline'}>{req.status}</Badge></TableCell>
                 <TableCell>{format(parseISO(req.requested_at), 'MMM d, yyyy HH:mm')}</TableCell>
                 <TableCell>{req.processed_at ? format(parseISO(req.processed_at), 'MMM d, yyyy HH:mm') : 'N/A'}</TableCell>
                 <TableCell className="max-w-xs truncate" title={req.admin_notes || undefined}>{req.admin_notes || 'N/A'}</TableCell>
                 <TableCell>
                   {req.status === 'pending' && (
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="success" onClick={() => handleApprovePayout(req.id)} disabled={payoutsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
+                      <Button size="sm" variant="default" onClick={() => handleApprovePayout(req.id)} disabled={payoutsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
                       <Button size="sm" variant="destructive" onClick={() => handleRejectPayout(req.id)} disabled={payoutsLoading}><XCircle className="h-4 w-4 mr-1"/>Reject</Button>
                     </div>
                   )}
-                   {req.status === 'approved' && ( // Example: Button to mark as paid
+                   {req.status === 'approved' && (
                      <Button size="sm" variant="default" disabled={payoutsLoading} onClick={() => toast.info("Mark as Paid functionality to be implemented.")}>Mark as Paid</Button>
                    )}
                 </TableCell>
@@ -383,7 +379,6 @@ const AffiliateManagementTab: React.FC = () => {
     );
   };
 
-
   return (
     <Card>
       <CardHeader>
@@ -393,10 +388,9 @@ const AffiliateManagementTab: React.FC = () => {
       <CardContent>
         <Tabs value={activeSubTab} onValueChange={(value) => {
           setActiveSubTab(value as ActiveSubTabType);
-          // Reset pages when changing main tabs
           setAppsCurrentPage(1);
           setPayoutsCurrentPage(1);
-          if (value === 'payoutRequests' && !activePayoutStatusFilter) setActivePayoutStatusFilter('pending'); // Default filter for payouts
+          if (value === 'payoutRequests' && !activePayoutStatusFilter) setActivePayoutStatusFilter('pending');
         }} className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="pendingApps">Pending Applications</TabsTrigger>

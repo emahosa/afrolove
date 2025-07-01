@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -43,7 +42,7 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
       // Fetch total commissions
       const { data: commissions, error: commissionsError } = await supabase
         .from('affiliate_commissions')
-        .select('amount_earned')
+        .select('amount_earned, commission_month')
         .eq('affiliate_user_id', affiliateId);
 
       if (commissionsError) throw new Error(`Failed to fetch commissions: ${commissionsError.message}`);
@@ -51,9 +50,9 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
       const totalEarned = commissions?.reduce((sum, record) => sum + Number(record.amount_earned), 0) || 0;
 
       // Fetch this month's earnings
-      const currentMonth = new Date().toISOString().substring(0, 7) + '-01';
+      const currentMonth = new Date().toISOString().substring(0, 7);
       const thisMonthCommissions = commissions?.filter(c => 
-        new Date(c.commission_month || currentMonth).toISOString().substring(0, 7) === new Date().toISOString().substring(0, 7)
+        c.commission_month && new Date(c.commission_month).toISOString().substring(0, 7) === currentMonth
       ) || [];
       const thisMonthEarnings = thisMonthCommissions.reduce((sum, record) => sum + Number(record.amount_earned), 0);
 
@@ -124,7 +123,7 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
       toast.success("Payout request submitted successfully!");
       setRequestAmount('');
       setIsDialogOpen(false);
-      fetchEarnings(); // Refresh earnings data
+      fetchEarnings();
     } catch (err: any) {
       console.error("Error requesting payout:", err);
       toast.error(err.message || "Failed to request payout.");

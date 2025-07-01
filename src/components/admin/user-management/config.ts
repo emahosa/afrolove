@@ -1,8 +1,9 @@
+
 import * as z from 'zod';
 import { UserRole } from './types';
 
-// Define an array of UserRole values for Zod enum
-const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber"] as const;
+// Define an array of UserRole values for Zod enum - updated to include affiliate
+const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber", "affiliate"] as const;
 
 export const ADMIN_PERMISSIONS = [
   { id: 'users', label: 'User Management' },
@@ -27,11 +28,8 @@ export const userFormSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
 }).superRefine((data, ctx) => {
-  // This refine is for AddUserDialog where password might be set.
-  // For EditUserDialog, password is not part of this form schema directly handled.
-  if (data.password || data.confirmPassword) { // If either password field is touched or has a value
+  if (data.password || data.confirmPassword) {
     if (!data.password || data.password.length === 0) {
-      // If confirmPassword has a value but password doesn't.
       if (data.confirmPassword && data.confirmPassword.length > 0) {
          ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -39,8 +37,7 @@ export const userFormSchema = z.object({
           path: ["password"],
         });
       }
-      // If both are empty or undefined, this block is skipped, which is fine.
-    } else { // Password has a value
+    } else {
       if (data.password.length < 8) {
         ctx.addIssue({
           code: z.ZodIssueCode.too_small,

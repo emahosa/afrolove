@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +19,6 @@ interface PayoutRequest {
   requested_at: string;
   processed_at?: string | null;
   admin_notes?: string | null;
-  // We don't need profile here as it's the affiliate's own history
 }
 
 const PAGE_SIZE = 10;
@@ -40,7 +40,7 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
       const { data, error: dbError, count } = await supabase
         .from('affiliate_payout_requests')
-        .select('*', { count: 'exact' }) // Select all needed fields
+        .select('*', { count: 'exact' })
         .eq('affiliate_user_id', affiliateId)
         .order('requested_at', { ascending: false })
         .range(from, to);
@@ -49,7 +49,13 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
         throw new Error(`Failed to fetch payout history: ${dbError.message}`);
       }
 
-      setPayoutRequests(data || []);
+      // Type-safe mapping to ensure status is properly typed
+      const typedData: PayoutRequest[] = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'pending' | 'approved' | 'rejected' | 'paid'
+      }));
+
+      setPayoutRequests(typedData);
       setTotalItems(count || 0);
 
     } catch (err: any) {
@@ -73,7 +79,6 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
   };
-
 
   if (loading && !payoutRequests.length) {
      return (
@@ -138,7 +143,7 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
                 <TableCell>{formatCurrency(Number(request.requested_amount))}</TableCell>
                 <TableCell>
                   <Badge variant={
-                    request.status === 'paid' || request.status === 'approved' ? 'success' :
+                    request.status === 'paid' || request.status === 'approved' ? 'default' :
                     request.status === 'rejected' ? 'destructive' :
                     'outline'
                   }>

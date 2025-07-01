@@ -7,14 +7,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  status: "active" | "suspended"; // Made status more specific
+  status: "active" | "suspended";
   role: UserRole;
   credits: number;
   joinDate: string;
   permissions?: string[];
 }
 
-// This prop type is for the main UserManagement component, passed from Admin.tsx
 export interface UserManagementContainerProps {
   users: User[];
   renderStatusLabel: (status: string) => React.ReactNode;

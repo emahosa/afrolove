@@ -14,7 +14,7 @@ import { UserTable } from './user-management/UserTable';
 import { EditUserDialog } from './user-management/EditUserDialog';
 import { AddUserDialog } from './user-management/AddUserDialog';
 
-export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserManagementContainerProps) => {
+export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: UserManagementContainerProps) => {
   const { user: currentAuthUser, isSuperAdmin } = useAuth();
   const [usersList, setUsersList] = useState<User[]>(initialUsers);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -30,10 +30,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       email: "",
       credits: 5,
       status: "active",
-      role: "voter",
+      role: "voter" as UserRole,
       permissions: [],
-      password: "", // Initialize explicitly
-      confirmPassword: "", // Initialize explicitly
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -116,12 +116,12 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
   const handleAddUser = () => {
     setCurrentUserToEdit(null);
     setSelectedPermissions([]);
-    form.reset({ // Reset with default values, including empty passwords
+    form.reset({
       name: "",
       email: "",
       credits: 5,
       status: "active",
-      role: "voter",
+      role: "voter" as UserRole,
       permissions: [],
       password: "",
       confirmPassword: "",
@@ -214,12 +214,10 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
 
   const handleRoleChange = (role: string) => {
     form.setValue('role', role as UserRole);
-    // Clear permissions if role is not admin/super_admin
     if (role !== 'admin' && role !== 'super_admin') {
       setSelectedPermissions([]);
       form.setValue('permissions', []);
     }
-    // Password fields visibility is handled within AddUserDialog via useEffect on watchedRole
   };
 
   const handlePermissionChange = (permission: string, checked: boolean) => {
@@ -236,6 +234,7 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
       { value: "subscriber", label: "Subscriber" },
       { value: "user", label: "User" },
       { value: "moderator", label: "Moderator" },
+      { value: "affiliate", label: "Affiliate" },
     ];
     if (isSuperAdmin()) {
       return [
@@ -303,3 +302,6 @@ export const UserManagement = ({ users: initialUsers, renderStatusLabel }: UserM
     </div>
   );
 };
+
+// Add default export
+export default UserManagement;
