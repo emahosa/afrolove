@@ -1,10 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Settings, Music, Key, Trophy, FileText, CreditCard, HelpCircle, BarChart3, Cog, DollarSign } from "lucide-react";
+import { Users, Settings, Music, Key, Trophy, FileText, CreditCard, HelpCircle, BarChart3, Cog, DollarSign, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Import admin components with named imports
 import { UserManagement } from "@/components/admin/UserManagement";
@@ -24,7 +26,7 @@ interface AdminProps {
 }
 
 const Admin = ({ tab }: AdminProps) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState(tab || "overview");
   const [adminStats, setAdminStats] = useState({
@@ -91,9 +93,13 @@ const Admin = ({ tab }: AdminProps) => {
     fetchAdminStats();
   }, [user]);
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   if (isAdmin === null) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
@@ -114,30 +120,33 @@ const Admin = ({ tab }: AdminProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Admin Header */}
-      <div className="border-b bg-white">
+    <div className="min-h-screen bg-gray-50">
+      {/* Admin Header - completely separate from user interface */}
+      <div className="border-b bg-white shadow-sm">
         <div className="container mx-auto py-4 px-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Admin Dashboard</h1>
-              <p className="text-muted-foreground text-sm">System administration and management console</p>
+            <div className="flex items-center gap-3">
+              <Music className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-2xl font-bold text-primary">Admin Control Panel</h1>
+                <p className="text-muted-foreground text-sm">System administration and management console</p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">Welcome, {user?.email}</span>
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">
-                  {user?.email?.charAt(0).toUpperCase()}
-                </span>
-              </div>
+              <span className="text-sm text-muted-foreground">Administrator: {user?.email}</span>
+              <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Admin Content */}
       <div className="container mx-auto py-8 px-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-white">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
@@ -152,9 +161,10 @@ const Admin = ({ tab }: AdminProps) => {
             <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="space-y-6">
+            {/* Admin Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                   <Users className="h-4 w-4 text-blue-600" />
@@ -165,7 +175,7 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Users</CardTitle>
                   <Users className="h-4 w-4 text-green-600" />
@@ -176,87 +186,92 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Songs</CardTitle>
-                  <Music className="h-4 w-4 text-purple-600" />
+                  <CardTitle className="text-sm font-medium">System Health</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalSongs}</div>
-                  <p className="text-xs text-muted-foreground">Songs generated</p>
+                  <div className="text-2xl font-bold text-green-600">Healthy</div>
+                  <p className="text-xs text-muted-foreground">All systems operational</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+                  <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
                   <HelpCircle className="h-4 w-4 text-yellow-600" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{adminStats.pendingRequests}</div>
-                  <p className="text-xs text-muted-foreground">Awaiting review</p>
+                  <p className="text-xs text-muted-foreground">Require attention</p>
                 </CardContent>
               </Card>
             </div>
 
+            {/* Admin Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="bg-white">
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>Common administrative tasks</CardDescription>
+                  <CardTitle>Administrative Actions</CardTitle>
+                  <CardDescription>Quick access to common admin tasks</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <button 
+                <CardContent className="space-y-3">
+                  <Button 
+                    variant="outline"
                     onClick={() => setActiveTab("users")}
-                    className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                    className="w-full justify-start"
                   >
-                    <Users className="h-4 w-4" />
-                    Manage Users
-                  </button>
-                  <button 
+                    <Users className="h-4 w-4 mr-2" />
+                    Manage Users & Permissions
+                  </Button>
+                  <Button 
+                    variant="outline"
                     onClick={() => setActiveTab("genres")}
-                    className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                    className="w-full justify-start"
                   >
-                    <Music className="h-4 w-4" />
-                    Manage Genres
-                  </button>
-                  <button 
+                    <Music className="h-4 w-4 mr-2" />
+                    Configure Music Genres
+                  </Button>
+                  <Button 
+                    variant="outline"
                     onClick={() => setActiveTab("suno-api")}
-                    className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                    className="w-full justify-start"
                   >
-                    <Key className="h-4 w-4" />
-                    API Management
-                  </button>
-                  <button 
+                    <Key className="h-4 w-4 mr-2" />
+                    API Key Management
+                  </Button>
+                  <Button 
+                    variant="outline"
                     onClick={() => setActiveTab("reports")}
-                    className="w-full text-left p-3 rounded-md hover:bg-accent transition-colors flex items-center gap-2"
+                    className="w-full justify-start"
                   >
-                    <BarChart3 className="h-4 w-4" />
-                    View Reports
-                  </button>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    System Analytics
+                  </Button>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-white">
                 <CardHeader>
                   <CardTitle>System Status</CardTitle>
-                  <CardDescription>Current system health</CardDescription>
+                  <CardDescription>Current system health and performance</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">API Status</span>
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Online</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Database</span>
+                    <span className="text-sm font-medium">Database Connection</span>
                     <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Connected</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Background Jobs</span>
+                    <span className="text-sm font-medium">API Services</span>
+                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Online</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Background Jobs</span>
                     <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Running</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Storage</span>
+                    <span className="text-sm font-medium">Storage Usage</span>
                     <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">75% Used</span>
                   </div>
                 </CardContent>
@@ -264,13 +279,12 @@ const Admin = ({ tab }: AdminProps) => {
             </div>
           </TabsContent>
 
+          {/* Admin Management Tabs */}
           <TabsContent value="users" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  Manage user accounts, roles, and permissions
-                </CardDescription>
+                <CardDescription>Manage user accounts, roles, and permissions</CardDescription>
               </CardHeader>
               <CardContent>
                 <UserManagement users={[]} renderStatusLabel={renderStatusLabel} />
@@ -279,12 +293,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="admins" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
-                <CardTitle>Admin Management</CardTitle>
-                <CardDescription>
-                  Manage administrator accounts and permissions
-                </CardDescription>
+                <CardTitle>Administrator Management</CardTitle>
+                <CardDescription>Manage administrator accounts and permissions</CardDescription>
               </CardHeader>
               <CardContent>
                 <AdminManagement />
@@ -293,12 +305,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="genres" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Genre Management</CardTitle>
-                <CardDescription>
-                  Manage music genres and AI prompt templates
-                </CardDescription>
+                <CardDescription>Manage music genres and AI prompt templates</CardDescription>
               </CardHeader>
               <CardContent>
                 <GenreManagement />
@@ -307,12 +317,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="suno-api" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Suno API Management</CardTitle>
-                <CardDescription>
-                  Manage Suno API keys and configuration
-                </CardDescription>
+                <CardDescription>Manage Suno API keys and configuration</CardDescription>
               </CardHeader>
               <CardContent>
                 <SunoApiManagement />
@@ -321,12 +329,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="contest" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Contest Management</CardTitle>
-                <CardDescription>
-                  Manage contests, entries, and voting
-                </CardDescription>
+                <CardDescription>Manage contests, entries, and voting</CardDescription>
               </CardHeader>
               <CardContent>
                 <ContestManagement />
@@ -335,12 +341,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Content Management</CardTitle>
-                <CardDescription>
-                  Manage content moderation and flags
-                </CardDescription>
+                <CardDescription>Manage content moderation and flags</CardDescription>
               </CardHeader>
               <CardContent>
                 <ContentManagement />
@@ -349,12 +353,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="payments" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Payment Management</CardTitle>
-                <CardDescription>
-                  Manage payments, transactions, and billing
-                </CardDescription>
+                <CardDescription>Manage payments, transactions, and billing</CardDescription>
               </CardHeader>
               <CardContent>
                 <PaymentManagement />
@@ -363,12 +365,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="support" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Support Management</CardTitle>
-                <CardDescription>
-                  Manage support tickets and user inquiries
-                </CardDescription>
+                <CardDescription>Manage support tickets and user inquiries</CardDescription>
               </CardHeader>
               <CardContent>
                 <SupportManagement />
@@ -377,12 +377,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Reports & Analytics</CardTitle>
-                <CardDescription>
-                  View system analytics and generate reports
-                </CardDescription>
+                <CardDescription>View system analytics and generate reports</CardDescription>
               </CardHeader>
               <CardContent>
                 <ReportsAnalytics />
@@ -391,12 +389,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>System Settings</CardTitle>
-                <CardDescription>
-                  Configure system-wide settings and preferences
-                </CardDescription>
+                <CardDescription>Configure system-wide settings and preferences</CardDescription>
               </CardHeader>
               <CardContent>
                 <SettingsManagement />
@@ -405,12 +401,10 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="affiliates" className="space-y-4">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Affiliate Management</CardTitle>
-                <CardDescription>
-                  Manage affiliate programs and commissions
-                </CardDescription>
+                <CardDescription>Manage affiliate programs and commissions</CardDescription>
               </CardHeader>
               <CardContent>
                 <AffiliateManagementTab />
