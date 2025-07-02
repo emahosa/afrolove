@@ -22,7 +22,7 @@ import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
 import BecomeAffiliatePage from "./pages/BecomeAffiliate";
-import AffiliateDashboard from "./pages/AffiliateDashboard"; // Added
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -47,7 +47,7 @@ const App = () => (
             <Route path="/register/admin" element={<AdminRegister />} />
           </Route>
           
-          {/* Protected routes */}
+          {/* Protected routes with AppLayout (user interface) */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
@@ -60,30 +60,30 @@ const App = () => (
               <Route path="/my-custom-songs" element={<UserCustomSongs />} />
               <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
               <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
-              
-              {/* Admin routes */}
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/admin/users" element={<Admin tab="users" />} />
-              <Route path="/admin/admins" element={<Admin tab="admins" />} />
-              <Route path="/admin/genres" element={<Admin tab="genres" />} />
-              <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
-              <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
-              <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
-              <Route path="/admin/contest" element={<Admin tab="contest" />} />
-              <Route path="/admin/content" element={<Admin tab="content" />} />
-              <Route path="/admin/payments" element={<Admin tab="payments" />} />
-              <Route path="/admin/support" element={<Admin tab="support" />} />
-              <Route path="/admin/reports" element={<Admin tab="reports" />} />
-              <Route path="/admin/settings" element={<Admin tab="settings" />} />
             </Route>
           </Route>
 
+          {/* Admin routes without AppLayout (standalone admin interface) */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/users" element={<Admin tab="users" />} />
+            <Route path="/admin/admins" element={<Admin tab="admins" />} />
+            <Route path="/admin/genres" element={<Admin tab="genres" />} />
+            <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+            <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+            <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+            <Route path="/admin/contest" element={<Admin tab="contest" />} />
+            <Route path="/admin/content" element={<Admin tab="content" />} />
+            <Route path="/admin/payments" element={<Admin tab="payments" />} />
+            <Route path="/admin/support" element={<Admin tab="support" />} />
+            <Route path="/admin/reports" element={<Admin tab="reports" />} />
+            <Route path="/admin/settings" element={<Admin tab="settings" />} />
+          </Route>
+
           {/* Affiliate Panel Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['affiliate', 'admin', 'super_admin']} />}> {/* admin/super_admin for testing */}
+          <Route element={<ProtectedRoute allowedRoles={['affiliate', 'admin', 'super_admin']} />}>
             <Route element={<AppLayout />}>
               <Route path="/affiliate" element={<AffiliateDashboard />} />
-              {/* <Route path="/affiliate/payouts" element={<AffiliatePayoutsPage />} /> */}
-              {/* <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} /> */}
             </Route>
           </Route>
           
