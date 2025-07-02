@@ -92,16 +92,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [userRoles]);
 
   const isSubscriber = useCallback(() => {
+    // Rely solely on the 'subscriber' role being present in userRoles.
+    // Assumes that database triggers correctly update userRoles based on subscription status.
     const hasSubscriberRole = userRoles.includes('subscriber');
-    const result = hasSubscriberRole || subscriberStatus;
-    console.log('AuthContext: Subscriber check:', { 
-      roles: userRoles, 
-      hasSubscriberRole, 
-      subscriberStatus, 
-      result 
-    });
-    return result;
-  }, [userRoles, subscriberStatus]);
+    console.log('AuthContext: Subscriber check (role-based):', { roles: userRoles, hasSubscriberRole });
+    return hasSubscriberRole;
+  }, [userRoles]);
 
   const isAffiliate = useCallback(() => {
     const hasAffiliateRole = userRoles.includes('affiliate');
