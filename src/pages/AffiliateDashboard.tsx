@@ -10,6 +10,7 @@ import { Copy, Link as LinkIcon } from 'lucide-react';
 import ReferralsList from '@/components/affiliate/ReferralsList';
 import EarningsInfo from '@/components/affiliate/EarningsInfo';
 import PayoutHistory from '@/components/affiliate/PayoutHistory';
+import LockScreen from '@/components/LockScreen'; // For subscription lapse
 
 // ReferralLinkDisplay component (kept local as it's specific to this dashboard's layout)
 const ReferralLinkDisplay: React.FC<{ referralCode: string | null }> = ({ referralCode }) => {
@@ -53,9 +54,10 @@ const ReferralLinkDisplay: React.FC<{ referralCode: string | null }> = ({ referr
 };
 
 const AffiliateDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isSubscriber, isAffiliate, loading: authLoading } = useAuth(); // Get subscriber & affiliate status
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [loadingCode, setLoadingCode] = useState(true);
+  const [affiliateDataExists, setAffiliateDataExists] = useState(false);
 
   useEffect(() => {
     const fetchAffiliateData = async () => {
@@ -72,10 +74,13 @@ const AffiliateDashboard: React.FC = () => {
           if (error) {
             console.warn('Error fetching affiliate data or not an approved affiliate:', error.message);
             setReferralCode(null);
+            setAffiliateDataExists(false);
           } else if (data) {
             setReferralCode(data.unique_referral_code);
+            setAffiliateDataExists(true);
           } else {
             setReferralCode(null);
+            setAffiliateDataExists(false);
           }
         } catch (err: any) {
           console.error('Unexpected error fetching affiliate data:', err);
@@ -91,6 +96,15 @@ const AffiliateDashboard: React.FC = () => {
     fetchAffiliateData();
   }, [user]);
 
+  if (authLoading || loadingCode) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <p className="ml-4 text-lg text-muted-foreground">Loading Affiliate Dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
@@ -100,38 +114,41 @@ const AffiliateDashboard: React.FC = () => {
         </div>
       </div>
 
-      {loadingCode ? (
-        <div className="flex justify-center items-center h-48">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          <p className="ml-4 text-lg text-muted-foreground">Loading your affiliate details...</p>
-        </div>
-      ) : user && referralCode ? (
+      {/*
+        ProtectedRoute handles if user is 'affiliate' role.
+        This component now checks if they are also an active 'subscriber'.
+      */}
+      {!user ? (
+         <Card>
+            <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
+            <CardContent><p>Please log in to view your affiliate dashboard.</p></CardContent>
+        </Card>
+      ) : !isAffiliate() || !affiliateDataExists ? ( // Should not be hit if ProtectedRoute works, but good fallback
+        <Card>
+         <CardHeader>
+           <CardTitle>Affiliate Access Not Found</CardTitle>
+           <CardDescription>Your affiliate status could not be confirmed.</CardDescription>
+         </CardHeader>
+         <CardContent>
+           <p className="text-muted-foreground mb-4">
+             If you have applied, your application might be pending review. Otherwise, you can apply if you are a subscriber.
+           </p>
+           {isSubscriber() && ( // Only show apply button if they are a subscriber but somehow not affiliate yet
+            <Link to="/become-affiliate">
+              <Button>Apply to Become an Affiliate</Button>
+            </Link>
+           )}
+         </CardContent>
+       </Card>
+      ) : !isSubscriber() && isAffiliate() ? ( // Is an affiliate, but subscription lapsed
+        <LockScreen message="Your subscription has lapsed. Please resubscribe to access your Affiliate Dashboard features." buttonText="Renew Subscription"/>
+      ) : ( // Is Affiliate and Is Subscriber
         <div className="space-y-8">
           <ReferralLinkDisplay referralCode={referralCode} />
           <EarningsInfo affiliateId={user.id} />
           <ReferralsList affiliateId={user.id} />
           <PayoutHistory affiliateId={user.id} />
         </div>
-      ) : user && !referralCode ? (
-         <Card>
-          <CardHeader>
-            <CardTitle>Become an Affiliate</CardTitle>
-            <CardDescription>Join our affiliate program to start earning!</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Your affiliate application might be pending review, or you haven't applied yet.
-            </p>
-            <Link to="/become-affiliate">
-              <Button>Apply to Become an Affiliate</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-            <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
-            <CardContent><p>Please log in to view your affiliate dashboard.</p></CardContent>
-        </Card>
       )}
     </div>
   );
