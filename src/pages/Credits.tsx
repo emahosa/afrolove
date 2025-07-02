@@ -5,10 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { Star, Music, Check, Info, CreditCard } from "lucide-react";
+import { Star, Music, Check, Info, CreditCard, Lock } from "lucide-react"; // Added Lock
 import { toast } from "sonner";
 import { debugCreditsSystem } from "@/utils/supabaseDebug";
 import { updateUserCredits } from "@/utils/credits";
+import { useNavigate } from "react-router-dom"; // Added useNavigate
 
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
@@ -64,8 +65,13 @@ const subscriptionPlans = [
 ];
 
 const Credits = () => {
-  const { user, updateUserCredits: authUpdateUserCredits } = useAuth();
-  const [activeTab, setActiveTab] = useState("credits");
+  const { user, updateUserCredits: authUpdateUserCredits, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
+  const navigate = useNavigate(); // Initialize useNavigate
+
+  // Determine if the user is exclusively a voter
+  const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+
+  const [activeTab, setActiveTab] = useState(userIsOnlyVoter ? "membership" : "credits");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | undefined>(user?.subscription);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -88,6 +94,12 @@ const Credits = () => {
   }, [user]);
 
   const handleBuyCredits = async (packId: string) => {
+    if (userIsOnlyVoter) {
+      toast.error("Subscription Required", { description: "Please subscribe to a plan to purchase credits." });
+      setActiveTab("membership");
+      return;
+    }
+
     setPaymentProcessing(true);
     setErrorMessage(null);
     
@@ -234,45 +246,71 @@ const Credits = () => {
         </TabsList>
         
         <TabsContent value="credits" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {creditPacks.map((pack) => (
-              <Card key={pack.id} className={pack.popular ? "border-melody-secondary" : ""}>
-                {pack.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-melody-secondary">Most Popular</Badge>
-                  </div>
-                )}
-                <CardHeader>
-                  <CardTitle className="flex justify-between items-center">
-                    {pack.name}
-                  </CardTitle>
-                  <CardDescription>One-time purchase</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold mb-4">${pack.price}</div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
-                    <span className="font-medium">{pack.credits} credits</span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                    onClick={() => openPurchaseDialog(pack.id)}
-                  >
-                    Purchase
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-          
-          <div className="bg-muted p-4 rounded flex items-center gap-3 text-sm">
-            <Info className="h-5 w-5 text-melody-secondary flex-shrink-0" />
-            <div>
-              Credits never expire and can be used for song generation, competition entries, and other premium features.
-            </div>
-          </div>
+          {userIsOnlyVoter ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-yellow-500" />
+                  Unlock Credit Purchases
+                </CardTitle>
+                <CardDescription>
+                  Purchasing additional credits is a feature for subscribers.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p>
+                  To buy credit packs, please subscribe to one of our membership plans. Subscribers get monthly credits and the ability to top-up anytime.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={() => setActiveTab("membership")} className="w-full sm:w-auto">
+                  View Membership Plans
+                </Button>
+              </CardFooter>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {creditPacks.map((pack) => (
+                  <Card key={pack.id} className={pack.popular ? "border-melody-secondary" : ""}>
+                    {pack.popular && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <Badge className="bg-melody-secondary">Most Popular</Badge>
+                      </div>
+                    )}
+                    <CardHeader>
+                      <CardTitle className="flex justify-between items-center">
+                        {pack.name}
+                      </CardTitle>
+                      <CardDescription>One-time purchase</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold mb-4">${pack.price}</div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
+                        <span className="font-medium">{pack.credits} credits</span>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button
+                        className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
+                        onClick={() => openPurchaseDialog(pack.id)}
+                      >
+                        Purchase
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="bg-muted p-4 rounded flex items-center gap-3 text-sm">
+                <Info className="h-5 w-5 text-melody-secondary flex-shrink-0" />
+                <div>
+                  Credits never expire and can be used for song generation, competition entries, and other premium features.
+                </div>
+              </div>
+            </>
+          )}
         </TabsContent>
         
         <TabsContent value="membership" className="space-y-4">

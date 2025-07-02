@@ -82,7 +82,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     // Handle non-admin routes for Voters
     const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
     if (userIsOnlyVoter) {
-      const allowedVoterPaths = ['/contest', '/dashboard', '/profile']; // Voters can see dashboard (locked features) and profile
+      // Voters can see dashboard (locked features), profile, contest, support, subscribe page, and become-affiliate
+      const allowedVoterPaths = [
+        '/contest',
+        '/dashboard',
+        '/profile',
+        '/support',
+        '/subscribe',
+        '/become-affiliate'
+      ];
       const isAllowedPathForVoter = allowedVoterPaths.some(p => location.pathname.startsWith(p));
       
       // Specific check for root path "/" for voters, redirect to /dashboard
@@ -93,10 +101,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
       if (!isAllowedPathForVoter) {
         console.log('ProtectedRoute: Voter trying to access restricted page:', location.pathname);
         if (!hasShownToast) {
-          toast.error("This feature requires a subscription. Voters can access contest features.");
+          toast.error("This feature requires a subscription. Please subscribe or visit allowed pages like Contest.");
           setHasShownToast(true);
         }
-        return <Navigate to="/dashboard" state={{ from: location }} replace />; // Or /contest
+        return <Navigate to="/dashboard" state={{ from: location }} replace />; // Or /contest, or /subscribe
       }
     }
   }

@@ -20,28 +20,41 @@ import {
   FileMusic,
   UserPlus,
   DollarSign,
+  Lock, // Added Lock icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Sidebar = () => {
-  const { user, userRoles } = useAuth();
+  const { user, userRoles, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth(); // Added more from useAuth
   const location = useLocation();
+  const navigate = useNavigate(); // Added for navigation
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
-  const isAdmin = userRoles?.includes('admin') || userRoles?.includes('super_admin') || user?.email === 'ellaadahosa@gmail.com';
-  const isAffiliate = userRoles?.includes('affiliate') || isAdmin;
+  const isPlatformAdmin = userRoles?.includes('admin') || userRoles?.includes('super_admin') || user?.email === 'ellaadahosa@gmail.com';
+  const isAffiliate = userRoles?.includes('affiliate') || isPlatformAdmin;
+
+  // Determine if the user is exclusively a voter
+  const userIsOnlyVoter = isVoter() && !isSubscriber() && !isPlatformAdmin && !isSuperAdmin();
+
+  const handleLockedFeatureClick = (e: React.MouseEvent, featureName: string) => {
+    e.preventDefault();
+    // Potentially navigate to a dedicated subscription page or show a modal
+    // For now, using an alert and then navigating to a placeholder /subscribe page
+    alert(`The feature "${featureName}" requires a subscription. Please subscribe to unlock.`);
+    navigate("/subscribe"); // Placeholder, actual subscription page might differ
+  };
 
   const navigationItems = [
-    { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Create", href: "/create", icon: Music },
-    { name: "Library", href: "/library", icon: Library },
-    { name: "Contest", href: "/contest", icon: Trophy },
-    { name: "Profile", href: "/profile", icon: User },
-    { name: "Credits", href: "/credits", icon: CreditCard },
-    { name: "Support", href: "/support", icon: HelpCircle },
-    { name: "My Custom Songs", href: "/my-custom-songs", icon: Headphones },
-    { name: "Custom Songs Management", href: "/custom-songs-management", icon: FileMusic },
-    { name: "Become Affiliate", href: "/become-affiliate", icon: UserPlus },
+    { name: "Dashboard", href: "/dashboard", icon: Home, restricted: false },
+    { name: "Create", href: "/create", icon: Music, restricted: true },
+    { name: "Library", href: "/library", icon: Library, restricted: true },
+    { name: "Contest", href: "/contest", icon: Trophy, restricted: false },
+    { name: "Profile", href: "/profile", icon: User, restricted: false },
+    { name: "Credits", href: "/credits", icon: CreditCard, restricted: true },
+    { name: "Support", href: "/support", icon: HelpCircle, restricted: false },
+    { name: "My Custom Songs", href: "/my-custom-songs", icon: Headphones, restricted: true },
+    { name: "Custom Songs Management", href: "/custom-songs-management", icon: FileMusic, restricted: true },
+    { name: "Become Affiliate", href: "/become-affiliate", icon: UserPlus, restricted: false }, // Assuming affiliate is open to all for application
   ];
 
   const adminItems = [
@@ -68,21 +81,34 @@ const Sidebar = () => {
           </h2>
           <ScrollArea className="h-[400px] px-1">
             <div className="space-y-1">
-              {navigationItems.map((item) => (
-                <Button
-                  key={item.name}
-                  variant={location.pathname === item.href ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  asChild
-                >
-                  <Link to={item.href}>
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.name}
-                  </Link>
-                </Button>
-              ))}
+              {navigationItems.map((item) => {
+                const isLocked = userIsOnlyVoter && item.restricted;
+                return (
+                  <Button
+                    key={item.name}
+                    variant={location.pathname === item.href && !isLocked ? "secondary" : "ghost"}
+                    className="w-full justify-start"
+                    asChild={!isLocked} // Use asChild only if not locked, otherwise Button handles click
+                    onClick={isLocked ? (e) => handleLockedFeatureClick(e, item.name) : undefined}
+                    disabled={isLocked && location.pathname === item.href} // Visually disable if on the locked page
+                  >
+                    {isLocked ? (
+                      <>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.name}
+                        <Lock className="ml-auto h-4 w-4 text-yellow-500" />
+                      </>
+                    ) : (
+                      <Link to={item.href}>
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.name}
+                      </Link>
+                    )}
+                  </Button>
+                );
+              })}
               
-              {isAffiliate && (
+              {isAffiliate && ( // Assuming Affiliate Dashboard is not restricted for voters if they are affiliates
                 <Button
                   variant={location.pathname === "/affiliate" ? "secondary" : "ghost"}
                   className="w-full justify-start"

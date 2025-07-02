@@ -181,6 +181,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user) {
         console.log('AuthContext: Registration successful for:', data.user.id);
 
+        // Explicitly assign 'voter' role to new user
+        try {
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({ user_id: data.user.id, role: 'voter' });
+
+          if (roleError) {
+            console.error('AuthContext: Error assigning default voter role:', roleError.message);
+            // Decide if this should be a critical error. For now, log and continue.
+            // If the fallback in the role fetching logic (`|| ['voter']`) is reliable,
+            // this might not need to throw the main registration promise.
+          } else {
+            console.log('AuthContext: Default voter role assigned to user:', data.user.id);
+          }
+        } catch (e: any) {
+          console.error('AuthContext: Exception assigning default voter role:', e.message);
+        }
+
         if (referralCode) {
           try {
             console.log('AuthContext: Processing referral code:', referralCode);
