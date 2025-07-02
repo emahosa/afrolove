@@ -14,15 +14,16 @@ import SampleMusic from "@/components/dashboard/SampleMusic";
 const Dashboard = () => {
   const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
   const navigate = useNavigate();
+  const { affiliateApplicationStatus, refreshAffiliateApplicationStatus } = useAuth(); // Get new status and refresh function
 
-  console.log('🏠 Dashboard rendered for user:', user?.id);
-  console.log('👤 User roles check:', { 
-    isVoter: isVoter(), 
-    isSubscriber: isSubscriber(), 
-    isAdmin: isAdmin(), 
-    isSuperAdmin: isSuperAdmin(),
-    loading 
-  });
+  // console.log('🏠 Dashboard rendered for user:', user?.id); // Reduced console noise
+  // console.log('👤 User roles check:', {
+  //   isVoter: isVoter(),
+  //   isSubscriber: isSubscriber(),
+  //   isAdmin: isAdmin(),
+  //   isSuperAdmin: isSuperAdmin(),
+  //   loading
+  // });
 
   // Show loading state while auth is loading
   if (loading) {
@@ -153,32 +154,61 @@ const Dashboard = () => {
           <SampleMusic />
         </div>
       ) : (
-        <Tabs defaultValue="generate" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger 
-              value="generate" 
-              className="flex items-center gap-2"
-            >
-              <Music className="h-4 w-4" />
-              Generate Music
-            </TabsTrigger>
-            <TabsTrigger 
-              value="library" 
-              className="flex items-center gap-2"
-            >
-              <Clock className="h-4 w-4" />
-              My Library
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="generate" className="space-y-6">
-            <MusicGenerationWorkflow />
-          </TabsContent>
+        <>
+          {isSubscriber() && affiliateApplicationStatus === 'eligible' && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Join Our Affiliate Program</CardTitle>
+                <CardDescription>
+                  Earn commissions by referring new users to Afroverse.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => navigate("/become-affiliate")}>
+                  Apply as Affiliate
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {isSubscriber() && affiliateApplicationStatus === 'pending' && (
+             <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Affiliate Application Pending</CardTitle>
+                <CardDescription>
+                  Your application to join our affiliate program is currently under review. We'll notify you soon!
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+           {/* Add more messages for other statuses if needed, e.g., 'approved' (though then they'd be an affiliate) or 'rejected' */}
 
-          <TabsContent value="library" className="space-y-6">
-            <SongLibrary />
-          </TabsContent>
-        </Tabs>
+          <Tabs defaultValue="generate" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger
+                value="generate"
+                className="flex items-center gap-2"
+              >
+                <Music className="h-4 w-4" />
+                Generate Music
+              </TabsTrigger>
+              <TabsTrigger
+                value="library"
+                className="flex items-center gap-2"
+              >
+                <Clock className="h-4 w-4" />
+                My Library
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="generate" className="space-y-6">
+              <MusicGenerationWorkflow />
+            </TabsContent>
+
+            <TabsContent value="library" className="space-y-6">
+              <SongLibrary />
+            </TabsContent>
+          </Tabs>
+        </>
       )}
 
       <Card>

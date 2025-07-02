@@ -79,9 +79,43 @@ Deno.serve(async (req) => {
       })
     }
 
+    // Initialize Supabase admin client for role check
+    // This uses the service role key and should be used carefully.
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
     if (!isAdminTest) {
+      // Check if the user is a subscriber
+      const { data: userRoles, error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'subscriber');
+
+      if (roleError) {
+        console.error('Error checking user role:', roleError);
+        return new Response(JSON.stringify({ error: 'Database error while checking user role', success: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
+      }
+
+      if (!userRoles || userRoles.length === 0) {
+        console.log('❌ User is not a subscriber. UserID:', userId);
+        return new Response(JSON.stringify({ error: 'This feature is available for subscribers only.', success: false }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403, // Forbidden
+        });
+      }
+
       // Check user credits
-      const { data: userProfile, error: profileError } = await supabase
+      // Use the supabaseAdmin client here as well if RLS on profiles might prevent access for some reason,
+      // though typically users can read their own profile. For consistency, or if profiles RLS is restrictive,
+      // using supabaseAdmin is safer for backend checks. Assuming RLS allows user to read own credits for now.
+      const { data: userProfile, error: profileError } = await supabase // Using the user-context client for profile check initially
         .from('profiles')
         .select('credits')
         .eq('id', userId)
