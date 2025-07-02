@@ -80,6 +80,38 @@ Deno.serve(async (req) => {
     }
 
     if (!isAdminTest) {
+      // --- START ROLE CHECK ---
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      const { data: subscription, error: subError } = await supabase
+        .from('user_subscriptions')
+        .select('subscription_status, expires_at')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (rolesError) {
+        console.error(`Error fetching roles for user ${userId}:`, rolesError.message);
+        return new Response(JSON.stringify({ error: 'Failed to verify user permissions (roles).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (subError && subError.code !== 'PGRST116') { // PGRST116 = Not Found
+        console.error(`Error fetching subscription for user ${userId}:`, subError.message);
+        return new Response(JSON.stringify({ error: 'Failed to verify user permissions (subscription).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const hasSufficientRole = userRoles?.some(r => (r as {role: string}).role === 'subscriber' || (r as {role: string}).role === 'affiliate');
+      const isActiveSubscription = subscription?.subscription_status === 'active' && (!subscription.expires_at || new Date(subscription.expires_at) > new Date());
+
+      // User must have a qualifying role (subscriber or affiliate) AND an active subscription to use generation.
+      // Admins bypass this check if isAdminTest=true.
+      if (!hasSufficientRole || !isActiveSubscription) {
+        console.log(`User ${userId} lacks role or active subscription for song generation. HasRole: ${hasSufficientRole}, ActiveSub: ${isActiveSubscription}. Access denied.`);
+        return new Response(JSON.stringify({ error: 'Access denied. Song generation requires an active subscription and appropriate role.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      // --- END ROLE CHECK ---
+
       // Check user credits
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
