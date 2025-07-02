@@ -72,7 +72,7 @@ const Admin = ({ tab }: AdminProps) => {
   // However, a brief check for authLoading might be good if ProtectedRoute doesn't cover all loading scenarios.
   if (authLoading) {
      return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         <p className="ml-4 text-lg">Verifying admin access...</p>
       </div>
@@ -97,9 +97,9 @@ const Admin = ({ tab }: AdminProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Admin Header - completely separate from user interface */}
-      <div className="border-b bg-white shadow-sm">
+      <div className="border-b bg-card shadow-sm">
         <div className="container mx-auto py-4 px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -123,7 +123,7 @@ const Admin = ({ tab }: AdminProps) => {
       {/* Admin Content */}
       <div className="container mx-auto py-8 px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-white">
+          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-card text-card-foreground">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
