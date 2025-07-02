@@ -1,15 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
-const AdminLoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from "@/components/ui/button";
@@ -21,7 +11,7 @@ const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { login, isAdmin, logout, user, loading } = useAuth(); // Added user, loading
+  const { login, isAdmin, logout, user, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,7 +21,7 @@ const AdminLoginPage: React.FC = () => {
       if (isAdmin()) {
         navigate('/admin', { replace: true });
       } else {
-        navigate('/dashboard', { replace: true }); // Or to a more appropriate page
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [user, isAdmin, loading, navigate]);
@@ -46,22 +36,10 @@ const AdminLoginPage: React.FC = () => {
         return;
       }
 
-      // The isAdmin function will be up-to-date after login due to AuthContext's useEffect
-      // We might need a slight delay or a state change listener if isAdmin() isn't updated immediately.
-      // For now, let's assume it updates quickly enough.
-      // A more robust way would be to have login return the user object with roles,
-      // or have AuthContext expose a way to refresh/check roles post-login immediately.
-
-      // AuthContext will update its state. ProtectedRoute guarding /admin will verify role.
-      // If login is successful, navigate to /admin.
-      // ProtectedRoute will then check if the user is an admin.
-      // If not, ProtectedRoute will redirect to a default page (e.g., /dashboard or /login).
       navigate('/admin');
 
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
-      // It's possible the login itself failed without throwing authError, but a general error.
-      // Or, if login succeeded but something else went wrong.
       console.error('Login error:', err);
     }
   };

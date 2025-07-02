@@ -8,12 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom"; // Already here
+import { useNavigate } from "react-router-dom";
 import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
   const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
-  const navigate = useNavigate(); // Already here
+  const navigate = useNavigate();
 
   console.log('🏠 Dashboard rendered for user:', user?.id);
   console.log('👤 User roles check:', { 
@@ -93,9 +93,8 @@ const Dashboard = () => {
   console.log('📛 Display name:', displayName);
 
   const handleSubscribeClick = () => {
-    // Potentially show a modal or navigate to a dedicated subscription page
-    alert("Subscription required to access this feature. Please visit our subscription page."); // Keep alert for now as per Sidebar
-    navigate("/subscribe"); // Placeholder, actual subscription page might differ
+    alert("Subscription required to access this feature. Please visit our subscription page.");
+    navigate("/subscribe");
   };
 
   return (
@@ -115,19 +114,20 @@ const Dashboard = () => {
             <Card key={index}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
-                {stat.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {userIsOnlyVoter ? (
         <div className="space-y-8">
