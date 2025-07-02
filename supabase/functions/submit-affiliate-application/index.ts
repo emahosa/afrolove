@@ -38,47 +38,6 @@ serve(async (req) => {
 
     const userId = user.id
 
-    // Use a Supabase admin client for database operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Check if the user is a subscriber
-    const { data: userRoles, error: rolesError } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
-
-    const { data: subscription, error: subError } = await supabaseAdmin
-      .from('user_subscriptions')
-      .select('subscription_status, expires_at')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (rolesError) {
-      console.error('Error checking user roles for subscriber status:', rolesError);
-      return new Response(JSON.stringify({ error: 'Failed to verify subscriber status (roles check).' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
-      });
-    }
-    // PGRST116 is the PostgREST code for "Not Found" which is acceptable if user has 'subscriber' role
-    if (subError && subError.code !== 'PGRST116') {
-      console.error('Error checking subscription details for subscriber status:', subError);
-      return new Response(JSON.stringify({ error: 'Failed to verify subscriber status (subscription check).' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
-      });
-    }
-
-    const isRoleSubscriber = userRoles?.some(r => (r as { role: string }).role === 'subscriber');
-    const isActiveSubscription = subscription?.subscription_status === 'active' && (!subscription.expires_at || new Date(subscription.expires_at) > new Date());
-
-    if (!isRoleSubscriber && !isActiveSubscription) {
-      return new Response(JSON.stringify({ error: 'Only subscribers can apply to be an affiliate.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403, // Forbidden
-      });
-    }
-
     // Parse the request body
     const payload: AffiliateApplicationPayload = await req.json()
 

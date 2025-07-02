@@ -44,20 +44,25 @@ serve(async (req) => {
       .eq('user_id', user.id)
 
     if (rolesError) {
-      console.error('Error fetching user roles:', rolesError.message);
-      return new Response(JSON.stringify({ error: 'Failed to verify user permissions (roles check).' }), {
+      console.error('Error fetching user roles:', rolesError.message)
+      return new Response(JSON.stringify({ error: 'Failed to verify user permissions' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
-    const url = new URL(req.url)
-    const roles = userRolesData?.map((item: UserRole) => item.role) || [];
-    const isSuperAdminByEmail = user.email === (Deno.env.get('SUPER_ADMIN_EMAIL') || 'ellaadahosa@gmail.com');
-    const isSuperAdminByRole = roles.includes('super_admin');
-    const isAdmin = roles.includes('admin');
-    const isAffiliate = roles.includes('affiliate');
+    const isSuperAdmin = userRoles?.some((item: UserRole) => item.role === 'super_admin')
+    const knownSuperAdminEmail = Deno.env.get('SUPER_ADMIN_EMAIL') || 'ellaadahosa@gmail.com';
+    
+    if (user.email !== knownSuperAdminEmail && !isSuperAdmin) {
+      console.warn(`Forbidden: User ${user.id} (${user.email}) is not super_admin`);
+      return new Response(JSON.stringify({ error: 'Forbidden: You do not have permission to access this resource.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403,
+      });
+    }
 
+    const url = new URL(req.url)
     const page = parseInt(url.searchParams.get('page') || '1', 10)
     const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10)
     const statusFilter = url.searchParams.get('status')
@@ -71,23 +76,8 @@ serve(async (req) => {
         profile:profiles!affiliate_user_id(full_name, email)
       `, { count: 'exact' })
 
-    if (isSuperAdminByEmail || isSuperAdminByRole || isAdmin) {
-      // Admins/SuperAdmins can see all, apply status filter if present
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-    } else if (isAffiliate) {
-      // Affiliates can only see their own requests
-      query = query.eq('affiliate_user_id', user.id);
-      // Affiliates can also filter by status for their own requests
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-    } else {
-      console.warn(`Forbidden: User ${user.id} (${user.email}) lacks required role (admin, super_admin, or affiliate) for list-affiliate-payout-requests.`);
-      return new Response(JSON.stringify({ error: 'Forbidden: You do not have permission to access this resource.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403,
-      });
+    if (statusFilter) {
+      query = query.eq('status', statusFilter)
     }
 
     query = query.range(offset, offset + pageSize - 1).order('requested_at', { ascending: false });

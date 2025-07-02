@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading } = useAuth(); // Added isAffiliate
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
   const navigate = useNavigate();
 
   console.log('🏠 Dashboard rendered for user:', user?.id);
@@ -21,7 +21,6 @@ const Dashboard = () => {
     isSubscriber: isSubscriber(), 
     isAdmin: isAdmin(), 
     isSuperAdmin: isSuperAdmin(),
-    isAffiliate: isAffiliate(),
     loading 
   });
 
@@ -37,15 +36,13 @@ const Dashboard = () => {
 
   // Check user roles properly - voter only (not subscriber, not admin)
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-  const canApplyForAffiliate = isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
   
   console.log('🔍 Role determination:', {
     userIsOnlyVoter,
     hasVoterRole: isVoter(),
     hasSubscriberRole: isSubscriber(),
     hasAdminRole: isAdmin(),
-    hasSuperAdminRole: isSuperAdmin(),
-    canApplyForAffiliate,
+    hasSuperAdminRole: isSuperAdmin()
   });
 
   const stats = [
@@ -111,17 +108,6 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {canApplyForAffiliate && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Join Our Affiliate Program!</CardTitle>
-            <CardDescription>Earn commissions by referring new users to Afroverse.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/become-affiliate")}>Apply to be an Affiliate</Button>
-          </CardContent>
-        </Card>
-      )}
       {!userIsOnlyVoter && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
