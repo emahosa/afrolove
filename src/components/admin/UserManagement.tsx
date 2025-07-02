@@ -37,9 +37,15 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
     },
   });
 
+  // Auto-load users when component mounts if no initial users provided
   useEffect(() => {
     console.log("UserManagement: Received users prop:", initialUsers);
-    setUsersList(initialUsers);
+    if (initialUsers.length === 0) {
+      console.log("UserManagement: No initial users, loading from database...");
+      loadUsers();
+    } else {
+      setUsersList(initialUsers);
+    }
   }, [initialUsers]);
 
   const loadUsers = async () => {
@@ -79,7 +85,7 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
         status: userToEdit.status,
         role: userToEdit.role,
         permissions: userToEdit.permissions || [],
-        password: "", // Ensure password fields are clear for edit form
+        password: "",
         confirmPassword: "",
       });
       if (userToEdit.role === 'admin' && userToEdit.permissions) {
@@ -134,7 +140,6 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
       setIsLoading(true);
       try {
         const permissionsToUpdate = (values.role === 'admin' || values.role === 'super_admin') ? selectedPermissions : undefined;
-        // Password is not edited through this form in the current design
         const success = await updateUserInDatabase(currentUserToEdit.id, { ...values, permissions: permissionsToUpdate });
         if (success) {
           setUsersList(usersList.map(user =>
@@ -144,8 +149,8 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
                   name: values.name,
                   email: values.email,
                   credits: values.credits,
-                  status: values.status || user.status, // status should always be provided by form
-                  role: values.role || user.role, // role should always be provided
+                  status: values.status || user.status,
+                  role: values.role || user.role,
                   permissions: permissionsToUpdate || user.permissions,
                 }
               : user
@@ -166,7 +171,7 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
     setIsLoading(true);
     try {
       console.log("Adding user with values:", values);
-      const { name, email, credits, role, password } = values; // Extract password
+      const { name, email, credits, role, password } = values;
       
       const appBaseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
       console.log("UserManagement: Using appBaseUrl for invitation:", appBaseUrl);
@@ -180,7 +185,6 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
         appBaseUrl: appBaseUrl,
       };
 
-      // Only include password if it's provided and valid for the role
       if (password && password.length >= 8 && (role === 'admin' || role === 'super_admin') && isSuperAdmin()) {
         body.password = password;
       }
@@ -202,7 +206,7 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
       toast.success(edgeFnData.message || "User processing complete.");
       setIsAddDialogOpen(false);
       
-      setTimeout(() => loadUsers(), 1000); // Reload users to see the new one
+      setTimeout(() => loadUsers(), 1000);
 
     } catch (error: any) {
       console.error("Failed to add user:", error);
@@ -303,5 +307,4 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
   );
 };
 
-// Add default export
 export default UserManagement;

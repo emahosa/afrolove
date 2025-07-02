@@ -1,6 +1,9 @@
 
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagement } from "./UserManagement";
+import { fetchUsersFromDatabase } from '@/utils/adminOperations';
+import { toast } from 'sonner';
 
 interface AdminManagementProps {
   users?: any[];
@@ -15,6 +18,41 @@ export const AdminManagement = ({
   apiKeys = [],
   renderStatusLabel = (status: string) => status
 }: AdminManagementProps) => {
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    loadAdminUsers();
+  }, []);
+
+  const loadAdminUsers = async () => {
+    setIsLoading(true);
+    try {
+      console.log("AdminManagement: Loading all users to filter admins...");
+      const allUsers = await fetchUsersFromDatabase();
+      console.log("AdminManagement: All users loaded:", allUsers);
+      
+      // Filter only admin and super_admin users
+      const filteredAdminUsers = allUsers.filter(user => 
+        user.role === 'admin' || user.role === 'super_admin'
+      );
+      
+      console.log("AdminManagement: Filtered admin users:", filteredAdminUsers);
+      setAdminUsers(filteredAdminUsers);
+      
+      if (filteredAdminUsers.length === 0) {
+        toast.info("No admin users found");
+      } else {
+        toast.success(`Loaded ${filteredAdminUsers.length} admin users`);
+      }
+    } catch (error: any) {
+      console.error("AdminManagement: Failed to load admin users:", error);
+      toast.error("Failed to load admin users", { description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -32,7 +70,7 @@ export const AdminManagement = ({
         
         <TabsContent value="admin-users">
           <UserManagement 
-            users={admins} 
+            users={adminUsers} 
             renderStatusLabel={renderStatusLabel}
           />
         </TabsContent>
