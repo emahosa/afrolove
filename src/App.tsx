@@ -10,7 +10,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminRegister from "./pages/AdminRegister";
-import AdminLoginPage from "./pages/AdminLogin"; // Added import for AdminLoginPage
+import AdminLoginPage from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
 import Create from "./pages/Create";
 import Library from "./pages/Library";
@@ -24,12 +24,11 @@ import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
 import BecomeAffiliatePage from "./pages/BecomeAffiliate";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
-import SubscribePage from "./pages/SubscribePage"; // Added import
+import SubscribePage from "./pages/SubscribePage";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
-import AdminLayout from "./layouts/AdminLayout"; // Import AdminLayout
 
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -46,7 +45,7 @@ const App = () => (
           {/* Auth routes */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<AdminLoginPage />} /> {/* Added admin login route */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/admin" element={<AdminRegister />} />
           </Route>
@@ -64,17 +63,16 @@ const App = () => (
               <Route path="/my-custom-songs" element={<UserCustomSongs />} />
               <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
               <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
-              <Route path="/subscribe" element={<SubscribePage />} /> {/* Added subscribe route */}
+              <Route path="/subscribe" element={<SubscribePage />} />
             </Route>
           </Route>
 
-          {/* Admin routes with dedicated AdminLayout */}
-          <Route element={<ProtectedRoute />}> {/* Ensures only authenticated users proceed */}
-            <Route element={<AdminLayout />}> {/* Wraps all admin pages in AdminLayout */}
-              <Route path="/admin" element={<Admin />} /> {/* Default admin page, e.g., overview */}
-              <Route path="/admin/overview" element={<Admin tab="overview" />} /> {/* Explicit overview */}
-              <Route path="/admin/users" element={<Admin tab="users" />} />
-              <Route path="/admin/admins" element={<Admin tab="admins" />} />
+          {/* Admin routes - COMPLETELY SEPARATE from user interface */}
+          <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/overview" element={<Admin tab="overview" />} />
+            <Route path="/admin/users" element={<Admin tab="users" />} />
+            <Route path="/admin/admins" element={<Admin tab="admins" />} />
             <Route path="/admin/genres" element={<Admin tab="genres" />} />
             <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
             <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />

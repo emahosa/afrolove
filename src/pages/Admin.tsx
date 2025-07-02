@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client"; // Ensure supabase is imported
+import { supabase } from "@/integrations/supabase/client";
 import { Users, Settings, Music, Key, Trophy, FileText, CreditCard, HelpCircle, BarChart3, Cog, DollarSign, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,7 +26,7 @@ interface AdminProps {
 }
 
 const Admin = ({ tab }: AdminProps) => {
-  const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth(); // Use isAdmin, isSuperAdmin from AuthContext
+  const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(tab || "overview");
   const [adminStats, setAdminStats] = useState({
     totalUsers: 0,
@@ -35,13 +35,10 @@ const Admin = ({ tab }: AdminProps) => {
     pendingRequests: 0
   });
 
-  // Minimal useEffect for fetching stats, admin check is now handled by ProtectedRoute and AuthContext
   useEffect(() => {
     const fetchAdminStats = async () => {
-      if (!user) return; // Ensure user is available
+      if (!user) return;
       try {
-        // Fetch basic admin statistics - Supabase client is directly available
-        const { supabase } = await import('@/integrations/supabase/client');
         const { count: userCount } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
@@ -49,38 +46,33 @@ const Admin = ({ tab }: AdminProps) => {
         setAdminStats(prev => ({
           ...prev,
           totalUsers: userCount || 0,
-          activeUsers: userCount || 0, // Simplified for now
-          totalSongs: 0, // Would need actual songs table
-          pendingRequests: 0 // Would need actual requests table
+          activeUsers: userCount || 0,
+          totalSongs: 0,
+          pendingRequests: 0
         }));
       } catch (error) {
         console.error('Error fetching admin stats:', error);
       }
     };
 
-    if (isAdmin() || isSuperAdmin()) { // Fetch stats only if user is confirmed admin
+    if (isAdmin() || isSuperAdmin()) {
       fetchAdminStats();
     }
-  }, [user, isAdmin, isSuperAdmin]); // Depend on user and admin status from AuthContext
+  }, [user, isAdmin, isSuperAdmin]);
 
   const handleLogout = async () => {
     await logout();
   };
 
-  // ProtectedRoute handles loading and non-admin redirection.
-  // This page should only render if ProtectedRoute allows, meaning user is an admin.
-  // However, a brief check for authLoading might be good if ProtectedRoute doesn't cover all loading scenarios.
   if (authLoading) {
-     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-melody-dark">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        <p className="ml-4 text-lg">Verifying admin access...</p>
+        <p className="ml-4 text-lg text-melody-light">Verifying admin access...</p>
       </div>
     );
   }
 
-  // This check is technically redundant if ProtectedRoute works perfectly,
-  // but acts as a final safeguard within the component.
   if (!isAdmin() && !isSuperAdmin()) {
     console.warn("Admin.tsx: Non-admin user accessed component despite ProtectedRoute. Redirecting.");
     return <Navigate to="/dashboard" replace />;
@@ -97,9 +89,9 @@ const Admin = ({ tab }: AdminProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Admin Header - completely separate from user interface */}
-      <div className="border-b bg-white shadow-sm">
+    <div className="min-h-screen bg-melody-dark text-melody-light">
+      {/* Admin Header */}
+      <div className="border-b border-border bg-card shadow-sm">
         <div className="container mx-auto py-4 px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -123,7 +115,7 @@ const Admin = ({ tab }: AdminProps) => {
       {/* Admin Content */}
       <div className="container mx-auto py-8 px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-white">
+          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-card">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="admins">Admins</TabsTrigger>
@@ -141,7 +133,7 @@ const Admin = ({ tab }: AdminProps) => {
           <TabsContent value="overview" className="space-y-6">
             {/* Admin Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                   <Users className="h-4 w-4 text-blue-600" />
@@ -152,7 +144,7 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Active Users</CardTitle>
                   <Users className="h-4 w-4 text-green-600" />
@@ -163,7 +155,7 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">System Health</CardTitle>
                   <BarChart3 className="h-4 w-4 text-purple-600" />
@@ -174,7 +166,7 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
                   <HelpCircle className="h-4 w-4 text-yellow-600" />
@@ -188,7 +180,7 @@ const Admin = ({ tab }: AdminProps) => {
 
             {/* Admin Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader>
                   <CardTitle>Administrative Actions</CardTitle>
                   <CardDescription>Quick access to common admin tasks</CardDescription>
@@ -229,7 +221,7 @@ const Admin = ({ tab }: AdminProps) => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white">
+              <Card className="bg-card">
                 <CardHeader>
                   <CardTitle>System Status</CardTitle>
                   <CardDescription>Current system health and performance</CardDescription>
@@ -258,7 +250,7 @@ const Admin = ({ tab }: AdminProps) => {
 
           {/* Admin Management Tabs */}
           <TabsContent value="users" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
                 <CardDescription>Manage user accounts, roles, and permissions</CardDescription>
@@ -270,7 +262,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="admins" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Administrator Management</CardTitle>
                 <CardDescription>Manage administrator accounts and permissions</CardDescription>
@@ -282,7 +274,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="genres" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Genre Management</CardTitle>
                 <CardDescription>Manage music genres and AI prompt templates</CardDescription>
@@ -294,7 +286,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="suno-api" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Suno API Management</CardTitle>
                 <CardDescription>Manage Suno API keys and configuration</CardDescription>
@@ -306,7 +298,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="contest" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Contest Management</CardTitle>
                 <CardDescription>Manage contests, entries, and voting</CardDescription>
@@ -318,7 +310,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Content Management</CardTitle>
                 <CardDescription>Manage content moderation and flags</CardDescription>
@@ -330,7 +322,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="payments" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Payment Management</CardTitle>
                 <CardDescription>Manage payments, transactions, and billing</CardDescription>
@@ -342,7 +334,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="support" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Support Management</CardTitle>
                 <CardDescription>Manage support tickets and user inquiries</CardDescription>
@@ -354,7 +346,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="reports" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Reports & Analytics</CardTitle>
                 <CardDescription>View system analytics and generate reports</CardDescription>
@@ -366,7 +358,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>System Settings</CardTitle>
                 <CardDescription>Configure system-wide settings and preferences</CardDescription>
@@ -378,7 +370,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="affiliates" className="space-y-4">
-            <Card className="bg-white">
+            <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Affiliate Management</CardTitle>
                 <CardDescription>Manage affiliate programs and commissions</CardDescription>
