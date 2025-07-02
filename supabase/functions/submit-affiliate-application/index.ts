@@ -55,8 +55,31 @@ serve(async (req) => {
     // Ensure SUPABASE_SERVICE_ROLE_KEY is set in your Edge Function environment variables.
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } } // Added auth options for admin client
     )
+
+    // Check if the user is a subscriber
+    const { data: userRoles, error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'subscriber');
+
+    if (roleError) {
+      console.error('Error checking user role:', roleError);
+      return new Response(JSON.stringify({ error: 'Database error while checking user role' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
+
+    if (!userRoles || userRoles.length === 0) {
+      return new Response(JSON.stringify({ error: 'Only subscribers can apply to be an affiliate.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403, // Forbidden
+      });
+    }
 
     // Check if the user already has a pending or approved application
     const { data: existingApplications, error: existingCheckError } = await supabaseAdmin
