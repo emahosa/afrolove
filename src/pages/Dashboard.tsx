@@ -8,12 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // Already here
 import SampleMusic from "@/components/dashboard/SampleMusic";
 
 const Dashboard = () => {
   const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Already here
 
   console.log('🏠 Dashboard rendered for user:', user?.id);
   console.log('👤 User roles check:', { 
@@ -93,7 +93,9 @@ const Dashboard = () => {
   console.log('📛 Display name:', displayName);
 
   const handleSubscribeClick = () => {
-    alert("Subscription required to access this feature. Please visit our subscription page.");
+    // Potentially show a modal or navigate to a dedicated subscription page
+    alert("Subscription required to access this feature. Please visit our subscription page."); // Keep alert for now as per Sidebar
+    navigate("/subscribe"); // Placeholder, actual subscription page might differ
   };
 
   return (
@@ -107,11 +109,12 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+      {!userIsOnlyVoter && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, index) => (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
                 {stat.title}
               </CardTitle>
               <stat.icon className={`h-4 w-4 ${stat.color}`} />

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Ensure supabase is imported
 import { Users, Settings, Music, Key, Trophy, FileText, CreditCard, HelpCircle, BarChart3, Cog, DollarSign, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -26,8 +26,7 @@ interface AdminProps {
 }
 
 const Admin = ({ tab }: AdminProps) => {
-  const { user, logout } = useAuth();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth(); // Use isAdmin, isSuperAdmin from AuthContext
   const [activeTab, setActiveTab] = useState(tab || "overview");
   const [adminStats, setAdminStats] = useState({
     totalUsers: 0,
@@ -36,43 +35,13 @@ const Admin = ({ tab }: AdminProps) => {
     pendingRequests: 0
   });
 
+  // Minimal useEffect for fetching stats, admin check is now handled by ProtectedRoute and AuthContext
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        return;
-      }
-
-      try {
-        // Check if user is the super admin by email
-        if (user.email === 'ellaadahosa@gmail.com') {
-          setIsAdmin(true);
-          return;
-        }
-
-        // Check user roles
-        const { data: roles, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-
-        if (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdmin(false);
-          return;
-        }
-
-        const hasAdminRole = roles?.some(r => r.role === 'admin' || r.role === 'super_admin');
-        setIsAdmin(hasAdminRole || false);
-      } catch (error) {
-        console.error('Error in admin check:', error);
-        setIsAdmin(false);
-      }
-    };
-
     const fetchAdminStats = async () => {
+      if (!user) return; // Ensure user is available
       try {
-        // Fetch basic admin statistics
+        // Fetch basic admin statistics - Supabase client is directly available
+        const { supabase } = await import('@/integrations/supabase/client');
         const { count: userCount } = await supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true });
@@ -89,23 +58,31 @@ const Admin = ({ tab }: AdminProps) => {
       }
     };
 
-    checkAdminStatus();
-    fetchAdminStats();
-  }, [user]);
+    if (isAdmin() || isSuperAdmin()) { // Fetch stats only if user is confirmed admin
+      fetchAdminStats();
+    }
+  }, [user, isAdmin, isSuperAdmin]); // Depend on user and admin status from AuthContext
 
   const handleLogout = async () => {
     await logout();
   };
 
-  if (isAdmin === null) {
-    return (
+  // ProtectedRoute handles loading and non-admin redirection.
+  // This page should only render if ProtectedRoute allows, meaning user is an admin.
+  // However, a brief check for authLoading might be good if ProtectedRoute doesn't cover all loading scenarios.
+  if (authLoading) {
+     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <p className="ml-4 text-lg">Verifying admin access...</p>
       </div>
     );
   }
 
-  if (!isAdmin) {
+  // This check is technically redundant if ProtectedRoute works perfectly,
+  // but acts as a final safeguard within the component.
+  if (!isAdmin() && !isSuperAdmin()) {
+    console.warn("Admin.tsx: Non-admin user accessed component despite ProtectedRoute. Redirecting.");
     return <Navigate to="/dashboard" replace />;
   }
 
