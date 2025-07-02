@@ -32,7 +32,7 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Admin Header */}
       <header className="bg-primary text-primary-foreground shadow-md">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,8 +62,8 @@ const AdminLayout: React.FC = () => {
       </main>
 
       {/* Optional Admin Footer */}
-      <footer className="bg-gray-100 border-t border-gray-200">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
+      <footer className="bg-background border-t border-border">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} MelodyVerse Admin. All rights reserved.
         </div>
       </footer>
