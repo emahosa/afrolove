@@ -97,8 +97,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
   // For general authenticated routes that are not admin, not for "OnlyVoters",
   // and do not have specific 'allowedRoles' that the user has matched.
   // (e.g. /create, /library, /dashboard itself, /profile, /support, /my-custom-songs, etc.)
-  // These require an active subscription. This also covers Affiliates using general subscriber features.
-  if (!isSubscriber()) {
+  // These require an active subscription, BUT admins bypass this requirement.
+  if (!isSubscriber() && !isAdmin() && !isSuperAdmin()) {
     // If we reach here, it means the user is authenticated, not an admin on an admin route,
     // not an "OnlyVoter" on a voter-allowed page, and didn't match any specific allowedRoles.
     // Therefore, they must be a subscriber to access any other page.
