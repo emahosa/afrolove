@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -10,10 +10,48 @@ import SongLibrary from "@/components/music-generation/SongLibrary";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import SampleMusic from "@/components/dashboard/SampleMusic";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading } = useAuth(); // Added isAffiliate
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading } = useAuth();
   const navigate = useNavigate();
+  const [canApplyForAffiliate, setCanApplyForAffiliate] = useState(false);
+  const [checkingAffiliateStatus, setCheckingAffiliateStatus] = useState(true);
+
+  // Check affiliate application status
+  useEffect(() => {
+    const checkAffiliateStatus = async () => {
+      if (!user?.id || !isSubscriber() || isAffiliate() || isAdmin() || isSuperAdmin()) {
+        setCanApplyForAffiliate(false);
+        setCheckingAffiliateStatus(false);
+        return;
+      }
+
+      try {
+        const { data: existingApplication, error } = await supabase
+          .from('affiliate_applications')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .in('status', ['pending', 'approved'])
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking affiliate status:', error);
+          setCanApplyForAffiliate(false);
+        } else {
+          // User can apply if they don't have a pending or approved application
+          setCanApplyForAffiliate(!existingApplication);
+        }
+      } catch (err) {
+        console.error('Unexpected error checking affiliate status:', err);
+        setCanApplyForAffiliate(false);
+      } finally {
+        setCheckingAffiliateStatus(false);
+      }
+    };
+
+    checkAffiliateStatus();
+  }, [user?.id, isSubscriber, isAffiliate, isAdmin, isSuperAdmin]);
 
   console.log('🏠 Dashboard rendered for user:', user?.id);
   console.log('👤 User roles check:', { 
@@ -26,7 +64,7 @@ const Dashboard = () => {
   });
 
   // Show loading state while auth is loading
-  if (loading) {
+  if (loading || checkingAffiliateStatus) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
@@ -37,7 +75,6 @@ const Dashboard = () => {
 
   // Check user roles properly - voter only (not subscriber, not admin)
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-  const canApplyForAffiliate = isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
   
   console.log('🔍 Role determination:', {
     userIsOnlyVoter,

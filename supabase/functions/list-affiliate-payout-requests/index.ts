@@ -52,7 +52,7 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url)
-    const roles = userRolesData?.map((item: UserRole) => item.role) || [];
+    const roles = userRoles?.map((item: UserRole) => item.role) || [];
     const isSuperAdminByEmail = user.email === (Deno.env.get('SUPER_ADMIN_EMAIL') || 'ellaadahosa@gmail.com');
     const isSuperAdminByRole = roles.includes('super_admin');
     const isAdmin = roles.includes('admin');

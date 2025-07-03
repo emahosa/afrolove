@@ -2,8 +2,27 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSongCreation from "@/components/CustomSongCreation";
 import AiSongGeneration from "@/components/AiSongGeneration";
+import { useAuth } from "@/contexts/AuthContext";
+import VoterLockScreen from "@/components/VoterLockScreen";
 
 const Create = () => {
+  const { isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading...</span>
+      </div>
+    );
+  }
+
+  // Check if user is only a voter (no subscriber/admin roles)
+  const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+  
+  if (isOnlyVoter) {
+    return <VoterLockScreen feature="music creation tools" />;
+  }
   return (
     <div className="container mx-auto max-w-4xl py-10 px-4">
       <div className="text-center mb-10">

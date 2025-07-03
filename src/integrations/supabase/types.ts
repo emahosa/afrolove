@@ -1286,6 +1286,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_apply_for_affiliate: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
       current_user_has_role: {
         Args: { role_name: string }
         Returns: boolean
@@ -1321,6 +1325,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_only_voter: {
+        Args: { user_id_param: string }
+        Returns: boolean
+      }
       is_subscriber: {
         Args: { _user_id: string }
         Returns: boolean
@@ -1353,6 +1361,7 @@ export type Database = {
         | "voter"
         | "subscriber"
         | "affiliate"
+        | "contest_entrant"
       voice_clone_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -1488,6 +1497,7 @@ export const Constants = {
         "voter",
         "subscriber",
         "affiliate",
+        "contest_entrant",
       ],
       voice_clone_status: ["pending", "approved", "rejected"],
     },

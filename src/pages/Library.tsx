@@ -7,6 +7,7 @@ import { Loader2, Music, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
+import VoterLockScreen from "@/components/VoterLockScreen";
 
 export interface Song {
   id: string;
@@ -20,10 +21,26 @@ export interface Song {
 }
 
 const Library = () => {
-  const { user } = useAuth();
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
+
+  // Check if user is only a voter (no subscriber/admin roles)
+  const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading...</span>
+      </div>
+    );
+  }
+
+  if (isOnlyVoter) {
+    return <VoterLockScreen feature="your music library" />;
+  }
   
   const fetchSongs = async (showRefreshingIndicator = false) => {
     if (!user?.id) {
