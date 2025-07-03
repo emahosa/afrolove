@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -51,21 +52,28 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     return !!roles?.includes(requiredRole);
   };
 
+// Function to check if a user has a specific role
+  // const hasRole = (roles: string[] | undefined, requiredRole: string): boolean => {
+  //   return !!roles?.includes(requiredRole);
+  // };
+
   // Mock user roles (replace with actual authentication context)
-  const userRoles = ['user', 'affiliate', 'admin']; // Example roles
+  // const userRoles = ['user', 'affiliate', 'admin']; // Example roles
+  const { userRoles, isAdmin, isAffiliate } = useAuth();
+
 
   const visibleNavItems = navItems.filter(item => {
-    if (item.adminOnly && !hasRole(userRoles, 'admin')) {
+    if (item.adminOnly && !isAdmin()) {
       return false;
     }
-    if (item.affiliateOnly && !hasRole(userRoles, 'affiliate')) {
+    if (item.affiliateOnly && !isAffiliate()) {
       return false;
     }
     return true;
   });
 
   return (
-    <div className={cn("hidden border-r bg-secondary h-screen w-60 flex-col p-3 duration-300 md:flex", className)}>
+    <div className={cn("hidden border-r bg-melody-dark h-screen w-60 flex-col p-3 duration-300 md:flex", className)}>
       <div className="mb-4 flex items-center justify-between">
         <p className="font-semibold">MelodyVerse</p>
         <Sheet>
