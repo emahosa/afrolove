@@ -1,184 +1,223 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea'; // Assuming you might want a textarea for 'reason_to_join'
-import { toast } from 'sonner';
-import LockedFeatureNotice from '@/components/ui/LockedFeatureNotice';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
-const BecomeAffiliatePage: React.FC = () => {
-  const { user, isSubscriber, isAffiliate, affiliateApplicationStatus, refreshAffiliateApplicationStatus } = useAuth();
+const affiliateFormSchema = z.object({
+  fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." })
+    .regex(/^\+?[1-9]\d{1,14}$/, { message: "Please enter a valid phone number (e.g., +1234567890)." }),
+  socialMediaUrl: z.string().url({ message: "Please enter a valid URL for your social media profile." }),
+  reasonToJoin: z.string().min(10, { message: "Reason must be at least 10 characters." }).max(500, { message: "Reason must be 500 characters or less." }),
+});
+
+type AffiliateFormValues = z.infer<typeof affiliateFormSchema>;
+
+const BecomeAffiliatePage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(''); // Assuming phone is not in user metadata by default
-  const [socialMediaUrl, setSocialMediaUrl] = useState('');
-  const [reasonToJoin, setReasonToJoin] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    // Refresh status when page loads, in case it changed elsewhere
-    refreshAffiliateApplicationStatus();
-  }, [refreshAffiliateApplicationStatus]);
+  const form = useForm<AffiliateFormValues>({
+    resolver: zodResolver(affiliateFormSchema),
+    defaultValues: {
+      fullName: user?.user_metadata?.full_name || user?.name || "",
+      email: user?.email || "",
+      phone: "",
+      socialMediaUrl: "",
+      reasonToJoin: "",
+    },
+    mode: "onChange",
+  });
 
-  useEffect(() => {
-    if (user) {
-        setFullName(user?.user_metadata?.full_name || user?.name || '');
-        setEmail(user?.email || '');
-    }
-  }, [user]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    if (!socialMediaUrl || !reasonToJoin || !fullName || !email || !phone) {
-      toast.error('Please fill in all required fields.');
-      setIsSubmitting(false);
+  async function onSubmit(data: AffiliateFormValues) {
+    if (!user) {
+      toast.error("You must be logged in to apply.");
       return;
     }
-
+    setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('submit-affiliate-application', {
+      // Ensure the function name matches exactly what's deployed or expected in Supabase
+      const { error } = await supabase.functions.invoke("submit-affiliate-application", {
         body: {
-          full_name: fullName,
-          email: email,
-          phone: phone,
-          social_media_url: socialMediaUrl,
-          reason_to_join: reasonToJoin,
+          full_name: data.fullName,
+          email: data.email, // Ensure backend uses this email or user.email
+          phone: data.phone,
+          social_media_url: data.socialMediaUrl,
+          reason_to_join: data.reasonToJoin,
         },
       });
 
       if (error) {
-        console.error('Error submitting affiliate application:', error);
-        toast.error(error.message || 'Failed to submit application. Please try again.');
+        console.error("Affiliate application submission error:", error.message);
+        // Attempt to parse context for more specific error message if available
+        let detailedMessage = error.message;
+        try {
+            const errorContext = JSON.parse(error.context || error.message); // error.context might not exist or be JSON
+            if (errorContext.error) detailedMessage = errorContext.error;
+            else if (errorContext.details) detailedMessage = errorContext.details;
+            else if (errorContext.message) detailedMessage = errorContext.message;
+        } catch (e) { /* ignore parsing error, use original message */ }
+
+
+        if (detailedMessage.includes("already have an active or pending application")) {
+            toast.error("You already have an active or pending application.");
+        } else if (detailedMessage.includes("Only subscribers can apply")) {
+            toast.error("Submission failed: Only subscribers can apply for the affiliate program.");
+            navigate("/subscribe"); // Optionally navigate to subscribe page
+        } else {
+            toast.error(`Submission failed: ${detailedMessage}`);
+        }
       } else {
-        toast.success(data.message || 'Application submitted successfully! We will review it shortly.');
-        await refreshAffiliateApplicationStatus(); // Refresh status after submission
-        navigate('/dashboard'); // Redirect to dashboard or a confirmation page
+        toast.success("Application submitted! We'll review it and get back to you soon.");
+        navigate("/dashboard");
       }
-    } catch (err: any) {
-      console.error('Unexpected error:', err);
-      toast.error(err.message || 'An unexpected error occurred.');
+    } catch (e: any) {
+      console.error("Unexpected error submitting affiliate application:", e);
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
-  };
-
-  if (!isSubscriber() && affiliateApplicationStatus !== 'approved' && affiliateApplicationStatus !== 'pending') {
-    // If not a subscriber and no pending/approved app, show lock screen.
-    // This also handles 'not_eligible_not_subscriber'
-    return <LockedFeatureNotice message="You must be a subscriber to apply for the affiliate program." />;
   }
 
-  if (isAffiliate() || affiliateApplicationStatus === 'approved') {
+  if (!user) {
     return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Affiliate Program</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>You are already an affiliate! You can view your dashboard to track your progress.</p>
-            <Button onClick={() => navigate('/affiliate')} className="mt-4">Go to Affiliate Dashboard</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (affiliateApplicationStatus === 'pending') {
-     return (
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Application Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Your affiliate application is currently under review. We'll notify you once a decision is made.</p>
-            <Button onClick={() => navigate('/dashboard')} className="mt-4">Back to Dashboard</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Only show form if 'eligible' or 'rejected' (assuming rejected can reapply, current SQL allows this)
-  // or 'unknown' (optimistically show form, backend will validate)
-  if (affiliateApplicationStatus !== 'eligible' && affiliateApplicationStatus !== 'rejected' && affiliateApplicationStatus !== 'unknown') {
-     // This case should ideally not be reached if the above checks are comprehensive
-     // e.g. 'not_applicable_is_affiliate' or 'not_eligible_not_subscriber'
-    return (
-         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            <Card>
-                <CardHeader><CardTitle>Affiliate Program</CardTitle></CardHeader>
-                <CardContent><p>Your current status does not allow applying for the affiliate program at this time.</p></CardContent>
-            </Card>
+        <div className="flex justify-center items-center h-screen">
+            <p>Please log in to access this page. You will be redirected.</p>
+            {/* setTimeout(() => navigate("/login", { state: { from: location } }), 2000) */}
         </div>
     );
   }
 
+  // Update defaultValues if user context changes after initial load (e.g. async load)
+  // This is important if the page loads before user data is fully available.
+  if (user && (form.getValues().email !== user.email || form.getValues().fullName !== (user.user_metadata?.full_name || user.name))) {
+      form.reset({
+        fullName: user.user_metadata?.full_name || user.name || "",
+        email: user.email || "",
+        phone: form.getValues().phone, // keep already entered phone
+        socialMediaUrl: form.getValues().socialMediaUrl, // keep already entered social
+        reasonToJoin: form.getValues().reasonToJoin, // keep already entered reason
+      });
+  }
+
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl">
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8 max-w-3xl">
       <Card>
         <CardHeader>
-          <CardTitle>Become an Affiliate</CardTitle>
-          <CardDescription>
-            Join our affiliate program and earn by referring users. Please fill out the form below.
-            You must be an active subscriber to apply.
+          <CardTitle className="text-2xl font-bold text-center">Become an Affiliate</CardTitle>
+          <CardDescription className="text-center">
+            Join our affiliate program and earn by promoting Afroverse!
+            Fill out the form below to apply.
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your Full Name" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your Email Address" required />
-            </div>
-             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Your Phone Number" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="socialMediaUrl">Social Media Profile URL</Label>
-              <Input id="socialMediaUrl" value={socialMediaUrl} onChange={(e) => setSocialMediaUrl(e.target.value)} placeholder="e.g., https://twitter.com/yourprofile" required />
-              <p className="text-xs text-muted-foreground">
-                Link to your primary social media profile (e.g., Twitter, Instagram, YouTube, TikTok).
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reasonToJoin">Why do you want to join?</Label>
-              <Textarea
-                id="reasonToJoin"
-                value={reasonToJoin}
-                onChange={(e) => setReasonToJoin(e.target.value)}
-                placeholder="Briefly explain your interest in our affiliate program and how you plan to promote Afroverse."
-                required
-                rows={4}
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} readOnly disabled className="bg-gray-100 dark:bg-gray-700 dark:text-gray-300"/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSubmitting || !isSubscriber()}>
-              {isSubmitting ? 'Submitting...' : 'Submit Application'}
-            </Button>
-          </CardFooter>
-        </form>
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} readOnly disabled className="bg-gray-100 dark:bg-gray-700 dark:text-gray-300"/>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1234567890" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Please include your country code.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="socialMediaUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Social Media Profile URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://twitter.com/yourprofile" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Link to your primary social media profile (e.g., Twitter, Instagram, TikTok). This field is required.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="reasonToJoin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Why do you want to join?</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Briefly tell us why you're interested in becoming an affiliate..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                     <FormDescription>
+                      (Min 10 characters, Max 500 characters) This field is required.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isLoading || !form.formState.isValid}>
+                {isLoading ? "Submitting..." : "Submit Application"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
       </Card>
-       {!isSubscriber() && (
-        <p className="text-red-500 text-sm mt-4 text-center">
-            Note: You must be an active subscriber to submit an application.
-            Your application will be rejected if you are not subscribed.
-        </p>
-      )}
     </div>
   );
 };

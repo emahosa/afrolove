@@ -3,24 +3,18 @@ import { useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import LockedFeatureNotice from './ui/LockedFeatureNotice'; // Import the new component
+import LockScreen from './LockScreen'; // Import the new LockScreen component
 
 interface ProtectedRouteProps {
-  allowedRoles?: string[]; // Roles that are explicitly allowed for this route (e.g., ['subscriber', 'admin'])
-  requiredRoles?: string[]; // User must have ALL these roles (e.g. ['subscriber', 'affiliate'] for affiliate dashboard)
+  allowedRoles?: string[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, requiredRoles }) => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, isAffiliate, session, userRoles } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles, isAffiliate } = useAuth();
   const location = useLocation();
-  const [hasShownToast, setHasShownToast] = useState(false); // To prevent toast spam on re-renders
-
-  // Normalize path for easier comparison
-  const currentPath = location.pathname.endsWith('/') && location.pathname.length > 1
-                      ? location.pathname.slice(0, -1)
-                      : location.pathname;
-
-  // Show loading state only during initial auth check
+  const [hasShownToast, setHasShownToast] = useState(false);
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -30,7 +24,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, requiredR
     );
   }
 
-  // Redirect if not authenticated for any protected route
   if (!user || !session) {
     if (!hasShownToast) {
       toast.error("You need to log in to access this page");
@@ -39,103 +32,79 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, requiredR
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin() && !isAffiliate();
-  const userIsSubscriber = isSubscriber(); // This now correctly reflects if they have 'subscriber' role or active sub
-  const userIsAffiliate = isAffiliate(); // Has 'affiliate' role
+  // Determine user's effective role status
+  const isOnlyVoter = isVoter() && !isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
 
-  // --- Voter Access Control ---
-  // Voters can only access specific pages. All others show LockedFeatureNotice.
-  if (userIsOnlyVoter) {
-    const voterAllowedExactPaths = ['/contest', '/subscribe', '/profile', '/login', '/register'];
-    // Add paths that can start with a prefix, e.g., /contest/entry/123
-    const voterAllowedPathPrefixes: string[] = [];
-
-    const isPathAllowedForVoter =
-      voterAllowedExactPaths.includes(currentPath) ||
-      voterAllowedPathPrefixes.some(prefix => currentPath.startsWith(prefix));
-
-    if (currentPath === '/' || currentPath === '/dashboard') { // Voters trying to access general dashboard
-        // Redirect to /contest, or show LockedFeatureNotice if /dashboard should be fully locked
-        // For now, let's assume /dashboard is locked for voters and they should be guided
-        console.log('ProtectedRoute: Voter accessing root or dashboard, showing lock screen.');
-        return <LockedFeatureNotice />;
-    }
-
-    if (!isPathAllowedForVoter) {
-      console.log(`ProtectedRoute: Voter attempt to access ${currentPath}. Showing lock screen.`);
-      return <LockedFeatureNotice />;
-    }
-    // If allowed, proceed to Outlet (further checks like allowedRoles might apply if specified for these paths)
+  // Specific check for root path "/" for anyone, redirect to /dashboard
+  // If they are "onlyVoter", dashboard itself will show lockscreen unless it's /contest or /subscribe
+  if (location.pathname === "/") {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // --- Role-based access for authenticated users beyond just "voter" ---
-
-  // 1. Admin Route Check (Specific for paths starting with /admin)
-  const isAdminRoute = currentPath.startsWith('/admin');
+  // Handle admin routes
   if (isAdminRoute) {
     if (!isAdmin() && !isSuperAdmin()) {
       if (!hasShownToast) {
-        toast.error("You don't have admin privileges to access this page.");
+        toast.error("You don't have admin privileges to access this page");
         setHasShownToast(true);
       }
-      // For admin routes, redirecting to a general non-admin page or showing a generic "access denied" might be better
-      // than LockedFeatureNotice, which implies subscription.
-      return <Navigate to="/" state={{ from: location }} replace />;
+      return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
-    // If admin/super_admin, allow access to <Outlet /> for admin routes
-    // Specific permissions within admin sections can be handled by the components themselves or more granular routes.
-  } else { // Non-admin routes, apply allowedRoles and requiredRoles
-    // 2. Required Roles Check (User must have ALL roles in requiredRoles)
-    if (requiredRoles && requiredRoles.length > 0) {
-      const hasAllRequiredRoles = requiredRoles.every(role => userRoles.includes(role));
-      if (!hasAllRequiredRoles) {
-        console.log(`ProtectedRoute: User ${user.id} lacks ALL required roles for ${currentPath}. Needed: ${requiredRoles.join(' AND ')}, Has: ${userRoles.join(', ')}`);
-        // This could be a specific "access denied" message or LockedFeatureNotice if appropriate
-        if (!hasShownToast) {
-            toast.error("You do not have all the necessary permissions for this page.");
-            setHasShownToast(true);
-        }
-        // Redirect to a safe page, like user's default dashboard or home.
-        // If an affiliate tries to access affiliate dashboard but isn't a subscriber, they should be locked out.
-        // The `affiliate` role might persist, but access to features requires `subscriber`.
-        if (requiredRoles.includes('subscriber') && !userIsSubscriber) {
-            return <LockedFeatureNotice />; // Show subscribe notice if subscriber is required and missing
-        }
-        return <Navigate to="/" state={{ from: location }} replace />;
-      }
-    }
-
-    // 3. Allowed Roles Check (User must have AT LEAST ONE of the roles in allowedRoles)
-    // This is typically used if multiple roles can access a route.
-    // This check should happen *after* the voter check, so it applies to subscribers, affiliates, etc.
-    if (allowedRoles && allowedRoles.length > 0 && !userIsOnlyVoter) {
-      const hasAllowedRole = allowedRoles.some(role => userRoles.includes(role));
-      if (!hasAllowedRole) {
-        console.log(`ProtectedRoute: User ${user.id} lacks ANY allowed role for ${currentPath}. Allowed: ${allowedRoles.join(' OR ')}, Has: ${userRoles.join(', ')}`);
-        if (!hasShownToast) {
-          toast.error("You do not have the necessary permissions to access this page.");
-          setHasShownToast(true);
-        }
-        // If it's a subscriber feature and they are not a subscriber, show lock.
-        if (allowedRoles.includes('subscriber') && !userIsSubscriber) {
-             return <LockedFeatureNotice />;
-        }
-        return <Navigate to="/" state={{ from: location }} replace />;
-      }
-    }
+    // Admin/SuperAdmin can access admin routes
+    return <Outlet />;
   }
 
-  // --- Special case for Unsubscribed Affiliate ---
-  // An affiliate who is not currently a subscriber should be blocked from subscriber-only content
-  // and the affiliate dashboard (as it requires subscriber features).
-  // The `requiredRoles` check for the affiliate dashboard (e.g., `['affiliate', 'subscriber']`) handles this.
-  // For general subscriber features, if `allowedRoles=['subscriber']` is used, they'd be blocked.
-  // If they try to access a generic page that isn't specifically role-restricted beyond "authenticated user",
-  // they might get through. We need to ensure pages like song generation, voice cloning are explicitly
-  // protected by `allowedRoles=['subscriber']` or `requiredRoles=['subscriber']`.
+  // --- Role-based access for non-admin routes ---
 
-  // If all checks pass, render the requested component
-  console.log(`ProtectedRoute: Access GRANTED for user ${user?.id} (${userRoles.join(', ')}) to path ${currentPath}`);
+  // Handle "OnlyVoter" case first
+  if (isOnlyVoter) {
+    const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
+    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe';
+
+    if (isContestPage || isSubscribePage) {
+      return <Outlet />; // Allow access to contest and subscribe pages for voters
+    }
+    return <LockScreen />;
+  }
+
+  // For all other authenticated users (Subscribers, Affiliates who are also Subscribers)
+  // Check if they are trying to access a route with specific role requirements
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
+    if (!hasRequiredRole) {
+      if (allowedRoles.includes('affiliate') && !isAffiliate() && isSubscriber()) {
+         toast.error("This section is for approved affiliates only.");
+      } else {
+         toast.error("You do not have the necessary permissions to access this page.");
+      }
+      return <Navigate to="/dashboard" state={{ from: location }} replace />;
+    }
+    // User has the specific role required by allowedRoles (e.g., 'affiliate' for /affiliate)
+    // Now, ensure they are still an active subscriber if the role isn't admin/super_admin
+    // (AffiliateDashboard itself will also check this, providing defense in depth)
+    if (!isSubscriber() && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
+        // This implies an affiliate (or other role) whose subscription lapsed.
+        // For /affiliate, AffiliateDashboard.tsx handles the LockScreen.
+        // For other potential allowedRoles, this provides a LockScreen.
+        const isAffiliateRoute = allowedRoles.includes('affiliate') && location.pathname.toLowerCase().startsWith('/affiliate');
+        if (!isAffiliateRoute) { // Avoid double LockScreen if AffiliateDashboard handles it
+            return <LockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
+        }
+    }
+    return <Outlet />;
+  }
+
+  // For general authenticated routes that are not admin, not for "OnlyVoters",
+  // and do not have specific 'allowedRoles' that the user has matched.
+  // (e.g. /create, /library, /dashboard itself, /profile, /support, /my-custom-songs, etc.)
+  // These require an active subscription. This also covers Affiliates using general subscriber features.
+  if (!isSubscriber()) {
+    // If we reach here, it means the user is authenticated, not an admin on an admin route,
+    // not an "OnlyVoter" on a voter-allowed page, and didn't match any specific allowedRoles.
+    // Therefore, they must be a subscriber to access any other page.
+    return <LockScreen message="An active subscription is required to access this page." />;
+  }
+
   return <Outlet />;
 };
 

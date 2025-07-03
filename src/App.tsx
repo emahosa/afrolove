@@ -86,8 +86,7 @@ const App = () => (
           </Route>
 
           {/* Affiliate Panel Routes */}
-          {/* User must have BOTH 'affiliate' AND 'subscriber' roles */}
-          <Route element={<ProtectedRoute requiredRoles={['affiliate', 'subscriber']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['affiliate', 'admin', 'super_admin']} />}>
             <Route element={<AppLayout />}>
               <Route path="/affiliate" element={<AffiliateDashboard />} />
             </Route>

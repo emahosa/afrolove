@@ -79,43 +79,41 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Initialize Supabase admin client for role check
-    // This uses the service role key and should be used carefully.
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
     if (!isAdminTest) {
-      // Check if the user is a subscriber
-      const { data: userRoles, error: roleError } = await supabaseAdmin
+      // --- START ROLE CHECK ---
+      const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
+        .eq('user_id', userId);
+
+      const { data: subscription, error: subError } = await supabase
+        .from('user_subscriptions')
+        .select('subscription_status, expires_at')
         .eq('user_id', userId)
-        .eq('role', 'subscriber');
+        .maybeSingle();
 
-      if (roleError) {
-        console.error('Error checking user role:', roleError);
-        return new Response(JSON.stringify({ error: 'Database error while checking user role', success: false }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
+      if (rolesError) {
+        console.error(`Error fetching roles for user ${userId}:`, rolesError.message);
+        return new Response(JSON.stringify({ error: 'Failed to verify user permissions (roles).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (subError && subError.code !== 'PGRST116') { // PGRST116 = Not Found
+        console.error(`Error fetching subscription for user ${userId}:`, subError.message);
+        return new Response(JSON.stringify({ error: 'Failed to verify user permissions (subscription).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      if (!userRoles || userRoles.length === 0) {
-        console.log('❌ User is not a subscriber. UserID:', userId);
-        return new Response(JSON.stringify({ error: 'This feature is available for subscribers only.', success: false }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 403, // Forbidden
-        });
+      const hasSufficientRole = userRoles?.some(r => (r as {role: string}).role === 'subscriber' || (r as {role: string}).role === 'affiliate');
+      const isActiveSubscription = subscription?.subscription_status === 'active' && (!subscription.expires_at || new Date(subscription.expires_at) > new Date());
+
+      // User must have a qualifying role (subscriber or affiliate) AND an active subscription to use generation.
+      // Admins bypass this check if isAdminTest=true.
+      if (!hasSufficientRole || !isActiveSubscription) {
+        console.log(`User ${userId} lacks role or active subscription for song generation. HasRole: ${hasSufficientRole}, ActiveSub: ${isActiveSubscription}. Access denied.`);
+        return new Response(JSON.stringify({ error: 'Access denied. Song generation requires an active subscription and appropriate role.' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      // --- END ROLE CHECK ---
 
       // Check user credits
-      // Use the supabaseAdmin client here as well if RLS on profiles might prevent access for some reason,
-      // though typically users can read their own profile. For consistency, or if profiles RLS is restrictive,
-      // using supabaseAdmin is safer for backend checks. Assuming RLS allows user to read own credits for now.
-      const { data: userProfile, error: profileError } = await supabase // Using the user-context client for profile check initially
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('credits')
         .eq('id', userId)

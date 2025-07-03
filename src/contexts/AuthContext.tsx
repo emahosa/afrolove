@@ -29,13 +29,9 @@ interface AuthContextType {
   adminPermissions: string[];
   updateUserCredits: (amount: number) => Promise<void>;
   isAffiliate: () => boolean;
-  affiliateApplicationStatus: 'unknown' | 'not_eligible_not_subscriber' | 'eligible' | 'pending' | 'approved' | 'rejected' | 'not_applicable_is_affiliate';
-  refreshAffiliateApplicationStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export type AffiliateApplicationStatus = 'unknown' | 'not_eligible_not_subscriber' | 'eligible' | 'pending' | 'approved' | 'rejected' | 'not_applicable_is_affiliate';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<ExtendedUser | null>(null);
@@ -44,11 +40,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [subscriberStatus, setSubscriberStatus] = useState(false);
-  const [affiliateApplicationStatus, setAffiliateApplicationStatus] = useState<AffiliateApplicationStatus>('unknown');
   const processedUserId = useRef<string | null>(null);
 
-  // console.log('🔐 AuthContext state:', { // Reduced console noise
-  //   userEmail: user?.email,
+  console.log('🔐 AuthContext state:', { 
+    userEmail: user?.email, 
     roles: userRoles, 
     permissions: adminPermissions,
     subscriberStatus,
@@ -373,103 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     processAndFetch();
-  }, [session, loading]); // `isSubscriber` and `isAffiliate` (the functions) are stable due to useCallback with userRoles dependency
-
-  const refreshAffiliateApplicationStatus = useCallback(async () => {
-    if (!user || !session) {
-      setAffiliateApplicationStatus('unknown');
-      return;
-    }
-
-    if (!isSubscriber()) { // Use the AuthContext's isSubscriber method
-      setAffiliateApplicationStatus('not_eligible_not_subscriber');
-      return;
-    }
-
-    if (isAffiliate()) { // Use the AuthContext's isAffiliate method
-      setAffiliateApplicationStatus('not_applicable_is_affiliate');
-      return;
-    }
-
-    try {
-      // Check existing application first
-      const { data: existingApp, error: appCheckError } = await supabase
-        .from('affiliate_applications')
-        .select('status')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (appCheckError) {
-        console.error('Error checking existing affiliate application:', appCheckError);
-        setAffiliateApplicationStatus('unknown'); // Or some error status
-        return;
-      }
-
-      if (existingApp) {
-        if (existingApp.status === 'pending') {
-          setAffiliateApplicationStatus('pending');
-          return;
-        }
-        if (existingApp.status === 'approved') {
-          // This case implies they should also have 'affiliate' role. If not, there's a discrepancy.
-          // isAffiliate() check above should catch this.
-          setAffiliateApplicationStatus('approved');
-          return;
-        }
-        if (existingApp.status === 'rejected') {
-          // If rejected, can they reapply? For now, assume 'eligible' if other conditions met.
-          // The can_apply_for_affiliate SQL function's logic is what truly matters for re-application.
-          // Let's call the RPC to be sure.
-        }
-      }
-
-      // Call the RPC function `can_apply_for_affiliate`
-      const { data: canApply, error: rpcError } = await supabase.rpc('can_apply_for_affiliate', {
-        user_id_param: user.id,
-      });
-
-      if (rpcError) {
-        console.error('Error calling can_apply_for_affiliate RPC:', rpcError);
-        setAffiliateApplicationStatus('unknown'); // Or some error status
-        return;
-      }
-
-      if (canApply) {
-        setAffiliateApplicationStatus('eligible');
-      } else {
-        // If canApply is false, it means one of the conditions in the SQL function failed.
-        // We've already checked for subscriber and affiliate status.
-        // So, this likely means an application exists that is 'pending' or 'approved'.
-        // The existingApp check above should have caught this. If existingApp was null but canApply is false,
-        // it's a bit of a contradiction unless the SQL function has slightly different logic not covered by the above checks.
-        // For safety, if canApply is false and we haven't set 'pending' or 'approved',
-        // we might infer 'pending' or 'approved' if an application exists, otherwise 'eligible' seems unlikely.
-        // The most robust way is to rely on the RPC result primarily for 'eligible'.
-        // If it's not 'eligible', and we already handled 'not_subscriber' and 'is_affiliate',
-        // and an existing app was not 'pending' or 'approved', it might be 'rejected' but still blocking re-application.
-        // The SQL function currently blocks if status is 'pending' or 'approved'.
-        // If it's 'rejected', the SQL function would allow re-application if not for other reasons.
-        // So if canApply is false, and we are here, it must be due to an existing pending/approved application.
-        // Let's re-check existingApp as the SQL function does.
-         if (existingApp?.status === 'pending') setAffiliateApplicationStatus('pending');
-         else if (existingApp?.status === 'approved') setAffiliateApplicationStatus('approved');
-         else setAffiliateApplicationStatus('unknown'); // Fallback, should ideally be more specific
-      }
-    } catch (error) {
-      console.error('Error in refreshAffiliateApplicationStatus:', error);
-      setAffiliateApplicationStatus('unknown');
-    }
-  }, [user, session, supabase, isSubscriber, isAffiliate]); // Add supabase, isSubscriber, isAffiliate
-
-  useEffect(() => {
-    if (user && session && (userRoles.includes('subscriber') || userRoles.includes('voter'))) {
-      // Refresh when user/session changes, or if roles indicate they might be eligible or become eligible.
-      refreshAffiliateApplicationStatus();
-    }
-  }, [user, session, userRoles, refreshAffiliateApplicationStatus]);
-
+  }, [session, loading]);
 
   const value = {
     user,
@@ -487,9 +386,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userRoles,
     adminPermissions,
     updateUserCredits,
-    isAffiliate,
-    affiliateApplicationStatus,
-    refreshAffiliateApplicationStatus,
+    isAffiliate
   };
 
   return (
