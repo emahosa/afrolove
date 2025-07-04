@@ -17,10 +17,18 @@ const AdminLayout: React.FC = () => {
   }
 
   // This layout should only be reachable if ProtectedRoute has already vetted the user is an admin.
-  // However, an additional check here can be a safeguard.
+  // However, additional checks here act as safeguards.
+  if (!user) {
+    // If auth is not loading but there's no user object, something is wrong.
+    // ProtectedRoute should have caught this and sent to login.
+    // Redirecting to admin login as a fallback.
+    console.warn("AdminLayout: No user object available after auth loading. Redirecting to admin login.");
+    return <Navigate to="/admin/login" replace />;
+  }
+
   if (!isAdmin() && !isSuperAdmin()) {
-    console.warn("AdminLayout: Non-admin attempting to access. This should have been caught by ProtectedRoute.");
-    // Redirect to user dashboard or login. User dashboard is probably safer if they were somehow authenticated.
+    console.warn("AdminLayout: User is not admin/super_admin. This should ideally be caught by ProtectedRoute. Redirecting to dashboard.");
+    // Redirect to user dashboard if the user is somehow authenticated but not an admin.
     return <Navigate to="/dashboard" replace />;
   }
 
