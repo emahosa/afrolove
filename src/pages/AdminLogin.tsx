@@ -10,8 +10,8 @@ import { Shield, Music } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminLoginPage: React.FC = () => {
-  const [email, setEmail] = useState('ellaadahosa@gmail.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login, isAdmin, isSuperAdmin, user, loading: authLoading } = useAuth();
