@@ -390,7 +390,7 @@ export const useContest = () => {
       const cleanTitle = title.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filename = `${timestamp}_${cleanTitle}.${fileExtension}`;
       
-      console.log('📁 Uploading file:', filename, 'Size:', videoFile.size);
+      console.log('📁 use-contest:submitEntry - Attempting to upload file:', filename, 'Size:', videoFile.size, 'Type:', videoFile.type);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('instrumentals')
@@ -400,18 +400,44 @@ export const useContest = () => {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error('Failed to upload file: ' + uploadError.message);
+        console.error('❌ use-contest:submitEntry - Supabase storage upload error:', uploadError);
+        toast.error(`Upload failed: ${uploadError.message}. Please try a different file or check your connection.`);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
-      console.log('✅ File uploaded successfully:', uploadData.path);
+      if (!uploadData || !uploadData.path) {
+        console.error('❌ use-contest:submitEntry - Supabase storage upload returned no data or path.');
+        toast.error('Upload process failed: No file path returned after upload. Please contact support.');
+        throw new Error('Upload process failed: No file path returned after upload.');
+      }
 
-      const { data: { publicUrl } } = supabase.storage
+      console.log('✅ use-contest:submitEntry - File uploaded successfully. Path:', uploadData.path);
+
+      console.log('🔗 use-contest:submitEntry - Attempting to get public URL for path:', `entries/${filename}`);
+      const { data: publicUrlData, error: publicUrlError } = supabase.storage // Changed to capture error
         .from('instrumentals')
         .getPublicUrl(`entries/${filename}`);
 
-      console.log('🔗 Public URL generated:', publicUrl);
+      if (publicUrlError) {
+        console.error('❌ use-contest:submitEntry - Supabase storage getPublicUrl error:', publicUrlError);
+        toast.error(`Failed to get public URL: ${publicUrlError.message}. Entry cannot be created.`);
+        // Attempt to delete the orphaned file if URL generation fails
+        await supabase.storage.from('instrumentals').remove([`entries/${filename}`]);
+        console.log('🗑️ use-contest:submitEntry - Orphaned file deleted:', `entries/${filename}`);
+        throw new Error(`Failed to get public URL: ${publicUrlError.message}`);
+      }
 
+      if (!publicUrlData || !publicUrlData.publicUrl) {
+        console.error('❌ use-contest:submitEntry - Supabase storage getPublicUrl returned no publicUrl.');
+        toast.error('Failed to process file: No public URL generated. Please contact support.');
+        await supabase.storage.from('instrumentals').remove([`entries/${filename}`]);
+        console.log('🗑️ use-contest:submitEntry - Orphaned file deleted due to no public URL:', `entries/${filename}`);
+        throw new Error('Failed to process file: No public URL generated.');
+      }
+      const publicUrl = publicUrlData.publicUrl;
+      console.log('🔗 use-contest:submitEntry - Public URL generated:', publicUrl);
+
+      console.log('📝 use-contest:submitEntry - Attempting to insert contest entry into database.');
       const { data: insertData, error: insertError } = await supabase
         .from('contest_entries')
         .insert({
@@ -426,25 +452,33 @@ export const useContest = () => {
         .single();
 
       if (insertError) {
-        console.error('Error inserting entry:', insertError);
-        throw new Error('Failed to save entry: ' + insertError.message);
+        console.error('❌ use-contest:submitEntry - Supabase database insert error:', insertError);
+        toast.error(`Failed to save entry: ${insertError.message}. Please try again.`);
+        // Attempt to delete the orphaned file if DB insert fails
+        await supabase.storage.from('instrumentals').remove([`entries/${filename}`]);
+        console.log('🗑️ use-contest:submitEntry - Orphaned file deleted due to DB insert failure:', `entries/${filename}`);
+        throw new Error(`Failed to save entry: ${insertError.message}`);
       }
 
-      console.log('✅ Entry saved successfully:', insertData.id);
+      console.log('✅ use-contest:submitEntry - Entry saved successfully. ID:', insertData.id);
       
       toast.success('Entry submitted successfully!');
       
-      // Refresh entries to show the new submission
       if (currentContest) {
+        console.log('🔄 use-contest:submitEntry - Refreshing contest entries for contest ID:', currentContest.id);
         await fetchContestEntries(currentContest.id);
       }
       
       return true;
     } catch (error: any) {
-      console.error('Error submitting entry:', error);
-      toast.error(error.message || 'Failed to submit entry');
+      console.error('❌ use-contest:submitEntry - Error during submission process:', error.message);
+      // The specific error toasts are now inside the try block. This is a fallback.
+      if (!toast.isActive('upload-failed') && !toast.isActive('entry-save-failed')) { // Example: use unique IDs for toasts if needed
+          toast.error(error.message || 'An unexpected error occurred during submission. Please try again.');
+      }
       return false;
     } finally {
+      console.log('🏁 use-contest:submitEntry - Submission process finished. Setting submitting to false.');
       setSubmitting(false);
     }
   };
