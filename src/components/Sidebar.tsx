@@ -47,21 +47,7 @@ const navItems: NavItem[] = [
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-
-  // Function to check if a user has a specific role
-  const hasRole = (roles: string[] | undefined, requiredRole: string): boolean => {
-    return !!roles?.includes(requiredRole);
-  };
-
-// Function to check if a user has a specific role
-  // const hasRole = (roles: string[] | undefined, requiredRole: string): boolean => {
-  //   return !!roles?.includes(requiredRole);
-  // };
-
-  // Mock user roles (replace with actual authentication context)
-  // const userRoles = ['user', 'affiliate', 'admin']; // Example roles
-  const { userRoles, isAdmin, isAffiliate } = useAuth();
-
+  const { isAdmin, isAffiliate } = useAuth();
 
   const visibleNavItems = navItems.filter(item => {
     if (item.adminOnly && !isAdmin()) {
@@ -74,9 +60,9 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   });
 
   return (
-    <div className={cn("hidden border-r bg-melody-dark h-screen w-60 flex-col p-3 duration-300 md:flex", className)}>
+    <div className={cn("hidden border-r bg-background h-screen w-60 flex-col p-3 duration-300 md:flex", className)}>
       <div className="mb-4 flex items-center justify-between">
-        <p className="font-semibold">MelodyVerse</p>
+        <p className="font-semibold text-foreground">MelodyVerse</p>
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="ghost" size="sm">
@@ -90,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                   <Button
                     key={item.href}
                     variant="ghost"
-                    className="w-full justify-start"
+                    className="w-full justify-start text-foreground hover:bg-muted hover:text-foreground"
                     onClick={() => {
                       navigate(item.href);
                       setOpen(false);
@@ -111,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
             <Button
               key={item.href}
               variant="ghost"
-              className="w-full justify-start"
+              className="w-full justify-start text-foreground hover:bg-muted hover:text-foreground"
               onClick={() => navigate(item.href)}
             >
               <item.icon className="mr-2 h-4 w-4" />
