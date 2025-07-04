@@ -16,7 +16,6 @@ import {
   HelpCircle, 
   Menu,
   Folder,
-  Settings,
   Lock
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const isUserAdmin = isAdmin();
   const isUserAffiliate = isAffiliate();
 
-  // Filter items based on admin/affiliate roles first - hide admin panel for non-admins
+  // Filter items - completely hide admin items for non-admins
   const roleFilteredNavItems = navItems.filter(item => {
     if (item.adminOnly && !isUserAdmin) return false;
     if (item.affiliateOnly && !isUserAffiliate) return false;
@@ -132,14 +131,19 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       </aside>
 
       {/* Mobile Sheet (Hamburger Menu) */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      <div className="md:hidden">
          <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" size="icon" aria-label="Open navigation menu">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              aria-label="Open navigation menu"
+              className="fixed top-4 left-4 z-50 bg-background border shadow-md"
+            >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-60 p-0 flex flex-col bg-background">
+          <SheetContent side="left" className="w-60 p-0 flex flex-col bg-background z-50">
             {sidebarContent(true)}
           </SheetContent>
         </Sheet>

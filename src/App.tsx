@@ -7,7 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 // Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
+import UserLogin from "./pages/UserLogin";
 import Register from "./pages/Register";
 import AdminRegister from "./pages/AdminRegister";
 import AdminLoginPage from "./pages/AdminLogin";
@@ -29,6 +29,7 @@ import SubscribePage from "./pages/SubscribePage";
 // Layouts
 import AppLayout from "./layouts/AppLayout";
 import AuthLayout from "./layouts/AuthLayout";
+import AdminLayout from "./layouts/AdminLayout";
 
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -42,13 +43,15 @@ const App = () => (
           {/* Public routes */}
           <Route path="/" element={<Index />} />
           
-          {/* Auth routes */}
+          {/* Separate Auth routes for users and admins */}
           <Route element={<AuthLayout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/login" element={<UserLogin />} />
             <Route path="/register" element={<Register />} />
             <Route path="/register/admin" element={<AdminRegister />} />
           </Route>
+          
+          {/* Completely separate admin login route */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           
           {/* Protected routes with AppLayout (user interface) */}
           <Route element={<ProtectedRoute />}>
@@ -67,22 +70,24 @@ const App = () => (
             </Route>
           </Route>
 
-          {/* Admin routes - COMPLETELY SEPARATE from user interface */}
+          {/* Admin routes - COMPLETELY SEPARATE with AdminLayout */}
           <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/admin/overview" element={<Admin tab="overview" />} />
-            <Route path="/admin/users" element={<Admin tab="users" />} />
-            <Route path="/admin/admins" element={<Admin tab="admins" />} />
-            <Route path="/admin/genres" element={<Admin tab="genres" />} />
-            <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
-            <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
-            <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
-            <Route path="/admin/contest" element={<Admin tab="contest" />} />
-            <Route path="/admin/content" element={<Admin tab="content" />} />
-            <Route path="/admin/payments" element={<Admin tab="payments" />} />
-            <Route path="/admin/support" element={<Admin tab="support" />} />
-            <Route path="/admin/reports" element={<Admin tab="reports" />} />
-            <Route path="/admin/settings" element={<Admin tab="settings" />} />
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/overview" element={<Admin tab="overview" />} />
+              <Route path="/admin/users" element={<Admin tab="users" />} />
+              <Route path="/admin/admins" element={<Admin tab="admins" />} />
+              <Route path="/admin/genres" element={<Admin tab="genres" />} />
+              <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+              <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+              <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+              <Route path="/admin/contest" element={<Admin tab="contest" />} />
+              <Route path="/admin/content" element={<Admin tab="content" />} />
+              <Route path="/admin/payments" element={<Admin tab="payments" />} />
+              <Route path="/admin/support" element={<Admin tab="support" />} />
+              <Route path="/admin/reports" element={<Admin tab="reports" />} />
+              <Route path="/admin/settings" element={<Admin tab="settings" />} />
+            </Route>
           </Route>
 
           {/* Affiliate Panel Routes */}

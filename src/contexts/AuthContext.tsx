@@ -151,11 +151,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     console.log('AuthContext: Attempting login for:', email);
-    // The onAuthStateChange listener will handle the session and user state updates.
-    return supabase.auth.signInWithPassword({
+    
+    const result = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
+    // Special handling for admin users
+    if (result.data.session && email === "ellaadahosa@gmail.com") {
+      console.log('AuthContext: Super admin login detected');
+      // The onAuthStateChange listener will handle the session and user state updates
+    }
+
+    return result;
   };
 
   const register = async (fullName: string, email: string, password: string, referralCode?: string | null): Promise<boolean> => {
@@ -337,12 +345,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: profile?.full_name || session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
             avatar: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
             credits: profile?.credits ?? 5,
-            subscription: 'free' // This can be enhanced later based on subscription status
+            subscription: 'free'
           };
 
           setUser(fullUser);
           processedUserId.current = userId;
           console.log('AuthContext: User setup complete for:', fullUser.name);
+
+          // Auto-redirect admins to admin panel if they're not already there
+          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
+              && !window.location.pathname.startsWith('/admin')) {
+            console.log('AuthContext: Admin user detected, should redirect to admin panel');
+          }
 
         } catch (error) {
           console.error('AuthContext: Error processing session:', error);

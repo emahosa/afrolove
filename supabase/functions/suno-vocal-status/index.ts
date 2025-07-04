@@ -21,40 +21,32 @@ Deno.serve(async (req) => {
       )
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const { taskId, audioId } = await req.json()
+    const url = new URL(req.url)
+    const taskId = url.searchParams.get('taskId')
 
-    if (!taskId || !audioId) {
+    if (!taskId) {
       return new Response(
-        JSON.stringify({ error: 'taskId and audioId are required' }),
+        JSON.stringify({ error: 'taskId is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const vocalRemovalRequest = {
-      taskId: taskId,
-      audioId: audioId,
-      callBackUrl: `${supabaseUrl}/functions/v1/suno-vocal-callback`
-    }
+    console.log('Checking vocal separation status for task:', taskId)
 
-    console.log('Removing vocals with request:', vocalRemovalRequest)
-
-    const response = await fetch('https://api.api.box/api/v1/vocal-removal/generate', {
-      method: 'POST',
+    const response = await fetch(`https://api.api.box/api/v1/vocal-removal/record-info?taskId=${taskId}`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${sunoApiKey}`
-      },
-      body: JSON.stringify(vocalRemovalRequest)
+      }
     })
 
     const responseText = await response.text()
-    console.log('Vocal removal response:', response.status, responseText)
+    console.log('Vocal separation status response:', response.status, responseText)
 
     if (!response.ok) {
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to remove vocals',
+          error: 'Failed to get vocal separation status',
           status: response.status,
           details: responseText
         }),
@@ -69,7 +61,7 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in suno-vocal-removal:', error)
+    console.error('Error in suno-vocal-status:', error)
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
