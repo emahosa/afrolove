@@ -14,13 +14,14 @@ interface Track {
   type: "song" | "instrumental";
   genre: string;
   date: string;
+  audioUrl?: string; // Added audioUrl field
 }
 
 interface SingleTrackViewProps {
   track: Track;
   onBackClick: () => void;
   playingTrack: string | null;
-  onPlayToggle: (trackId: string, trackTitle: string) => void;
+  onPlayToggle: (trackId: string, trackTitle: string, audioUrl?: string) => void; // Added audioUrl here too
   onVoiceCloned: (voiceId: string) => void;
   selectedVoiceId: string | null;
 }
@@ -33,12 +34,30 @@ const SingleTrackView = ({
   onVoiceCloned,
   selectedVoiceId,
 }: SingleTrackViewProps) => {
-  const handleDownload = (trackTitle: string) => {
-    toast("Your song is being downloaded");
-    
-    setTimeout(() => {
-      toast.success(`${trackTitle}.mp3 has been saved to your downloads folder`);
-    }, 2000);
+  const handleDownload = (trackTitle: string, audioUrl?: string) => {
+    if (!audioUrl) {
+      toast.error("Download failed: Audio source not found.");
+      console.error("Download error: track.audioUrl is missing for track:", track.id);
+      return;
+    }
+
+    try {
+      toast.info("Preparing your download..."); // More accurate initial toast
+
+      const fileName = `${trackTitle.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '_') || 'download'}.mp3`;
+
+      const link = document.createElement('a');
+      link.href = audioUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`Downloading "${fileName}"...`);
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Download failed. Please try again.");
+    }
   };
 
   return (
