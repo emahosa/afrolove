@@ -383,10 +383,14 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
-      console.log('🔄 use-contest: submitEntry() - ONLY contest_entries table, NO USERS');
+      console.log('🔄 use-contest: submitEntry() - Starting submission process');
       
       const timestamp = Date.now();
-      const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const fileExtension = videoFile.name.split('.').pop() || 'mp4';
+      const cleanTitle = title.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filename = `${timestamp}_${cleanTitle}.${fileExtension}`;
+      
+      console.log('📁 Uploading file:', filename, 'Size:', videoFile.size);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('instrumentals')
@@ -400,28 +404,41 @@ export const useContest = () => {
         throw new Error('Failed to upload file: ' + uploadError.message);
       }
 
+      console.log('✅ File uploaded successfully:', uploadData.path);
+
       const { data: { publicUrl } } = supabase.storage
         .from('instrumentals')
         .getPublicUrl(`entries/${filename}`);
 
-      const { error } = await supabase
+      console.log('🔗 Public URL generated:', publicUrl);
+
+      const { data: insertData, error: insertError } = await supabase
         .from('contest_entries')
         .insert({
           contest_id: contestId,
           user_id: user.id,
           video_url: publicUrl,
-          description,
+          description: description || '',
           media_type: videoFile.type.startsWith('video/') ? 'video' : 'audio',
-          approved: false
-        });
+          approved: true // Auto-approve for now
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Error submitting entry:', error);
-        throw error;
+      if (insertError) {
+        console.error('Error inserting entry:', insertError);
+        throw new Error('Failed to save entry: ' + insertError.message);
       }
 
+      console.log('✅ Entry saved successfully:', insertData.id);
+      
       toast.success('Entry submitted successfully!');
-      fetchContestEntries(contestId);
+      
+      // Refresh entries to show the new submission
+      if (currentContest) {
+        await fetchContestEntries(currentContest.id);
+      }
+      
       return true;
     } catch (error: any) {
       console.error('Error submitting entry:', error);
@@ -482,7 +499,7 @@ export const useContest = () => {
     }
 
     try {
-      console.log('🔄 use-contest: downloadInstrumental() - Checking credits first');
+      console.log('🔄 use-contest: downloadInstrumental() - Starting download');
       
       // Check if user has enough credits (cost: 1 credit)
       const currentCredits = await checkUserCredits(user.id);
@@ -494,10 +511,15 @@ export const useContest = () => {
       // Deduct credit
       await updateUserCredits(-1);
       
+      // Create a clean filename
+      const cleanFileName = contestTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').toLowerCase();
+      const fileName = `${cleanFileName}_instrumental.mp3`;
+      
       // Download the file
       const link = document.createElement('a');
       link.href = instrumentalUrl;
-      link.download = `${contestTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_instrumental.mp3`;
+      link.download = fileName;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

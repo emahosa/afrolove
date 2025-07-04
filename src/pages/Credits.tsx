@@ -1,15 +1,17 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { Star, Music, Check, Info, CreditCard, Lock } from "lucide-react"; // Added Lock
+import { Star, Music, Check, Info, CreditCard, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { debugCreditsSystem } from "@/utils/supabaseDebug";
 import { updateUserCredits } from "@/utils/credits";
-import { useNavigate } from "react-router-dom"; // Added useNavigate
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
@@ -25,6 +27,7 @@ const subscriptionPlans = [
     price: 9.99, 
     popular: false,
     creditsPerMonth: 20,
+    priceId: "price_basic_monthly", // These would be your actual Stripe price IDs
     features: [
       "20 credits monthly",
       "Access to all basic AI models",
@@ -38,6 +41,7 @@ const subscriptionPlans = [
     price: 19.99, 
     popular: true,
     creditsPerMonth: 75,
+    priceId: "price_premium_monthly",
     features: [
       "75 credits monthly",
       "Access to all premium AI models",
@@ -52,6 +56,7 @@ const subscriptionPlans = [
     price: 39.99, 
     popular: false,
     creditsPerMonth: 200,
+    priceId: "price_professional_monthly",
     features: [
       "200 credits monthly",
       "Access to all AI models including beta",
@@ -66,11 +71,9 @@ const subscriptionPlans = [
 
 const Credits = () => {
   const { user, updateUserCredits: authUpdateUserCredits, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
 
-  // Determine if the user is exclusively a voter
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-
   const [activeTab, setActiveTab] = useState(userIsOnlyVoter ? "membership" : "credits");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<string | undefined>(user?.subscription);
@@ -80,13 +83,11 @@ const Credits = () => {
   const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Update credit balance when user changes
   useEffect(() => {
     if (user) {
       setCreditBalance(user.credits || 0);
       console.log("Credits component: User credits updated from user object:", user.credits);
       
-      // Run debug tool on component mount to help identify issues
       if (user.id) {
         debugCreditsSystem(user.id);
       }
@@ -114,30 +115,30 @@ const Credits = () => {
         throw new Error("You must be logged in to purchase credits");
       }
       
-      console.log("Purchasing credits:", pack.credits, "for user:", user.id);
+      console.log("Creating Stripe session for credits:", pack.credits, "for user:", user.id);
       
-      // Update user credits with the EXACT amount from the package
-      const newBalance = await updateUserCredits(user.id, pack.credits);
-      
-      if (newBalance === null) {
-        throw new Error("Failed to update credits");
-      }
-      
-      // Update local state with the new balance
-      setCreditBalance(newBalance);
-
-      // Also update the auth context
-      if (authUpdateUserCredits) {
-        try {
-          await authUpdateUserCredits(pack.credits);
-        } catch (err) {
-          console.log("Note: Auth context update failed but credits were added successfully");
+      // Create Stripe checkout session for one-time payment
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          type: 'credits',
+          packId: pack.id,
+          amount: Math.round(pack.price * 100), // Convert to cents
+          credits: pack.credits,
+          description: `${pack.name} - ${pack.credits} credits`
         }
-      }
-      
-      toast.success("Credits Purchased!", {
-        description: `${pack.credits} credits have been added to your account.`,
       });
+
+      if (error) {
+        console.error('Error creating checkout session:', error);
+        throw new Error(error.message || 'Failed to create checkout session');
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
       
       setDialogOpen(false);
     } catch (error: any) {
@@ -168,32 +169,29 @@ const Credits = () => {
         throw new Error("You must be logged in to subscribe");
       }
       
-      console.log("Subscribing to plan:", plan.name, "with credits:", plan.creditsPerMonth);
+      console.log("Creating Stripe subscription session for plan:", plan.name);
       
-      // Update user credits with the EXACT amount from the plan
-      const newBalance = await updateUserCredits(user.id, plan.creditsPerMonth);
-      
-      if (newBalance === null) {
-        throw new Error("Failed to update credits");
-      }
-      
-      // Update local state with the new balance
-      setCreditBalance(newBalance);
-      
-      // Also update the auth context
-      if (authUpdateUserCredits) {
-        try {
-          await authUpdateUserCredits(plan.creditsPerMonth);
-        } catch (err) {
-          console.log("Note: Auth context update failed but credits were added successfully");
+      // Create Stripe checkout session for subscription
+      const { data, error } = await supabase.functions.invoke('create-subscription', {
+        body: {
+          priceId: plan.priceId,
+          planId: plan.id,
+          planName: plan.name,
+          amount: Math.round(plan.price * 100) // Convert to cents
         }
-      }
-      
-      setCurrentPlan(planId);
-      
-      toast.success("Subscription Activated!", {
-        description: `You've subscribed to the ${plan.name} plan. ${plan.creditsPerMonth} credits have been added to your account.`,
       });
+
+      if (error) {
+        console.error('Error creating subscription session:', error);
+        throw new Error(error.message || 'Failed to create subscription session');
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
       
       setDialogOpen(false);
     } catch (error: any) {
@@ -345,6 +343,7 @@ const Credits = () => {
                   <Button 
                     className={`w-full ${currentPlan === plan.id ? "bg-muted hover:bg-muted" : "bg-melody-secondary hover:bg-melody-secondary/90"}`}
                     disabled={currentPlan === plan.id}
+                    onClick={() => openSubscribeDialog(plan.id)}
                   >
                     {currentPlan === plan.id ? "Current Plan" : "Subscribe"}
                   </Button>

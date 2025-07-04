@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import LockScreen from './LockScreen';
+import VoterLockScreen from './VoterLockScreen';
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
@@ -32,10 +32,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Determine user's effective role status
+  // Determine user's effective role status - STRICT CHECK
   const isOnlyVoter = isVoter() && !isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
+  const hasActiveSubscription = isSubscriber() && userRoles.includes('subscriber');
 
-  // Specific check for root path "/" for anyone, redirect to /dashboard
+  console.log('🔐 ProtectedRoute access check:', {
+    path: location.pathname,
+    isOnlyVoter,
+    hasActiveSubscription,
+    userRoles,
+    isSubscriber: isSubscriber(),
+    isVoter: isVoter()
+  });
+
+  // Redirect root to dashboard
   if (location.pathname === "/") {
     return <Navigate to="/dashboard" replace />;
   }
@@ -52,15 +62,36 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     return <Outlet />;
   }
 
-  // Handle "OnlyVoter" case - only allow contest and subscribe pages
+  // STRICT ACCESS CONTROL: Only allow voters to access contest and subscribe pages
   if (isOnlyVoter) {
     const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
-    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe';
+    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
+    const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
 
-    if (isContestPage || isSubscribePage) {
+    if (isContestPage || isSubscribePage || isDashboardPage) {
       return <Outlet />;
     }
-    return <LockScreen message="Subscribe to access this feature." />;
+    
+    // Block all other pages for voters
+    return <VoterLockScreen feature="this feature" />;
+  }
+
+  // For users who should be subscribers but subscription has lapsed
+  if (!hasActiveSubscription && !isAdmin() && !isSuperAdmin()) {
+    const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
+    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
+    const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
+
+    // Allow access to these pages even for lapsed subscribers
+    if (isContestPage || isSubscribePage || isDashboardPage) {
+      return <Outlet />;
+    }
+
+    // Block other pages for lapsed subscribers
+    return <VoterLockScreen 
+      feature="this feature" 
+      message="Your subscription has expired. Please renew to continue accessing premium features."
+    />;
   }
 
   // For routes with specific role requirements (like affiliate dashboard)
@@ -76,18 +107,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     }
     
     // Ensure affiliates still have active subscription
-    if (!isSubscriber() && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
-      const isAffiliateRoute = allowedRoles.includes('affiliate') && location.pathname.toLowerCase().startsWith('/affiliate');
-      if (!isAffiliateRoute) {
-        return <LockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
-      }
+    if (!hasActiveSubscription && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
+      return <VoterLockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
     }
     return <Outlet />;
   }
 
-  // For general routes, require subscription (except for admins)
-  if (!isSubscriber() && !isAdmin() && !isSuperAdmin()) {
-    return <LockScreen message="An active subscription is required to access this page." />;
+  // For all other routes, require active subscription
+  if (!hasActiveSubscription && !isAdmin() && !isSuperAdmin()) {
+    return <VoterLockScreen message="An active subscription is required to access this page." />;
   }
 
   return <Outlet />;
