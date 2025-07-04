@@ -355,7 +355,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Auto-redirect admins to admin panel if they're not already there
           if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
               && !window.location.pathname.startsWith('/admin')) {
-            console.log('AuthContext: Admin user detected, should redirect to admin panel');
+            console.log('AuthContext: Admin user detected, redirecting to admin panel');
+            window.location.href = '/admin';
           }
 
         } catch (error) {
