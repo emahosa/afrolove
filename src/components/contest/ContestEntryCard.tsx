@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, ThumbsUp, User } from 'lucide-react';
+import { Play, ThumbsUp, User, Pause } from 'lucide-react';
 import { ContestEntry } from '@/hooks/use-contest';
 import { useAuth } from '@/contexts/AuthContext';
 import { PhoneVoteDialog } from './PhoneVoteDialog';
@@ -11,10 +11,12 @@ import { PhoneVoteDialog } from './PhoneVoteDialog';
 interface ContestEntryCardProps {
   entry: ContestEntry;
   onVote: (entryId: string, voterPhone?: string) => Promise<boolean>;
+  onPlay?: (entryId: string, videoUrl: string) => void;
+  isPlaying?: boolean;
   userHasVoted?: boolean;
 }
 
-export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCardProps) => {
+export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVoted }: ContestEntryCardProps) => {
   const { user } = useAuth();
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const [voting, setVoting] = useState(false);
@@ -36,9 +38,10 @@ export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCa
     return success;
   };
 
-  const handlePlayVideo = () => {
-    // In a real implementation, this would open a video player
-    console.log('Playing video:', entry.video_url);
+  const handlePlayClick = () => {
+    if (onPlay && entry.video_url) {
+      onPlay(entry.id, entry.video_url);
+    }
   };
 
   return (
@@ -46,7 +49,7 @@ export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCa
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <CardContent className="p-0">
           <div className="relative aspect-video bg-gradient-to-br from-melody-primary/20 to-melody-secondary/20 flex items-center justify-center">
-            {/* Video thumbnail placeholder */}
+            {/* Media thumbnail/preview */}
             <div className="text-center">
               <div className="w-16 h-16 bg-melody-primary/30 rounded-full flex items-center justify-center mb-2">
                 {entry.media_type === 'video' ? (
@@ -60,14 +63,21 @@ export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCa
               </p>
             </div>
             
-            <Button 
-              variant="secondary" 
-              size="icon" 
-              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
-              onClick={handlePlayVideo}
-            >
-              <Play className="h-6 w-6" />
-            </Button>
+            {/* Play button */}
+            {entry.video_url && onPlay && (
+              <Button 
+                variant="secondary" 
+                size="icon" 
+                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
+                onClick={handlePlayClick}
+              >
+                {isPlaying ? (
+                  <Pause className="h-6 w-6" />
+                ) : (
+                  <Play className="h-6 w-6" />
+                )}
+              </Button>
+            )}
           </div>
           
           <div className="p-4">

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,7 +42,7 @@ export interface ContestEntry {
 }
 
 export const useContest = () => {
-  const { user, updateUserCredits } = useAuth();
+  const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
@@ -128,7 +129,7 @@ export const useContest = () => {
     }
 
     try {
-      console.log('🔄 use-contest: createContest() - ONLY contests table, NO USERS');
+      console.log('🔄 use-contest: createContest() - ONLY contests table');
       
       const { error } = await supabase
         .from('contests')
@@ -139,7 +140,7 @@ export const useContest = () => {
           created_by: user.id
         });
 
-      console.log('✅ Successfully inserted into contests table, no users table referenced');
+      console.log('✅ Successfully inserted into contests table');
 
       if (error) {
         console.error('Error creating contest:', error);
@@ -171,9 +172,9 @@ export const useContest = () => {
       toast.error('Please log in to update contests');
       return false;
     }
-    console.log('🔄 DEBUG: Attempting to update contest', contestId, 'with data:', contestData);
+    
     try {
-      console.log('🔄 use-contest: updateContest() - ONLY contests table, NO USERS');
+      console.log('🔄 use-contest: updateContest() - ONLY contests table');
       
       const { error } = await supabase
         .from('contests')
@@ -183,10 +184,10 @@ export const useContest = () => {
         })
         .eq('id', contestId);
 
-      console.log('✅ Successfully updated contests table, no users table referenced');
+      console.log('✅ Successfully updated contests table');
 
       if (error) {
-        console.error('❌ DEBUG: Error updating contest:', error);
+        console.error('Error updating contest:', error);
         throw error;
       }
 
@@ -194,7 +195,7 @@ export const useContest = () => {
       await fetchContests();
       return true;
     } catch (error: any) {
-      console.error('💥 DEBUG: Catch block error updating contest:', error);
+      console.error('Error updating contest:', error);
       toast.error(error.message || 'Failed to update contest');
       return false;
     }
@@ -206,7 +207,7 @@ export const useContest = () => {
       toast.error('Please log in to delete contests');
       return false;
     }
-    console.log('🔄 DEBUG: Attempting to delete contest', contestId);
+    
     try {
       console.log('🔄 use-contest: deleteContest() - Deleting dependencies first');
 
@@ -245,7 +246,7 @@ export const useContest = () => {
       await fetchContests();
       return true;
     } catch (error: any) {
-      console.error('💥 DEBUG: Error deleting contest:', error);
+      console.error('Error deleting contest:', error);
       toast.error(error.message || 'Failed to delete contest');
       return false;
     }
@@ -260,12 +261,12 @@ export const useContest = () => {
     }
 
     try {
-      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles, NO USERS');
+      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
       setError(null);
       
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries") - NO USERS TABLE');
+      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
       
-      // First get contest entries - NO USERS TABLE
+      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -273,7 +274,7 @@ export const useContest = () => {
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      console.log('✅ Successfully queried contest_entries table, no users table referenced');
+      console.log('✅ Successfully queried contest_entries table');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
@@ -293,7 +294,7 @@ export const useContest = () => {
             .eq('id', entry.user_id)
             .single();
 
-          console.log('✅ Successfully queried profiles table, no users table referenced');
+          console.log('✅ Successfully queried profiles table');
 
           return {
             id: entry.id,
@@ -313,7 +314,7 @@ export const useContest = () => {
         })
       );
       
-      console.log('✅ Combined entries with profiles, no users table used');
+      console.log('✅ Combined entries with profiles');
       setContestEntries(entriesWithProfiles);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
@@ -324,15 +325,21 @@ export const useContest = () => {
     }
   };
 
-  // Unlock a contest
+  // Unlock a contest - only for subscribers
   const unlockContest = async (contestId: string, fee: number) => {
     if (!user) {
       toast.error('Please log in to unlock contests');
       return false;
     }
 
+    // Only subscribers can unlock contests
+    if (!isSubscriber()) {
+      toast.error('Only subscribers can unlock contests. Please subscribe to access this feature.');
+      return false;
+    }
+
     if (fee === 0) {
-      // If contest is free, just mark as unlocked locally. No DB call needed.
+      // If contest is free, just mark as unlocked locally
       setUnlockedContestIds(prev => new Set(prev).add(contestId));
       setActiveContests(prev => prev.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c));
       toast.success('Free contest unlocked!');
@@ -374,7 +381,7 @@ export const useContest = () => {
     }
   };
 
-  // Submit contest entry with file upload
+  // Submit contest entry with file upload - FIXED
   const submitEntry = async (contestId: string, videoFile: File, description: string, title: string) => {
     if (!user) {
       toast.error('Please log in to submit an entry');
@@ -414,18 +421,9 @@ export const useContest = () => {
       console.log('✅ use-contest:submitEntry - File uploaded successfully. Path:', uploadData.path);
 
       console.log('🔗 use-contest:submitEntry - Attempting to get public URL for path:', `entries/${filename}`);
-      const { data: publicUrlData, error: publicUrlError } = supabase.storage // Changed to capture error
+      const { data: publicUrlData } = supabase.storage
         .from('instrumentals')
         .getPublicUrl(`entries/${filename}`);
-
-      if (publicUrlError) {
-        console.error('❌ use-contest:submitEntry - Supabase storage getPublicUrl error:', publicUrlError);
-        toast.error(`Failed to get public URL: ${publicUrlError.message}. Entry cannot be created.`);
-        // Attempt to delete the orphaned file if URL generation fails
-        await supabase.storage.from('instrumentals').remove([`entries/${filename}`]);
-        console.log('🗑️ use-contest:submitEntry - Orphaned file deleted:', `entries/${filename}`);
-        throw new Error(`Failed to get public URL: ${publicUrlError.message}`);
-      }
 
       if (!publicUrlData || !publicUrlData.publicUrl) {
         console.error('❌ use-contest:submitEntry - Supabase storage getPublicUrl returned no publicUrl.');
@@ -454,7 +452,6 @@ export const useContest = () => {
       if (insertError) {
         console.error('❌ use-contest:submitEntry - Supabase database insert error:', insertError);
         toast.error(`Failed to save entry: ${insertError.message}. Please try again.`);
-        // Attempt to delete the orphaned file if DB insert fails
         await supabase.storage.from('instrumentals').remove([`entries/${filename}`]);
         console.log('🗑️ use-contest:submitEntry - Orphaned file deleted due to DB insert failure:', `entries/${filename}`);
         throw new Error(`Failed to save entry: ${insertError.message}`);
@@ -472,10 +469,7 @@ export const useContest = () => {
       return true;
     } catch (error: any) {
       console.error('❌ use-contest:submitEntry - Error during submission process:', error.message);
-      // The specific error toasts are now inside the try block. This is a fallback.
-      if (!toast.isActive('upload-failed') && !toast.isActive('entry-save-failed')) { // Example: use unique IDs for toasts if needed
-          toast.error(error.message || 'An unexpected error occurred during submission. Please try again.');
-      }
+      toast.error(error.message || 'An unexpected error occurred during submission. Please try again.');
       return false;
     } finally {
       console.log('🏁 use-contest:submitEntry - Submission process finished. Setting submitting to false.');
@@ -486,21 +480,21 @@ export const useContest = () => {
   // Vote for an entry - ONLY votes table
   const voteForEntry = async (entryId: string, voterPhone?: string) => {
     try {
-      console.log('🔄 use-contest: voteForEntry() - ONLY votes table, NO USERS');
+      console.log('🔄 use-contest: voteForEntry() - ONLY votes table');
       console.log('Submitting vote for entry:', entryId);
       
       const voteData: any = {
-        contest_entry_id: entryId, // Updated to use the new column name
+        contest_entry_id: entryId,
         voter_phone: voterPhone || 'anonymous'
       };
 
-      console.log('🔍 About to insert into supabase.from("votes") - NO USERS TABLE');
+      console.log('🔍 About to insert into supabase.from("votes")');
 
       const { error } = await supabase
         .from('votes')
         .insert(voteData);
 
-      console.log('✅ Successfully inserted into votes table, no users table referenced');
+      console.log('✅ Successfully inserted into votes table');
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
@@ -545,7 +539,7 @@ export const useContest = () => {
       // Deduct credit
       await updateUserCredits(-1);
       
-      // Create a clean filename
+      // Create a clean filename using the actual contest title
       const cleanFileName = contestTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').toLowerCase();
       const fileName = `${cleanFileName}_instrumental.mp3`;
       

@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Trophy, Upload, Download, Lock, Unlock } from "lucide-react";
+import { Trophy, Upload, Download, Lock, Play, Pause } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 
 const Contest = () => {
-  const { user } = useAuth();
+  const { user, isSubscriber } = useAuth();
   const {
     activeContests,
     currentContest,
@@ -33,6 +33,7 @@ const Contest = () => {
   const [entryTitle, setEntryTitle] = useState("");
   const [entryDescription, setEntryDescription] = useState("");
   const [entryFile, setEntryFile] = useState<File | null>(null);
+  const [playingEntry, setPlayingEntry] = useState<string | null>(null);
 
   const handleDownloadBeat = (contest: NonNullable<typeof currentContest>) => {
     if (contest.instrumental_url) {
@@ -54,13 +55,11 @@ const Contest = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file type
       if (!file.type.startsWith('video/') && !file.type.startsWith('audio/')) {
         toast.error('Please select a video or audio file');
         return;
       }
       
-      // Validate file size (max 100MB)
       if (file.size > 100 * 1024 * 1024) {
         toast.error('File size must be less than 100MB');
         return;
@@ -92,6 +91,26 @@ const Contest = () => {
 
   const handleVote = async (entryId: string, voterPhone?: string) => {
     return await voteForEntry(entryId, voterPhone);
+  };
+
+  const handlePlayEntry = (entryId: string, videoUrl: string) => {
+    if (playingEntry === entryId) {
+      setPlayingEntry(null);
+    } else {
+      setPlayingEntry(entryId);
+      // Create audio/video element to play the entry
+      const mediaElement = document.createElement(videoUrl.includes('.mp4') || videoUrl.includes('.mov') ? 'video' : 'audio');
+      mediaElement.src = videoUrl;
+      mediaElement.controls = true;
+      mediaElement.style.maxWidth = '100%';
+      mediaElement.play();
+      
+      mediaElement.onended = () => setPlayingEntry(null);
+      mediaElement.onerror = () => {
+        toast.error('Failed to play media file');
+        setPlayingEntry(null);
+      };
+    }
   };
 
   if (loading) {
@@ -126,7 +145,7 @@ const Contest = () => {
         <Card>
           <CardHeader>
             <CardTitle>Active Contests</CardTitle>
-            <CardDescription>Unlock contests to participate</CardDescription>
+            <CardDescription>Vote on entries or unlock contests to participate</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -145,6 +164,7 @@ const Contest = () => {
                   const timeRemaining = endDate.getTime() - now.getTime();
                   const daysRemaining = Math.max(0, Math.ceil(timeRemaining / (1000 * 60 * 60 * 24)));
                   const isUnlocked = contest.is_unlocked || contest.entry_fee === 0;
+                  const canUnlock = isSubscriber(); // Only subscribers can unlock
 
                   return (
                     <TableRow 
@@ -181,11 +201,19 @@ const Contest = () => {
                         ) : (
                           <Button 
                             size="sm"
-                            onClick={(e) => { e.stopPropagation(); handleUnlockContest(contest); }}
-                            disabled={!user || submitting}
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (canUnlock) {
+                                handleUnlockContest(contest);
+                              } else {
+                                toast.error("Only subscribers can unlock contests. Please subscribe first.");
+                              }
+                            }}
+                            disabled={!user || submitting || !canUnlock}
+                            title={!canUnlock ? "Subscribe to unlock contests" : `Unlock contest for ${contest.entry_fee} credits`}
                           >
                             <Lock className="mr-2 h-4 w-4" />
-                            {`Unlock (${contest.entry_fee} Credits)`}
+                            {canUnlock ? `Unlock (${contest.entry_fee} Credits)` : 'Subscribe to Unlock'}
                           </Button>
                         )}
                       </TableCell>
@@ -223,6 +251,8 @@ const Contest = () => {
                   key={entry.id}
                   entry={entry}
                   onVote={handleVote}
+                  onPlay={(entryId, videoUrl) => handlePlayEntry(entryId, videoUrl)}
+                  isPlaying={playingEntry === entry.id}
                 />
               ))}
             </div>
