@@ -276,6 +276,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // State is now cleared by the useEffect watching `session`
       toast.success("You have been logged out.");
+      
+      // Force redirect to home page after logout
+      window.location.href = '/';
     } catch (error: any) {
       console.error('Logout error:', error);
       toast.error(error.message || 'An unexpected error occurred during logout.');
@@ -353,9 +356,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('AuthContext: User setup complete for:', fullUser.name);
 
           // Auto-redirect admins to admin panel if they're not already there
-          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
-              && !window.location.pathname.startsWith('/admin')) {
-            console.log('AuthContext: Admin user detected, should redirect to admin panel');
+          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin'))) {
+            const currentPath = window.location.pathname;
+            if (!currentPath.startsWith('/admin') && currentPath !== '/admin/login') {
+              console.log('AuthContext: Admin user detected, redirecting to admin panel');
+              window.location.href = '/admin';
+            }
           }
 
         } catch (error) {

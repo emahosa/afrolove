@@ -13,38 +13,48 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-  );
-
   try {
+    console.log("Creating subscription checkout session...");
+    
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    const { data, error: userError } = await supabaseClient.auth.getUser(token);
     
-    if (!user?.email) {
+    if (userError || !data.user?.email) {
       throw new Error("User not authenticated");
     }
+
+    const user = data.user;
+    console.log("User authenticated:", user.email);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 
     const { priceId, planId, planName, amount } = await req.json();
+    console.log("Subscription details:", { priceId, planId, planName, amount });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
+      console.log("Existing customer found:", customerId);
+    } else {
+      console.log("No existing customer found");
     }
 
+    const origin = req.headers.get("origin") || "https://afromelody.lovable.app";
+    
     // Create subscription checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -64,8 +74,8 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/dashboard?subscription=success`,
-      cancel_url: `${req.headers.get("origin")}/credits?subscription=canceled`,
+      success_url: `${origin}/dashboard?subscription=success`,
+      cancel_url: `${origin}/credits?subscription=canceled`,
       metadata: {
         type: 'subscription',
         user_id: user.id,
@@ -73,6 +83,8 @@ serve(async (req) => {
         plan_name: planName
       }
     });
+
+    console.log("Checkout session created:", session.id);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

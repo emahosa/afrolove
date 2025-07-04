@@ -43,17 +43,17 @@ const App = () => (
           {/* Public routes */}
           <Route path="/" element={<Index />} />
           
-          {/* Separate Auth routes for users and admins */}
+          {/* User Authentication Routes */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<UserLogin />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/register/admin" element={<AdminRegister />} />
           </Route>
           
-          {/* Completely separate admin login route */}
+          {/* Completely separate Admin Authentication - NO LAYOUT */}
           <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/register/admin" element={<AdminRegister />} />
           
-          {/* Protected routes with AppLayout (user interface) */}
+          {/* Protected User Routes with AppLayout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
@@ -70,7 +70,7 @@ const App = () => (
             </Route>
           </Route>
 
-          {/* Admin routes - COMPLETELY SEPARATE with AdminLayout */}
+          {/* Admin Routes - COMPLETELY SEPARATE with AdminLayout */}
           <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<Admin />} />
