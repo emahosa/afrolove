@@ -383,7 +383,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     processAndFetch();
-  }, [session, loading]);
+  }, [session]); // Removed 'loading' from dependencies
 
   const value = {
     user,

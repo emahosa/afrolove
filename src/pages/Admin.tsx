@@ -73,8 +73,16 @@ const Admin = ({ tab }: AdminProps) => {
     );
   }
 
+  // Add an explicit check for user object before calling isAdmin/isSuperAdmin
+  if (!user) {
+    // This case should ideally be handled by ProtectedRoute or AdminLayout sending to login.
+    // Redirecting to admin login as a fallback if somehow reached.
+    console.warn("Admin.tsx: No user object available after auth loading. Redirecting to admin login.");
+    return <Navigate to="/admin/login" replace />;
+  }
+
   if (!isAdmin() && !isSuperAdmin()) {
-    console.warn("Admin.tsx: Non-admin user accessed component despite ProtectedRoute. Redirecting.");
+    console.warn("Admin.tsx: User is not admin/super_admin. This should have been caught by ProtectedRoute/AdminLayout. Redirecting to dashboard.");
     return <Navigate to="/dashboard" replace />;
   }
 
