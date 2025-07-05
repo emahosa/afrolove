@@ -1,152 +1,148 @@
-
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  Home, 
-  Music, 
-  Library, 
-  Trophy, 
-  User, 
-  CreditCard, 
-  HelpCircle, 
-  Menu,
-  Folder,
-  Lock
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Home, Trophy, CreditCard, User, LogOut, Menu, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface SidebarProps {
-  className?: string;
-}
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  adminOnly?: boolean;
-  affiliateOnly?: boolean;
-  isProtected?: boolean;
-  tag?: string;
-  paths?: string[];
-}
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Home", icon: Home, paths: ["/"] },
-  { href: "/create", label: "Create", icon: Music, isProtected: true },
-  { href: "/library", label: "Library", icon: Library, isProtected: true },
-  { href: "/contest", label: "Contest", icon: Trophy },
-  { href: "/my-custom-songs", label: "My Custom Songs", icon: Music, isProtected: true, tag: "New" },
-  { href: "/profile", label: "Profile", icon: User },
-  { href: "/credits", label: "Credits & Plans", icon: CreditCard, paths: ["/subscribe"] },
-  { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
-  { href: "/affiliate", label: "Affiliate", icon: Folder, affiliateOnly: true },
-];
-
-const Sidebar: React.FC<SidebarProps> = ({ className }) => {
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+const Sidebar = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { user, logout, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
   const location = useLocation();
-  const { user, isAdmin, isAffiliate, isSubscriber } = useAuth();
 
-  const isUserSubscribed = isSubscriber();
-  const isUserAdmin = isAdmin();
-  const isUserAffiliate = isAffiliate();
-
-  // Filter items - completely hide admin items for non-admins
-  const roleFilteredNavItems = navItems.filter(item => {
-    if (item.adminOnly && !isUserAdmin) return false;
-    if (item.affiliateOnly && !isUserAffiliate) return false;
-    return true;
-  });
-
-  const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
-    const needsSubscription = item.isProtected && !isUserAdmin && !isUserAffiliate && !isUserSubscribed;
-    const effectiveLabel = item.label === "Credits & Plans" && isUserSubscribed ? "Manage Plan" : item.label;
-    const isActive = item.href === location.pathname || (item.paths && item.paths.includes(location.pathname));
-
-    return (
-      <Button
-        key={item.href}
-        variant={isActive ? "secondary" : "ghost"}
-        className={cn(
-          "w-full justify-start text-foreground hover:bg-muted hover:text-foreground relative",
-          isActive && "font-semibold bg-accent text-accent-foreground"
-        )}
-        onClick={() => {
-          if (needsSubscription) {
-            navigate("/credits");
-          } else {
-            navigate(item.href);
-          }
-          if (isMobile) setOpen(false);
-        }}
-        title={needsSubscription ? `${item.label} (Subscription required)` : item.label}
-      >
-        <item.icon className={cn("mr-2 h-4 w-4 flex-shrink-0", isActive && "text-primary")} />
-        <span className="flex-grow text-left truncate">{effectiveLabel}</span>
-        {item.tag && !needsSubscription && (
-          <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center">
-            {item.tag}
-          </Badge>
-        )}
-        {needsSubscription && (
-          <Lock className="ml-2 h-3 w-3 text-muted-foreground flex-shrink-0 self-center" />
-        )}
-      </Button>
-    );
+  const toggleSidebar = () => {
+    setIsOpen(!isOpen);
   };
 
-  const sidebarContent = (isMobile: boolean = false) => (
-    <>
-      <div className="mb-4 flex items-center h-16 px-4 border-b border-border">
-        <img src="/favicon.ico" alt="MelodyVerse Logo" className="h-8 w-auto mr-2" />
-        <p className="font-semibold text-foreground text-lg">MelodyVerse</p>
-      </div>
-      <ScrollArea className="flex-1 px-2 py-2">
-        <div className="flex flex-col space-y-1">
-          {roleFilteredNavItems.map(item => renderNavItem(item, isMobile))}
-        </div>
-      </ScrollArea>
-      {user && (
-        <div className="mt-auto p-2 border-t border-border">
-           <Button variant="ghost" className="w-full justify-start" onClick={() => navigate('/profile')}>
-             <User className="mr-2 h-4 w-4 flex-shrink-0" />
-             <span className="truncate">{user.email?.split('@')[0] || user.id}</span>
-           </Button>
-        </div>
-      )}
-    </>
-  );
+  const closeSidebar = () => {
+    setIsOpen(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    closeSidebar();
+  };
+
+  const navigationItems = [
+    {
+      to: "/dashboard",
+      icon: Home,
+      label: "Dashboard",
+      show: true
+    },
+    {
+      to: "/contest",
+      icon: Trophy,
+      label: "Contest",
+      show: true
+    },
+    {
+      to: "/credits",
+      icon: CreditCard,
+      label: "Credits",
+      show: true
+    },
+    {
+      to: "/profile",
+      icon: User,
+      label: "Profile",
+      show: true // Allow all users to access profile
+    }
+  ];
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className={cn("hidden border-r bg-background h-screen w-60 md:flex md:flex-col", className)}>
-        {sidebarContent()}
-      </aside>
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed top-4 left-4 z-50 md:hidden"
+        onClick={toggleSidebar}
+      >
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </Button>
 
-      {/* Mobile Sheet (Hamburger Menu) */}
-      <div className="md:hidden">
-         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              aria-label="Open navigation menu"
-              className="fixed top-4 left-4 z-50 bg-background border shadow-md"
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-200 ease-in-out
+        md:relative md:translate-x-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-6 border-b">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">M</span>
+              </div>
+              <span className="font-semibold text-lg">MelodyVerse</span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4">
+            <ul className="space-y-2">
+              {navigationItems.map((item) => {
+                if (!item.show) return null;
+                
+                const isActive = location.pathname === item.to;
+                return (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      onClick={closeSidebar}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {/* User Section */}
+          <div className="p-4 border-t">
+            {user && (
+              <div className="mb-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+              onClick={handleLogout}
             >
-              <Menu className="h-5 w-5" />
+              <LogOut className="h-5 w-5" />
+              Sign out
             </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-60 p-0 flex flex-col bg-background z-50">
-            {sidebarContent(true)}
-          </SheetContent>
-        </Sheet>
+          </div>
+        </div>
       </div>
     </>
   );

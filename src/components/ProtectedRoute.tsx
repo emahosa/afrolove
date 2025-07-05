@@ -1,124 +1,50 @@
 
-import { useState } from 'react';
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import VoterLockScreen from './VoterLockScreen';
 
 interface ProtectedRouteProps {
-  allowedRoles?: string[];
+  children: React.ReactNode;
+  requireAdmin?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles, isAffiliate } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
+  const { user, loading, isAdmin, isSuperAdmin } = useAuth();
   const location = useLocation();
-  const [hasShownToast, setHasShownToast] = useState(false);
-  const isAdminRoute = location.pathname.startsWith('/admin');
-  
+
+  console.log('ProtectedRoute: Checking access', { 
+    user: user?.email, 
+    requireAdmin, 
+    isAdmin: isAdmin(), 
+    isSuperAdmin: isSuperAdmin(),
+    loading,
+    pathname: location.pathname
+  });
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
-        <div className="ml-3">Verifying access...</div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+        <p className="ml-3 text-lg">Loading...</p>
       </div>
     );
   }
 
-  if (!user || !session) {
-    if (!hasShownToast) {
-      toast.error("You need to log in to access this page");
-      setHasShownToast(true);
-    }
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) {
+    console.log('ProtectedRoute: No user, redirecting to login');
+    const redirectTo = requireAdmin ? '/admin/login' : '/login';
+    return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 
-  // Determine user's effective role status - STRICT CHECK
-  const isOnlyVoter = isVoter() && !isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
-  const hasActiveSubscription = isSubscriber() && userRoles.includes('subscriber');
-
-  console.log('🔐 ProtectedRoute access check:', {
-    path: location.pathname,
-    isOnlyVoter,
-    hasActiveSubscription,
-    userRoles,
-    isSubscriber: isSubscriber(),
-    isVoter: isVoter()
-  });
-
-  // Redirect root to dashboard
-  if (location.pathname === "/") {
+  if (requireAdmin && !isAdmin() && !isSuperAdmin()) {
+    console.log('ProtectedRoute: Admin required but user is not admin, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Handle admin routes - admins bypass all other checks
-  if (isAdminRoute) {
-    if (!isAdmin() && !isSuperAdmin()) {
-      if (!hasShownToast) {
-        toast.error("You don't have admin privileges to access this page");
-        setHasShownToast(true);
-      }
-      return <Navigate to="/dashboard" state={{ from: location }} replace />;
-    }
-    return <Outlet />;
-  }
-
-  // STRICT ACCESS CONTROL: Only allow voters to access contest and subscribe pages
-  if (isOnlyVoter) {
-    const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
-    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
-    const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
-
-    if (isContestPage || isSubscribePage || isDashboardPage) {
-      return <Outlet />;
-    }
-    
-    // Block all other pages for voters
-    return <VoterLockScreen feature="this feature" />;
-  }
-
-  // For users who should be subscribers but subscription has lapsed
-  if (!hasActiveSubscription && !isAdmin() && !isSuperAdmin()) {
-    const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
-    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
-    const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
-
-    // Allow access to these pages even for lapsed subscribers
-    if (isContestPage || isSubscribePage || isDashboardPage) {
-      return <Outlet />;
-    }
-
-    // Block other pages for lapsed subscribers
-    return <VoterLockScreen 
-      feature="this feature" 
-      message="Your subscription has expired. Please renew to continue accessing premium features."
-    />;
-  }
-
-  // For routes with specific role requirements (like affiliate dashboard)
-  if (allowedRoles && allowedRoles.length > 0) {
-    const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
-    if (!hasRequiredRole) {
-      if (allowedRoles.includes('affiliate') && !isAffiliate() && isSubscriber()) {
-        toast.error("This section is for approved affiliates only.");
-      } else {
-        toast.error("You do not have the necessary permissions to access this page.");
-      }
-      return <Navigate to="/dashboard" state={{ from: location }} replace />;
-    }
-    
-    // Ensure affiliates still have active subscription
-    if (!hasActiveSubscription && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
-      return <VoterLockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
-    }
-    return <Outlet />;
-  }
-
-  // For all other routes, require active subscription
-  if (!hasActiveSubscription && !isAdmin() && !isSuperAdmin()) {
-    return <VoterLockScreen message="An active subscription is required to access this page." />;
-  }
-
-  return <Outlet />;
+  // If admin is trying to access non-admin routes, allow it
+  // If regular user is trying to access admin routes, it's blocked above
+  console.log('ProtectedRoute: Access granted');
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;
