@@ -39,29 +39,28 @@ serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log(`[Stripe Webhook] Checkout session completed: ${session.id}, User ID: ${session.metadata?.user_id}, Type: ${session.metadata?.type}`);
+        console.log("Checkout session completed:", session.id);
 
         if (session.metadata?.type === 'credits') {
+          // Handle credit purchase
           const userId = session.metadata.user_id;
           const credits = parseInt(session.metadata.credits);
           
-          if (!userId || isNaN(credits)) {
-            console.error(`[Stripe Webhook] Invalid metadata for credit purchase: UserID=${userId}, Credits=${credits}`);
-            return new Response("Invalid metadata for credit purchase", { status: 400 });
-          }
-          console.log(`[Stripe Webhook] Processing credit purchase for User ID: ${userId}, Credits: ${credits}`);
+          console.log("Processing credit purchase:", { userId, credits });
           
-          const { data: rpcData, error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
+          // Update user credits
+          const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
             p_user_id: userId,
             p_amount: credits
           });
           
           if (creditError) {
-            console.error(`[Stripe Webhook] Error updating user credits for User ID ${userId}:`, creditError);
+            console.error("Error updating user credits:", creditError);
           } else {
-            console.log(`[Stripe Webhook] Successfully updated user credits for User ID ${userId}. New balance: ${rpcData}`);
+            console.log("Successfully updated user credits");
           }
           
+          // Record transaction
           const { error: transactionError } = await supabaseAdmin
             .from('payment_transactions')
             .insert({
@@ -74,22 +73,17 @@ serve(async (req) => {
             });
             
           if (transactionError) {
-            console.error(`[Stripe Webhook] Error recording transaction for User ID ${userId}:`, transactionError);
-          } else {
-            console.log(`[Stripe Webhook] Successfully recorded transaction for User ID ${userId}, Payment ID: ${session.id}`);
+            console.error("Error recording transaction:", transactionError);
           }
           
         } else if (session.metadata?.type === 'subscription') {
+          // Handle subscription purchase
           const userId = session.metadata.user_id;
-          const planId = session.metadata.plan_id; // Assuming plan_id is more reliable for type
-          const planName = session.metadata.plan_name; // For display/logging
+          const planName = session.metadata.plan_name;
           
-          if (!userId || !planId || !planName) {
-            console.error(`[Stripe Webhook] Invalid metadata for subscription: UserID=${userId}, PlanID=${planId}, PlanName=${planName}`);
-            return new Response("Invalid metadata for subscription", { status: 400 });
-          }
-          console.log(`[Stripe Webhook] Processing subscription for User ID: ${userId}, Plan: ${planName} (${planId})`);
+          console.log("Processing subscription:", { userId, planName });
           
+          // Update user subscription
           const { error: subError } = await supabaseAdmin
             .from('user_subscriptions')
             .upsert({
@@ -101,32 +95,20 @@ serve(async (req) => {
             });
             
           if (subError) {
-            console.error(`[Stripe Webhook] Error upserting user subscription for User ID ${userId}, Plan ${planName}:`, subError);
+            console.error("Error updating subscription:", subError);
           } else {
-            console.log(`[Stripe Webhook] Successfully upserted user subscription for User ID ${userId}, Plan ${planName}`);
+            console.log("Successfully updated subscription");
             
+            // Add subscriber role
             const { error: roleError } = await supabaseAdmin
               .from('user_roles')
-              .upsert({ user_id: userId, role: 'subscriber' }); // Ensure 'subscriber' role
+              .upsert({
+                user_id: userId,
+                role: 'subscriber'
+              });
               
             if (roleError) {
-              console.error(`[Stripe Webhook] Error upserting 'subscriber' role for User ID ${userId}:`, roleError);
-            } else {
-              console.log(`[Stripe Webhook] Successfully upserted 'subscriber' role for User ID ${userId}`);
-            }
-
-            // Also ensure 'voter' role is removed if 'subscriber' is added, or handle role hierarchy appropriately.
-            // For now, just ensuring 'subscriber' is there. A more robust system might clear other conflicting roles.
-            // Example: remove 'voter' if 'subscriber' is present.
-            const { error: deleteVoterRoleError } = await supabaseAdmin
-              .from('user_roles')
-              .delete()
-              .match({ user_id: userId, role: 'voter' });
-
-            if (deleteVoterRoleError) {
-              console.warn(`[Stripe Webhook] Could not remove 'voter' role for new subscriber ${userId}:`, deleteVoterRoleError);
-            } else {
-              console.log(`[Stripe Webhook] Removed 'voter' role for new subscriber ${userId} if it existed.`);
+              console.error("Error adding subscriber role:", roleError);
             }
           }
         }

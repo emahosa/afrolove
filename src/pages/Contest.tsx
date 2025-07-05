@@ -101,20 +101,10 @@ const Contest = () => {
 
   const fetchContestEntries = async (contestId: string) => {
     try {
-      console.log(`Fetching entries for contest ID: ${contestId}`);
       const { data, error } = await supabase
         .from('contest_entries')
         .select(`
-          id,
-          contest_id,
-          user_id,
-          song_id,
-          video_url,
-          description,
-          status,
-          approved,
-          vote_count,
-          created_at,
+          *,
           profiles:user_id (
             full_name,
             username
@@ -128,16 +118,11 @@ const Contest = () => {
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching contest entries:', error);
-        toast.error(`Failed to load contest entries: ${error.message}`);
-        throw error;
-      }
-
-      console.log('Fetched contest entries:', data);
+      if (error) throw error;
       setContestEntries(data || []);
     } catch (error: any) {
-      // Error already logged and toasted
+      console.error('Error fetching contest entries:', error);
+      toast.error('Failed to load contest entries');
     }
   };
 
@@ -238,7 +223,7 @@ const Contest = () => {
       </div>
 
       {/* Contest Selection */}
-      <div className="grid grid-cols-1 gap-4"> {/* Ensure single column layout */}
+      <div className="grid gap-4">
         {contests.map((contest) => (
           <Card 
             key={contest.id} 

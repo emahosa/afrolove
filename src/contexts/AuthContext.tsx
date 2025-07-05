@@ -357,34 +357,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const { data: isSubscriberResult } = await supabase
             .rpc('is_subscriber', { _user_id: userId });
-          const isSubscribed = !!isSubscriberResult;
-          setSubscriberStatus(isSubscribed);
-
-          let userSubscriptionType: ExtendedUser['subscription'] = 'free';
-          if (isSubscribed) {
-            // Fetch current subscription type if user is a subscriber
-            const { data: activeSubscription } = await supabase
-              .from('user_subscriptions')
-              .select('subscription_type')
-              .eq('user_id', userId)
-              .eq('subscription_status', 'active')
-              .order('started_at', { ascending: false })
-              .limit(1)
-              .single();
-            if (activeSubscription && activeSubscription.subscription_type) {
-              userSubscriptionType = activeSubscription.subscription_type as ExtendedUser['subscription'];
-            } else {
-              // Fallback if is_subscriber RPC is true but no active subscription found (should be rare)
-              userSubscriptionType = 'premium'; // Or some other default for subscribers
-            }
-          }
+          setSubscriberStatus(!!isSubscriberResult);
           
           const fullUser: ExtendedUser = {
             ...session.user,
             name: profile?.full_name || session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
             avatar: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
-            credits: profile?.credits ?? 5, // Default to 5 credits if profile.credits is null/undefined
-            subscription: userSubscriptionType
+            credits: profile?.credits ?? 5,
+            subscription: 'free'
           };
 
           setUser(fullUser);

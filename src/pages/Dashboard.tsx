@@ -84,61 +84,13 @@ const Dashboard = () => {
   // Check payment success and refresh user data
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment') === 'success';
-    const subscriptionSuccess = urlParams.get('subscription') === 'success';
-
-    if ((paymentSuccess || subscriptionSuccess) && user) {
-      const initialCredits = user.credits;
-      const initialSubscriptionStatus = isSubscriber(); // from AuthContext
-      let attempts = 0;
-      const maxAttempts = 10; // Poll for roughly 20-30 seconds
-      const pollInterval = 3000; // 3 seconds
-
-      const pollForUpdate = async () => {
-        attempts++;
-        await refreshUserData(); // This should update the user object in AuthContext
-
-        // Access the latest user data from AuthContext after refresh
-        // We need to ensure AuthContext has re-rendered and provided the new user object.
-        // This might require a small delay or a more direct way to get the updated user from refreshUserData.
-        // For now, we'll assume refreshUserData updates context, and we rely on subsequent renders.
-        // A better approach might be for refreshUserData to return the new user object.
-
-        // The user object from useAuth() might not be updated immediately in this same render cycle.
-        // This is a common React state update nuance.
-        // To get the latest user object, we'd typically rely on a subsequent re-render
-        // or have refreshUserData return the new state.
-
-        // Let's simulate checking updated values (in a real scenario, you'd get this from context state post-update)
-        // This part is tricky because `user` and `isSubscriber()` captured at the start of `useEffect`
-        // won't reflect changes from `refreshUserData` within the same `pollForUpdate` call.
-        // We'll proceed with a simplified check assuming `refreshUserData` eventually updates the context,
-        // and the user will see the changes on a subsequent render. The polling mainly ensures we *try* to refresh.
-
-        console.log(`Polling attempt ${attempts} for payment/subscription update.`);
-
-        // For a more robust check, refreshUserData would need to return the new user state,
-        // or we'd need to subscribe to changes in AuthContext more directly here.
-        // Given the current structure, the best we can do is repeatedly call refreshUserData.
-        // The UI will update when AuthContext's state changes.
-
-        if (attempts < maxAttempts) {
-          setTimeout(pollForUpdate, pollInterval);
-        } else {
-          console.warn("Polling timed out. User data might not be immediately updated. Webhook should eventually sync.");
-          toast.info("Your purchase is processing. The update will reflect shortly. You can also try refreshing the page.", { duration: 10000 });
-        }
-      };
-
-      // Start polling
-      toast.info("Processing your purchase...", { duration: 5000 });
-      pollForUpdate();
-
-      // Clean up URL params
-      const newUrl = window.location.pathname;
-      navigate(newUrl, { replace: true });
+    if (urlParams.get('payment') === 'success' || urlParams.get('subscription') === 'success') {
+      // Refresh user data after successful payment
+      setTimeout(() => {
+        refreshUserData();
+      }, 2000); // Wait 2 seconds for webhook processing
     }
-  }, [user, refreshUserData, navigate, isSubscriber]); // Added user and isSubscriber to dependencies
+  }, [refreshUserData]);
 
   // Check affiliate application status
   useEffect(() => {
