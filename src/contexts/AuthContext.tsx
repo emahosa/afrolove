@@ -160,7 +160,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Special handling for admin users
     if (result.data.session && email === "ellaadahosa@gmail.com") {
       console.log('AuthContext: Super admin login detected');
-      // The onAuthStateChange listener will handle the session and user state updates
     }
 
     return result;
@@ -287,11 +286,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log('AuthContext: Auth state changed:', { event: _event, hasSession: !!session });
         setSession(session);
       }
     );
 
-    // This helps to set loading to false faster if user is not logged in.
     supabase.auth.getSession().then(({ data }) => {
         if (!data.session) {
             setLoading(false);
@@ -306,7 +305,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const processAndFetch = async () => {
       if (session) {
-        // Prevent re-processing on token refresh if user is the same
         if (processedUserId.current === session.user.id) {
           if (loading) setLoading(false);
           return;
@@ -350,14 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setUser(fullUser);
           processedUserId.current = userId;
-          console.log('AuthContext: User setup complete for:', fullUser.name);
-
-          // Auto-redirect admins to admin panel if they're not already there
-          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
-              && !window.location.pathname.startsWith('/admin')) {
-            console.log('AuthContext: Admin user detected, redirecting to admin panel');
-            window.location.href = '/admin';
-          }
+          console.log('AuthContext: User setup complete for:', fullUser.name, 'Roles:', roles);
 
         } catch (error) {
           console.error('AuthContext: Error processing session:', error);
@@ -368,7 +359,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           processedUserId.current = null;
         }
       } else {
-        // Session is null, clear everything
         setUser(null);
         setSession(null);
         setUserRoles([]);
@@ -383,7 +373,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     processAndFetch();
-  }, [session]); // Removed 'loading' from dependencies
+  }, [session]);
 
   const value = {
     user,

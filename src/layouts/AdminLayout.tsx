@@ -1,11 +1,23 @@
+
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, Music } from 'lucide-react'; // Assuming Music is your app icon
+import { LogOut, Music } from 'lucide-react';
 
-const AdminLayout: React.FC = () => {
+interface AdminLayoutProps {
+  children: React.ReactNode;
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
+
+  console.log('AdminLayout: Checking admin access', {
+    user: user?.email,
+    isAdmin: isAdmin(),
+    isSuperAdmin: isSuperAdmin(),
+    loading: authLoading
+  });
 
   if (authLoading) {
     return (
@@ -16,27 +28,22 @@ const AdminLayout: React.FC = () => {
     );
   }
 
-  // This layout should only be reachable if ProtectedRoute has already vetted the user is an admin.
-  // However, additional checks here act as safeguards.
   if (!user) {
-    // If auth is not loading but there's no user object, something is wrong.
-    // ProtectedRoute should have caught this and sent to login.
-    // Redirecting to admin login as a fallback.
-    console.warn("AdminLayout: No user object available after auth loading. Redirecting to admin login.");
+    console.log("AdminLayout: No user, redirecting to admin login");
     return <Navigate to="/admin/login" replace />;
   }
 
   if (!isAdmin() && !isSuperAdmin()) {
-    console.warn("AdminLayout: User is not admin/super_admin. This should ideally be caught by ProtectedRoute. Redirecting to dashboard.");
-    // Redirect to user dashboard if the user is somehow authenticated but not an admin.
+    console.log("AdminLayout: User is not admin, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
   const handleLogout = async () => {
-    await logout();
-    // After logout, navigate to admin login or a public page.
-    // useNavigate() hook can't be used directly here if this component isn't rendered by a Route.
-    // For simplicity, logout() in AuthContext should handle redirection or App.tsx state change will.
+    try {
+      await logout();
+    } catch (error) {
+      console.error('AdminLayout: Logout error:', error);
+    }
   };
 
   return (
@@ -46,7 +53,7 @@ const AdminLayout: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <Music className="h-8 w-8 mr-2" /> {/* App Icon */}
+              <Music className="h-8 w-8 mr-2" />
               <h1 className="text-xl font-semibold">Admin Control Panel</h1>
             </div>
             <div className="flex items-center">
@@ -55,7 +62,12 @@ const AdminLayout: React.FC = () => {
                   Admin: {user.email}
                 </span>
               )}
-              <Button variant="outline" size="sm" onClick={handleLogout} className="text-primary-foreground border-primary-foreground hover:bg-primary-foreground/10">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLogout} 
+                className="text-primary-foreground border-primary-foreground hover:bg-primary-foreground/10"
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -66,10 +78,10 @@ const AdminLayout: React.FC = () => {
 
       {/* Main Admin Content Area */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8">
-        <Outlet /> {/* This is where the specific admin page (e.g., Admin.tsx) will render */}
+        {children}
       </main>
 
-      {/* Optional Admin Footer */}
+      {/* Admin Footer */}
       <footer className="bg-background border-t border-border">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} MelodyVerse Admin. All rights reserved.
