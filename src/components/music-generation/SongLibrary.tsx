@@ -22,7 +22,7 @@ interface Song {
 
 const SongLibrary = () => {
   const { user } = useAuth();
-  const { currentSong, isPlaying, playSong, pauseSong } = useAudioPlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,10 +60,10 @@ const SongLibrary = () => {
   };
 
   const handlePlay = (song: Song) => {
-    if (currentSong?.id === song.id && isPlaying) {
-      pauseSong();
+    if (currentTrack?.id === song.id && isPlaying) {
+      togglePlayPause();
     } else if (song.audio_url) {
-      playSong({
+      playTrack({
         id: song.id,
         title: song.title,
         audio_url: song.audio_url
@@ -200,7 +200,7 @@ const SongLibrary = () => {
                       size="sm"
                       onClick={() => handlePlay(song)}
                     >
-                      {currentSong?.id === song.id && isPlaying ? (
+                      {currentTrack?.id === song.id && isPlaying ? (
                         <Pause className="h-4 w-4" />
                       ) : (
                         <Play className="h-4 w-4" />
