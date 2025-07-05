@@ -33,18 +33,11 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      throw new Error("Stripe secret key not configured");
-    }
-
-    const stripe = new Stripe(stripeKey, {
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 
     const { type, packId, amount, credits, description } = await req.json();
-
-    console.log("Creating payment session:", { type, packId, amount, credits, description });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -62,7 +55,7 @@ serve(async (req) => {
             currency: "usd",
             product_data: { 
               name: description || `Credit Pack - ${credits} credits`,
-              description: `${credits} credits for MelodyVerse`
+              description: `${credits} credits for Afroverse`
             },
             unit_amount: amount,
           },
@@ -79,8 +72,6 @@ serve(async (req) => {
         pack_id: packId
       }
     });
-
-    console.log("Payment session created:", session.id);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

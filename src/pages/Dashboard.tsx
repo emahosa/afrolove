@@ -1,346 +1,268 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Music, Zap, Clock, TrendingUp, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import MusicGenerationWorkflow from "@/components/music-generation/MusicGenerationWorkflow";
+import SongLibrary from "@/components/music-generation/SongLibrary";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import SampleMusic from "@/components/dashboard/SampleMusic";
 import { supabase } from "@/integrations/supabase/client";
-import { Music, Trophy, Users, Star, TrendingUp, Play, Download } from "lucide-react";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
-
-interface DashboardStats {
-  totalSongs: number;
-  totalContests: number;
-  totalUsers: number;
-  userCredits: number;
-  recentSongs: Array<{
-    id: string;
-    title: string;
-    created_at: string;
-    audio_url: string | null;
-  }>;
-  activeContests: Array<{
-    id: string;
-    title: string;
-    end_date: string;
-    prize: string;
-  }>;
-}
 
 const Dashboard = () => {
-  const { user, userRoles, isVoter, isSubscriber, isAdmin } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalSongs: 0,
-    totalContests: 0,
-    totalUsers: 0,
-    userCredits: 0,
-    recentSongs: [],
-    activeContests: []
-  });
-  const [loading, setLoading] = useState(true);
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading } = useAuth();
+  const navigate = useNavigate();
+  const [canApplyForAffiliate, setCanApplyForAffiliate] = useState(false);
+  const [checkingAffiliateStatus, setCheckingAffiliateStatus] = useState(true);
 
+  // Check affiliate application status
   useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user]);
-
-  const fetchDashboardData = async () => {
-    if (!user) return;
-
-    try {
-      // Fetch user's credits
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single();
-
-      // Fetch user's recent songs
-      const { data: recentSongs } = await supabase
-        .from('songs')
-        .select('id, title, created_at, audio_url')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      // Fetch active contests
-      const { data: activeContests } = await supabase
-        .from('contests')
-        .select('id, title, end_date, prize')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      // Fetch total counts (only for admin/moderator view)
-      let totalSongs = 0;
-      let totalUsers = 0;
-      let totalContests = 0;
-
-      if (isAdmin()) {
-        const [songsCount, usersCount, contestsCount] = await Promise.all([
-          supabase.from('songs').select('*', { count: 'exact', head: true }),
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('contests').select('*', { count: 'exact', head: true })
-        ]);
-
-        totalSongs = songsCount.count || 0;
-        totalUsers = usersCount.count || 0;
-        totalContests = contestsCount.count || 0;
-      } else {
-        // For regular users, show their own stats
-        const { count: userSongsCount } = await supabase
-          .from('songs')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        
-        totalSongs = userSongsCount || 0;
+    const checkAffiliateStatus = async () => {
+      if (!user?.id || !isSubscriber() || isAffiliate() || isAdmin() || isSuperAdmin()) {
+        setCanApplyForAffiliate(false);
+        setCheckingAffiliateStatus(false);
+        return;
       }
 
-      setStats({
-        totalSongs,
-        totalContests,
-        totalUsers,
-        userCredits: profile?.credits || 0,
-        recentSongs: recentSongs || [],
-        activeContests: activeContests || []
-      });
+      try {
+        const { data: existingApplication, error } = await supabase
+          .from('affiliate_applications')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .in('status', ['pending', 'approved'])
+          .maybeSingle();
 
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking affiliate status:', error);
+          setCanApplyForAffiliate(false);
+        } else {
+          // User can apply if they don't have a pending or approved application
+          setCanApplyForAffiliate(!existingApplication);
+        }
+      } catch (err) {
+        console.error('Unexpected error checking affiliate status:', err);
+        setCanApplyForAffiliate(false);
+      } finally {
+        setCheckingAffiliateStatus(false);
+      }
+    };
 
-  const downloadSong = async (song: { id: string; title: string; audio_url: string | null }) => {
-    if (!song.audio_url) {
-      toast.error('No audio file available for this song');
-      return;
-    }
+    checkAffiliateStatus();
+  }, [user?.id, isSubscriber, isAffiliate, isAdmin, isSuperAdmin]);
 
-    try {
-      const response = await fetch(song.audio_url);
-      if (!response.ok) throw new Error('Failed to download');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${song.title}.mp3`; // Use actual song title
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast.success(`${song.title} downloaded successfully!`);
-    } catch (error) {
-      console.error('Download error:', error);
-      toast.error('Failed to download song');
-    }
-  };
+  console.log('🏠 Dashboard rendered for user:', user?.id);
+  console.log('👤 User roles check:', { 
+    isVoter: isVoter(), 
+    isSubscriber: isSubscriber(), 
+    isAdmin: isAdmin(), 
+    isSuperAdmin: isSuperAdmin(),
+    isAffiliate: isAffiliate(),
+    loading 
+  });
 
-  if (loading) {
+  // Show loading state while auth is loading
+  if (loading || checkingAffiliateStatus) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        <span className="ml-3">Loading dashboard...</span>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <span className="ml-2">Loading dashboard...</span>
       </div>
     );
   }
 
+  // Check user roles properly - voter only (not subscriber, not admin)
+  const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
+  
+  console.log('🔍 Role determination:', {
+    userIsOnlyVoter,
+    hasVoterRole: isVoter(),
+    hasSubscriberRole: isSubscriber(),
+    hasAdminRole: isAdmin(),
+    hasSuperAdminRole: isSuperAdmin(),
+    canApplyForAffiliate,
+  });
+
+  const stats = [
+    {
+      title: "Available Credits",
+      value: user?.credits || 0,
+      icon: Zap,
+      description: "Credits remaining",
+      color: "text-blue-600"
+    },
+    {
+      title: "Songs Generated",
+      value: "12", // This would come from actual data
+      icon: Music,
+      description: "Total songs created",
+      color: "text-green-600"
+    },
+    {
+      title: "Processing",
+      value: "2", // This would come from actual data
+      icon: Clock,
+      description: "Songs in progress",
+      color: "text-yellow-600"
+    },
+    {
+      title: "This Month",
+      value: "8", // This would come from actual data
+      icon: TrendingUp,
+      description: "Songs created",
+      color: "text-purple-600"
+    }
+  ];
+
+  const getUserDisplayName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    if (user?.user_metadata?.username) {
+      return user.user_metadata.username;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Music Creator';
+  };
+
+  const displayName = getUserDisplayName();
+  console.log('📛 Display name:', displayName);
+
+  const handleSubscribeClick = () => {
+    alert("Subscription required to access this feature. Please visit our subscription page.");
+    navigate("/subscribe");
+  };
+
   return (
     <div className="space-y-8">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">
-          Welcome back, {user?.user_metadata?.full_name || user?.email?.split('@')[0]}!
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold">
+          Welcome back, {displayName}! 
         </h1>
         <p className="text-muted-foreground">
-          {isAdmin() ? 'Manage your platform from here.' : 
-           isSubscriber() ? 'Ready to create amazing music?' : 
-           isVoter() ? 'Vote on contests and explore music.' : 
-           'Welcome to MelodyVerse!'}
+          Create amazing music with AI-powered generation tools
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {isAdmin() ? 'Total Songs' : 'My Songs'}
-            </CardTitle>
-            <Music className="h-4 w-4 text-blue-600" />
+      {canApplyForAffiliate && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Join Our Affiliate Program!</CardTitle>
+            <CardDescription>Earn commissions by referring new users to Afroverse.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSongs}</div>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin() ? 'Platform-wide' : 'Songs created'}
-            </p>
+            <Button onClick={() => navigate("/become-affiliate")}>Apply to be an Affiliate</Button>
           </CardContent>
         </Card>
+      )}
+      {!userIsOnlyVoter && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, index) => (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Contests</CardTitle>
-            <Trophy className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeContests.length}</div>
-            <p className="text-xs text-muted-foreground">Available to join</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits</CardTitle>
-            <Star className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.userCredits}</div>
-            <p className="text-xs text-muted-foreground">Available credits</p>
-          </CardContent>
-        </Card>
-
-        {isAdmin() && (
+      {userIsOnlyVoter ? (
+        <div className="space-y-8">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-purple-600" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-yellow-500" />
+                Features Locked
+              </CardTitle>
+              <CardDescription>
+                You are currently on a Voter account. Subscribe to unlock all features.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Registered users</p>
+            <CardContent className="space-y-4">
+              <p>
+                As a voter, you have access to participate in contests. To generate music, access your full library, and use other premium features, a subscription is required.
+              </p>
+              <Button onClick={handleSubscribeClick} className="w-full sm:w-auto">
+                View Subscription Plans
+              </Button>
             </CardContent>
           </Card>
-        )}
-      </div>
+          <SampleMusic />
+        </div>
+      ) : (
+        <Tabs defaultValue="generate" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger 
+              value="generate" 
+              className="flex items-center gap-2"
+            >
+              <Music className="h-4 w-4" />
+              Generate Music
+            </TabsTrigger>
+            <TabsTrigger 
+              value="library" 
+              className="flex items-center gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              My Library
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="generate" className="space-y-6">
+            <MusicGenerationWorkflow />
+          </TabsContent>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Songs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="h-5 w-5" />
-              Recent Songs
-            </CardTitle>
-            <CardDescription>Your latest creations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stats.recentSongs.length > 0 ? (
-              <div className="space-y-3">
-                {stats.recentSongs.map((song) => (
-                  <div key={song.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="font-medium">{song.title}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(song.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {song.audio_url && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const audio = new Audio(song.audio_url!);
-                              audio.play();
-                            }}
-                          >
-                            <Play className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => downloadSong(song)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                No songs created yet. Start creating your first song!
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          <TabsContent value="library" className="space-y-6">
+            <SongLibrary />
+          </TabsContent>
+        </Tabs>
+      )}
 
-        {/* Active Contests */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5" />
-              Active Contests
-            </CardTitle>
-            <CardDescription>Join and win amazing prizes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {stats.activeContests.length > 0 ? (
-              <div className="space-y-3">
-                {stats.activeContests.map((contest) => (
-                  <div key={contest.id} className="p-3 border rounded-lg">
-                    <h4 className="font-medium">{contest.title}</h4>
-                    <p className="text-sm text-muted-foreground">Prize: {contest.prize}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Ends: {new Date(contest.end_date).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-                <Link to="/contest">
-                  <Button className="w-full mt-4">
-                    View All Contests
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">
-                No active contests at the moment.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Role-based Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Pro Tips
+          </CardTitle>
           <CardDescription>
-            {userRoles.length > 0 && (
-              <span>Your roles: {userRoles.join(', ')}</span>
-            )}
+            Get the most out of your music generation
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/contest">
-            <Button className="w-full" variant="outline">
-              <Trophy className="mr-2 h-4 w-4" />
-              Join Contest
-            </Button>
-          </Link>
-          
-          <Link to="/credits">
-            <Button className="w-full" variant="outline">
-              <Star className="mr-2 h-4 w-4" />
-              Buy Credits
-            </Button>
-          </Link>
-          
-          <Link to="/profile">
-            <Button className="w-full" variant="outline">
-              <Users className="mr-2 h-4 w-4" />
-              View Profile
-            </Button>
-          </Link>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Badge variant="secondary">Tip 1</Badge>
+              <p className="text-sm">
+                Be specific in your prompts. Instead of "pop song", try "upbeat pop song with electronic beats and catchy chorus"
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Badge variant="secondary">Tip 2</Badge>
+              <p className="text-sm">
+                Use V4.5 model for best quality results. It's more advanced and produces higher fidelity audio
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Badge variant="secondary">Tip 3</Badge>
+              <p className="text-sm">
+                For custom lyrics, structure them with [Verse], [Chorus], [Bridge] tags for better AI understanding
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

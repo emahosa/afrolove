@@ -1,258 +1,245 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { User, Mail, Calendar, Star, Trophy, Music } from "lucide-react";
+import { Star, Music, Trophy, Clock, Settings, Mic } from "lucide-react";
+import VoiceProfileManager from "@/components/VoiceProfileManager";
+
+const activities = [
+  { type: "generated", title: "Created a new song", details: "Afrobeats genre", time: "2 hours ago" },
+  { type: "vote", title: "Voted for a contest entry", details: "Summer Beats Challenge", time: "Yesterday" },
+  { type: "download", title: "Downloaded a song", details: "Rainy Mood", time: "3 days ago" },
+  { type: "generated", title: "Created a new instrumental", details: "R&B genre", time: "1 week ago" },
+];
 
 const Profile = () => {
-  const { user, userRoles } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState({
-    full_name: "",
-    avatar_url: "",
-    credits: 0
-  });
-  const [stats, setStats] = useState({
-    totalSongs: 0,
-    totalVotes: 0,
-    contestEntries: 0
-  });
-
+  const { user, logout, isAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState("account");
+  const adminStatus = isAdmin();
+  const navigate = useNavigate();
+  
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      fetchStats();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      
-      if (data) {
-        setProfile({
-          full_name: data.full_name || '',
-          avatar_url: data.avatar_url || '',
-          credits: data.credits || 0
-        });
-      }
-    } catch (error: any) {
-      console.error('Error fetching profile:', error);
-      toast.error('Failed to load profile');
-    }
-  };
-
-  const fetchStats = async () => {
-    if (!user) return;
-
-    try {
-      // Get total songs
-      const { count: songsCount } = await supabase
-        .from('songs')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // Get total votes
-      const { count: votesCount } = await supabase
-        .from('contest_votes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // Get contest entries
-      const { count: entriesCount } = await supabase
-        .from('contest_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      setStats({
-        totalSongs: songsCount || 0,
-        totalVotes: votesCount || 0,
-        contestEntries: entriesCount || 0
-      });
-    } catch (error: any) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
-  const updateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: profile.full_name,
-          avatar_url: profile.avatar_url
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-      
-      toast.success('Profile updated successfully');
-    } catch (error: any) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+    console.log("Profile: Admin status:", adminStatus);
+  }, [adminStatus]);
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p>Please log in to view your profile.</p>
-      </div>
-    );
+    return <div className="flex justify-center items-center h-64">Loading profile...</div>;
   }
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Profile</h1>
-        <p className="text-muted-foreground">Manage your account settings and view your statistics</p>
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          <Avatar className="h-20 w-20">
+            <AvatarImage src={user?.avatar || ""} />
+            <AvatarFallback className="text-xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-3xl font-bold">{user?.name}</h1>
+            <p className="text-muted-foreground">{user?.email}</p>
+            {adminStatus && (
+              <Badge variant="outline" className="mt-1">
+                Admin
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline">
+            <Settings className="mr-2 h-4 w-4" />
+            Edit Profile
+          </Button>
+          <Button variant="outline" onClick={handleLogout}>
+            Log Out
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Info */}
-        <div className="lg:col-span-2">
+      <Tabs defaultValue="account" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-4 w-full max-w-md mb-6">
+          <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="library">Library</TabsTrigger>
+          {!adminStatus && <TabsTrigger value="voice">Voice</TabsTrigger>}
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="account" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={updateProfile} className="space-y-4">
-                <div className="flex items-center space-x-4 mb-6">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={profile.avatar_url} />
-                    <AvatarFallback>
-                      <User className="h-8 w-8" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-lg font-medium">{profile.full_name || 'User'}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Mail className="h-4 w-4" />
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="full_name">Full Name</Label>
-                    <Input
-                      id="full_name"
-                      value={profile.full_name}
-                      onChange={(e) => setProfile(prev => ({ ...prev, full_name: e.target.value }))}
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="avatar_url">Avatar URL</Label>
-                    <Input
-                      id="avatar_url"
-                      value={profile.avatar_url}
-                      onChange={(e) => setProfile(prev => ({ ...prev, avatar_url: e.target.value }))}
-                      placeholder="Enter avatar URL"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Member since {new Date(user.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Roles:</span>
-                  <div className="flex gap-2">
-                    {userRoles.map((role) => (
-                      <span
-                        key={role}
-                        className="px-2 py-1 bg-primary/10 text-primary rounded-sm text-xs"
-                      >
-                        {role}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Updating...' : 'Update Profile'}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Stats and Credits */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-yellow-500" />
-                Credits
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{profile.credits}</div>
-              <p className="text-sm text-muted-foreground">Available credits</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Statistics</CardTitle>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>Your account details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Music className="h-4 w-4 text-blue-500" />
-                  <span className="text-sm">Total Songs</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Full Name</div>
+                  <div className="font-medium">{user?.name}</div>
                 </div>
-                <span className="font-medium">{stats.totalSongs}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-green-500" />
-                  <span className="text-sm">Contest Entries</span>
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Email Address</div>
+                  <div className="font-medium">{user?.email}</div>
                 </div>
-                <span className="font-medium">{stats.contestEntries}</span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-purple-500" />
-                  <span className="text-sm">Votes Cast</span>
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Member Since</div>
+                  <div className="font-medium">April 2025</div>
                 </div>
-                <span className="font-medium">{stats.totalVotes}</span>
+                {adminStatus && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Admin Type</div>
+                    <div className="font-medium">Administrator</div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+          
+          {!adminStatus && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription</CardTitle>
+                <CardDescription>Manage your subscription and credits</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Current Plan</div>
+                    <div className="flex items-center">
+                      <Badge variant="outline" className="font-medium">
+                        {user?.subscription === "premium" ? "Premium" : "Free"}
+                      </Badge>
+                      {user?.subscription !== "premium" && (
+                        <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
+                          Upgrade
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">Available Credits</div>
+                    <div className="flex items-center gap-1 text-melody-secondary">
+                      <Star size={16} className="fill-melody-secondary" />
+                      <span className="font-bold">{user?.credits}</span>
+                      <Button variant="link" className="p-0 h-auto ml-2 text-melody-secondary">
+                        Get More
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <Button className="bg-melody-secondary hover:bg-melody-secondary/90 w-full md:w-auto">
+                    Upgrade to Premium
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="library" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Library</CardTitle>
+              <CardDescription>Your saved songs and instrumentals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
+                  <Music className="h-8 w-8 text-melody-secondary mb-2" />
+                  <div className="text-3xl font-bold mb-1">5</div>
+                  <div className="text-muted-foreground">Generated Songs</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
+                  <Music className="h-8 w-8 text-melody-accent mb-2" />
+                  <div className="text-3xl font-bold mb-1">3</div>
+                  <div className="text-muted-foreground">Generated Instrumentals</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-6 border rounded-lg text-center">
+                  <Star className="h-8 w-8 text-melody-secondary/70 mb-2" />
+                  <div className="text-3xl font-bold mb-1">8</div>
+                  <div className="text-muted-foreground">Total Tracks</div>
+                </div>
+              </div>
+              <div className="mt-6 text-center">
+                <Button className="bg-melody-secondary hover:bg-melody-secondary/90">View Library</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {!adminStatus && (
+          <TabsContent value="voice" className="space-y-4">
+            <VoiceProfileManager />
+          </TabsContent>
+        )}
+        
+        <TabsContent value="history" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Activity History</CardTitle>
+              <CardDescription>Your recent activities on MelodyVerse</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {activities.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-4">
+                    <div className="mt-1">
+                      {activity.type === "generated" ? (
+                        <Music className="h-5 w-5 text-melody-secondary" />
+                      ) : activity.type === "vote" ? (
+                        <Star className="h-5 w-5 text-melody-accent" />
+                      ) : (
+                        <Download className="h-5 w-5 text-melody-secondary" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{activity.title}</div>
+                      <div className="text-sm text-muted-foreground">{activity.details}</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {activity.time}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
+
+const Download = ({ className, ...props }: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    {...props}
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
 
 export default Profile;

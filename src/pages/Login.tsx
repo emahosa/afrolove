@@ -6,38 +6,48 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+// Admin credentials constants - update to use the correct admin email
+const ADMIN_EMAIL = "ellaadahosa@gmail.com";
+const ADMIN_PASSWORD = "Admin123!";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [userType, setUserType] = useState("user");
   // MFA verification state
   const [factorId, setFactorId] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [showMFAVerification, setShowMFAVerification] = useState(false);
   
-  const { user, login, isAdmin, isSuperAdmin } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-fill admin credentials when on admin tab
+  useEffect(() => {
+    if (userType === "admin") {
+      setEmail(ADMIN_EMAIL);
+      setPassword(ADMIN_PASSWORD);
+    } else {
+      setEmail("");
+      setPassword("");
+    }
+  }, [userType]);
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user) {
-      console.log("Login: User already logged in, checking role and redirecting");
-      
-      // If user is admin, redirect to admin panel
-      if (isAdmin() || isSuperAdmin()) {
-        navigate("/admin", { replace: true });
-      } else {
-        // Regular user goes to dashboard
-        const from = location.state?.from?.pathname || "/dashboard";
-        navigate(from, { replace: true });
-      }
+      console.log("Login: User already logged in, redirecting to dashboard");
+      const from = location.state?.from?.pathname || "/dashboard";
+      navigate(from, { replace: true });
     }
-  }, [user, navigate, location.state, isAdmin, isSuperAdmin]);
+  }, [user, navigate, location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +64,7 @@ const Login = () => {
     
     setLoading(true);
     try {
-      console.log("Login: Attempting login with:", { email });
+      console.log("Login: Attempting login with:", { email, userType });
       
       const { data, error } = await login(email, password);
       
@@ -66,16 +76,19 @@ const Login = () => {
       
       // Check if MFA is required
       if (data.session === null && data.user !== null) {
+        // This means MFA is required - check for enrolled factors
         const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         
         if (factorError) throw factorError;
         
         if (factorData.currentLevel === 'aal1' && factorData.nextLevel === 'aal2') {
+          // User has MFA enabled, get all enrolled factors
           const { data: enrolledFactors, error: enrolledError } = await supabase.auth.mfa.listFactors();
           
           if (enrolledError) throw enrolledError;
           
           if (enrolledFactors.totp && enrolledFactors.totp.length > 0) {
+            // TOTP factor exists, create a challenge
             const factor = enrolledFactors.totp[0];
             
             const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
@@ -84,6 +97,7 @@ const Login = () => {
             
             if (challengeError) throw challengeError;
             
+            // Store factor and challenge IDs and show MFA verification
             setFactorId(factor.id);
             setChallengeId(challengeData.id);
             setShowMFAVerification(true);
@@ -95,8 +109,15 @@ const Login = () => {
       
       if (data.session) {
         toast.success("Login successful!");
-        // Navigation will be handled by useEffect
+        let destination = userType === "admin" ? "/admin" : "/dashboard";
+        if (location.state?.from?.pathname) {
+          destination = location.state.from.pathname;
+        }
+        console.log("Login: Login successful, redirecting to:", destination);
+        navigate(destination, { replace: true });
       } else if (!showMFAVerification) {
+        // This case would be if MFA is not enabled but session is still null.
+        // It's an unlikely edge case if there's no error.
         toast.error("Login failed. Please try again.");
         setLoading(false);
       }
@@ -110,11 +131,19 @@ const Login = () => {
   const handleMFAVerified = () => {
     setShowMFAVerification(false);
     toast.success("Login successful!");
-    // Navigation will be handled by useEffect when user state updates
+    
+    // After MFA is verified, the session is active and context is updated via onAuthStateChange.
+    // We can now navigate.
+    let destination = userType === "admin" ? "/admin" : "/dashboard";
+    if (location.state?.from?.pathname) {
+      destination = location.state.from.pathname;
+    }
+    navigate(destination, { replace: true });
   };
 
   const handleCancelMFA = () => {
     setShowMFAVerification(false);
+    // Sign out the incomplete session
     supabase.auth.signOut();
   };
 
@@ -149,6 +178,13 @@ const Login = () => {
         <p className="text-muted-foreground">Sign in to continue to MelodyVerse</p>
       </div>
 
+      <Tabs value={userType} onValueChange={setUserType} className="mb-6">
+        <TabsList className="grid grid-cols-2 w-full">
+          <TabsTrigger value="user">User Login</TabsTrigger>
+          <TabsTrigger value="admin">Admin Login</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
@@ -182,42 +218,56 @@ const Login = () => {
           className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
           disabled={loading}
         >
-          {loading ? "Signing in..." : "Sign In"}
+          {loading ? "Signing in..." : userType === "admin" ? "Sign In as Admin" : "Sign In"}
         </Button>
+
+        {userType === "admin" && (
+          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-800">
+              <strong>Admin credentials:</strong><br />
+              Email: {ADMIN_EMAIL}<br />
+              Password: {ADMIN_PASSWORD}
+            </p>
+          </div>
+        )}
       </form>
 
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-background text-muted-foreground">
-            OR CONTINUE WITH
-          </span>
-        </div>
-      </div>
+      {userType === "user" && (
+        <>
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-background text-muted-foreground">
+                OR CONTINUE WITH
+              </span>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="w-full">
-          <FaGoogle className="mr-2" /> Google
-        </Button>
-        <Button variant="outline" className="w-full">
-          <FaApple className="mr-2" /> Apple
-        </Button>
-      </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Button variant="outline" className="w-full">
+              <FaGoogle className="mr-2" /> Google
+            </Button>
+            <Button variant="outline" className="w-full">
+              <FaApple className="mr-2" /> Apple
+            </Button>
+          </div>
+        </>
+      )}
 
       <p className="text-center mt-8 text-sm">
         Don't have an account?{" "}
-        <Link to="/register" className="text-melody-secondary hover:underline font-medium">
-          Sign up
-        </Link>
+        {userType === "admin" ? (
+          <Link to="/register/admin" className="text-melody-secondary hover:underline font-medium">
+            Create Admin Account
+          </Link>
+        ) : (
+          <Link to="/register" className="text-melody-secondary hover:underline font-medium">
+            Sign up
+          </Link>
+        )}
       </p>
-
-      <div className="text-center mt-4">
-        <Link to="/admin/login" className="text-sm text-muted-foreground hover:underline">
-          Admin Login
-        </Link>
-      </div>
     </div>
   );
 };
