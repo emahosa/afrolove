@@ -38,6 +38,8 @@ serve(async (req) => {
 
     const { priceId, planId, planName, amount } = await req.json();
 
+    console.log("Creating subscription session for:", { planId, planName, user: user.email });
+
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
@@ -73,6 +75,8 @@ serve(async (req) => {
         plan_name: planName
       }
     });
+
+    console.log("Subscription session created successfully:", session.id);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

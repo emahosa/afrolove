@@ -1,43 +1,51 @@
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Music, Download, Play, Pause, Clock, CheckCircle } from "lucide-react";
+import { Play, Pause, Download, Trash2, Music } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
 interface Song {
   id: string;
   title: string;
-  prompt: string;
-  audio_url: string;
-  image_url: string;
+  audio_url: string | null;
   status: string;
   created_at: string;
-  duration: number;
-  tags: string;
+  genre?: { name: string };
+  lyrics?: string;
+  prompt?: string;
 }
 
 const SongLibrary = () => {
   const { user } = useAuth();
+  const { currentSong, isPlaying, playSong, pauseSong } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
-  const [playingId, setPlayingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
-      fetchUserSongs();
+      fetchSongs();
     }
   }, [user]);
 
-  const fetchUserSongs = async () => {
+  const fetchSongs = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('songs')
-        .select('*')
+        .select(`
+          id,
+          title,
+          audio_url,
+          status,
+          created_at,
+          lyrics,
+          prompt,
+          genre:genres(name)
+        `)
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
@@ -45,74 +53,81 @@ const SongLibrary = () => {
       setSongs(data || []);
     } catch (error: any) {
       console.error('Error fetching songs:', error);
-      toast.error('Failed to load your songs');
+      toast.error('Failed to load songs');
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePlay = (song: Song) => {
+    if (currentSong?.id === song.id && isPlaying) {
+      pauseSong();
+    } else if (song.audio_url) {
+      playSong({
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url
+      });
+    }
+  };
+
   const handleDownload = async (song: Song) => {
     if (!song.audio_url) {
-      toast.error('Audio file not available');
+      toast.error('Audio file not available for download');
       return;
     }
 
     try {
-      // Create a clean filename from the song title
-      const cleanTitle = song.title.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
-      const fileName = `${cleanTitle}.mp3`;
-      
-      // Fetch the audio file
       const response = await fetch(song.audio_url);
-      if (!response.ok) throw new Error('Failed to fetch audio');
-      
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
       
-      // Create download link
+      // Create a clean filename from the song title
+      const cleanTitle = song.title
+        .replace(/[^a-zA-Z0-9\s-_]/g, '') // Remove special characters
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .trim();
+      
+      const filename = `${cleanTitle || 'song'}.mp3`;
+      
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
-      link.style.display = 'none';
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // Clean up
       window.URL.revokeObjectURL(url);
       
-      toast.success(`Downloaded: ${song.title}`);
+      toast.success(`Downloaded: ${filename}`);
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download song');
     }
   };
 
-  const handlePlay = (songId: string) => {
-    if (playingId === songId) {
-      setPlayingId(null);
-    } else {
-      setPlayingId(songId);
-    }
-  };
+  const handleDelete = async (songId: string) => {
+    if (!confirm('Are you sure you want to delete this song?')) return;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
-      case 'processing':
-        return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Processing</Badge>;
-      case 'failed':
-        return <Badge variant="destructive">Failed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', songId);
+
+      if (error) throw error;
+      
+      setSongs(songs.filter(song => song.id !== songId));
+      toast.success('Song deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting song:', error);
+      toast.error('Failed to delete song');
     }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
         <span className="ml-2">Loading your songs...</span>
       </div>
     );
@@ -126,10 +141,16 @@ const SongLibrary = () => {
             <Music className="h-5 w-5" />
             Your Song Library
           </CardTitle>
-          <CardDescription>Your generated songs will appear here</CardDescription>
+          <CardDescription>
+            Your generated songs will appear here
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No songs generated yet. Start creating your first song!</p>
+        <CardContent className="text-center py-8">
+          <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No songs generated yet</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Create your first song using the music generation tools
+          </p>
         </CardContent>
       </Card>
     );
@@ -140,68 +161,70 @@ const SongLibrary = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Music className="h-6 w-6" />
-          Your Song Library ({songs.length})
+          Your Song Library
         </h2>
-        <Button onClick={fetchUserSongs} variant="outline" size="sm">
-          Refresh
-        </Button>
+        <Badge variant="secondary">{songs.length} songs</Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid gap-4">
         {songs.map((song) => (
-          <Card key={song.id} className="overflow-hidden">
-            <CardHeader className="pb-3">
+          <Card key={song.id}>
+            <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg line-clamp-2">{song.title}</CardTitle>
-                  <CardDescription className="line-clamp-2 mt-1">
-                    {song.prompt}
+                <div>
+                  <CardTitle className="text-lg">{song.title}</CardTitle>
+                  <CardDescription>
+                    Created {new Date(song.created_at).toLocaleDateString()}
+                    {song.genre && ` • ${song.genre.name}`}
                   </CardDescription>
                 </div>
-                {getStatusBadge(song.status)}
+                <Badge 
+                  variant={song.status === 'completed' ? 'default' : 'secondary'}
+                >
+                  {song.status}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-3">
+            <CardContent>
+              {song.prompt && (
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  Prompt: {song.prompt}
+                </p>
+              )}
+              
+              <div className="flex items-center gap-2">
                 {song.audio_url && song.status === 'completed' && (
-                  <div className="flex items-center gap-2">
+                  <>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handlePlay(song.id)}
-                      className="flex-1"
+                      onClick={() => handlePlay(song)}
                     >
-                      {playingId === song.id ? (
-                        <><Pause className="w-4 h-4 mr-2" />Pause</>
+                      {currentSong?.id === song.id && isPlaying ? (
+                        <Pause className="h-4 w-4" />
                       ) : (
-                        <><Play className="w-4 h-4 mr-2" />Play</>
+                        <Play className="h-4 w-4" />
                       )}
                     </Button>
+                    
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDownload(song)}
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="h-4 w-4" />
                     </Button>
-                  </div>
+                  </>
                 )}
                 
-                {playingId === song.id && song.audio_url && (
-                  <audio
-                    controls
-                    autoPlay
-                    className="w-full"
-                    onEnded={() => setPlayingId(null)}
-                  >
-                    <source src={song.audio_url} type="audio/mpeg" />
-                    Your browser does not support the audio element.
-                  </audio>
-                )}
-
-                <div className="text-xs text-muted-foreground">
-                  Created: {new Date(song.created_at).toLocaleDateString()}
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDelete(song.id)}
+                  className="ml-auto text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -39,6 +39,8 @@ serve(async (req) => {
 
     const { type, packId, amount, credits, description } = await req.json();
 
+    console.log("Creating payment session for:", { type, packId, amount, credits, user: user.email });
+
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;
@@ -55,7 +57,7 @@ serve(async (req) => {
             currency: "usd",
             product_data: { 
               name: description || `Credit Pack - ${credits} credits`,
-              description: `${credits} credits for Afroverse`
+              description: `${credits} credits for MelodyVerse`
             },
             unit_amount: amount,
           },
@@ -72,6 +74,8 @@ serve(async (req) => {
         pack_id: packId
       }
     });
+
+    console.log("Payment session created successfully:", session.id);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

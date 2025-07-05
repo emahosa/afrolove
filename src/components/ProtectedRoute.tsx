@@ -7,9 +7,10 @@ import VoterLockScreen from './VoterLockScreen';
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
+  children?: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
   const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles, isAffiliate } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
@@ -42,7 +43,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     hasActiveSubscription,
     userRoles,
     isSubscriber: isSubscriber(),
-    isVoter: isVoter()
+    isVoter: isVoter(),
+    isAdmin: isAdmin(),
+    isSuperAdmin: isSuperAdmin()
   });
 
   // Redirect root to dashboard
@@ -59,17 +62,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
       }
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
-    return <Outlet />;
+    return children ? <>{children}</> : <Outlet />;
   }
 
-  // STRICT ACCESS CONTROL: Only allow voters to access contest and subscribe pages
+  // Allow voters to access profile page
+  const isProfilePage = location.pathname.toLowerCase() === '/profile';
+  
+  // STRICT ACCESS CONTROL: Only allow voters to access contest, subscribe, dashboard, and profile pages
   if (isOnlyVoter) {
     const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
     const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
     const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
 
-    if (isContestPage || isSubscribePage || isDashboardPage) {
-      return <Outlet />;
+    if (isContestPage || isSubscribePage || isDashboardPage || isProfilePage) {
+      return children ? <>{children}</> : <Outlet />;
     }
     
     // Block all other pages for voters
@@ -83,8 +89,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
 
     // Allow access to these pages even for lapsed subscribers
-    if (isContestPage || isSubscribePage || isDashboardPage) {
-      return <Outlet />;
+    if (isContestPage || isSubscribePage || isDashboardPage || isProfilePage) {
+      return children ? <>{children}</> : <Outlet />;
     }
 
     // Block other pages for lapsed subscribers
@@ -110,7 +116,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     if (!hasActiveSubscription && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
       return <VoterLockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
     }
-    return <Outlet />;
+    return children ? <>{children}</> : <Outlet />;
   }
 
   // For all other routes, require active subscription
@@ -118,7 +124,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     return <VoterLockScreen message="An active subscription is required to access this page." />;
   }
 
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;
