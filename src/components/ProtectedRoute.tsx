@@ -41,8 +41,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin 
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If admin is trying to access non-admin routes, allow it
-  // If regular user is trying to access admin routes, it's blocked above
   console.log('ProtectedRoute: Access granted');
   return <>{children}</>;
 };
