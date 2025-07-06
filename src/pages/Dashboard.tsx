@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music, Sparkles, Users, CreditCard, Plus } from "lucide-react";
-import { SampleMusic } from "@/components/dashboard/SampleMusic";
+import SampleMusic from "@/components/dashboard/SampleMusic";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
 import { useGenres, Genre } from "@/hooks/use-genres";
 import { supabase } from "@/integrations/supabase/client";

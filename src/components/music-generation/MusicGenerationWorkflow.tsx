@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useGenres } from '@/hooks/use-genres';
 import { useSunoGeneration } from '@/hooks/use-suno-generation';
 import { updateUserCredits } from '@/utils/credits';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MusicGenerationWorkflowProps {
   preSelectedGenre?: string;
@@ -98,9 +99,9 @@ export const MusicGenerationWorkflow: React.FC<MusicGenerationWorkflowProps> = (
       await generateSong({
         prompt: finalPrompt,
         title: title || 'Untitled Song',
-        genre_id: selectedGenre || null,
-        type: songType,
-        credits_used: 1
+        instrumental: songType === 'instrumental',
+        customMode: false,
+        model: 'V3_5'
       });
 
       // Update credits locally
