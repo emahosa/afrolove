@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +52,7 @@ const Index = () => {
             </h1>
           </div>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Create amazing songs and instrumentals with the power of AI. Generate music in various genres with just a few clicks.
+            Create unique songs and instrumentals with AI technology. Generate music across various genres with advanced tools.
           </p>
         </header>
 
@@ -66,7 +67,7 @@ const Index = () => {
           
           <div className="text-center p-6 rounded-lg bg-card border">
             <Users className="h-12 w-12 text-melody-accent mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">Community Contests</h3>
+            <h3 className="text-xl font-bold mb-2">Music Contests</h3>
             <p className="text-muted-foreground">
               Participate in music contests and showcase your AI-generated creations
             </p>
