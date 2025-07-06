@@ -34,22 +34,27 @@ serve(async (req) => {
       return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
-    console.log("Processing webhook event:", event.type);
+    console.log("Processing webhook event:", event.type, "Event ID:", event.id);
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log("Checkout session completed:", session.id);
+        console.log("Checkout session completed:", session.id, "Metadata:", session.metadata);
 
         if (session.metadata?.type === 'credits') {
           // Handle credit purchase
           const userId = session.metadata.user_id;
           const credits = parseInt(session.metadata.credits);
           
-          console.log("Processing credit purchase:", { userId, credits });
+          console.log("Processing credit purchase:", { userId, credits, sessionId: session.id });
           
-          // Update user credits
-          const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
+          if (!userId || !credits) {
+            console.error("Missing required metadata for credit purchase:", { userId, credits });
+            break;
+          }
+          
+          // Update user credits using the RPC function
+          const { data: newCredits, error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
             p_user_id: userId,
             p_amount: credits
           });
@@ -57,7 +62,7 @@ serve(async (req) => {
           if (creditError) {
             console.error("Error updating user credits:", creditError);
           } else {
-            console.log("Successfully updated user credits");
+            console.log("Successfully updated user credits. New balance:", newCredits);
           }
           
           // Record transaction
@@ -74,6 +79,8 @@ serve(async (req) => {
             
           if (transactionError) {
             console.error("Error recording transaction:", transactionError);
+          } else {
+            console.log("Transaction recorded successfully");
           }
           
         } else if (session.metadata?.type === 'subscription') {
@@ -81,9 +88,17 @@ serve(async (req) => {
           const userId = session.metadata.user_id;
           const planName = session.metadata.plan_name;
           
-          console.log("Processing subscription:", { userId, planName });
+          console.log("Processing subscription:", { userId, planName, sessionId: session.id });
+          
+          if (!userId || !planName) {
+            console.error("Missing required metadata for subscription:", { userId, planName });
+            break;
+          }
           
           // Update user subscription
+          const expirationDate = new Date();
+          expirationDate.setMonth(expirationDate.getMonth() + 1); // 30 days from now
+          
           const { error: subError } = await supabaseAdmin
             .from('user_subscriptions')
             .upsert({
@@ -91,24 +106,40 @@ serve(async (req) => {
               subscription_type: planName.toLowerCase(),
               subscription_status: 'active',
               started_at: new Date().toISOString(),
-              expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+              expires_at: expirationDate.toISOString()
+            }, {
+              onConflict: 'user_id'
             });
             
           if (subError) {
             console.error("Error updating subscription:", subError);
           } else {
-            console.log("Successfully updated subscription");
+            console.log("Successfully updated subscription for user:", userId);
             
-            // Add subscriber role
+            // Remove voter role and add subscriber role
+            const { error: removeVoterError } = await supabaseAdmin
+              .from('user_roles')
+              .delete()
+              .eq('user_id', userId)
+              .eq('role', 'voter');
+              
+            if (removeVoterError && removeVoterError.code !== 'PGRST116') {
+              console.error("Error removing voter role:", removeVoterError);
+            }
+            
             const { error: roleError } = await supabaseAdmin
               .from('user_roles')
               .upsert({
                 user_id: userId,
                 role: 'subscriber'
+              }, {
+                onConflict: 'user_id,role'
               });
               
             if (roleError) {
               console.error("Error adding subscriber role:", roleError);
+            } else {
+              console.log("Successfully added subscriber role for user:", userId);
             }
           }
         }
@@ -119,6 +150,8 @@ serve(async (req) => {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
+        
+        console.log("Processing subscription update/deletion:", subscription.id, "Status:", subscription.status);
         
         // Find user by customer ID
         const { data: customer } = await stripe.customers.retrieve(customerId);
@@ -131,6 +164,8 @@ serve(async (req) => {
             
           if (profile) {
             const status = subscription.status === 'active' ? 'active' : 'inactive';
+            
+            console.log("Updating subscription status for user:", profile.id, "Status:", status);
             
             // Update subscription status
             const { error } = await supabaseAdmin
@@ -145,6 +180,8 @@ serve(async (req) => {
               
             if (error) {
               console.error("Error updating subscription status:", error);
+            } else {
+              console.log("Successfully updated subscription status");
             }
             
             // Update user role
@@ -160,7 +197,11 @@ serve(async (req) => {
                 .upsert({
                   user_id: profile.id,
                   role: 'voter'
+                }, {
+                  onConflict: 'user_id,role'
                 });
+              
+              console.log("Reverted user to voter role:", profile.id);
             }
           }
         }
@@ -168,6 +209,8 @@ serve(async (req) => {
       }
     }
 
+    console.log("Webhook processing completed successfully for event:", event.id);
+    
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

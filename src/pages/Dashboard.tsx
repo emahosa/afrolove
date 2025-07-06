@@ -81,14 +81,29 @@ const Dashboard = () => {
     fetchDashboardStats();
   }, [user?.id]);
 
-  // Check payment success and refresh user data
+  // Check payment success and refresh user data with polling
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('payment') === 'success' || urlParams.get('subscription') === 'success') {
-      // Refresh user data after successful payment
-      setTimeout(() => {
-        refreshUserData();
-      }, 2000); // Wait 2 seconds for webhook processing
+      // Poll for user data updates with exponential backoff
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      const pollForUpdates = async () => {
+        attempts++;
+        await refreshUserData();
+        
+        if (attempts < maxAttempts) {
+          const delay = Math.min(1000 * Math.pow(1.5, attempts), 10000); // Cap at 10 seconds
+          setTimeout(pollForUpdates, delay);
+        }
+      };
+      
+      // Start polling after initial 2-second delay
+      setTimeout(pollForUpdates, 2000);
+      
+      // Clean up URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [refreshUserData]);
 
@@ -337,7 +352,7 @@ const Dashboard = () => {
             </div>
           </div>
         </CardContent>
-      </div>
+      </Card>
     </div>
   );
 };

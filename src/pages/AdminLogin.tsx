@@ -20,10 +20,12 @@ const AdminLoginPage: React.FC = () => {
   useEffect(() => {
     // If user is already logged in and is an admin, redirect to /admin
     if (!authLoading && user && (isAdmin() || isSuperAdmin())) {
+      console.log('AdminLogin: User is already admin, redirecting to /admin');
       navigate('/admin', { replace: true });
     }
-    // If user is logged in but NOT an admin, redirect to regular login
+    // If user is logged in but NOT an admin, redirect to regular dashboard
     else if (!authLoading && user && !isAdmin() && !isSuperAdmin()) {
+      console.log('AdminLogin: User is not admin, redirecting to dashboard');
       toast.error("You don't have admin privileges. Redirecting to user dashboard.");
       navigate('/dashboard', { replace: true });
     }
@@ -35,30 +37,22 @@ const AdminLoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('AdminLogin: Attempting login for:', email);
       const { data, error: authError } = await login(email, password);
       
       if (authError) {
+        console.error('AdminLogin: Auth error:', authError);
         setError(authError.message);
         setLoading(false);
         return;
       }
 
-      // Wait a moment for auth context to update
-      setTimeout(() => {
-        // Check if the logged-in user is actually an admin
-        if (email === "ellaadahosa@gmail.com") {
-          toast.success("Admin login successful!");
-          navigate('/admin');
-        } else {
-          // For other users, check their role in the database
-          // This will be handled by the useEffect above
-        }
-        setLoading(false);
-      }, 1000);
-
+      console.log('AdminLogin: Login successful, waiting for auth context to update...');
+      // The useEffect above will handle the redirection once auth context updates
+      
     } catch (err) {
+      console.error('AdminLogin: Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
-      console.error('Admin login error:', err);
       setLoading(false);
     }
   };
