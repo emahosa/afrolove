@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -123,20 +122,22 @@ const Admin = ({ tab }: AdminProps) => {
       {/* Admin Content */}
       <div className="container mx-auto py-8 px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-card">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="admins">Admins</TabsTrigger>
-            <TabsTrigger value="genres">Genres</TabsTrigger>
-            <TabsTrigger value="suno-api">API</TabsTrigger>
-            <TabsTrigger value="contest">Contest</TabsTrigger>
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="support">Support</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto">
+            <TabsList className="inline-flex h-12 items-center justify-start rounded-lg bg-card/50 backdrop-blur-sm p-1 text-muted-foreground border border-border/20 shadow-sm min-w-max">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="admins">Admins</TabsTrigger>
+              <TabsTrigger value="genres">Genres</TabsTrigger>
+              <TabsTrigger value="suno-api">API</TabsTrigger>
+              <TabsTrigger value="contest">Contest</TabsTrigger>
+              <TabsTrigger value="content">Content</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
+              <TabsTrigger value="support">Support</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Admin Statistics Cards */}
