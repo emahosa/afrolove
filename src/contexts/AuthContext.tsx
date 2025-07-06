@@ -296,12 +296,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // This helps to set loading to false faster if user is not logged in.
-    supabase.auth.getSession().then(({ data }) => {
-        if (!data.session) {
-            setLoading(false);
-        }
-    });
+    // setLoading(false) will be handled by the useEffect watching `session`'s processAndFetch.
+    // supabase.auth.getSession().then(({ data }) => {
+    //     if (!data.session) {
+    //         setLoading(false);
+    //     }
+    // });
 
     return () => {
       subscription.unsubscribe();
@@ -309,55 +309,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const processAndFetch = async () => {
-      if (session) {
-        // Prevent re-processing on token refresh if user is the same
-        if (processedUserId.current === session.user.id) {
-          if (loading) setLoading(false);
-          return;
-        }
+    // Ensure loading is true at the start of processing a new session state
+    // but only if it's not already true (to avoid redundant renders if session changes rapidly)
+    if (!loading) {
+      setLoading(true);
+    }
 
-        try {
+    const processAndFetch = async () => {
+      try {
+        if (session) {
+          // If user ID is the same as already processed, and user object exists, skip re-fetch to avoid flicker.
+          // This helps if session object instance changes (e.g. token refresh) but user is same.
+          if (processedUserId.current === session.user.id && user) {
+            return;
+          }
+
           const userId = session.user.id;
           console.log('AuthContext: Processing session for user:', userId);
 
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
-            
-          const { data: userRoleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', userId);
-          const roles = userRoleData?.map(r => r.role) || ['voter'];
+          // Fetch all necessary data in parallel
+          const [profileResult, userRoleResult, permissionsResult, isSubscriberRpcResult, userSubscriptionResult] = await Promise.all([
+            supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+            supabase.from('user_roles').select('role').eq('user_id', userId),
+            supabase.from('admin_permissions').select('permission').eq('user_id', userId), // Assuming this table exists
+            supabase.rpc('is_subscriber', { _user_id: userId }),
+            supabase.from('user_subscriptions').select('subscription_type').eq('user_id', userId).eq('subscription_status', 'active').maybeSingle()
+          ]);
+
+          const profile = profileResult.data;
+          const roles = userRoleResult.data?.map(r => r.role) || ['voter'];
+          const permissions = permissionsResult.data?.map(p => p.permission) || [];
+          const isActualSubscriber = !!isSubscriberRpcResult.data;
+
           setUserRoles(roles);
-
-          const { data: permissionsData } = await supabase
-            .from('admin_permissions')
-            .select('permission')
-            .eq('user_id', userId);
-          const permissions = permissionsData?.map(p => p.permission) || [];
           setAdminPermissions(permissions);
+          setSubscriberStatus(isActualSubscriber);
 
-          const { data: isSubscriberResult } = await supabase
-            .rpc('is_subscriber', { _user_id: userId });
-          setSubscriberStatus(!!isSubscriberResult);
+          let subscriptionType: ExtendedUser['subscription'] = 'free';
+          if (isActualSubscriber) {
+            const subDetails = userSubscriptionResult.data;
+            if (subDetails && subDetails.subscription_type) {
+              const planId = subDetails.subscription_type.toLowerCase();
+              if (planId.includes('premium')) subscriptionType = 'premium';
+              else if (planId.includes('professional')) subscriptionType = 'enterprise';
+              else if (planId.includes('basic')) subscriptionType = 'premium'; // Or 'basic' if you have it in ExtendedUser
+              else subscriptionType = 'premium';
+            } else {
+              subscriptionType = 'premium';
+            }
+          }
           
           const fullUser: ExtendedUser = {
             ...session.user,
             name: profile?.full_name || session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
             avatar: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
-            credits: profile?.credits ?? 5,
-            subscription: 'free'
+            credits: profile?.credits ?? 5, // Default to 5 credits if not set
+            subscription: subscriptionType
           };
-
           setUser(fullUser);
           processedUserId.current = userId;
           console.log('AuthContext: User setup complete for:', fullUser.name);
 
-          // Only redirect once and only if not already on admin routes
+          // Admin redirect logic
           const isAdminUser = (fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin'));
           const currentPath = window.location.pathname;
           const isOnAdminRoute = currentPath.startsWith('/admin');
@@ -365,38 +378,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (isAdminUser && !isOnAdminRoute && !hasRedirected.current) {
             console.log('AuthContext: Admin user detected, redirecting to admin panel');
             hasRedirected.current = true;
-            // Use a slight delay to ensure state is fully updated
-            setTimeout(() => {
-              window.location.href = '/admin';
-            }, 100);
+            setTimeout(() => { window.location.href = '/admin'; }, 100);
           }
 
-        } catch (error) {
-          console.error('AuthContext: Error processing session:', error);
+        } else {
+          // Session is null, clear user-specific states
           setUser(null);
           setUserRoles([]);
           setAdminPermissions([]);
           setSubscriberStatus(false);
           processedUserId.current = null;
+          hasRedirected.current = false; // Reset redirect flag if session is lost
         }
-      } else {
-        // Session is null, clear everything
+      } catch (error) {
+        console.error('AuthContext: Error processing session:', error);
+        // Reset to a clean state on error
         setUser(null);
-        setSession(null);
         setUserRoles([]);
         setAdminPermissions([]);
         setSubscriberStatus(false);
         processedUserId.current = null;
-        hasRedirected.current = false;
-      }
-      
-      if (loading) {
+      } finally {
+        // This is the single point where loading becomes false after all processing for a session change.
         setLoading(false);
       }
     };
 
     processAndFetch();
-  }, [session]); // Removed 'loading' from dependencies
+  }, [session, user]); // Added `user` to dependency array for the processedUserId.current check condition.
+                       // This might need careful testing. If `user` causes too many re-runs,
+                       // the condition `processedUserId.current === session.user.id && user` might need adjustment
+                       // or remove `user` and rely on `processedUserId` and `session.user.id` only.
+                       // For now, let's try with `user` to ensure the "already processed" check is effective.
 
   const value = {
     user,

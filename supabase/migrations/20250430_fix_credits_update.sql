@@ -31,9 +31,9 @@ BEGIN
       NULL;
     END;
   ELSE
-    -- Update existing profile
+    -- Update existing profile, ensuring NULL credits are treated as 0
     UPDATE public.profiles
-    SET credits = credits + p_amount
+    SET credits = COALESCE(credits, 0) + p_amount
     WHERE id = p_user_id
     RETURNING credits INTO v_new_credits;
   END IF;
