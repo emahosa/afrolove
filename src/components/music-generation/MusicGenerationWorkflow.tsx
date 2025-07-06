@@ -104,9 +104,9 @@ export const MusicGenerationWorkflow: React.FC<MusicGenerationWorkflowProps> = (
         model: 'V3_5'
       });
 
-      // Update credits locally
+      // Update credits locally and refresh from server
       await updateUserCredits(user.id, -1);
-      setUserCredits(prev => prev - 1);
+      await fetchUserCredits();
       
       // Clear form
       setPrompt('');

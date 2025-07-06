@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Music, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { Music, Plus, Edit, Trash2, Loader2, Upload, Play, Pause } from "lucide-react";
 import { useGenres, Genre } from "@/hooks/use-genres";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const GenreManagement = () => {
   const { genres, loading, createGenre, updateGenre, deleteGenre } = useGenres();
@@ -17,13 +18,67 @@ export const GenreManagement = () => {
   const [formData, setFormData] = useState({
     name: "",
     prompt_template: "",
-    description: ""
+    description: "",
+    sample_prompt: "",
+    audio_preview_url: "",
+    cover_image_url: ""
   });
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
 
   const resetForm = () => {
-    setFormData({ name: "", prompt_template: "", description: "" });
+    setFormData({ 
+      name: "", 
+      prompt_template: "", 
+      description: "",
+      sample_prompt: "",
+      audio_preview_url: "",
+      cover_image_url: ""
+    });
     setEditingGenre(null);
+  };
+
+  const handleFileUpload = async (file: File, type: 'audio' | 'image') => {
+    if (!file) return;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const bucket = type === 'audio' ? 'audio_files' : 'profile_images';
+
+    try {
+      setUploading(true);
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+
+      if (type === 'audio') {
+        setFormData(prev => ({ ...prev, audio_preview_url: publicUrl.publicUrl }));
+      } else {
+        setFormData(prev => ({ ...prev, cover_image_url: publicUrl.publicUrl }));
+      }
+
+      toast.success(`${type === 'audio' ? 'Audio' : 'Image'} uploaded successfully!`);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload ${type}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const toggleAudioPreview = (audioUrl: string) => {
+    if (playingAudio === audioUrl) {
+      setPlayingAudio(null);
+    } else {
+      setPlayingAudio(audioUrl);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +94,11 @@ export const GenreManagement = () => {
       return;
     }
 
+    if (formData.sample_prompt && formData.sample_prompt.length > 99) {
+      toast.error("Sample prompt must be 99 characters or less");
+      return;
+    }
+
     try {
       setSubmitting(true);
       
@@ -46,13 +106,19 @@ export const GenreManagement = () => {
         await updateGenre(editingGenre.id, {
           name: formData.name.trim(),
           prompt_template: formData.prompt_template.trim(),
-          description: formData.description.trim() || null
+          description: formData.description.trim() || null,
+          sample_prompt: formData.sample_prompt.trim() || null,
+          audio_preview_url: formData.audio_preview_url || null,
+          cover_image_url: formData.cover_image_url || null
         });
       } else {
         await createGenre({
           name: formData.name.trim(),
           prompt_template: formData.prompt_template.trim(),
-          description: formData.description.trim() || undefined
+          description: formData.description.trim() || undefined,
+          sample_prompt: formData.sample_prompt.trim() || undefined,
+          audio_preview_url: formData.audio_preview_url || undefined,
+          cover_image_url: formData.cover_image_url || undefined
         });
       }
       
@@ -69,7 +135,10 @@ export const GenreManagement = () => {
     setFormData({
       name: genre.name,
       prompt_template: genre.prompt_template,
-      description: genre.description || ""
+      description: genre.description || "",
+      sample_prompt: genre.sample_prompt || "",
+      audio_preview_url: genre.audio_preview_url || "",
+      cover_image_url: genre.cover_image_url || ""
     });
     setEditingGenre(genre);
     setShowCreateDialog(true);
@@ -95,7 +164,7 @@ export const GenreManagement = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Genre Management</h2>
-          <p className="text-muted-foreground">Manage music genres and their AI prompts</p>
+          <p className="text-muted-foreground">Manage music genres with templates, audio previews, and cover images</p>
         </div>
         
         <Dialog open={showCreateDialog} onOpenChange={(open) => {
@@ -108,11 +177,11 @@ export const GenreManagement = () => {
               Add Genre
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingGenre ? 'Edit Genre' : 'Create New Genre'}</DialogTitle>
               <DialogDescription>
-                {editingGenre ? 'Update the genre details below.' : 'Add a new music genre with an AI prompt template.'}
+                {editingGenre ? 'Update the genre details below.' : 'Add a new music genre with templates and media.'}
               </DialogDescription>
             </DialogHeader>
             
@@ -143,6 +212,20 @@ export const GenreManagement = () => {
                   {formData.prompt_template.length}/100 characters
                 </p>
               </div>
+
+              <div>
+                <Label htmlFor="sample_prompt">Sample User Prompt (max 99 characters)</Label>
+                <Input
+                  id="sample_prompt"
+                  placeholder="e.g., upbeat party vibes with drums"
+                  value={formData.sample_prompt}
+                  onChange={(e) => setFormData(prev => ({ ...prev, sample_prompt: e.target.value }))}
+                  maxLength={99}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  {formData.sample_prompt.length}/99 characters
+                </p>
+              </div>
               
               <div>
                 <Label htmlFor="description">Description (optional)</Label>
@@ -153,12 +236,55 @@ export const GenreManagement = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
+
+              <div>
+                <Label>Cover Image</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'image');
+                    }}
+                    disabled={uploading}
+                  />
+                  {formData.cover_image_url && (
+                    <img src={formData.cover_image_url} alt="Cover" className="w-10 h-10 rounded object-cover" />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Audio Preview</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileUpload(file, 'audio');
+                    }}
+                    disabled={uploading}
+                  />
+                  {formData.audio_preview_url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleAudioPreview(formData.audio_preview_url)}
+                    >
+                      {playingAudio === formData.audio_preview_url ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </div>
+              </div>
               
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting || uploading}>
                   {submitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -204,13 +330,39 @@ export const GenreManagement = () => {
                 <CardDescription>{genre.description}</CardDescription>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              {genre.cover_image_url && (
+                <img src={genre.cover_image_url} alt={genre.name} className="w-full h-32 object-cover rounded" />
+              )}
+              
+              {genre.audio_preview_url && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleAudioPreview(genre.audio_preview_url!)}
+                  >
+                    {playingAudio === genre.audio_preview_url ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    Audio Preview
+                  </Button>
+                </div>
+              )}
+
               <div>
                 <Label className="text-sm font-medium">Prompt Template:</Label>
                 <p className="text-sm text-muted-foreground mt-1 break-words">
                   {genre.prompt_template}
                 </p>
               </div>
+
+              {genre.sample_prompt && (
+                <div>
+                  <Label className="text-sm font-medium">Sample Prompt:</Label>
+                  <p className="text-sm text-muted-foreground mt-1 break-words">
+                    {genre.sample_prompt}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -225,6 +377,28 @@ export const GenreManagement = () => {
           </p>
         </div>
       )}
+
+      {/* Hidden audio elements for playback */}
+      {genres.map((genre) => (
+        genre.audio_preview_url && (
+          <audio
+            key={genre.id}
+            src={genre.audio_preview_url}
+            onEnded={() => setPlayingAudio(null)}
+            onPlay={() => setPlayingAudio(genre.audio_preview_url!)}
+            onPause={() => setPlayingAudio(null)}
+            ref={(audio) => {
+              if (audio) {
+                if (playingAudio === genre.audio_preview_url) {
+                  audio.play();
+                } else {
+                  audio.pause();
+                }
+              }
+            }}
+          />
+        )
+      ))}
     </div>
   );
 };

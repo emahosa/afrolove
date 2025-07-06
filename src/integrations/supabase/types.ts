@@ -757,6 +757,8 @@ export type Database = {
       }
       genres: {
         Row: {
+          audio_preview_url: string | null
+          cover_image_url: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -764,9 +766,12 @@ export type Database = {
           is_active: boolean
           name: string
           prompt_template: string
+          sample_prompt: string | null
           updated_at: string
         }
         Insert: {
+          audio_preview_url?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -774,9 +779,12 @@ export type Database = {
           is_active?: boolean
           name: string
           prompt_template?: string
+          sample_prompt?: string | null
           updated_at?: string
         }
         Update: {
+          audio_preview_url?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -784,6 +792,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           prompt_template?: string
+          sample_prompt?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -1,371 +1,267 @@
-
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-
-interface ExtendedUser extends User {
-  name?: string;
-  avatar?: string;
-  credits?: number;
-  subscription?: 'free' | 'premium' | 'enterprise';
-}
-
-type LoginResponse = Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../integrations/supabase/client';
+import { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: ExtendedUser | null;
-  session: Session | null;
+  user: User | null;
+  userRoles: string[];
   loading: boolean;
-  login: (email: string, password: string) => Promise<LoginResponse>;
-  register: (fullName: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ data: any; error: any }>;
+  logout: () => Promise<{ error: any }>;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
-  isVoter: () => boolean;
   isSubscriber: () => boolean;
-  hasAdminPermission: (permission: string) => boolean;
-  canAccessFeature: (feature: string) => boolean;
-  userRoles: string[];
-  adminPermissions: string[];
-  updateUserCredits: (amount: number) => Promise<void>;
-  isAffiliate: () => boolean;
+  isVoter: () => boolean;
+  hasRole: (role: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<ExtendedUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
-  const [subscriberStatus, setSubscriberStatus] = useState(false);
-  const processedUserId = useRef<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  console.log('🔐 AuthContext state:', { 
-    userEmail: user?.email, 
-    roles: userRoles, 
-    permissions: adminPermissions,
-    subscriberStatus,
-    loading 
-  });
+  // Session refresh interval
+  useEffect(() => {
+    let refreshInterval: NodeJS.Timeout;
 
-  const isSuperAdmin = useCallback(() => {
-    console.log('AuthContext: Checking super admin status for user:', user?.email);
-    
-    if (user?.email === 'ellaadahosa@gmail.com') {
-      console.log('AuthContext: Super admin detected by email');
-      return true;
-    }
-    
-    const hasSuperAdminRole = userRoles.includes('super_admin');
-    console.log('AuthContext: Super admin role check:', hasSuperAdminRole);
-    return hasSuperAdminRole;
-  }, [user, userRoles]);
+    const startSessionRefresh = () => {
+      refreshInterval = setInterval(async () => {
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.error('Session refresh error:', error);
+            return;
+          }
+          
+          if (!session) {
+            console.log('No session found, user may have logged out');
+            return;
+          }
 
-  const isAdmin = useCallback(() => {
-    console.log('AuthContext: Checking admin status for user:', user?.email);
-    
-    if (isSuperAdmin()) {
-      console.log('AuthContext: Super admin detected');
-      return true;
-    }
-    
-    const hasAdminRole = userRoles.includes('admin');
-    console.log('AuthContext: Regular admin check, roles:', userRoles, 'hasAdmin:', hasAdminRole);
-    return hasAdminRole;
-  }, [isSuperAdmin, userRoles]);
+          // Refresh the session if it's close to expiry (within 5 minutes)
+          const now = Math.floor(Date.now() / 1000);
+          const expiresAt = session.expires_at || 0;
+          
+          if (expiresAt - now < 300) { // 5 minutes
+            const { error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError) {
+              console.error('Token refresh error:', refreshError);
+            }
+          }
+        } catch (error) {
+          console.error('Session refresh interval error:', error);
+        }
+      }, 300000); // Check every 5 minutes
+    };
 
-  const isVoter = useCallback(() => {
-    const hasVoterRole = userRoles.includes('voter');
-    console.log('AuthContext: Voter check:', { roles: userRoles, hasVoterRole });
-    return hasVoterRole;
-  }, [userRoles]);
-
-  const isSubscriber = useCallback(() => {
-    const hasSubscriberRole = userRoles.includes('subscriber');
-    const result = hasSubscriberRole || subscriberStatus;
-    console.log('AuthContext: Subscriber check:', { 
-      roles: userRoles, 
-      hasSubscriberRole, 
-      subscriberStatus, 
-      result 
-    });
-    return result;
-  }, [userRoles, subscriberStatus]);
-
-  const isAffiliate = useCallback(() => {
-    const hasAffiliateRole = userRoles.includes('affiliate');
-    console.log('AuthContext: Affiliate check:', { roles: userRoles, hasAffiliateRole });
-    return hasAffiliateRole;
-  }, [userRoles]);
-
-  const hasAdminPermission = useCallback((permission: string) => {
-    if (isSuperAdmin()) return true;
-    return adminPermissions.includes(permission);
-  }, [isSuperAdmin, adminPermissions]);
-
-  const canAccessFeature = useCallback((feature: string) => {
-    if (isSuperAdmin()) return true;
-    
-    if (isAdmin() && feature.startsWith('admin_')) {
-      return hasAdminPermission(feature.replace('admin_', ''));
-    }
-    
-    if (isSubscriber()) return true;
-    
-    if (isVoter()) {
-      return feature === 'contest' || feature === 'voting';
-    }
-    
-    return false;
-  }, [isAdmin, isSuperAdmin, isSubscriber, isVoter, hasAdminPermission]);
-
-  const updateUserCredits = async (amount: number) => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase.rpc('update_user_credits', {
-        p_user_id: user.id,
-        p_amount: amount
-      });
-      
-      if (error) throw error;
-      
-      setUser(prev => prev ? { ...prev, credits: data } : null);
-    } catch (error) {
-      console.error('Error updating credits:', error);
-      throw error;
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<LoginResponse> => {
-    console.log('AuthContext: Attempting login for:', email);
-    
-    const result = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (result.data.session && email === "ellaadahosa@gmail.com") {
-      console.log('AuthContext: Super admin login detected');
+    if (user) {
+      startSessionRefresh();
     }
 
-    return result;
-  };
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [user]);
 
-  const register = async (fullName: string, email: string, password: string, referralCode?: string | null): Promise<boolean> => {
-    try {
-      console.log('AuthContext: Attempting registration for:', email, 'Referral Code:', referralCode);
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`
+  useEffect(() => {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session?.user && mounted) {
+          await handleUserSession(session.user);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        console.log('Auth state changed:', event);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          await handleUserSession(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setUserRoles([]);
+          // Don't redirect here to prevent unwanted redirects
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Update user data but don't trigger full re-auth
+          const updatedUser = await fetchUserData(session.user.id);
+          if (updatedUser && mounted) {
+            setUser(updatedUser);
           }
         }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleUserSession = async (authUser: any) => {
+    try {
+      const userData = await fetchUserData(authUser.id);
+      if (userData) {
+        setUser(userData);
+        const roles = await fetchUserRoles(authUser.id);
+        setUserRoles(roles);
+      }
+    } catch (error) {
+      console.error('Error handling user session:', error);
+    }
+  };
+
+  const fetchUserData = async (userId: string): Promise<User | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
+
+      return {
+        id: userId,
+        email: data.username || '',
+        name: data.full_name || data.username || '',
+        avatar_url: data.avatar_url,
+        credits: data.credits || 0
+      };
+    } catch (error) {
+      console.error('Error in fetchUserData:', error);
+      return null;
+    }
+  };
+
+  const fetchUserRoles = async (userId: string): Promise<string[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error fetching user roles:', error);
+        return [];
+      }
+
+      return data.map(item => item.role);
+    } catch (error) {
+      console.error('Error in fetchUserRoles:', error);
+      return [];
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
       if (error) {
-        console.error('AuthContext: Registration error:', error);
         throw error;
       }
 
-      if (data.user) {
-        console.log('AuthContext: Registration successful for:', data.user.id);
-
-        try {
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert({ user_id: data.user.id, role: 'voter' });
-
-          if (roleError) {
-            console.error('AuthContext: Error assigning default voter role:', roleError.message);
-          } else {
-            console.log('AuthContext: Default voter role assigned to user:', data.user.id);
-          }
-        } catch (e: any) {
-          console.error('AuthContext: Exception assigning default voter role:', e.message);
-        }
-
-        if (referralCode) {
-          try {
-            console.log('AuthContext: Processing referral code:', referralCode);
-            const { data: affiliateData, error: affiliateError } = await supabase
-              .from('affiliate_applications')
-              .select('user_id')
-              .eq('unique_referral_code', referralCode)
-              .eq('status', 'approved')
-              .limit(1)
-              .single();
-
-            if (affiliateError) {
-              console.error('AuthContext: Error querying affiliate application by referral code:', affiliateError.message);
-            }
-
-            if (affiliateData && affiliateData.user_id) {
-              const affiliateUserId = affiliateData.user_id;
-              console.log('AuthContext: Found affiliate user ID:', affiliateUserId, 'for referral code:', referralCode);
-
-              const { error: profileUpdateError } = await supabase
-                .from('profiles')
-                .update({ referrer_id: affiliateUserId })
-                .eq('id', data.user.id);
-
-              if (profileUpdateError) {
-                console.error('AuthContext: Error updating profile with referrer_id:', profileUpdateError.message);
-              } else {
-                console.log('AuthContext: Successfully updated profile for user', data.user.id, 'with referrer_id', affiliateUserId);
-              }
-            } else {
-              console.log('AuthContext: No approved affiliate found for referral code:', referralCode);
-            }
-          } catch (referralProcessingError: any) {
-            console.error('AuthContext: Unexpected error during referral processing:', referralProcessingError.message);
-          }
-        }
-
-        if (data.session) {
-          return true;
-        } else {
-          toast.success('Registration successful! Please check your email to verify your account.');
-          return true;
-        }
-      }
-      return false;
+      return { data, error: null };
     } catch (error: any) {
-      console.error('Registration error:', error);
-      throw error;
+      console.error('Login error:', error);
+      return { data: null, error };
     }
   };
 
   const logout = async () => {
     try {
-      console.log('AuthContext: Logging out user');
       const { error } = await supabase.auth.signOut();
-
       if (error) {
         console.error('Logout error:', error);
-        toast.error(error.message || 'Logout failed.');
-        throw error;
+        return { error };
       }
       
-      toast.success("You have been logged out.");
+      setUser(null);
+      setUserRoles([]);
+      navigate('/login');
+      return { error: null };
     } catch (error: any) {
       console.error('Logout error:', error);
-      toast.error(error.message || 'An unexpected error occurred during logout.');
-      throw error;
+      return { error };
     }
   };
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state change:', event, session?.user?.email);
-        setSession(session);
-        
-        if (session?.user) {
-          // Only process if this is a different user
-          if (processedUserId.current !== session.user.id) {
-            console.log('AuthContext: Processing new user session');
-            processedUserId.current = session.user.id;
-            
-            try {
-              const [profileResult, userRoleResult, permissionsResult, isSubscriberRpcResult, userSubscriptionResult] = await Promise.all([
-                supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
-                supabase.from('user_roles').select('role').eq('user_id', session.user.id),
-                supabase.from('admin_permissions').select('permission').eq('user_id', session.user.id),
-                supabase.rpc('is_subscriber', { _user_id: session.user.id }),
-                supabase.from('user_subscriptions').select('subscription_type').eq('user_id', session.user.id).eq('subscription_status', 'active').maybeSingle()
-              ]);
+  const isAdmin = () => {
+    return userRoles.includes('admin');
+  };
 
-              const profile = profileResult.data;
-              const roles = userRoleResult.data?.map(r => r.role) || ['voter'];
-              const permissions = permissionsResult.data?.map(p => p.permission) || [];
-              const isActualSubscriber = !!isSubscriberRpcResult.data;
+  const isSuperAdmin = () => {
+    return userRoles.includes('super_admin');
+  };
 
-              setUserRoles(roles);
-              setAdminPermissions(permissions);
-              setSubscriberStatus(isActualSubscriber);
+  const isSubscriber = () => {
+    return userRoles.includes('subscriber');
+  };
 
-              let subscriptionType: ExtendedUser['subscription'] = 'free';
-              if (isActualSubscriber) {
-                const subDetails = userSubscriptionResult.data;
-                if (subDetails && subDetails.subscription_type) {
-                  const planId = subDetails.subscription_type.toLowerCase();
-                  if (planId.includes('premium')) subscriptionType = 'premium';
-                  else if (planId.includes('professional')) subscriptionType = 'enterprise';
-                  else if (planId.includes('basic')) subscriptionType = 'premium';
-                  else subscriptionType = 'premium';
-                } else {
-                  subscriptionType = 'premium';
-                }
-              }
+  const isVoter = () => {
+    return userRoles.includes('voter') && !isSubscriber();
+  };
 
-              const fullUser: ExtendedUser = {
-                ...session.user,
-                name: profile?.full_name || session.user.user_metadata.full_name || session.user.email?.split('@')[0] || 'User',
-                avatar: profile?.avatar_url || session.user.user_metadata.avatar_url || '',
-                credits: profile?.credits ?? 5,
-                subscription: subscriptionType
-              };
-              
-              setUser(fullUser);
-              console.log('AuthContext: User data processed successfully');
-            } catch (error) {
-              console.error('AuthContext: Error processing user data:', error);
-            }
-          }
-        } else {
-          // User logged out
-          setUser(null);
-          setUserRoles([]);
-          setAdminPermissions([]);
-          setSubscriberStatus(false);
-          processedUserId.current = null;
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const hasRole = (role: string) => {
+    return userRoles.includes(role);
+  };
 
   const value = {
     user,
-    session,
+    userRoles,
     loading,
     login,
-    register,
     logout,
     isAdmin,
     isSuperAdmin,
-    isVoter,
     isSubscriber,
-    hasAdminPermission,
-    canAccessFeature,
-    userRoles,
-    adminPermissions,
-    updateUserCredits,
-    isAffiliate
+    isVoter,
+    hasRole,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export default AuthContext;
