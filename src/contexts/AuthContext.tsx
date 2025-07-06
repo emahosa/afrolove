@@ -43,30 +43,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Initialize loading to true
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleUserSession = async (authUser: User) => {
+  // Modified handleUserSession to return a boolean indicating success
+  const handleUserSession = async (authUser: User): Promise<boolean> => {
     try {
       console.log("AuthContext: handleUserSession called for user:", authUser.id);
       const userData = await fetchUserData(authUser.id);
       if (userData) {
-        setUser(userData);
         const roles = await fetchUserRoles(authUser.id);
-        setUserRoles(roles);
-        console.log("AuthContext: User data and roles set successfully", { userData, roles });
+        setUser(userData); // State update for next render
+        setUserRoles(roles);  // State update for next render
+        console.log("AuthContext: User data and roles processing initiated", { userData, roles });
+        return true; // Indicate success
       } else {
         console.error(`User profile not found for ID: ${authUser.id}. Invalid application state.`);
         setUser(null);
-        setSession(null);
+        setSession(null); // Clear session if user data is invalid
         setUserRoles([]);
+        return false; // Indicate failure
       }
     } catch (error) {
       console.error('Error in handleUserSession:', error);
       setUser(null);
-      setSession(null);
+      setSession(null); // Clear session on error too
       setUserRoles([]);
+      return false; // Indicate failure
     }
   };
 
@@ -122,10 +126,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Main useEffect with proper loading state management
+  // Main useEffect with improved loading state management
   useEffect(() => {
-    console.log("AuthContext: Main useEffect starting. Setting loading to true.");
+    console.log("AuthContext: Main useEffect starting.");
     let mounted = true;
+    // Set loading true at the very start of the effect, once.
+    setLoading(true);
 
     const initialize = async () => {
       try {
@@ -134,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (!mounted) {
           console.log("AuthContext: Component unmounted during initialization");
-          return;
+          return; // setLoading(false) will be in finally if needed, or handled if unmounted
         }
 
         if (sessionError) {
@@ -142,12 +148,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setSession(null);
           setUserRoles([]);
+          // setLoading(false) will be handled in finally
           return;
         }
 
         if (currentSession?.user) {
-          console.log("AuthContext: Initial session found, processing user:", currentSession.user.id);
-          setSession(currentSession);
+          console.log("AuthContext: Initial session found, setting session state:", currentSession.user.id);
+          setSession(currentSession); // Set session first
+          // Wait for user data and roles to be processed by handleUserSession.
+          // handleUserSession itself calls setUser and setUserRoles.
           await handleUserSession(currentSession.user);
         } else {
           console.log("AuthContext: No initial session found.");
@@ -164,8 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } finally {
         if (mounted) {
-          console.log("AuthContext: Initialization complete, setting loading to false.");
-          setLoading(false);
+          console.log("AuthContext: Initialization process complete, setting loading to false.");
+          setLoading(false); // Set loading to false after all initialization processing
         }
       }
     };
@@ -182,9 +191,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log(`AuthContext: Auth state change: ${event}`, currentSession?.user?.id || 'No user');
 
+        // Set loading to true when auth state changes that require data fetching/processing
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log(`AuthContext: Event ${event} requires processing, setting loading to true.`);
+          setLoading(true);
+        }
+
         try {
           if (event === 'SIGNED_IN' && currentSession?.user) {
-            console.log("AuthContext: User signed in, processing...");
+            console.log("AuthContext: User signed in, setting session and processing user...");
             setSession(currentSession);
             await handleUserSession(currentSession.user);
           } else if (event === 'SIGNED_OUT') {
@@ -192,8 +207,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
             setSession(null);
             setUserRoles([]);
+            // For SIGNED_OUT, ensure loading is false as no further data fetching is pending.
+            // This is important if a loading=true was set by a quick succession of events.
+            if (mounted) setLoading(false);
           } else if (event === 'TOKEN_REFRESHED' && currentSession?.user) {
-            console.log("AuthContext: Token refreshed, updating session...");
+            console.log("AuthContext: Token refreshed, updating session and user...");
             setSession(currentSession);
             await handleUserSession(currentSession.user);
           }
@@ -203,6 +221,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
             setSession(null);
             setUserRoles([]);
+          }
+        } finally {
+          // Set loading to false after processing SIGNED_IN or TOKEN_REFRESHED
+          // For SIGNED_OUT, it's handled above. For other events, loading might not have changed.
+          if (mounted && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+            console.log(`AuthContext: Finished processing ${event}, setting loading to false.`);
+            setLoading(false);
           }
         }
       }
@@ -215,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authListener.subscription.unsubscribe();
       }
     };
-  }, []);
+  }, []); // Empty dependency array: runs once on mount and cleans up on unmount
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
