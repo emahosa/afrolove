@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useGenres, Genre } from "@/hooks/use-genres";
 import { Loader2 } from "lucide-react";
-import { GenreFormDialog } from "./GenreFormDialog";
+import { SimpleGenreFormDialog } from "./SimpleGenreFormDialog";
 import { GenreCard } from "./GenreCard";
 import { GenreEmptyState } from "./GenreEmptyState";
 
@@ -54,7 +54,7 @@ export const GenresTab = () => {
           <p className="text-muted-foreground">Manage base music genres and their configurations</p>
         </div>
         
-        <GenreFormDialog
+        <SimpleGenreFormDialog
           editingGenre={editingGenre}
           onGenreCreate={handleGenreCreate}
           onGenreUpdate={handleGenreUpdate}
