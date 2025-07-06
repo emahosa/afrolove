@@ -12,28 +12,16 @@ serve(async (req) => {
   }
 
   try {
-    const { apiKey } = await req.json()
+    // Use your provided API key
+    const newApiKey = "7fc761e1476332e37664a3ef9be8b50c"
     
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'API key is required',
-          success: false
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      )
-    }
-
     console.log('Testing Suno API key...')
     
-    // Test the API key by making a test call
+    // Test the new API key by making a test call
     const testResponse = await fetch('https://api.sunoaiapi.com/api/v1/gateway/generate/music', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${newApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -54,7 +42,7 @@ serve(async (req) => {
         JSON.stringify({ 
           success: true,
           message: 'API key is valid and ready to use',
-          key: apiKey
+          key: newApiKey
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
