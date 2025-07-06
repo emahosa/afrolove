@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.full_name || data.username || '',
         avatar: data.avatar_url,
         credits: data.credits || 0,
-        subscription: data.subscription_status || 'free',
+        subscription: 'free', // Default value since subscription is in separate table
       } as ExtendedUser;
     } catch (error: any) {
       console.error('Exception in fetchUserData:', error.message);
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Simplified main useEffect with better error handling
+  // Main useEffect with proper loading state management
   useEffect(() => {
     console.log("AuthContext: Main useEffect starting. Setting loading to true.");
     let mounted = true;
@@ -137,7 +137,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setSession(null);
           setUserRoles([]);
-          setLoading(false);
           return;
         }
 
