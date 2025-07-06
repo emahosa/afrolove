@@ -44,7 +44,7 @@ serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log('Checkout session completed:', session.id);
+        console.log('Checkout session completed:', session.id, 'metadata:', session.metadata);
 
         if (session.metadata?.type === 'credits') {
           // Handle credit purchase
@@ -54,7 +54,8 @@ serve(async (req) => {
           if (userId && credits) {
             console.log(`Adding ${credits} credits to user ${userId}`);
             
-            const { error } = await supabaseClient.rpc('update_user_credits', {
+            // Use the RPC function to update credits
+            const { data, error } = await supabaseClient.rpc('update_user_credits', {
               p_user_id: userId,
               p_amount: credits
             });
@@ -62,8 +63,10 @@ serve(async (req) => {
             if (error) {
               console.error('Error updating credits:', error);
             } else {
-              console.log(`Successfully added ${credits} credits to user ${userId}`);
+              console.log(`Successfully added ${credits} credits to user ${userId}. New balance: ${data}`);
             }
+          } else {
+            console.error('Missing userId or credits in metadata:', { userId, credits });
           }
         } else if (session.metadata?.type === 'subscription') {
           // Handle subscription creation
@@ -82,7 +85,7 @@ serve(async (req) => {
                 subscription_status: 'active',
                 started_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-              });
+              }, { onConflict: 'user_id' });
 
             if (subError) {
               console.error('Error updating subscription:', subError);
@@ -93,7 +96,7 @@ serve(async (req) => {
                 .upsert({
                   user_id: userId,
                   role: 'subscriber'
-                });
+                }, { onConflict: 'user_id,role' });
 
               if (roleError) {
                 console.error('Error adding subscriber role:', roleError);
@@ -101,6 +104,8 @@ serve(async (req) => {
                 console.log(`Successfully activated subscription for user ${userId}`);
               }
             }
+          } else {
+            console.error('Missing userId or planId in metadata:', { userId, planId });
           }
         }
         break;
@@ -112,7 +117,7 @@ serve(async (req) => {
 
         // Find user by customer ID
         const { data: customer } = await stripe.customers.retrieve(subscription.customer as string);
-        if (customer && !customer.deleted) {
+        if (customer && !customer.deleted && customer.email) {
           const { data: profile } = await supabaseClient
             .from('profiles')
             .select('id')
@@ -130,14 +135,14 @@ serve(async (req) => {
                 subscription_status: isActive ? 'active' : 'inactive',
                 expires_at: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
                 updated_at: new Date().toISOString()
-              });
+              }, { onConflict: 'user_id' });
 
             if (!subError) {
               // Update user role
               if (isActive) {
                 await supabaseClient
                   .from('user_roles')
-                  .upsert({ user_id: profile.id, role: 'subscriber' });
+                  .upsert({ user_id: profile.id, role: 'subscriber' }, { onConflict: 'user_id,role' });
               } else {
                 await supabaseClient
                   .from('user_roles')
@@ -157,7 +162,7 @@ serve(async (req) => {
 
         // Similar logic to handle subscription cancellation
         const { data: customer } = await stripe.customers.retrieve(subscription.customer as string);
-        if (customer && !customer.deleted) {
+        if (customer && !customer.deleted && customer.email) {
           const { data: profile } = await supabaseClient
             .from('profiles')
             .select('id')
@@ -183,7 +188,7 @@ serve(async (req) => {
 
             await supabaseClient
               .from('user_roles')
-              .upsert({ user_id: profile.id, role: 'voter' });
+              .upsert({ user_id: profile.id, role: 'voter' }, { onConflict: 'user_id,role' });
           }
         }
         break;

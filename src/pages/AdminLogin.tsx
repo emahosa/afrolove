@@ -18,14 +18,15 @@ const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If user is already logged in and is an admin, redirect to /admin
-    if (!authLoading && user && (isAdmin() || isSuperAdmin())) {
-      navigate('/admin', { replace: true });
-    }
-    // If user is logged in but NOT an admin, redirect to regular login
-    else if (!authLoading && user && !isAdmin() && !isSuperAdmin()) {
-      toast.error("You don't have admin privileges. Redirecting to user dashboard.");
-      navigate('/dashboard', { replace: true });
+    // Only redirect if user is authenticated AND has admin privileges
+    if (!authLoading && user) {
+      const hasAdminAccess = isAdmin() || isSuperAdmin();
+      if (hasAdminAccess) {
+        navigate('/admin', { replace: true });
+      } else {
+        // User is logged in but not admin - show error and stay on login page
+        toast.error("You don't have admin privileges.");
+      }
     }
   }, [user, isAdmin, isSuperAdmin, authLoading, navigate]);
 
@@ -35,30 +36,20 @@ const AdminLoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const { data, error: authError } = await login(email, password);
+      const { error: authError } = await login(email, password);
       
       if (authError) {
         setError(authError.message);
-        setLoading(false);
         return;
       }
 
-      // Wait a moment for auth context to update
-      setTimeout(() => {
-        // Check if the logged-in user is actually an admin
-        if (email === "ellaadahosa@gmail.com") {
-          toast.success("Admin login successful!");
-          navigate('/admin');
-        } else {
-          // For other users, check their role in the database
-          // This will be handled by the useEffect above
-        }
-        setLoading(false);
-      }, 1000);
+      // Success will be handled by useEffect above
+      toast.success("Login successful!");
 
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error('Admin login error:', err);
+    } finally {
       setLoading(false);
     }
   };

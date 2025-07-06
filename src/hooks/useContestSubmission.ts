@@ -66,7 +66,7 @@ export const useContestSubmission = () => {
         song_id: data.songId || null,
         video_url: videoUrl,
         description: data.description,
-        status: 'pending' as const, // Use const assertion for proper typing
+        status: 'pending' as const,
         approved: false
       };
 
