@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, Music } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -24,8 +25,9 @@ const AdminLoginPage: React.FC = () => {
       if (hasAdminAccess) {
         navigate('/admin', { replace: true });
       } else {
-        // User is logged in but not admin - show error and stay on login page
-        toast.error("You don't have admin privileges.");
+        // User is logged in but not admin - sign them out and show error
+        toast.error("You don't have admin privileges. Logging you out.");
+        supabase.auth.signOut();
       }
     }
   }, [user, isAdmin, isSuperAdmin, authLoading, navigate]);
@@ -36,6 +38,32 @@ const AdminLoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      // First check if this email has admin privileges before attempting login
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', email.toLowerCase())
+        .single();
+
+      if (!profileData) {
+        setError('Invalid admin credentials');
+        setLoading(false);
+        return;
+      }
+
+      // Check if this user has admin roles
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', profileData.id)
+        .in('role', ['admin', 'super_admin']);
+
+      if (!roleData || roleData.length === 0) {
+        setError('You do not have admin privileges');
+        setLoading(false);
+        return;
+      }
+
       const { error: authError } = await login(email, password);
       
       if (authError) {
@@ -44,7 +72,7 @@ const AdminLoginPage: React.FC = () => {
       }
 
       // Success will be handled by useEffect above
-      toast.success("Login successful!");
+      toast.success("Admin login successful!");
 
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -111,9 +139,18 @@ const AdminLoginPage: React.FC = () => {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="text-center">
+        <CardFooter className="text-center flex-col space-y-2">
           <p className="text-sm text-red-600">
             Unauthorized access attempts are logged and monitored.
+          </p>
+          <p className="text-xs text-red-500">
+            Regular users should use the{" "}
+            <button 
+              onClick={() => navigate('/login')}
+              className="underline hover:no-underline"
+            >
+              standard login page
+            </button>
           </p>
         </CardFooter>
       </Card>

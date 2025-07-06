@@ -19,18 +19,28 @@ const Login = () => {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [showMFAVerification, setShowMFAVerification] = useState(false);
   
-  const { user, login } = useAuth();
+  const { user, login, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to dashboard if already logged in
+  // Redirect to dashboard if already logged in (but check if admin first)
   useEffect(() => {
     if (user) {
-      console.log("Login: User already logged in, redirecting to dashboard");
+      console.log("Login: User already logged in, checking admin status");
+      
+      // If user is admin, redirect them to admin login
+      if (isAdmin() || isSuperAdmin()) {
+        console.log("Login: Admin user detected, redirecting to admin login");
+        toast.error("Admin users must use the dedicated admin login page");
+        navigate("/admin/login", { replace: true });
+        return;
+      }
+      
+      console.log("Login: Regular user logged in, redirecting to dashboard");
       const from = location.state?.from?.pathname || "/dashboard";
       navigate(from, { replace: true });
     }
-  }, [user, navigate, location.state]);
+  }, [user, navigate, location.state, isAdmin, isSuperAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,10 +54,32 @@ const Login = () => {
       toast.error("Password cannot be empty");
       return;
     }
+
+    // Check if this is an admin email before attempting login
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', email.toLowerCase())
+      .single();
+
+    if (profileData) {
+      // Check if this user has admin roles
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', profileData.id)
+        .in('role', ['admin', 'super_admin']);
+
+      if (roleData && roleData.length > 0) {
+        toast.error("Admin users must use the dedicated admin login page");
+        navigate("/admin/login");
+        return;
+      }
+    }
     
     setLoading(true);
     try {
-      console.log("Login: Attempting login with:", { email });
+      console.log("Login: Attempting regular user login with:", { email });
       
       const { data, error } = await login(email, password);
       
@@ -57,7 +89,29 @@ const Login = () => {
         return;
       }
       
-      // Check if MFA is required
+      // Double-check after login to ensure no admin got through
+      if (data.session) {
+        // Wait a moment for auth context to update
+        setTimeout(() => {
+          if (isAdmin() || isSuperAdmin()) {
+            console.log("Login: Admin detected after login, logging out and redirecting");
+            supabase.auth.signOut();
+            toast.error("Admin users must use the dedicated admin login page");
+            navigate("/admin/login");
+            return;
+          }
+          
+          toast.success("Login successful!");
+          let destination = "/dashboard";
+          if (location.state?.from?.pathname) {
+            destination = location.state.from.pathname;
+          }
+          console.log("Login: Regular user login successful, redirecting to:", destination);
+          navigate(destination, { replace: true });
+        }, 100);
+      }
+      
+      // MFA handling logic
       if (data.session === null && data.user !== null) {
         // This means MFA is required - check for enrolled factors
         const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -90,17 +144,7 @@ const Login = () => {
         }
       }
       
-      if (data.session) {
-        toast.success("Login successful!");
-        let destination = "/dashboard"; // Default to user dashboard
-        if (location.state?.from?.pathname) {
-          destination = location.state.from.pathname;
-        }
-        console.log("Login: Login successful, redirecting to:", destination);
-        navigate(destination, { replace: true });
-      } else if (!showMFAVerification) {
-        // This case would be if MFA is not enabled but session is still null.
-        // It's an unlikely edge case if there's no error.
+      if (!data.session && !showMFAVerification) {
         toast.error("Login failed. Please try again.");
         setLoading(false);
       }
@@ -198,33 +242,37 @@ const Login = () => {
         </Button>
       </form>
 
-      <>
-        <div className="relative my-8">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-2 bg-background text-muted-foreground">
-                OR CONTINUE WITH
-              </span>
-            </div>
-          </div>
+      <div className="relative my-8">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border"></div>
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="px-2 bg-background text-muted-foreground">
+            OR CONTINUE WITH
+          </span>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" className="w-full">
-              <FaGoogle className="mr-2" /> Google
-            </Button>
-            <Button variant="outline" className="w-full">
-              <FaApple className="mr-2" /> Apple
-            </Button>
-          </div>
-        </>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <Button variant="outline" className="w-full">
+          <FaGoogle className="mr-2" /> Google
+        </Button>
+        <Button variant="outline" className="w-full">
+          <FaApple className="mr-2" /> Apple
+        </Button>
+      </div>
 
       <p className="text-center mt-8 text-sm">
         Don't have an account?{" "}
         <Link to="/register" className="text-melody-secondary hover:underline font-medium">
           Sign up
+        </Link>
+      </p>
+      
+      <p className="text-center mt-4 text-xs text-muted-foreground">
+        Admin users should use the{" "}
+        <Link to="/admin/login" className="text-melody-secondary hover:underline">
+          dedicated admin login
         </Link>
       </p>
     </div>
