@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,9 +98,19 @@ const Contest = () => {
   };
 
   const fetchContestEntries = async (contestId: string) => {
+    if (!contestId) {
+      console.log('No contest ID provided for fetching entries');
+      setContestEntries([]);
+      return;
+    }
+
     try {
-      console.log('Fetching contest entries for contest:', contestId);
+      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
+      setError(null);
       
+      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
+      
+      // First get contest entries
       const { data, error } = await supabase
         .from('contest_entries')
         .select(`
@@ -120,24 +129,40 @@ const Contest = () => {
         .order('vote_count', { ascending: false });
 
       if (error) {
-        console.error('Error fetching contest entries:', error);
+        console.error('Error fetching entries:', error);
         throw error;
       }
-      
-      console.log('Fetched contest entries:', data?.length || 0, 'entries');
+
+      console.log('Contest entries fetched:', data);
       console.log('Sample entry data:', data?.[0]);
       
       // Transform the data to match our interface and handle potential null values
       const transformedEntries: ContestEntry[] = (data || []).map(entry => {
-        // Safe profile access
-        const profiles = entry.profiles && 
-                        typeof entry.profiles === 'object' && 
-                        'full_name' in entry.profiles ? entry.profiles : null;
+        // Type-safe profile access with explicit type checking
+        let profileData: { full_name: string; username: string } | null = null;
+        if (entry.profiles && 
+            typeof entry.profiles === 'object' && 
+            entry.profiles !== null &&
+            'full_name' in entry.profiles && 
+            'username' in entry.profiles) {
+          profileData = {
+            full_name: (entry.profiles as any).full_name || '',
+            username: (entry.profiles as any).username || ''
+          };
+        }
         
-        // Safe songs access
-        const songs = entry.songs && 
-                     typeof entry.songs === 'object' && 
-                     'title' in entry.songs ? entry.songs : null;
+        // Type-safe songs access
+        let songsData: { title: string; audio_url: string } | null = null;
+        if (entry.songs && 
+            typeof entry.songs === 'object' && 
+            entry.songs !== null &&
+            'title' in entry.songs && 
+            'audio_url' in entry.songs) {
+          songsData = {
+            title: (entry.songs as any).title || '',
+            audio_url: (entry.songs as any).audio_url || ''
+          };
+        }
 
         return {
           id: entry.id,
@@ -150,21 +175,19 @@ const Contest = () => {
           approved: entry.approved,
           vote_count: entry.vote_count || 0,
           created_at: entry.created_at,
-          profiles: profiles ? {
-            full_name: profiles.full_name || '',
-            username: profiles.username || ''
-          } : null,
-          songs: songs ? {
-            title: songs.title || '',
-            audio_url: songs.audio_url || ''
-          } : null
+          profiles: profileData,
+          songs: songsData
         };
       });
       
+      console.log('✅ Combined entries with profiles');
       setContestEntries(transformedEntries);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
-      toast.error('Failed to load contest entries');
+      const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Failed to load contest entries: ' + errorMessage);
+      setContestEntries([]);
     }
   };
 
