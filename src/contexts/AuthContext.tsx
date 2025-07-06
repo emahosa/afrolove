@@ -42,36 +42,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true); // Initialize loading to true
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Modified handleUserSession: Does NOT manage loading state.
-  // Sets user to null if profile data is missing.
   const handleUserSession = async (authUser: User) => {
     try {
+      console.log("AuthContext: handleUserSession called for user:", authUser.id);
       const userData = await fetchUserData(authUser.id);
       if (userData) {
-        setUser(userData); // Updates user state
+        setUser(userData);
         const roles = await fetchUserRoles(authUser.id);
-        setUserRoles(roles); // Updates user roles
+        setUserRoles(roles);
+        console.log("AuthContext: User data and roles set successfully");
       } else {
         console.error(`User profile not found for ID: ${authUser.id}. Invalid application state.`);
-        setUser(null); // Clear user state
-        setSession(null); // Clear session state
-        setUserRoles([]); // Clear roles
-        // Consider a forced sign out if this is a critical failure path
-        // await supabase.auth.signOut(); // This would trigger 'SIGNED_OUT' via onAuthStateChange
+        setUser(null);
+        setSession(null);
+        setUserRoles([]);
       }
     } catch (error) {
       console.error('Error in handleUserSession:', error);
-      setUser(null); // Clear user state on error
-      setSession(null); // Clear session state
-      setUserRoles([]); // Clear roles
+      setUser(null);
+      setSession(null);
+      setUserRoles([]);
     }
   };
 
-  // fetchUserData: Improved error logging and returns null on failure.
   const fetchUserData = async (userId: string): Promise<ExtendedUser | null> => {
     try {
       const { data, error } = await supabase
@@ -90,11 +87,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return {
         id: data.id,
-        email: data.username || (user?.email || ''), // Use current user's email as fallback
+        email: data.username || (user?.email || ''),
         name: data.full_name || data.username || '',
         avatar: data.avatar_url,
         credits: data.credits || 0,
-        subscription: data.subscription_status || 'free', // Assuming 'subscription_status' field
+        subscription: data.subscription_status || 'free',
       } as ExtendedUser;
     } catch (error: any) {
       console.error('Exception in fetchUserData:', error.message);
@@ -102,7 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // fetchUserRoles: Improved error logging and returns empty array on failure.
   const fetchUserRoles = async (userId: string): Promise<string[]> => {
     try {
       const { data, error } = await supabase
@@ -121,39 +117,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Main useEffect for auth initialization and state changes
+  // Simplified main useEffect with better error handling
   useEffect(() => {
     console.log("AuthContext: Main useEffect starting. Setting loading to true.");
-    setLoading(true);
     let mounted = true;
 
-    const initializeSession = async () => {
-      console.log("AuthContext: initializeSession called.");
+    const initialize = async () => {
       try {
+        console.log("AuthContext: Getting initial session...");
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mounted) {
+          console.log("AuthContext: Component unmounted during initialization");
+          return;
+        }
 
         if (sessionError) {
           console.error('AuthContext: Error fetching initial session:', sessionError.message);
           setUser(null);
           setSession(null);
           setUserRoles([]);
+          setLoading(false);
           return;
         }
 
         if (currentSession?.user) {
-          console.log("AuthContext: Initial session found, user:", currentSession.user.id);
+          console.log("AuthContext: Initial session found, processing user:", currentSession.user.id);
           setSession(currentSession);
           await handleUserSession(currentSession.user);
         } else {
-          console.log("AuthContext: No active initial session found.");
+          console.log("AuthContext: No initial session found.");
           setUser(null);
           setSession(null);
           setUserRoles([]);
         }
       } catch (error: any) {
-        console.error('AuthContext: Error during session initialization:', error.message);
+        console.error('AuthContext: Error during initialization:', error.message);
         if (mounted) {
           setUser(null);
           setSession(null);
@@ -161,63 +160,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } finally {
         if (mounted) {
-          console.log("AuthContext: initializeSession finally block, setting loading to false.");
+          console.log("AuthContext: Initialization complete, setting loading to false.");
           setLoading(false);
         }
       }
     };
 
-    initializeSession();
+    initialize();
 
+    // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) {
-          console.log("AuthContext: onAuthStateChange received event but component unmounted.");
+          console.log("AuthContext: Auth state change received but component unmounted.");
           return;
         }
 
-        console.log(`AuthContext: onAuthStateChange event: ${event}`, currentSession?.user?.id || 'No user');
-        setLoading(true);
+        console.log(`AuthContext: Auth state change: ${event}`, currentSession?.user?.id || 'No user');
 
         try {
-          if (event === 'INITIAL_SESSION') {
-            // This event is often handled by initializeSession already or might be redundant.
-            // If initializeSession handles it, this path might just confirm.
-            // If currentSession exists here, it means initializeSession might not have caught it or this is a subsequent INITIAL_SESSION event.
-            console.log("AuthContext: Event INITIAL_SESSION received.");
-            if (currentSession?.user) {
-              setSession(currentSession);
-              await handleUserSession(currentSession.user);
-            } else {
-              setUser(null);
-              setSession(null);
-              setUserRoles([]);
-            }
-          } else if (event === 'SIGNED_IN' && currentSession?.user) {
-            console.log("AuthContext: Event SIGNED_IN, user:", currentSession.user.id);
+          if (event === 'SIGNED_IN' && currentSession?.user) {
+            console.log("AuthContext: User signed in, processing...");
             setSession(currentSession);
             await handleUserSession(currentSession.user);
           } else if (event === 'SIGNED_OUT') {
-            console.log("AuthContext: Event SIGNED_OUT.");
+            console.log("AuthContext: User signed out, clearing state...");
             setUser(null);
             setSession(null);
             setUserRoles([]);
           } else if (event === 'TOKEN_REFRESHED' && currentSession?.user) {
-            console.log("AuthContext: Event TOKEN_REFRESHED, user:", currentSession.user.id);
+            console.log("AuthContext: Token refreshed, updating session...");
             setSession(currentSession);
-            // User data might not change with token refresh, but roles or other profile aspects could.
-            // Re-running handleUserSession ensures consistency.
             await handleUserSession(currentSession.user);
-          } else if (event === 'USER_UPDATED' && currentSession?.user) {
-            console.log("AuthContext: Event USER_UPDATED, user:", currentSession.user.id);
-            // User's auth information (e.g. email) might have been updated.
-            await handleUserSession(currentSession.user); // Refresh app's user profile
-          } else if (event === 'PASSWORD_RECOVERY') {
-             console.log("AuthContext: Event PASSWORD_RECOVERY. User needs to complete action.");
-            // No immediate session change, usually. Loading is true, then false.
-            // User might be redirected or needs to input new password.
           }
-          // Other events like MFA_CHALLENGE can be added here.
         } catch (error: any) {
           console.error(`AuthContext: Error processing auth event ${event}:`, error.message);
           if (mounted) {
@@ -225,23 +200,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(null);
             setUserRoles([]);
           }
-        } finally {
-          if (mounted) {
-            console.log(`AuthContext: onAuthStateChange finally block for event ${event}, setting loading to false.`);
-            setLoading(false);
-          }
         }
       }
     );
 
     return () => {
-      console.log("AuthContext: Main useEffect cleanup. Unsubscribing auth listener.");
+      console.log("AuthContext: Cleanup - unsubscribing from auth listener");
       mounted = false;
-      if (authListener && typeof authListener.unsubscribe === 'function') {
-        authListener.unsubscribe();
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
       }
     };
-  }, []); // Empty dependency array: runs once on mount, cleans up on unmount.
+  }, []);
 
   // useEffect for handling subscription success from URL parameters
   useEffect(() => {
@@ -249,15 +219,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (params.get('subscription') === 'success' && user?.id) {
       console.log('AuthContext: Subscription success URL param detected. Syncing roles for user:', user.id);
       syncSubscriptionRole(user.id);
-      // The page (e.g., ProtectedRoute or specific success page) should clear these URL params
-      // to prevent re-triggering this effect unnecessarily.
     }
-  }, [location.search, user?.id]); // Dependencies: location.search and user.id
+  }, [location.search, user?.id]);
 
   const syncSubscriptionRole = async (userId: string) => {
     console.log('AuthContext: Invoking sync-subscription-role Supabase function for user:', userId);
-    // This function could have its own specific loading state if it's a long operation.
-    // For now, it doesn't alter the main 'loading' state of AuthContext.
     try {
       const { error } = await supabase.functions.invoke('sync-subscription-role', {
         body: { user_id: userId },
@@ -267,14 +233,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       console.log('AuthContext: sync-subscription-role function completed. Refreshing user data.');
-      // After role sync, refresh user data to reflect changes (e.g., new roles).
-      // Get the latest user from Supabase auth to pass to handleUserSession.
       const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
       if (currentAuthUser) {
-        await handleUserSession(currentAuthUser); // This will update user & roles states
+        await handleUserSession(currentAuthUser);
       } else {
         console.error("AuthContext: Could not get current auth user after role sync. State might be stale.");
-        // As a fallback, if user object in state has ID, try with that.
         if(user?.id === userId) await handleUserSession(user);
       }
     } catch (error: any) {
@@ -285,8 +248,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // useEffect for periodic session refresh
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout;
-    const FIVE_MINUTES_IN_MS = 5 * 60 * 1000; // 300000
-    const REFRESH_THRESHOLD_SECONDS = 5 * 60; // Refresh if token expires within 5 minutes
+    const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+    const REFRESH_THRESHOLD_SECONDS = 5 * 60;
 
     const attemptSessionRefresh = async () => {
       try {
@@ -297,7 +260,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (!currentAuthSession) {
           console.log('AuthContext: No session found during periodic refresh (user might have logged out).');
-          // onAuthStateChange should handle SIGNED_OUT if logout occurred.
           return;
         }
 
@@ -309,7 +271,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { error: refreshError } = await supabase.auth.refreshSession();
           if (refreshError) {
             console.error('AuthContext: Proactive token refresh failed:', refreshError.message);
-            // If refresh fails, onAuthStateChange might eventually trigger SIGNED_OUT.
           } else {
             console.log('AuthContext: Session token refreshed proactively.');
           }
@@ -319,11 +280,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    if (user && session) { // Only run the interval if user is logged in
+    if (user && session) {
       console.log("AuthContext: User is logged in. Starting session refresh interval.");
       refreshInterval = setInterval(attemptSessionRefresh, FIVE_MINUTES_IN_MS);
     } else {
-      // Clear interval if user logs out or session becomes null
       if (refreshInterval) {
         console.log("AuthContext: User not logged in or no session. Clearing session refresh interval.");
         clearInterval(refreshInterval);
@@ -336,11 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearInterval(refreshInterval);
       }
     };
-  }, [user, session]); // Dependencies: user and session state
-
-  // Login, Register, Logout functions are simplified:
-  // They initiate Supabase auth actions.
-  // onAuthStateChange will handle state updates (user, session, roles, loading).
+  }, [user, session]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -418,7 +374,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      // Update local user state
       setUser(prev => prev ? { ...prev, credits: data } : null);
     } catch (error) {
       console.error('Error updating credits:', error);
