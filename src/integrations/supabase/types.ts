@@ -755,6 +755,63 @@ export type Database = {
           },
         ]
       }
+      genre_templates: {
+        Row: {
+          admin_prompt: string
+          audio_url: string | null
+          cover_image_url: string | null
+          created_at: string | null
+          created_by: string | null
+          genre_id: string
+          id: string
+          is_active: boolean | null
+          template_name: string
+          updated_at: string | null
+          user_prompt_guide: string | null
+        }
+        Insert: {
+          admin_prompt: string
+          audio_url?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          genre_id: string
+          id?: string
+          is_active?: boolean | null
+          template_name: string
+          updated_at?: string | null
+          user_prompt_guide?: string | null
+        }
+        Update: {
+          admin_prompt?: string
+          audio_url?: string | null
+          cover_image_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          genre_id?: string
+          id?: string
+          is_active?: boolean | null
+          template_name?: string
+          updated_at?: string | null
+          user_prompt_guide?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "genre_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "genre_templates_genre_id_fkey"
+            columns: ["genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       genres: {
         Row: {
           audio_preview_url: string | null
