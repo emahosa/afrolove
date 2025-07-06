@@ -12,10 +12,16 @@ export interface AuthContextType {
   user: UserProfile | null;
   session: Session | null;
   loading: boolean;
-  login: (email: string, password: string, isAdmin: boolean) => Promise<boolean>;
-  register: (name: string, email: string, password: string, isAdmin: boolean) => Promise<boolean>;
+  login: (email: string, password: string, isAdmin?: boolean) => Promise<boolean>;
+  register: (name: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
+  isSuperAdmin: () => boolean;
+  isSubscriber: () => boolean;
+  isVoter: () => boolean;
+  isAffiliate: () => boolean;
+  hasRole: (role: string) => boolean;
+  hasAdminPermission: (permission: string) => boolean;
   updateUserCredits: (amount: number) => Promise<void>;
   mfaEnabled: boolean;
 }

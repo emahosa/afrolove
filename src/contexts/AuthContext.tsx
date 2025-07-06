@@ -1,19 +1,32 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
+interface ExtendedUser extends User {
+  name?: string;
+  avatar?: string;
+  credits?: number;
+  subscription?: string;
+}
+
 interface AuthContextType {
-  user: User | null;
+  user: ExtendedUser | null;
+  session: Session | null;
   userRoles: string[];
   loading: boolean;
   login: (email: string, password: string) => Promise<{ data: any; error: any }>;
+  register: (name: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
   logout: () => Promise<{ error: any }>;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isSubscriber: () => boolean;
   isVoter: () => boolean;
+  isAffiliate: () => boolean;
   hasRole: (role: string) => boolean;
+  hasAdminPermission: (permission: string) => boolean;
+  updateUserCredits: (amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,7 +40,8 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<ExtendedUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -93,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (session?.user && mounted) {
+          setSession(session);
           await handleUserSession(session.user);
         }
       } catch (error) {
@@ -113,13 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Auth state changed:', event);
         
         if (event === 'SIGNED_IN' && session?.user) {
+          setSession(session);
           await handleUserSession(session.user);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setSession(null);
           setUserRoles([]);
-          // Don't redirect here to prevent unwanted redirects
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Update user data but don't trigger full re-auth
+          setSession(session);
           const updatedUser = await fetchUserData(session.user.id);
           if (updatedUser && mounted) {
             setUser(updatedUser);
@@ -147,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const fetchUserData = async (userId: string): Promise<User | null> => {
+  const fetchUserData = async (userId: string): Promise<ExtendedUser | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -164,9 +180,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: userId,
         email: data.username || '',
         name: data.full_name || data.username || '',
-        avatar_url: data.avatar_url,
-        credits: data.credits || 0
-      };
+        avatar: data.avatar_url,
+        credits: data.credits || 0,
+        subscription: 'free'
+      } as ExtendedUser;
     } catch (error) {
       console.error('Error in fetchUserData:', error);
       return null;
@@ -210,6 +227,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const register = async (name: string, email: string, password: string, referralCode?: string | null): Promise<boolean> => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: name,
+            referral_code: referralCode
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Registration error:', error);
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -219,12 +264,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setUser(null);
+      setSession(null);
       setUserRoles([]);
       navigate('/login');
       return { error: null };
     } catch (error: any) {
       console.error('Logout error:', error);
       return { error };
+    }
+  };
+
+  const updateUserCredits = async (amount: number): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.rpc('update_user_credits', {
+        p_user_id: user.id,
+        p_amount: amount
+      });
+
+      if (error) throw error;
+
+      // Update local user state
+      setUser(prev => prev ? { ...prev, credits: data } : null);
+    } catch (error) {
+      console.error('Error updating credits:', error);
+      throw error;
     }
   };
 
@@ -244,21 +309,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return userRoles.includes('voter') && !isSubscriber();
   };
 
+  const isAffiliate = () => {
+    return userRoles.includes('affiliate');
+  };
+
   const hasRole = (role: string) => {
     return userRoles.includes(role);
   };
 
+  const hasAdminPermission = (permission: string) => {
+    return isAdmin() || isSuperAdmin();
+  };
+
   const value = {
     user,
+    session,
     userRoles,
     loading,
     login,
+    register,
     logout,
     isAdmin,
     isSuperAdmin,
     isSubscriber,
     isVoter,
+    isAffiliate,
     hasRole,
+    hasAdminPermission,
+    updateUserCredits,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
