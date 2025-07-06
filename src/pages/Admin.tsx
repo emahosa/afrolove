@@ -123,10 +123,11 @@ const Admin = ({ tab }: AdminProps) => {
       {/* Admin Content */}
       <div className="container mx-auto py-8 px-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 bg-card">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="admins">Admins</TabsTrigger>
+          <div className="w-full overflow-x-auto pb-2"> {/* Added a wrapper for scrolling, pb-2 for scrollbar space */}
+            <TabsList className="bg-card justify-start"> {/* Removed grid classes, kept bg-card, added justify-start */}
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="admins">Admins</TabsTrigger>
             <TabsTrigger value="genres">Genres</TabsTrigger>
             <TabsTrigger value="suno-api">API</TabsTrigger>
             <TabsTrigger value="contest">Contest</TabsTrigger>
