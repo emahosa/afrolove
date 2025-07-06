@@ -17,14 +17,14 @@ const AdminLayout: React.FC = () => {
     );
   }
 
-  // Check if user exists and has admin privileges
+  // Check admin access - prevent infinite loops
+  const hasAdminAccess = isAdmin() || isSuperAdmin();
+  
   if (!user) {
     console.warn("AdminLayout: No user object available. Redirecting to admin login.");
     return <Navigate to="/admin/login" replace />;
   }
 
-  const hasAdminAccess = isAdmin() || isSuperAdmin();
-  
   if (!hasAdminAccess) {
     console.warn("AdminLayout: User is not admin/super_admin. Redirecting to dashboard.");
     return <Navigate to="/dashboard" replace />;

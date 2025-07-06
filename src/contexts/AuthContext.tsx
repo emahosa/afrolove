@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,7 +29,6 @@ interface AuthContextType {
   adminPermissions: string[];
   updateUserCredits: (amount: number) => Promise<void>;
   isAffiliate: () => boolean;
-  refreshUserData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -133,39 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   }, [isAdmin, isSuperAdmin, isSubscriber, isVoter, hasAdminPermission]);
 
-  const refreshUserData = async () => {
-    if (!user?.id) return;
-    
-    try {
-      // Refresh user profile data
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-        
-      if (profile) {
-        setUser(prev => prev ? { ...prev, credits: profile.credits } : null);
-      }
-      
-      // Refresh roles
-      const { data: userRoleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-      const roles = userRoleData?.map(r => r.role) || ['voter'];
-      setUserRoles(roles);
-
-      // Refresh subscription status
-      const { data: isSubscriberResult } = await supabase
-        .rpc('is_subscriber', { _user_id: user.id });
-      setSubscriberStatus(!!isSubscriberResult);
-      
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
-    }
-  };
-
   const updateUserCredits = async (amount: number) => {
     if (!user) return;
     
@@ -191,6 +156,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
+
+    // Special handling for admin users
+    if (result.data.session && email === "ellaadahosa@gmail.com") {
+      console.log('AuthContext: Super admin login detected');
+      // The onAuthStateChange listener will handle the session and user state updates
+    }
 
     return result;
   };
@@ -226,6 +197,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (roleError) {
             console.error('AuthContext: Error assigning default voter role:', roleError.message);
+            // Decide if this should be a critical error. For now, log and continue.
+            // If the fallback in the role fetching logic (`|| ['voter']`) is reliable,
+            // this might not need to throw the main registration promise.
           } else {
             console.log('AuthContext: Default voter role assigned to user:', data.user.id);
           }
@@ -246,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (affiliateError) {
               console.error('AuthContext: Error querying affiliate application by referral code:', affiliateError.message);
+              // Do not throw, let registration proceed
             }
 
             if (affiliateData && affiliateData.user_id) {
@@ -259,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               if (profileUpdateError) {
                 console.error('AuthContext: Error updating profile with referrer_id:', profileUpdateError.message);
+                // Do not throw, let registration proceed
               } else {
                 console.log('AuthContext: Successfully updated profile for user', data.user.id, 'with referrer_id', affiliateUserId);
               }
@@ -267,12 +243,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (referralProcessingError: any) {
             console.error('AuthContext: Unexpected error during referral processing:', referralProcessingError.message);
+            // Do not throw, let registration proceed
           }
         }
 
         if (data.session) {
+          // User might be auto-logged in if email verification is not required or already verified.
           return true;
         } else {
+          // Standard flow: email verification required.
           toast.success('Registration successful! Please check your email to verify your account.');
           return true;
         }
@@ -295,6 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
+      // State is now cleared by the useEffect watching `session`
       toast.success("You have been logged out.");
     } catch (error: any) {
       console.error('Logout error:', error);
@@ -311,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // This helps to set loading to false faster if user is not logged in.
     supabase.auth.getSession().then(({ data }) => {
         if (!data.session) {
             setLoading(false);
@@ -371,6 +352,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           processedUserId.current = userId;
           console.log('AuthContext: User setup complete for:', fullUser.name);
 
+          // Auto-redirect admins to admin panel if they're not already there
+          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
+              && !window.location.pathname.startsWith('/admin')) {
+            console.log('AuthContext: Admin user detected, redirecting to admin panel');
+            window.location.href = '/admin';
+          }
+
         } catch (error) {
           console.error('AuthContext: Error processing session:', error);
           setUser(null);
@@ -395,7 +383,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     processAndFetch();
-  }, [session]);
+  }, [session]); // Removed 'loading' from dependencies
 
   const value = {
     user,
@@ -413,8 +401,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userRoles,
     adminPermissions,
     updateUserCredits,
-    isAffiliate,
-    refreshUserData
+    isAffiliate
   };
 
   return (

@@ -13,84 +13,10 @@ import SampleMusic from "@/components/dashboard/SampleMusic";
 import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading, refreshUserData } = useAuth();
+  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin, isAffiliate, loading } = useAuth();
   const navigate = useNavigate();
   const [canApplyForAffiliate, setCanApplyForAffiliate] = useState(false);
   const [checkingAffiliateStatus, setCheckingAffiliateStatus] = useState(true);
-  const [dashboardStats, setDashboardStats] = useState({
-    totalSongs: 0,
-    completedSongs: 0,
-    processingSongs: 0,
-    monthSongs: 0
-  });
-  const [loadingStats, setLoadingStats] = useState(true);
-
-  // Fetch real dashboard statistics
-  useEffect(() => {
-    const fetchDashboardStats = async () => {
-      if (!user?.id) return;
-      
-      try {
-        setLoadingStats(true);
-        
-        // Get total songs
-        const { count: totalSongs } = await supabase
-          .from('songs')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-
-        // Get completed songs
-        const { count: completedSongs } = await supabase
-          .from('songs')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('status', 'completed');
-
-        // Get processing songs
-        const { count: processingSongs } = await supabase
-          .from('songs')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .in('status', ['pending', 'processing']);
-
-        // Get songs created this month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        
-        const { count: monthSongs } = await supabase
-          .from('songs')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('created_at', startOfMonth.toISOString());
-
-        setDashboardStats({
-          totalSongs: totalSongs || 0,
-          completedSongs: completedSongs || 0,
-          processingSongs: processingSongs || 0,
-          monthSongs: monthSongs || 0
-        });
-        
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-      } finally {
-        setLoadingStats(false);
-      }
-    };
-
-    fetchDashboardStats();
-  }, [user?.id]);
-
-  // Check payment success and refresh user data
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('payment') === 'success' || urlParams.get('subscription') === 'success') {
-      // Refresh user data after successful payment
-      setTimeout(() => {
-        refreshUserData();
-      }, 2000); // Wait 2 seconds for webhook processing
-    }
-  }, [refreshUserData]);
 
   // Check affiliate application status
   useEffect(() => {
@@ -113,6 +39,7 @@ const Dashboard = () => {
           console.error('Error checking affiliate status:', error);
           setCanApplyForAffiliate(false);
         } else {
+          // User can apply if they don't have a pending or approved application
           setCanApplyForAffiliate(!existingApplication);
         }
       } catch (err) {
@@ -168,21 +95,21 @@ const Dashboard = () => {
     },
     {
       title: "Songs Generated",
-      value: loadingStats ? "..." : dashboardStats.totalSongs,
+      value: "12", // This would come from actual data
       icon: Music,
       description: "Total songs created",
       color: "text-green-600"
     },
     {
       title: "Processing",
-      value: loadingStats ? "..." : dashboardStats.processingSongs,
+      value: "2", // This would come from actual data
       icon: Clock,
       description: "Songs in progress",
       color: "text-yellow-600"
     },
     {
       title: "This Month",
-      value: loadingStats ? "..." : dashboardStats.monthSongs,
+      value: "8", // This would come from actual data
       icon: TrendingUp,
       description: "Songs created",
       color: "text-purple-600"
@@ -206,6 +133,7 @@ const Dashboard = () => {
   console.log('📛 Display name:', displayName);
 
   const handleSubscribeClick = () => {
+    alert("Subscription required to access this feature. Please visit our subscription page.");
     navigate("/subscribe");
   };
 
@@ -231,7 +159,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       )}
-      
       {!userIsOnlyVoter && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
@@ -337,7 +264,7 @@ const Dashboard = () => {
             </div>
           </div>
         </CardContent>
-      </div>
+      </Card>
     </div>
   );
 };
