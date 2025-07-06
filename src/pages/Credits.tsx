@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { Star, Info, Lock } from "lucide-react";
+import { Star, Info, Lock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePaymentVerification } from "@/components/payment/PaymentVerificationProvider";
@@ -78,12 +79,21 @@ const Credits = () => {
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       setCreditBalance(user.credits || 0);
+      // Get current plan from user subscription or role
+      if (isSubscriber()) {
+        // You can determine the current plan based on user subscription data
+        // For now, setting a default - this should be based on actual subscription data
+        setCurrentPlan("premium");
+      } else {
+        setCurrentPlan(null);
+      }
     }
-  }, [user]);
+  }, [user, isSubscriber]);
 
   if (isVerifying) {
     return <PaymentLoadingScreen title="Verifying Payment..." />;
@@ -344,4 +354,3 @@ const Credits = () => {
 };
 
 export default Credits;
-
