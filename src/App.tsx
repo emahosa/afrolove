@@ -6,7 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 // Pages
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import UserLogin from "./pages/UserLogin";
+import Login from "./pages/Login"; // Changed UserLogin to Login
 import Register from "./pages/Register";
 import AdminRegister from "./pages/AdminRegister";
 import AdminLoginPage from "./pages/AdminLogin";
@@ -53,7 +53,7 @@ const App = () => {
             
             {/* Separate Auth routes for users and admins */}
             <Route element={<AuthLayout />}>
-              <Route path="/login" element={<UserLogin />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register/admin" element={<AdminRegister />} />
             </Route>
