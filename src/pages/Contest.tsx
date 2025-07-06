@@ -106,7 +106,6 @@ const Contest = () => {
 
     try {
       console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
-      setError(null);
       
       console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
       
@@ -185,7 +184,6 @@ const Contest = () => {
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      setError(errorMessage);
       toast.error('Failed to load contest entries: ' + errorMessage);
       setContestEntries([]);
     }
