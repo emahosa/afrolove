@@ -105,11 +105,11 @@ const Contest = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles:user_id (
+          profiles!contest_entries_user_id_fkey (
             full_name,
             username
           ),
-          songs:song_id (
+          songs!contest_entries_song_id_fkey (
             title,
             audio_url
           )
