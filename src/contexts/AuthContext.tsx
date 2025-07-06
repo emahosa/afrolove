@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
   const [subscriberStatus, setSubscriberStatus] = useState(false);
   const processedUserId = useRef<string | null>(null);
+  const hasRedirected = useRef(false);
 
   console.log('🔐 AuthContext state:', { 
     userEmail: user?.email, 
@@ -274,6 +276,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
+      // Reset redirect flag on logout
+      hasRedirected.current = false;
+      
       // State is now cleared by the useEffect watching `session`
       toast.success("You have been logged out.");
     } catch (error: any) {
@@ -352,11 +357,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           processedUserId.current = userId;
           console.log('AuthContext: User setup complete for:', fullUser.name);
 
-          // Auto-redirect admins to admin panel if they're not already there
-          if ((fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin')) 
-              && !window.location.pathname.startsWith('/admin')) {
+          // Only redirect once and only if not already on admin routes
+          const isAdminUser = (fullUser.email === "ellaadahosa@gmail.com" || roles.includes('admin') || roles.includes('super_admin'));
+          const currentPath = window.location.pathname;
+          const isOnAdminRoute = currentPath.startsWith('/admin');
+          
+          if (isAdminUser && !isOnAdminRoute && !hasRedirected.current) {
             console.log('AuthContext: Admin user detected, redirecting to admin panel');
-            window.location.href = '/admin';
+            hasRedirected.current = true;
+            // Use a slight delay to ensure state is fully updated
+            setTimeout(() => {
+              window.location.href = '/admin';
+            }, 100);
           }
 
         } catch (error) {
@@ -375,6 +387,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAdminPermissions([]);
         setSubscriberStatus(false);
         processedUserId.current = null;
+        hasRedirected.current = false;
       }
       
       if (loading) {

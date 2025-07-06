@@ -1,255 +1,202 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Download, Music, Clock, Calendar, AlertCircle, FileText, Play, Pause } from 'lucide-react';
-import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-
-interface Song {
-  id: string;
-  title: string;
-  audio_url: string;
-  status: 'pending' | 'completed' | 'rejected' | 'approved';
-  created_at: string;
-  prompt?: string;
-  lyrics?: string;
-  credits_used: number;
-  duration?: number;
-}
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Download, Play, Pause, Music, Clock, Zap } from "lucide-react";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { toast } from "sonner";
 
 interface GeneratedSongCardProps {
-  song: Song;
+  song: {
+    id: string;
+    title: string;
+    audio_url?: string;
+    status: string;
+    created_at: string;
+    credits_used: number;
+    genre?: string;
+    duration?: number;
+  };
 }
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
-  const [showLyrics, setShowLyrics] = useState(false);
-  const { playTrack, currentTrack, isPlaying, isLoading } = useAudioPlayer();
+  const [isDownloading, setIsDownloading] = useState(false);
+  const { currentSong, isPlaying, playPause, stop } = useAudioPlayer();
 
-  // Enhanced playable check with more detailed logging
-  const isPlayable = () => {
-    const statusValid = song.status === 'completed' || song.status === 'approved';
-    const urlValid = !!song.audio_url && song.audio_url.trim() !== '';
-    
-    console.log('🎵 Playable check for song:', {
-      id: song.id,
-      title: song.title,
-      status: song.status,
-      statusValid,
-      audio_url: song.audio_url,
-      urlValid,
-      isPlayable: statusValid && urlValid
-    });
-    
-    return statusValid && urlValid;
+  const handlePlay = () => {
+    if (!song.audio_url) {
+      toast.error("Audio not available for this song");
+      return;
+    }
+
+    if (currentSong?.id === song.id && isPlaying) {
+      playPause();
+    } else {
+      playPause(song);
+    }
   };
-  
-  const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === song.id;
-  const isCurrentTrackLoading = isLoading && currentTrack?.id === song.id;
 
-  console.log('🎵 GeneratedSongCard render:', {
-    id: song.id,
-    title: song.title,
-    status: song.status,
-    audio_url: song.audio_url?.substring(0, 50) + '...',
-    isPlayable: isPlayable(),
-    isCurrentlyPlayingThisTrack,
-    isCurrentTrackLoading
-  });
+  const handleDownload = async () => {
+    if (!song.audio_url) {
+      toast.error("Download not available for this song");
+      return;
+    }
 
-  const getStatusContent = () => {
-    switch (song.status) {
+    setIsDownloading(true);
+    
+    try {
+      console.log('Downloading song:', song.title);
+      
+      // Fetch the audio file
+      const response = await fetch(song.audio_url);
+      if (!response.ok) {
+        throw new Error('Failed to download audio file');
+      }
+      
+      const blob = await response.blob();
+      
+      // Create download link with proper filename
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Use song title for filename, clean it up for file system
+      const cleanTitle = song.title
+        .replace(/[^a-zA-Z0-9\s-_]/g, '') // Remove special characters
+        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .toLowerCase();
+      
+      const fileExtension = song.audio_url.includes('.wav') ? '.wav' : '.mp3';
+      link.download = `${cleanTitle}${fileExtension}`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`Downloaded: ${song.title}`);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download song');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
       case 'completed':
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
-      case 'pending':
-        return <Badge className="animate-pulse"><Loader2 className="h-3 w-3 mr-1 inline-block animate-spin"/>Generating</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1 inline-block"/>Failed</Badge>;
+        return 'bg-green-500';
+      case 'processing':
+        return 'bg-yellow-500';
+      case 'failed':
+        return 'bg-red-500';
       default:
-        return <Badge variant="secondary">{song.status}</Badge>;
+        return 'bg-gray-500';
     }
   };
 
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return '--:--';
+    if (!seconds) return 'Unknown';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
-  const handleDownload = () => {
-    console.log('⬇️ Download requested for:', song.title, 'URL:', song.audio_url);
-    
-    if (isPlayable()) {
-      try {
-        const link = document.createElement('a');
-        link.href = song.audio_url;
-        link.download = `${song.title}.mp3`;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Download started!');
-        console.log('✅ Download initiated for:', song.title);
-      } catch (error) {
-        console.error('❌ Download failed:', error);
-        toast.error('Download failed. Please try again.');
-      }
-    } else {
-      console.log('❌ Download not available - song not ready or invalid URL:', song.audio_url);
-      toast.error('Song is not ready for download yet');
-    }
-  };
-
-  const handlePlay = () => {
-    console.log('🎵 Play button clicked for:', song.title);
-    console.log('🎵 Song details:', {
-      id: song.id,
-      title: song.title,
-      status: song.status,
-      audio_url: song.audio_url,
-      playable: isPlayable()
-    });
-    
-    if (!isPlayable()) {
-      console.log('❌ Song not playable:', {
-        status: song.status,
-        audio_url: song.audio_url,
-        url_valid: !!song.audio_url && song.audio_url.trim() !== ''
-      });
-      
-      if (song.status === 'pending') {
-        toast.error('Song is still generating. Please wait.');
-      } else if (song.status === 'rejected') {
-        toast.error('This song failed to generate and cannot be played.');
-      } else {
-        toast.error('Song is not ready for playback yet.');
-      }
-      return;
-    }
-    
-    console.log('✅ Calling playTrack with:', {
-      id: song.id,
-      title: song.title,
-      audio_url: song.audio_url
-    });
-    
-    try {
-      playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url,
-        artist: 'AI Generated',
-      });
-      console.log('✅ playTrack call completed');
-      toast.success(`Playing: ${song.title}`);
-    } catch (error) {
-      console.error('❌ Error calling playTrack:', error);
-      toast.error('Failed to start playback');
-    }
-  };
+  const isCurrentlyPlaying = currentSong?.id === song.id && isPlaying;
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 flex flex-col">
+    <Card className="group hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-semibold line-clamp-1">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg font-semibold truncate">
               {song.title}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-1">
-              {getStatusContent()}
-              {song.duration && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {formatDuration(song.duration)}
-                </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge 
+                variant="secondary" 
+                className={`${getStatusColor(song.status)} text-white`}
+              >
+                {song.status}
+              </Badge>
+              {song.genre && (
+                <Badge variant="outline">
+                  <Music className="h-3 w-3 mr-1" />
+                  {song.genre}
+                </Badge>
               )}
             </div>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 flex-grow flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handlePlay}
-              disabled={!isPlayable() || isCurrentTrackLoading}
-              title={isCurrentlyPlayingThisTrack ? "Pause song" : "Play song"}
-              className="flex-grow"
-            >
-              {isCurrentTrackLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : isCurrentlyPlayingThisTrack ? (
-                <>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Pause
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Play
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleDownload}
-              disabled={!isPlayable()}
-              title="Download song"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-            
-            {song.lyrics && (
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => setShowLyrics(!showLyrics)}
-                title={showLyrics ? "Hide Lyrics" : "Show Lyrics"}
-              >
-                <FileText className="h-4 w-4" />
-              </Button>
-            )}
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <Clock className="h-4 w-4" />
+            <span>{formatDuration(song.duration)}</span>
           </div>
-          
-          {showLyrics && song.lyrics && (
-            <div className="mt-4 p-3 bg-muted/50 rounded-md border text-sm max-h-48 overflow-y-auto whitespace-pre-wrap">
-              <p className="font-semibold mb-2 text-primary">Lyrics:</p>
-              {song.lyrics}
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <Zap className="h-4 w-4" />
+            <span>{song.credits_used} credits</span>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2 mt-4">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {formatDate(song.created_at)}
-          </div>
-          <div className="flex items-center gap-1">
-            <Music className="h-3 w-3" />
-            {song.credits_used} credits
-          </div>
+        <div className="text-xs text-muted-foreground">
+          Created: {new Date(song.created_at).toLocaleDateString()}
         </div>
+
+        {song.status === 'completed' && song.audio_url && (
+          <div className="flex gap-2">
+            <Button
+              onClick={handlePlay}
+              variant="outline"
+              size="sm"
+              className="flex-1"
+            >
+              {isCurrentlyPlaying ? (
+                <Pause className="h-4 w-4 mr-2" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              {isCurrentlyPlaying ? 'Pause' : 'Play'}
+            </Button>
+            
+            <Button
+              onClick={handleDownload}
+              variant="outline"
+              size="sm"
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isDownloading ? 'Downloading...' : 'Download'}
+            </Button>
+          </div>
+        )}
+
+        {song.status === 'processing' && (
+          <div className="text-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary mx-auto mb-2"></div>
+            <p className="text-sm text-muted-foreground">Generating your song...</p>
+          </div>
+        )}
+
+        {song.status === 'failed' && (
+          <div className="text-center py-4">
+            <p className="text-sm text-red-600">
+              Song generation failed. Please try again.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

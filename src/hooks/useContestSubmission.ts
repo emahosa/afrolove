@@ -33,6 +33,24 @@ export const useContestSubmission = () => {
         
         console.log('Uploading video file:', fileName);
         
+        // First ensure the bucket exists
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const contestVideosBucket = buckets?.find(bucket => bucket.name === 'contest-videos');
+        
+        if (!contestVideosBucket) {
+          console.log('Contest-videos bucket does not exist, creating it...');
+          const { error: bucketError } = await supabase.storage.createBucket('contest-videos', {
+            public: true,
+            allowedMimeTypes: ['video/*'],
+            fileSizeLimit: 100 * 1024 * 1024 // 100MB limit
+          });
+          
+          if (bucketError) {
+            console.error('Error creating bucket:', bucketError);
+            // Try to continue anyway, maybe bucket exists but we can't see it
+          }
+        }
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('contest-videos')
           .upload(fileName, data.videoFile, {
@@ -42,7 +60,15 @@ export const useContestSubmission = () => {
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          throw new Error(`Failed to upload video: ${uploadError.message}`);
+          
+          // If upload fails due to RLS, try with a different approach
+          if (uploadError.message.includes('policy')) {
+            toast.error('Video upload failed due to permissions. Please contact support.');
+          } else {
+            toast.error(`Failed to upload video: ${uploadError.message}`);
+          }
+          
+          return false;
         }
 
         // Get public URL
@@ -55,27 +81,52 @@ export const useContestSubmission = () => {
       }
 
       // Create contest entry
-      const { data: entryData, error: entryError } = await supabase
+      const entryData = {
+        contest_id: data.contestId,
+        user_id: user.id,
+        song_id: data.songId || null,
+        video_url: videoUrl,
+        description: data.description,
+        status: 'pending',
+        approved: false
+      };
+
+      console.log('Creating contest entry with data:', entryData);
+
+      const { data: entryResult, error: entryError } = await supabase
         .from('contest_entries')
-        .insert({
-          contest_id: data.contestId,
-          user_id: user.id,
-          song_id: data.songId || null,
-          video_url: videoUrl,
-          description: data.description,
-          status: 'pending',
-          approved: false
-        })
+        .insert(entryData)
         .select()
         .single();
 
       if (entryError) {
         console.error('Entry creation error:', entryError);
-        throw new Error(`Failed to create entry: ${entryError.message}`);
+        
+        // Clean up uploaded video if entry creation fails
+        if (videoUrl && data.videoFile) {
+          try {
+            const fileName = videoUrl.split('/').pop();
+            if (fileName) {
+              await supabase.storage.from('contest-videos').remove([fileName]);
+            }
+          } catch (cleanupError) {
+            console.error('Error cleaning up uploaded file:', cleanupError);
+          }
+        }
+        
+        if (entryError.message.includes('duplicate')) {
+          toast.error('You have already submitted an entry for this contest');
+        } else if (entryError.message.includes('policy')) {
+          toast.error('You do not have permission to submit entries. Please ensure you have the required subscription.');
+        } else {
+          toast.error(`Failed to create entry: ${entryError.message}`);
+        }
+        
+        return false;
       }
 
-      console.log('Contest entry created successfully:', entryData);
-      toast.success('Contest entry submitted successfully!');
+      console.log('Contest entry created successfully:', entryResult);
+      toast.success('Contest entry submitted successfully! It will be reviewed before appearing publicly.');
       return true;
 
     } catch (error: any) {

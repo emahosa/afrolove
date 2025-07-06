@@ -71,7 +71,8 @@ serve(async (req) => {
         type: 'credits',
         user_id: user.id,
         credits: credits.toString(),
-        pack_id: packId
+        pack_id: packId,
+        user_email: user.email
       }
     });
 

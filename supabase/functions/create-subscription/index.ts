@@ -72,7 +72,8 @@ serve(async (req) => {
         type: 'subscription',
         user_id: user.id,
         plan_id: planId,
-        plan_name: planName
+        plan_name: planName,
+        user_email: user.email
       }
     });
 
