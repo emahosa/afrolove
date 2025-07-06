@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -127,26 +128,38 @@ const Contest = () => {
       console.log('Sample entry data:', data?.[0]);
       
       // Transform the data to match our interface and handle potential null values
-      const transformedEntries: ContestEntry[] = (data || []).map(entry => ({
-        id: entry.id,
-        contest_id: entry.contest_id,
-        user_id: entry.user_id,
-        song_id: entry.song_id,
-        video_url: entry.video_url,
-        description: entry.description,
-        status: entry.status || 'pending',
-        approved: entry.approved,
-        vote_count: entry.vote_count || 0,
-        created_at: entry.created_at,
-        profiles: entry.profiles && typeof entry.profiles === 'object' && 'full_name' in entry.profiles ? {
-          full_name: entry.profiles.full_name || '',
-          username: entry.profiles.username || ''
-        } : null,
-        songs: entry.songs && typeof entry.songs === 'object' && 'title' in entry.songs ? {
-          title: entry.songs.title || '',
-          audio_url: entry.songs.audio_url || ''
-        } : null
-      }));
+      const transformedEntries: ContestEntry[] = (data || []).map(entry => {
+        // Safe profile access
+        const profiles = entry.profiles && 
+                        typeof entry.profiles === 'object' && 
+                        'full_name' in entry.profiles ? entry.profiles : null;
+        
+        // Safe songs access
+        const songs = entry.songs && 
+                     typeof entry.songs === 'object' && 
+                     'title' in entry.songs ? entry.songs : null;
+
+        return {
+          id: entry.id,
+          contest_id: entry.contest_id,
+          user_id: entry.user_id,
+          song_id: entry.song_id,
+          video_url: entry.video_url,
+          description: entry.description,
+          status: entry.status || 'pending',
+          approved: entry.approved,
+          vote_count: entry.vote_count || 0,
+          created_at: entry.created_at,
+          profiles: profiles ? {
+            full_name: profiles.full_name || '',
+            username: profiles.username || ''
+          } : null,
+          songs: songs ? {
+            title: songs.title || '',
+            audio_url: songs.audio_url || ''
+          } : null
+        };
+      });
       
       setContestEntries(transformedEntries);
     } catch (error: any) {
