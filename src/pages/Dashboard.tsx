@@ -79,28 +79,36 @@ const Dashboard = () => {
       // Then get profiles and songs for each entry separately
       const entriesWithDetails = await Promise.all(
         (entriesData || []).map(async (entry) => {
-          // Get profile data
-          const { data: profileData } = await supabase
+          // Get profile data with proper error handling
+          const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('full_name')
             .eq('id', entry.user_id)
             .single();
 
-          // Get song data if song_id exists
+          // Get song data if song_id exists with proper error handling
           let songData = null;
           if (entry.song_id) {
-            const { data } = await supabase
+            const { data, error: songError } = await supabase
               .from('songs')
               .select('title, audio_url')
               .eq('id', entry.song_id)
               .single();
-            songData = data;
+            
+            if (!songError && data) {
+              songData = data;
+            }
           }
 
           return {
             ...entry,
-            profiles: profileData ? { full_name: profileData.full_name } : null,
-            songs: songData ? { title: songData.title, audio_url: songData.audio_url } : null
+            profiles: (!profileError && profileData) ? { 
+              full_name: profileData.full_name || 'Unknown Artist' 
+            } : null,
+            songs: songData ? { 
+              title: songData.title, 
+              audio_url: songData.audio_url 
+            } : null
           };
         })
       );
