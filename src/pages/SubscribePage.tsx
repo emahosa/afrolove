@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, CreditCard } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { verifyPaymentSuccess, refreshUserData } from "@/utils/paymentVerification";
 
 const subscriptionPlansData = [
   {
@@ -66,9 +67,70 @@ const subscriptionPlansData = [
 
 const SubscribePage: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // Handle payment success verification
+  useEffect(() => {
+    const handlePaymentSuccess = async () => {
+      const subscriptionStatus = searchParams.get('subscription');
+      const sessionId = searchParams.get('session_id');
+
+      if (subscriptionStatus === 'success') {
+        setIsVerifying(true);
+        console.log("Subscription success detected, verifying...");
+
+        try {
+          // Wait a moment for webhook to process
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const result = await verifyPaymentSuccess(sessionId || undefined);
+          
+          if (result.success) {
+            toast.success("Subscription Activated!", {
+              description: result.message
+            });
+            
+            // Refresh user data to get updated subscription
+            await refreshUserData();
+            
+            // Clear URL parameters and redirect to dashboard
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 2000);
+          } else {
+            toast.warning("Subscription Processing", {
+              description: "Your subscription is being processed. Please refresh in a moment."
+            });
+          }
+        } catch (error) {
+          console.error("Error verifying subscription:", error);
+          toast.error("Verification Error", {
+            description: "Unable to verify subscription. Please contact support if the issue persists."
+          });
+        } finally {
+          setIsVerifying(false);
+        }
+      }
+    };
+
+    handlePaymentSuccess();
+  }, [searchParams, navigate]);
+
+  // Show verification screen while processing subscription
+  if (isVerifying) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <h2 className="text-xl font-semibold">Activating Subscription...</h2>
+        <p className="text-muted-foreground">Please wait while we activate your subscription.</p>
+      </div>
+    );
+  }
 
   const handleSubscribe = async (planId: string) => {
     if (!user) {
@@ -100,9 +162,8 @@ const SubscribePage: React.FC = () => {
       }
 
       if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
-        toast.success('Redirecting to payment...');
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
       } else {
         throw new Error('No checkout URL received from server.');
       }

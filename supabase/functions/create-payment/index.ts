@@ -57,7 +57,11 @@ serve(async (req) => {
             currency: "usd",
             product_data: { 
               name: description || `Credit Pack - ${credits} credits`,
-              description: `${credits} credits for MelodyVerse`
+              description: `${credits} credits for Afroverse`,
+              metadata: {
+                type: 'credits',
+                amount: credits.toString()
+              }
             },
             unit_amount: amount,
           },
@@ -65,7 +69,7 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
+      success_url: `${req.headers.get("origin")}/credits?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/credits?payment=canceled`,
       metadata: {
         type: 'credits',

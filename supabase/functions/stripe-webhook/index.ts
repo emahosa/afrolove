@@ -111,7 +111,7 @@ serve(async (req) => {
               payment_method: 'stripe',
               status: 'completed',
               payment_id: session.payment_intent,
-              subscription_type: planId
+              credits_purchased: 0
             })
 
           if (subscriptionTransactionError) {
@@ -166,10 +166,13 @@ serve(async (req) => {
         
         console.log('Invoice payment succeeded:', subscriptionId)
 
-        // Handle recurring subscription payments
         if (subscriptionId) {
-          // Find user by subscription ID (you'll need to store this relationship)
-          // Update subscription status and extend expiry
+          // Find the user by subscription metadata or customer ID
+          const customerId = invoice.customer
+          
+          // You would need to store the Stripe customer ID in your user profiles
+          // For now, we'll log this for debugging
+          console.log('Recurring payment succeeded for customer:', customerId)
         }
         break
       }
@@ -180,7 +183,7 @@ serve(async (req) => {
         
         console.log('Invoice payment failed:', subscriptionId)
         
-        // Handle failed payments - maybe downgrade user
+        // Handle failed payments - maybe downgrade user or send notification
         break
       }
 

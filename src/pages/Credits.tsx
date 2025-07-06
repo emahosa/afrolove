@@ -10,8 +10,9 @@ import { Star, Music, Check, Info, CreditCard, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { debugCreditsSystem } from "@/utils/supabaseDebug";
 import { updateUserCredits } from "@/utils/credits";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { verifyPaymentSuccess, refreshUserData } from "@/utils/paymentVerification";
 
 const creditPacks = [
   { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
@@ -72,6 +73,7 @@ const subscriptionPlans = [
 const Credits = () => {
   const { user, updateUserCredits: authUpdateUserCredits, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
   const [activeTab, setActiveTab] = useState(userIsOnlyVoter ? "membership" : "credits");
@@ -82,6 +84,7 @@ const Credits = () => {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -93,6 +96,69 @@ const Credits = () => {
       }
     }
   }, [user]);
+
+  // Handle payment success verification
+  useEffect(() => {
+    const handlePaymentSuccess = async () => {
+      const paymentStatus = searchParams.get('payment');
+      const subscriptionStatus = searchParams.get('subscription');
+      const sessionId = searchParams.get('session_id');
+
+      if (paymentStatus === 'success' || subscriptionStatus === 'success') {
+        setIsVerifying(true);
+        console.log("Payment success detected, verifying...");
+
+        try {
+          // Wait a moment for webhook to process
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const result = await verifyPaymentSuccess(sessionId || undefined);
+          
+          if (result.success) {
+            toast.success("Payment Successful!", {
+              description: result.message
+            });
+            
+            // Refresh user data to get updated credits/subscription
+            await refreshUserData();
+            
+            // Clear URL parameters
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+            
+            // Redirect to dashboard after successful payment
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 2000);
+          } else {
+            toast.warning("Payment Processing", {
+              description: "Your payment is being processed. Please refresh in a moment."
+            });
+          }
+        } catch (error) {
+          console.error("Error verifying payment:", error);
+          toast.error("Verification Error", {
+            description: "Unable to verify payment. Please contact support if the issue persists."
+          });
+        } finally {
+          setIsVerifying(false);
+        }
+      }
+    };
+
+    handlePaymentSuccess();
+  }, [searchParams, navigate]);
+
+  // Show verification screen while processing payment
+  if (isVerifying) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <h2 className="text-xl font-semibold">Verifying Payment...</h2>
+        <p className="text-muted-foreground">Please wait while we confirm your payment.</p>
+      </div>
+    );
+  }
 
   const handleBuyCredits = async (packId: string) => {
     if (userIsOnlyVoter) {

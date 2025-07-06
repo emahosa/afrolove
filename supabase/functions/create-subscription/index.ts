@@ -57,7 +57,11 @@ serve(async (req) => {
             currency: "usd",
             product_data: { 
               name: `${planName} Subscription`,
-              description: `Monthly subscription to ${planName} plan`
+              description: `Monthly subscription to ${planName} plan`,
+              metadata: {
+                type: 'subscription',
+                plan: planId
+              }
             },
             unit_amount: amount,
             recurring: { interval: "month" },
@@ -66,8 +70,8 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/dashboard?subscription=success`,
-      cancel_url: `${req.headers.get("origin")}/credits?subscription=canceled`,
+      success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
       metadata: {
         type: 'subscription',
         user_id: user.id,
