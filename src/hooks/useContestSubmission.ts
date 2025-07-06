@@ -24,9 +24,23 @@ export const useContestSubmission = () => {
 
     setIsSubmitting(true);
 
+    const timeoutPromise = <T>(duration: number, operationName: string, promise: Promise<T>): Promise<T> =>
+      new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error(`${operationName} timed out after ${duration / 1000}s`));
+        }, duration);
+        promise.then(resolve).catch(reject).finally(() => clearTimeout(timer));
+      });
+
     try {
-      // Ensure storage buckets exist
-      await ensureStorageBuckets();
+      // Ensure storage buckets exist, with a timeout
+      try {
+        await timeoutPromise(15000, 'Storage setup check', ensureStorageBuckets());
+      } catch (storageSetupError) {
+        console.error('Storage setup check failed:', storageSetupError);
+        toast.error(storageSetupError.message || 'Failed to prepare for submission.');
+        return false; // Explicitly return false, finally will still run
+      }
 
       let videoUrl = null;
 
