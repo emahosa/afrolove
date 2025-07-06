@@ -109,12 +109,27 @@ const Credits = () => {
         console.log("Payment success detected, verifying...");
 
         try {
-          // Wait a moment for webhook to process
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Wait longer for webhook to process
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          const result = await verifyPaymentSuccess(sessionId || undefined);
+          // Retry verification up to 3 times
+          let attempts = 0;
+          let result;
           
-          if (result.success) {
+          while (attempts < 3) {
+            result = await verifyPaymentSuccess(sessionId || undefined);
+            
+            if (result.success) {
+              break;
+            }
+            
+            attempts++;
+            if (attempts < 3) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          }
+          
+          if (result && result.success) {
             toast.success("Payment Successful!", {
               description: result.message
             });
