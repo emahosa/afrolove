@@ -105,11 +105,11 @@ const Contest = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!contest_entries_user_id_fkey (
+          profiles (
             full_name,
             username
           ),
-          songs!contest_entries_song_id_fkey (
+          songs (
             title,
             audio_url
           )
@@ -124,8 +124,9 @@ const Contest = () => {
       }
       
       console.log('Fetched contest entries:', data?.length || 0, 'entries');
+      console.log('Sample entry data:', data?.[0]);
       
-      // Transform the data to match our interface
+      // Transform the data to match our interface and handle potential null values
       const transformedEntries: ContestEntry[] = (data || []).map(entry => ({
         id: entry.id,
         contest_id: entry.contest_id,
@@ -137,11 +138,11 @@ const Contest = () => {
         approved: entry.approved,
         vote_count: entry.vote_count || 0,
         created_at: entry.created_at,
-        profiles: entry.profiles ? {
+        profiles: entry.profiles && typeof entry.profiles === 'object' && 'full_name' in entry.profiles ? {
           full_name: entry.profiles.full_name || '',
           username: entry.profiles.username || ''
         } : null,
-        songs: entry.songs ? {
+        songs: entry.songs && typeof entry.songs === 'object' && 'title' in entry.songs ? {
           title: entry.songs.title || '',
           audio_url: entry.songs.audio_url || ''
         } : null
