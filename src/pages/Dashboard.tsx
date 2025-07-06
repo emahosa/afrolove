@@ -20,7 +20,7 @@ const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState({
     totalSongs: 0,
     completedSongs: 0,
-    processingSongs: 0,
+    pendingSongs: 0,
     monthSongs: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
@@ -46,12 +46,12 @@ const Dashboard = () => {
           .eq('user_id', user.id)
           .eq('status', 'completed');
 
-        // Get processing songs
-        const { count: processingSongs } = await supabase
+        // Get pending songs (using valid enum value)
+        const { count: pendingSongs } = await supabase
           .from('songs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .in('status', ['pending', 'processing']);
+          .eq('status', 'pending');
 
         // Get songs created this month
         const startOfMonth = new Date();
@@ -67,7 +67,7 @@ const Dashboard = () => {
         setDashboardStats({
           totalSongs: totalSongs || 0,
           completedSongs: completedSongs || 0,
-          processingSongs: processingSongs || 0,
+          pendingSongs: pendingSongs || 0,
           monthSongs: monthSongs || 0
         });
         
@@ -189,8 +189,8 @@ const Dashboard = () => {
       color: "text-green-600"
     },
     {
-      title: "Processing",
-      value: loadingStats ? "..." : dashboardStats.processingSongs,
+      title: "Pending",
+      value: loadingStats ? "..." : dashboardStats.pendingSongs,
       icon: Clock,
       description: "Songs in progress",
       color: "text-yellow-600"

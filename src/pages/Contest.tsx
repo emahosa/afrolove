@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,11 +43,11 @@ interface ContestEntry {
   profiles: {
     full_name: string;
     username: string;
-  };
+  } | null;
   songs?: {
     title: string;
     audio_url: string;
-  };
+  } | null;
 }
 
 const Contest = () => {
@@ -125,14 +124,30 @@ const Contest = () => {
       }
       
       console.log('Fetched contest entries:', data?.length || 0, 'entries');
-      console.log('Entry details:', data?.map(entry => ({
-        id: entry.id,
-        approved: entry.approved,
-        video_url: !!entry.video_url,
-        vote_count: entry.vote_count
-      })));
       
-      setContestEntries(data || []);
+      // Transform the data to match our interface
+      const transformedEntries: ContestEntry[] = (data || []).map(entry => ({
+        id: entry.id,
+        contest_id: entry.contest_id,
+        user_id: entry.user_id,
+        song_id: entry.song_id,
+        video_url: entry.video_url,
+        description: entry.description,
+        status: entry.status || 'pending',
+        approved: entry.approved,
+        vote_count: entry.vote_count || 0,
+        created_at: entry.created_at,
+        profiles: entry.profiles ? {
+          full_name: entry.profiles.full_name || '',
+          username: entry.profiles.username || ''
+        } : null,
+        songs: entry.songs ? {
+          title: entry.songs.title || '',
+          audio_url: entry.songs.audio_url || ''
+        } : null
+      }));
+      
+      setContestEntries(transformedEntries);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
@@ -236,7 +251,7 @@ const Contest = () => {
       </div>
 
       {/* Contest Selection */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4">
         {contests.map((contest) => (
           <Card 
             key={contest.id} 
@@ -355,7 +370,7 @@ const Contest = () => {
                   <p className="text-muted-foreground">No entries yet. Be the first to submit!</p>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
                   {contestEntries.map((entry, index) => (
                     <div key={entry.id} className="border rounded-lg p-6 space-y-4">
                       <div className="flex items-start justify-between">
