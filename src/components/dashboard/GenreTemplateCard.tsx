@@ -15,6 +15,9 @@ export const GenreTemplateCard: React.FC<GenreTemplateCardProps> = ({ genre, onS
   const [isHovered, setIsHovered] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Generate random height for Pinterest-style layout
+  const cardHeight = Math.floor(Math.random() * 200) + 250; // Random height between 250px and 450px
+
   const handleMouseEnter = () => {
     setIsHovered(true);
     if (genre.audio_preview_url && audioRef.current) {
@@ -56,13 +59,14 @@ export const GenreTemplateCard: React.FC<GenreTemplateCardProps> = ({ genre, onS
 
   return (
     <Card 
-      className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg group"
+      className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl group overflow-hidden"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleCardClick}
+      style={{ height: `${cardHeight}px` }}
     >
-      <CardContent className="p-0 relative">
-        <div className="aspect-square relative overflow-hidden rounded-t-lg">
+      <CardContent className="p-0 relative h-full">
+        <div className="relative h-full overflow-hidden rounded-lg">
           {genre.cover_image_url ? (
             <img 
               src={genre.cover_image_url} 
@@ -70,36 +74,47 @@ export const GenreTemplateCard: React.FC<GenreTemplateCardProps> = ({ genre, onS
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-melody-primary to-melody-secondary flex items-center justify-center">
-              <span className="text-white text-2xl font-bold">{genre.name.charAt(0)}</span>
+            <div 
+              className="w-full h-full flex items-center justify-center text-white text-2xl font-bold"
+              style={{
+                background: `linear-gradient(135deg, hsl(${Math.random() * 360}, 70%, 50%), hsl(${Math.random() * 360}, 70%, 30%))`
+              }}
+            >
+              {genre.name.charAt(0)}
             </div>
           )}
           
+          {/* Overlay with gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          
           {/* Play/Pause overlay */}
-          <div className={`absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
             {genre.audio_preview_url && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:text-melody-secondary"
+                className="text-white hover:text-melody-secondary bg-black/20 hover:bg-black/40 backdrop-blur-sm"
                 onClick={togglePlayPause}
               >
                 {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
               </Button>
             )}
           </div>
-        </div>
-        
-        <div className="p-4">
-          <h3 className="font-semibold text-lg mb-2">{genre.name}</h3>
-          {genre.description && (
-            <p className="text-sm text-muted-foreground mb-2">{genre.description}</p>
-          )}
-          {genre.sample_prompt && (
-            <p className="text-xs text-muted-foreground italic">
-              "{genre.sample_prompt.substring(0, 50)}..."
-            </p>
-          )}
+          
+          {/* Content overlay */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+            <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{genre.name}</h3>
+            {genre.description && (
+              <p className="text-sm text-gray-200 drop-shadow-md line-clamp-2 mb-2">
+                {genre.description}
+              </p>
+            )}
+            {genre.sample_prompt && (
+              <p className="text-xs text-gray-300 drop-shadow-md italic line-clamp-1">
+                "{genre.sample_prompt.substring(0, 60)}..."
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Hidden audio element */}

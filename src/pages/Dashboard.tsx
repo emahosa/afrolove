@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Music, Sparkles, Users, CreditCard, Plus } from "lucide-react";
-import SampleMusic from "@/components/dashboard/SampleMusic";
+import { Music, Sparkles, Users, CreditCard, Plus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
 import { useGenres, Genre } from "@/hooks/use-genres";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { genres, loading: genresLoading } = useGenres();
   const [userCredits, setUserCredits] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -57,6 +58,11 @@ const Dashboard = () => {
   const handleCreditsClick = () => {
     navigate("/credits");
   };
+
+  const filteredGenres = genres.filter(genre =>
+    genre.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (genre.description && genre.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const stats = [
     {
@@ -123,32 +129,46 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* Genre Templates Section */}
-      {genres.length > 0 && (
+      {/* Search Bar */}
+      <div className="relative max-w-md mx-auto">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 bg-muted/50 border-0 rounded-full"
+        />
+      </div>
+
+      {/* Pinterest-style Genre Templates Grid */}
+      {filteredGenres.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Genre Templates</h2>
+            <h2 className="text-2xl font-bold">Explore Genres</h2>
             <p className="text-sm text-muted-foreground">
               Hover to preview • Click to create
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {genres.map((genre) => (
-              <GenreTemplateCard
-                key={genre.id}
-                genre={genre}
-                onSelect={handleGenreSelect}
-              />
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+            {filteredGenres.map((genre) => (
+              <div key={genre.id} className="break-inside-avoid mb-4">
+                <GenreTemplateCard
+                  genre={genre}
+                  onSelect={handleGenreSelect}
+                />
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Sample Music Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Sample Music</h2>
-        <SampleMusic />
-      </div>
+      {/* Empty State */}
+      {filteredGenres.length === 0 && searchQuery && (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium">No genres found</h3>
+          <p className="text-muted-foreground">Try adjusting your search query</p>
+        </div>
+      )}
 
       {/* Voter-specific message */}
       {isVoter() && !isSubscriber() && (
