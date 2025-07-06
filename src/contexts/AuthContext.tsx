@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -50,13 +49,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Modified handleUserSession to return a boolean indicating success
   const handleUserSession = async (authUser: User): Promise<boolean> => {
     try {
-      console.log("AuthContext: handleUserSession called for user:", authUser.id);
+      console.log("AuthContext: handleUserSession called for user:", authUser.id, "email:", authUser.email);
       const userData = await fetchUserData(authUser.id);
       if (userData) {
         const roles = await fetchUserRoles(authUser.id);
         setUser(userData); // State update for next render
         setUserRoles(roles);  // State update for next render
-        console.log("AuthContext: User data and roles processing initiated", { userData, roles });
+        console.log("AuthContext: User data and roles set", { userData: { id: userData.id, email: userData.email }, roles });
         return true; // Indicate success
       } else {
         console.error(`User profile not found for ID: ${authUser.id}. Invalid application state.`);
@@ -94,6 +93,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Get the auth user for email
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
+      console.log("AuthContext: Profile data:", { id: data.id, username: data.username, full_name: data.full_name });
+      console.log("AuthContext: Auth user email:", authUser?.email);
+      
       return {
         id: data.id,
         email: authUser?.email || data.username || '',
@@ -119,6 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error(`Error fetching user roles for ID ${userId}:`, error.message);
         return [];
       }
+      console.log("AuthContext: User roles fetched:", data?.map(item => item.role) || []);
       return data ? data.map(item => item.role) : [];
     } catch (error: any) {
       console.error('Exception in fetchUserRoles:', error.message);
@@ -409,11 +412,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = () => {
-    return userRoles.includes('admin');
+    const hasAdminRole = userRoles.includes('admin');
+    console.log("AuthContext: isAdmin check - userRoles:", userRoles, "hasAdminRole:", hasAdminRole);
+    return hasAdminRole;
   };
 
   const isSuperAdmin = () => {
-    return userRoles.includes('super_admin');
+    const hasSuperAdminRole = userRoles.includes('super_admin');
+    const isSuperAdminEmail = user?.email === 'ellaadahosa@gmail.com';
+    console.log("AuthContext: isSuperAdmin check - userRoles:", userRoles, "hasSuperAdminRole:", hasSuperAdminRole, "isSuperAdminEmail:", isSuperAdminEmail, "userEmail:", user?.email);
+    return hasSuperAdminRole || isSuperAdminEmail;
   };
 
   const isSubscriber = () => {

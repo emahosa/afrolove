@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,11 +21,13 @@ const AdminLoginPage: React.FC = () => {
     // Only redirect if user is authenticated AND has admin privileges
     if (!authLoading && user) {
       const hasAdminAccess = isAdmin() || isSuperAdmin();
+      console.log("AdminLogin: Checking admin access for user:", user.id, "hasAdminAccess:", hasAdminAccess);
       if (hasAdminAccess) {
         console.log("AdminLogin: Admin user detected, redirecting to admin panel");
         navigate('/admin', { replace: true });
       } else {
         // User is logged in but not admin - sign them out and show error
+        console.log("AdminLogin: User is not admin, signing out");
         toast.error("You don't have admin privileges. Logging you out.");
         supabase.auth.signOut();
       }
@@ -41,45 +42,65 @@ const AdminLoginPage: React.FC = () => {
     try {
       console.log("AdminLogin: Attempting admin login for:", email);
 
-      // First check if this email has admin privileges before attempting login
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', email.toLowerCase())
-        .single();
+      // Special handling for super admin email
+      if (email.toLowerCase() === 'ellaadahosa@gmail.com') {
+        console.log("AdminLogin: Super admin email detected");
+        const { error: authError } = await login(email, password);
+        
+        if (authError) {
+          console.error("AdminLogin: Super admin login failed:", authError);
+          setError(authError.message);
+          return;
+        }
 
-      if (!profileData) {
-        setError('Invalid admin credentials');
-        setLoading(false);
+        toast.success("Super admin login successful!");
         return;
       }
 
-      // Check if this user has admin roles
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', profileData.id)
-        .in('role', ['admin', 'super_admin']);
+      // For other users, check admin privileges by user ID first
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (!roleData || roleData.length === 0) {
-        setError('You do not have admin privileges');
-        setLoading(false);
-        return;
-      }
-
-      const { error: authError } = await login(email, password);
-      
       if (authError) {
+        console.error("AdminLogin: Authentication failed:", authError);
         setError(authError.message);
         return;
       }
 
-      // Success will be handled by useEffect above
+      if (!authData.user) {
+        setError('Login failed - no user data returned');
+        return;
+      }
+
+      // Check if this user has admin roles using their user ID
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+        .in('role', ['admin', 'super_admin']);
+
+      if (roleError) {
+        console.error("AdminLogin: Error checking roles:", roleError);
+        setError('Error verifying admin privileges');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (!roleData || roleData.length === 0) {
+        console.log("AdminLogin: User has no admin roles");
+        setError('You do not have admin privileges');
+        await supabase.auth.signOut();
+        return;
+      }
+
+      console.log("AdminLogin: Admin roles found:", roleData);
       toast.success("Admin login successful!");
 
     } catch (err) {
+      console.error('AdminLogin: Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
-      console.error('Admin login error:', err);
     } finally {
       setLoading(false);
     }
