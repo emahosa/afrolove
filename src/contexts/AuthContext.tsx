@@ -50,24 +50,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sets user to null if profile data is missing.
   const handleUserSession = async (authUser: User) => {
     try {
+      // authUser is from a valid Supabase session.
+      // The session state in AuthContext should already be set by the caller (initializeSession or onAuthStateChange).
+      // This function's job is to fetch app-specific user details (profile, roles).
       const userData = await fetchUserData(authUser.id);
+      // Only attempt to fetch roles if we successfully got user data.
+      const roles = userData ? await fetchUserRoles(authUser.id) : [];
+
       if (userData) {
-        setUser(userData); // Updates user state
-        const roles = await fetchUserRoles(authUser.id);
-        setUserRoles(roles); // Updates user roles
+        setUser(userData);
+        setUserRoles(roles);
+        // Session remains as set by the caller, reflecting the valid Supabase session.
       } else {
-        console.error(`User profile not found for ID: ${authUser.id}. Invalid application state.`);
-        setUser(null); // Clear user state
-        setSession(null); // Clear session state
-        setUserRoles([]); // Clear roles
-        // Consider a forced sign out if this is a critical failure path
-        // await supabase.auth.signOut(); // This would trigger 'SIGNED_OUT' via onAuthStateChange
+        // Failed to fetch app-specific user profile data.
+        // This could be due to a missing profile or a temporary network error.
+        // The user is authenticated with Supabase, but cannot fully use the app without this data.
+        console.warn(`App user profile data not found or failed to fetch for authenticated user ID: ${authUser.id}. Setting app user to null.`);
+        setUser(null); // Clear app-level user object
+        setUserRoles([]); // Clear app-level roles
+        // The Supabase session (stored in AuthContext's session state) remains.
+        // ProtectedRoute will likely redirect to login if user is null, which is an acceptable outcome.
       }
     } catch (error) {
-      console.error('Error in handleUserSession:', error);
-      setUser(null); // Clear user state on error
-      setSession(null); // Clear session state
-      setUserRoles([]); // Clear roles
+      // Catch any unexpected errors during fetchUserData/fetchUserRoles
+      console.error('Exception in handleUserSession while fetching profile/roles:', error);
+      setUser(null); // Clear app-level user object
+      setUserRoles([]); // Clear app-level roles
+      // The Supabase session (stored in AuthContext's session state) remains.
     }
   };
 
