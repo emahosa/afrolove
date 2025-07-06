@@ -6,20 +6,14 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle, FaApple } from "react-icons/fa";
 import { Music } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-
-// Admin credentials constants - update to use the correct admin email
-const ADMIN_EMAIL = "ellaadahosa@gmail.com";
-const ADMIN_PASSWORD = "Admin123!";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState("user");
   // MFA verification state
   const [factorId, setFactorId] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -28,17 +22,6 @@ const Login = () => {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Auto-fill admin credentials when on admin tab
-  useEffect(() => {
-    if (userType === "admin") {
-      setEmail(ADMIN_EMAIL);
-      setPassword(ADMIN_PASSWORD);
-    } else {
-      setEmail("");
-      setPassword("");
-    }
-  }, [userType]);
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -64,7 +47,7 @@ const Login = () => {
     
     setLoading(true);
     try {
-      console.log("Login: Attempting login with:", { email, userType });
+      console.log("Login: Attempting login with:", { email });
       
       const { data, error } = await login(email, password);
       
@@ -109,7 +92,7 @@ const Login = () => {
       
       if (data.session) {
         toast.success("Login successful!");
-        let destination = userType === "admin" ? "/admin" : "/dashboard";
+        let destination = "/dashboard"; // Default to user dashboard
         if (location.state?.from?.pathname) {
           destination = location.state.from.pathname;
         }
@@ -134,7 +117,7 @@ const Login = () => {
     
     // After MFA is verified, the session is active and context is updated via onAuthStateChange.
     // We can now navigate.
-    let destination = userType === "admin" ? "/admin" : "/dashboard";
+    let destination = "/dashboard"; // Default to user dashboard
     if (location.state?.from?.pathname) {
       destination = location.state.from.pathname;
     }
@@ -178,13 +161,6 @@ const Login = () => {
         <p className="text-muted-foreground">Sign in to continue to MelodyVerse</p>
       </div>
 
-      <Tabs value={userType} onValueChange={setUserType} className="mb-6">
-        <TabsList className="grid grid-cols-2 w-full">
-          <TabsTrigger value="user">User Login</TabsTrigger>
-          <TabsTrigger value="admin">Admin Login</TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
@@ -218,25 +194,14 @@ const Login = () => {
           className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
           disabled={loading}
         >
-          {loading ? "Signing in..." : userType === "admin" ? "Sign In as Admin" : "Sign In"}
+          {loading ? "Signing in..." : "Sign In"}
         </Button>
-
-        {userType === "admin" && (
-          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p className="text-sm text-amber-800">
-              <strong>Admin credentials:</strong><br />
-              Email: {ADMIN_EMAIL}<br />
-              Password: {ADMIN_PASSWORD}
-            </p>
-          </div>
-        )}
       </form>
 
-      {userType === "user" && (
-        <>
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
+      <>
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-xs">
               <span className="px-2 bg-background text-muted-foreground">
@@ -258,15 +223,9 @@ const Login = () => {
 
       <p className="text-center mt-8 text-sm">
         Don't have an account?{" "}
-        {userType === "admin" ? (
-          <Link to="/register/admin" className="text-melody-secondary hover:underline font-medium">
-            Create Admin Account
-          </Link>
-        ) : (
-          <Link to="/register" className="text-melody-secondary hover:underline font-medium">
-            Sign up
-          </Link>
-        )}
+        <Link to="/register" className="text-melody-secondary hover:underline font-medium">
+          Sign up
+        </Link>
       </p>
     </div>
   );
