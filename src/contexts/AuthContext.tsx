@@ -85,9 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn(`No profile data returned for user ID ${userId}.`);
         return null;
       }
+      
+      // Get the auth user for email
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
       return {
         id: data.id,
-        email: data.username || (user?.email || ''),
+        email: authUser?.email || data.username || '',
         name: data.full_name || data.username || '',
         avatar: data.avatar_url,
         credits: data.credits || 0,
@@ -199,6 +203,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setSession(null);
             setUserRoles([]);
           }
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
       }
     );
@@ -212,7 +220,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // useEffect for handling subscription success from URL parameters
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('subscription') === 'success' && user?.id) {
@@ -244,7 +251,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // useEffect for periodic session refresh
   useEffect(() => {
     let refreshInterval: NodeJS.Timeout;
     const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
