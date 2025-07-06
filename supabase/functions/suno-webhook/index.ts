@@ -87,11 +87,50 @@ Deno.serve(async (req) => {
 
     // The first song from the API response will update the original DB entry
     const firstSongData = songDataArray[0];
+
+    // Determine the best title
+    let chosenTitle = originalSong.title; // User's title from generation step (could be "Generating...")
+    const sunoProvidedTitle = firstSongData.title;
+
+    // If originalSong.title was the default "Generating..." or empty, consider Suno's title
+    if (!chosenTitle || chosenTitle.trim().toLowerCase() === 'generating...') {
+      if (sunoProvidedTitle && !sunoProvidedTitle.startsWith('snd_')) { // Use Suno's title if it's not an ID
+        chosenTitle = sunoProvidedTitle;
+      } else {
+        // Suno's title is an ID or empty, and user's was "Generating..."
+        // Fallback to a generic title using part of the original song ID or prompt
+        if (originalSong.prompt && originalSong.prompt.length > 0 && originalSong.prompt.length < 50) {
+          chosenTitle = originalSong.prompt.split(/[,.!?]/)[0].trim(); // First sentence/phrase of prompt
+        } else {
+          chosenTitle = `Song by ${originalSong.user_id.substring(0, 8)}`;
+        }
+        // If still nothing, a final fallback
+        if (!chosenTitle || chosenTitle.trim() === '') {
+            chosenTitle = `MelodyVerse Creation ${originalSong.id.substring(0,6)}`;
+        }
+      }
+    } else {
+      // User provided a custom title. Check if Suno provided a non-ID title that might be better.
+      // This part is subjective. For now, let's assume user's custom title is preferred
+      // unless Suno provides a clearly better, non-ID title.
+      // If Suno's title is an ID, definitely stick with user's custom title.
+      if (sunoProvidedTitle && !sunoProvidedTitle.startsWith('snd_') && sunoProvidedTitle !== chosenTitle) {
+        // Potentially append Suno's title if it's different and not an ID, or choose one.
+        // For simplicity here, if user provided a good title, we stick with it.
+        // If Suno's title is substantially different and not an ID, it could be an alternative version.
+        // This area might need more nuanced logic based on product requirements.
+      }
+    }
+
+    // Ensure title is not excessively long
+    chosenTitle = chosenTitle.substring(0, 255);
+
+
     const updateData = {
       status: 'completed',
       suno_id: firstSongData.id,
       audio_url: firstSongData.audio_url,
-      title: firstSongData.title || originalSong.title,
+      title: chosenTitle,
       lyrics: firstSongData.prompt, // As per docs, prompt contains lyrics
       image_url: firstSongData.image_url,
       duration: firstSongData.duration,
