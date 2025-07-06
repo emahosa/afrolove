@@ -24,11 +24,11 @@ interface ContestEntry {
   created_at: string;
   profiles: {
     full_name: string;
-  };
+  } | null;
   songs?: {
     title: string;
     audio_url: string;
-  };
+  } | null;
 }
 
 const Dashboard = () => {
@@ -71,7 +71,7 @@ const Dashboard = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(full_name),
+          profiles(full_name),
           songs(title, audio_url)
         `)
         .eq('approved', true)
@@ -79,7 +79,15 @@ const Dashboard = () => {
         .limit(12);
 
       if (error) throw error;
-      setContestEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData: ContestEntry[] = (data || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? { full_name: entry.profiles.full_name } : null,
+        songs: entry.songs ? { title: entry.songs.title, audio_url: entry.songs.audio_url } : null
+      }));
+      
+      setContestEntries(transformedData);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
     } finally {
@@ -256,7 +264,7 @@ const Dashboard = () => {
                   <CardHeader>
                     <CardTitle className="text-lg">{entry.songs?.title || 'Contest Entry'}</CardTitle>
                     <CardDescription>
-                      By {entry.profiles.full_name}
+                      By {entry.profiles?.full_name || 'Unknown Artist'}
                     </CardDescription>
                   </CardHeader>
                   

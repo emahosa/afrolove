@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,11 +39,11 @@ interface ContestEntry {
   created_at: string;
   profiles: {
     full_name: string;
-  };
+  } | null;
   songs?: {
     title: string;
     audio_url: string;
-  };
+  } | null;
 }
 
 interface Song {
@@ -99,14 +100,22 @@ const Contest = () => {
         .from('contest_entries')
         .select(`
           *,
-          profiles!inner(full_name),
+          profiles(full_name),
           songs(title, audio_url)
         `)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
       if (error) throw error;
-      setContestEntries(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData: ContestEntry[] = (data || []).map(entry => ({
+        ...entry,
+        profiles: entry.profiles ? { full_name: entry.profiles.full_name } : null,
+        songs: entry.songs ? { title: entry.songs.title, audio_url: entry.songs.audio_url } : null
+      }));
+      
+      setContestEntries(transformedData);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
@@ -187,7 +196,7 @@ const Contest = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="entries" className="w-full">
+      <Tabs defaultValue="contests" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="contests">Contests</TabsTrigger>
           <TabsTrigger value="entries">Contest Entries</TabsTrigger>
@@ -293,7 +302,7 @@ const Contest = () => {
                   <CardHeader>
                     <CardTitle className="text-lg">{entry.songs?.title || 'Contest Entry'}</CardTitle>
                     <CardDescription>
-                      By {entry.profiles.full_name}
+                      By {entry.profiles?.full_name || 'Unknown Artist'}
                     </CardDescription>
                   </CardHeader>
                   
