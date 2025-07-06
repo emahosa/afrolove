@@ -1,14 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, CreditCard } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { verifyPaymentSuccess, refreshUserData } from "@/utils/paymentVerification";
+import { usePaymentVerification } from '@/components/payment/PaymentVerificationProvider';
+import PaymentLoadingScreen from '@/components/payment/PaymentLoadingScreen';
+import PaymentDialog from '@/components/payment/PaymentDialog';
 
 const subscriptionPlansData = [
   {
@@ -67,84 +68,13 @@ const subscriptionPlansData = [
 
 const SubscribePage: React.FC = () => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const { isVerifying } = usePaymentVerification();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
 
-  // Handle payment success verification
-  useEffect(() => {
-    const handlePaymentSuccess = async () => {
-      const subscriptionStatus = searchParams.get('subscription');
-      const sessionId = searchParams.get('session_id');
-
-      if (subscriptionStatus === 'success') {
-        setIsVerifying(true);
-        console.log("Subscription success detected, verifying...");
-
-        try {
-          // Wait longer for webhook to process
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          // Retry verification up to 3 times
-          let attempts = 0;
-          let result;
-          
-          while (attempts < 3) {
-            result = await verifyPaymentSuccess(sessionId || undefined);
-            
-            if (result && result.success) {
-              break;
-            }
-            
-            attempts++;
-            if (attempts < 3) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-          
-          if (result && result.success) {
-            toast.success("Subscription Activated!", {
-              description: result.message
-            });
-            
-            // Refresh user data to get updated subscription
-            await refreshUserData();
-            
-            // Clear URL parameters and redirect to dashboard
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 2000);
-          } else {
-            toast.warning("Subscription Processing", {
-              description: "Your subscription is being processed. Please refresh in a moment."
-            });
-          }
-        } catch (error) {
-          console.error("Error verifying subscription:", error);
-          toast.error("Verification Error", {
-            description: "Unable to verify subscription. Please contact support if the issue persists."
-          });
-        } finally {
-          setIsVerifying(false);
-        }
-      }
-    };
-
-    handlePaymentSuccess();
-  }, [searchParams, navigate]);
-
-  // Show verification screen while processing subscription
   if (isVerifying) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        <h2 className="text-xl font-semibold">Activating Subscription...</h2>
-        <p className="text-muted-foreground">Please wait while we activate your subscription.</p>
-      </div>
-    );
+    return <PaymentLoadingScreen title="Activating Subscription..." description="Please wait while we activate your subscription." />;
   }
 
   const handleSubscribe = async (planId: string) => {
@@ -160,24 +90,20 @@ const SubscribePage: React.FC = () => {
         throw new Error("Selected plan not found.");
       }
 
-      console.log(`Creating Stripe subscription session for plan: ${plan.name}`);
-
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
           priceId: plan.priceId,
           planId: plan.id,
           planName: plan.name,
-          amount: Math.round(plan.price * 100), // Amount in cents
+          amount: Math.round(plan.price * 100),
         }
       });
 
       if (error) {
-        console.error('Error creating subscription session:', error);
         throw new Error(error.message || 'Failed to create subscription session.');
       }
 
       if (data?.url) {
-        // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         throw new Error('No checkout URL received from server.');
@@ -191,11 +117,6 @@ const SubscribePage: React.FC = () => {
     } finally {
       setPaymentProcessing(false);
     }
-  };
-
-  const openSubscribeDialog = (planId: string) => {
-    setSelectedPlanId(planId);
-    setDialogOpen(true);
   };
 
   const selectedPlanDetails = subscriptionPlansData.find(p => p.id === selectedPlanId);
@@ -237,7 +158,10 @@ const SubscribePage: React.FC = () => {
                   <CardFooter className="mt-auto pt-6">
                     <Button
                       className="w-full text-lg py-3"
-                      onClick={() => openSubscribeDialog(plan.id)}
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        setDialogOpen(true);
+                      }}
                       disabled={paymentProcessing || !user}
                     >
                       {paymentProcessing && selectedPlanId === plan.id ? 'Processing...' : 'Subscribe Now'}
@@ -258,48 +182,21 @@ const SubscribePage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Subscribe Dialog */}
-      <Dialog open={dialogOpen && selectedPlanId !== null} onOpenChange={(open) => { if(!open) setSelectedPlanId(null); setDialogOpen(open);}}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Subscribe to {selectedPlanDetails?.name}</DialogTitle>
-            <DialogDescription>
-              You are about to subscribe to the {selectedPlanDetails?.name} plan for {selectedPlanDetails?.description}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedPlanDetails && (
-              <>
-                <div className="flex items-center justify-between">
-                  <span>Subscription: {selectedPlanDetails.name} ({selectedPlanDetails.interval})</span>
-                  <span>${selectedPlanDetails.price}/{selectedPlanDetails.interval}</span>
-                </div>
-                <div className="flex items-center justify-between font-medium">
-                  <span>{selectedPlanDetails.creditsPerMonth} credits per {selectedPlanDetails.interval}</span>
-                </div>
-                <div className="border-t pt-2 flex items-center justify-between font-bold">
-                  <span>Total today</span>
-                  <span>${selectedPlanDetails.price}</span>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter className="flex-col">
-            <div className="flex items-center justify-center w-full mb-4 text-sm text-muted-foreground">
-              <CreditCard className="mr-2 h-4 w-4 text-green-600" />
-              <span>Secure payment processing via Stripe</span>
-            </div>
-            <Button
-              onClick={() => selectedPlanId && handleSubscribe(selectedPlanId)}
-              disabled={paymentProcessing}
-              className="w-full"
-            >
-              {paymentProcessing ? "Processing..." : "Confirm & Proceed to Payment"}
-            </Button>
-             <Button variant="outline" className="w-full mt-2" onClick={() => setDialogOpen(false)}>Cancel</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {selectedPlanDetails && (
+        <PaymentDialog
+          open={dialogOpen && selectedPlanId !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedPlanId(null);
+            setDialogOpen(open);
+          }}
+          title={`Subscribe to ${selectedPlanDetails.name}`}
+          description={`You are about to subscribe to the ${selectedPlanDetails.name} plan for ${selectedPlanDetails.description}.`}
+          amount={selectedPlanDetails.price}
+          onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
+          processing={paymentProcessing}
+          type="subscription"
+        />
+      )}
     </>
   );
 };
