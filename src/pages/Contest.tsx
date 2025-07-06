@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,26 +95,45 @@ const Contest = () => {
   const fetchContestEntries = async () => {
     setEntriesLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get contest entries
+      const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select(`
-          *,
-          profiles(full_name),
-          songs(title, audio_url)
-        `)
+        .select('*')
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (error) throw error;
-      
-      // Transform the data to match our interface
-      const transformedData: ContestEntry[] = (data || []).map(entry => ({
-        ...entry,
-        profiles: entry.profiles ? { full_name: entry.profiles.full_name } : null,
-        songs: entry.songs ? { title: entry.songs.title, audio_url: entry.songs.audio_url } : null
-      }));
-      
-      setContestEntries(transformedData);
+      if (entriesError) throw entriesError;
+
+      // Then get profiles and songs for each entry separately
+      const entriesWithDetails = await Promise.all(
+        (entriesData || []).map(async (entry) => {
+          // Get profile data
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', entry.user_id)
+            .single();
+
+          // Get song data if song_id exists
+          let songData = null;
+          if (entry.song_id) {
+            const { data } = await supabase
+              .from('songs')
+              .select('title, audio_url')
+              .eq('id', entry.song_id)
+              .single();
+            songData = data;
+          }
+
+          return {
+            ...entry,
+            profiles: profileData ? { full_name: profileData.full_name } : null,
+            songs: songData ? { title: songData.title, audio_url: songData.audio_url } : null
+          };
+        })
+      );
+
+      setContestEntries(entriesWithDetails);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
