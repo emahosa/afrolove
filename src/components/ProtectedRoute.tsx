@@ -56,11 +56,17 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
     isSubscriber: isSubscriber(),
     isVoter: isVoter(),
     isAdmin: isAdmin(),
-    isSuperAdmin: isSuperAdmin()
+    isSuperAdmin: isSuperAdmin(),
+    isAdminRoute
   });
 
-  // Redirect root to dashboard
+  // Redirect root to appropriate dashboard based on role
   if (location.pathname === "/") {
+    if (isAdmin() || isSuperAdmin()) {
+      console.log("ProtectedRoute: Admin user at root, redirecting to admin panel");
+      return <Navigate to="/admin" replace />;
+    }
+    console.log("ProtectedRoute: Regular user at root, redirecting to dashboard");
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -74,6 +80,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
     return children ? <>{children}</> : <Outlet />;
+  }
+
+  // IMPORTANT: Prevent admins from accessing regular user routes
+  if ((isAdmin() || isSuperAdmin()) && !isAdminRoute) {
+    console.log("ProtectedRoute: Admin trying to access user route, redirecting to admin panel");
+    return <Navigate to="/admin" replace />;
   }
 
   // Allow voters to access profile page

@@ -23,6 +23,7 @@ const AdminLoginPage: React.FC = () => {
     if (!authLoading && user) {
       const hasAdminAccess = isAdmin() || isSuperAdmin();
       if (hasAdminAccess) {
+        console.log("AdminLogin: Admin user detected, redirecting to admin panel");
         navigate('/admin', { replace: true });
       } else {
         // User is logged in but not admin - sign them out and show error
@@ -38,6 +39,8 @@ const AdminLoginPage: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log("AdminLogin: Attempting admin login for:", email);
+
       // First check if this email has admin privileges before attempting login
       const { data: profileData } = await supabase
         .from('profiles')

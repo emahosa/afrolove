@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,16 +6,26 @@ import { Music, Sparkles, Users, Mic } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
     if (!loading && user) {
-      console.log("Index: User is authenticated, redirecting to dashboard");
+      console.log("Index: User is authenticated, checking role for redirect");
+      
+      // Redirect admins to admin panel
+      if (isAdmin() || isSuperAdmin()) {
+        console.log("Index: Admin user detected, redirecting to admin panel");
+        navigate("/admin", { replace: true });
+        return;
+      }
+      
+      // Redirect regular users to user dashboard
+      console.log("Index: Regular user detected, redirecting to dashboard");
       navigate("/dashboard", { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, isAdmin, isSuperAdmin]);
 
   // Show loading state while checking authentication
   if (loading) {
