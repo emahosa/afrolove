@@ -1,300 +1,238 @@
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Wand2, Settings, Clock, AlertCircle } from 'lucide-react';
-import { useSunoGeneration } from '@/hooks/use-suno-generation';
-import { useGenres } from '@/hooks/use-genres';
-import { useAuth } from '@/contexts/AuthContext';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Music, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useGenres } from '@/hooks/use-genres';
+import { useSunoGeneration } from '@/hooks/use-suno-generation';
+import { updateUserCredits } from '@/utils/credits';
 
-const MusicGenerationWorkflow = () => {
+interface MusicGenerationWorkflowProps {
+  preSelectedGenre?: string;
+  initialPrompt?: string;
+}
+
+export const MusicGenerationWorkflow: React.FC<MusicGenerationWorkflowProps> = ({
+  preSelectedGenre = "",
+  initialPrompt = ""
+}) => {
   const { user } = useAuth();
-  const { genres } = useGenres();
+  const { genres, loading: genresLoading } = useGenres();
   const { generateSong, isGenerating } = useSunoGeneration();
+  
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [selectedGenre, setSelectedGenre] = useState(preSelectedGenre);
+  const [songType, setSongType] = useState<'song' | 'instrumental'>('song');
+  const [title, setTitle] = useState('');
+  const [userCredits, setUserCredits] = useState(0);
 
-  const [formData, setFormData] = useState({
-    prompt: '',
-    title: '',
-    style: '',
-    model: 'V4_5' as 'V3_5' | 'V4' | 'V4_5',
-    instrumental: false,
-    customMode: false,
-    negativeTags: ''
-  });
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  // Fetch user credits
+  useEffect(() => {
+    if (user) {
+      fetchUserCredits();
+    }
+  }, [user]);
+
+  // Set pre-selected values
+  useEffect(() => {
+    if (preSelectedGenre) {
+      setSelectedGenre(preSelectedGenre);
+    }
+  }, [preSelectedGenre]);
+
+  useEffect(() => {
+    if (initialPrompt) {
+      setPrompt(initialPrompt);
+    }
+  }, [initialPrompt]);
+
+  const fetchUserCredits = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      setUserCredits(data?.credits || 0);
+    } catch (error) {
+      console.error('Error fetching credits:', error);
+    }
+  };
 
   const handleGenerate = async () => {
-    if (!formData.prompt.trim()) {
+    if (!user) {
+      toast.error('Please log in to generate music');
+      return;
+    }
+
+    if (!prompt.trim()) {
       toast.error('Please enter a prompt for your song');
       return;
     }
 
-    if (formData.customMode && (!formData.style || !formData.title)) {
-      toast.error('Style and title are required for custom mode');
+    if (prompt.length > 99) {
+      toast.error('Prompt must be 99 characters or less');
       return;
     }
 
-    setCurrentTaskId(null);
+    if (userCredits < 1) {
+      toast.error('Insufficient credits. Please purchase more credits to continue.');
+      return;
+    }
 
-    const request = {
-      prompt: formData.prompt,
-      style: formData.style,
-      title: formData.title,
-      instrumental: formData.instrumental,
-      customMode: formData.customMode,
-      model: formData.model,
-      negativeTags: formData.negativeTags
-    };
+    try {
+      const selectedGenreData = genres.find(g => g.id === selectedGenre);
+      const genrePrompt = selectedGenreData?.prompt_template || '';
+      
+      const finalPrompt = genrePrompt ? `${genrePrompt} ${prompt}` : prompt;
+      
+      await generateSong({
+        prompt: finalPrompt,
+        title: title || 'Untitled Song',
+        genre_id: selectedGenre || null,
+        type: songType,
+        credits_used: 1
+      });
 
-    const taskId = await generateSong(request);
-    if (taskId) {
-      setCurrentTaskId(taskId);
-      toast.success('🎵 Generation started! Your song will appear in your library when ready.');
+      // Update credits locally
+      await updateUserCredits(user.id, -1);
+      setUserCredits(prev => prev - 1);
+      
+      // Clear form
+      setPrompt('');
+      setTitle('');
+      if (!preSelectedGenre) {
+        setSelectedGenre('');
+      }
+      
+      toast.success('Song generation started! Check your library for the result.');
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      toast.error(error.message || 'Failed to generate song');
     }
   };
 
+  const isFormValid = prompt.trim() && prompt.length <= 99;
+
   return (
     <div className="space-y-6">
-      {/* Generation Form */}
-      <Tabs defaultValue="simple" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="simple" className="flex items-center gap-2">
-            <Wand2 className="h-4 w-4" />
-            Simple Mode
-          </TabsTrigger>
-          <TabsTrigger value="advanced" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Advanced Mode
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="title">Song Title (Optional)</Label>
+          <Input
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Enter song title..."
+            maxLength={50}
+          />
+        </div>
 
-        <TabsContent value="simple">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Generation</CardTitle>
-              <CardDescription>
-                Describe your song and let AI handle the rest
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="prompt">Song Description</Label>
-                <Textarea
-                  id="prompt"
-                  placeholder="e.g., A heartfelt acoustic ballad about summer love with gentle guitar melodies..."
-                  value={formData.prompt}
-                  onChange={(e) => setFormData(prev => ({ ...prev, prompt: e.target.value }))}
-                  className="min-h-[100px]"
-                />
-                <div className="text-sm text-muted-foreground">
-                  {formData.prompt.length}/400 characters
-                </div>
-              </div>
+        <div className="space-y-2">
+          <Label htmlFor="type">Type</Label>
+          <Select value={songType} onValueChange={(value: 'song' | 'instrumental') => setSongType(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="song">Song (with lyrics)</SelectItem>
+              <SelectItem value="instrumental">Instrumental</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="model">AI Model</Label>
-                  <Select 
-                    value={formData.model} 
-                    onValueChange={(value: 'V3_5' | 'V4' | 'V4_5') => 
-                      setFormData(prev => ({ ...prev, model: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="V4_5">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">Recommended</Badge>
-                          V4.5 - Most Advanced
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="V4">V4 - High Quality</SelectItem>
-                      <SelectItem value="V3_5">V3.5 - Fast & Stable</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+      <div className="space-y-2">
+        <Label htmlFor="genre">Genre {preSelectedGenre && "(Pre-selected)"}</Label>
+        <Select 
+          value={selectedGenre} 
+          onValueChange={setSelectedGenre}
+          disabled={genresLoading}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a genre (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">No specific genre</SelectItem>
+            {genres.map((genre) => (
+              <SelectItem key={genre.id} value={genre.id}>
+                {genre.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-                <div className="flex items-center space-x-2 pt-6">
-                  <Switch
-                    id="instrumental"
-                    checked={formData.instrumental}
-                    onCheckedChange={(checked) => 
-                      setFormData(prev => ({ ...prev, instrumental: checked }))
-                    }
-                  />
-                  <Label htmlFor="instrumental">Instrumental Only</Label>
-                </div>
-              </div>
+      <div className="space-y-2">
+        <Label htmlFor="prompt">
+          Prompt {initialPrompt && "(Pre-filled)"}
+          <span className="text-sm text-muted-foreground ml-2">
+            ({prompt.length}/99 characters)
+          </span>
+        </Label>
+        <Textarea
+          id="prompt"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Describe the music you want to create..."
+          className="min-h-[100px]"
+          maxLength={99}
+        />
+        {prompt.length > 99 && (
+          <p className="text-sm text-red-500 flex items-center">
+            <AlertCircle className="w-4 h-4 mr-1" />
+            Prompt must be 99 characters or less
+          </p>
+        )}
+      </div>
 
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating || !formData.prompt.trim()}
-                className="w-full"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Song...
-                  </>
-                ) : (
-                  <>
-                    <Music className="mr-2 h-4 w-4" />
-                    Generate Song (5 Credits)
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-sm">
+            <Music className="w-4 h-4 mr-2" />
+            Generation Cost
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span>Available Credits: {userCredits}</span>
+            <span>Cost: 1 credit</span>
+          </div>
+          {userCredits < 1 && (
+            <p className="text-sm text-red-500 mt-2">
+              Insufficient credits. Please purchase more to continue.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="advanced">
-          <Card>
-            <CardHeader>
-              <CardTitle>Advanced Generation</CardTitle>
-              <CardDescription>
-                Full control over your song generation parameters
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Song Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter song title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="style">Genre/Style</Label>
-                  <Select 
-                    value={formData.style} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, style: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select genre..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {genres.map((genre) => (
-                        <SelectItem key={genre.id} value={genre.name}>
-                          {genre.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="Pop">Pop</SelectItem>
-                      <SelectItem value="Rock">Rock</SelectItem>
-                      <SelectItem value="Hip Hop">Hip Hop</SelectItem>
-                      <SelectItem value="Electronic">Electronic</SelectItem>
-                      <SelectItem value="Jazz">Jazz</SelectItem>
-                      <SelectItem value="Country">Country</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="lyrics">Lyrics or Description</Label>
-                <Textarea
-                  id="lyrics"
-                  placeholder="Enter full lyrics or detailed description..."
-                  value={formData.prompt}
-                  onChange={(e) => setFormData(prev => ({ ...prev, prompt: e.target.value }))}
-                  className="min-h-[120px]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="negativeTags">Exclude Elements (Optional)</Label>
-                <Input
-                  id="negativeTags"
-                  placeholder="e.g., no drums, no bass, no vocals"
-                  value={formData.negativeTags}
-                  onChange={(e) => setFormData(prev => ({ ...prev, negativeTags: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="customMode"
-                    checked={formData.customMode}
-                    onCheckedChange={(checked) => 
-                      setFormData(prev => ({ ...prev, customMode: checked }))
-                    }
-                  />
-                  <Label htmlFor="customMode">Lyric Input Mode</Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="instrumental-adv"
-                    checked={formData.instrumental}
-                    onCheckedChange={(checked) => 
-                      setFormData(prev => ({ ...prev, instrumental: checked }))
-                    }
-                  />
-                  <Label htmlFor="instrumental-adv">Instrumental</Label>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleGenerate}
-                disabled={isGenerating || !formData.prompt.trim()}
-                className="w-full"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Song...
-                  </>
-                ) : (
-                  <>
-                    <Music className="mr-2 h-4 w-4" />
-                    Generate Song (5 Credits)
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Status Panel */}
-      {isGenerating && currentTaskId && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 animate-spin" />
-              Generation in Progress
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                AI is composing your song. It will appear in your library once complete.
-              </p>
-              <p className="text-xs font-mono bg-muted p-2 rounded">
-                Task ID: {currentTaskId}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Button
+        onClick={handleGenerate}
+        disabled={!isFormValid || isGenerating || userCredits < 1}
+        className="w-full"
+        size="lg"
+      >
+        {isGenerating ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Music className="w-4 h-4 mr-2" />
+            Generate Song (1 Credit)
+          </>
+        )}
+      </Button>
     </div>
   );
 };
-
-export default MusicGenerationWorkflow;

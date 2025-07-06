@@ -11,6 +11,9 @@ export interface Genre {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  audio_preview_url?: string;
+  cover_image_url?: string;
+  sample_prompt?: string;
 }
 
 export const useGenres = () => {
@@ -44,31 +47,30 @@ export const useGenres = () => {
     }
   };
 
-  const createGenre = async (genreData: { name: string; prompt_template: string; description?: string }) => {
+  const createGenre = async (genreData: { 
+    name: string; 
+    prompt_template: string; 
+    description?: string;
+    audio_preview_url?: string;
+    cover_image_url?: string;
+    sample_prompt?: string;
+  }) => {
     try {
       console.log("Creating genre:", genreData);
       
-      // Get current user for debugging
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error("User not authenticated:", userError);
         throw new Error("You must be logged in to create genres");
       }
       
-      console.log("Current user:", user.id);
-      console.log("User email:", user.email);
-      
-      // Test the admin function directly
-      const { data: isAdminResult, error: adminError } = await supabase
-        .rpc('is_current_user_admin');
-      
-      console.log("Admin check result:", isAdminResult, "Error:", adminError);
-      
-      // Insert without created_by field first to test basic RLS
       const insertData = {
         name: genreData.name,
         prompt_template: genreData.prompt_template,
         description: genreData.description || null,
+        audio_preview_url: genreData.audio_preview_url || null,
+        cover_image_url: genreData.cover_image_url || null,
+        sample_prompt: genreData.sample_prompt || null,
         is_active: true
       };
       
@@ -82,12 +84,6 @@ export const useGenres = () => {
 
       if (error) {
         console.error("Error creating genre:", error);
-        console.error("Error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
         throw error;
       }
       

@@ -1,53 +1,53 @@
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import CustomSongCreation from "@/components/CustomSongCreation";
-import AiSongGeneration from "@/components/AiSongGeneration";
-import { useAuth } from "@/contexts/AuthContext";
-import VoterLockScreen from "@/components/VoterLockScreen";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
+import { useGenres } from "@/hooks/use-genres";
 
 const Create = () => {
-  const { isVoter, isSubscriber, isAdmin, isSuperAdmin, loading } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { genres } = useGenres();
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
+  const [initialPrompt, setInitialPrompt] = useState<string>("");
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading...</span>
-      </div>
-    );
-  }
+  useEffect(() => {
+    // Check for pre-selected genre from URL params
+    const genreId = searchParams.get('genre');
+    const promptParam = searchParams.get('prompt');
+    
+    if (genreId) {
+      setSelectedGenre(genreId);
+    }
+    
+    if (promptParam) {
+      setInitialPrompt(promptParam);
+    }
+  }, [searchParams]);
 
-  // Check if user is only a voter (no subscriber/admin roles)
-  const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-  
-  if (isOnlyVoter) {
-    return <VoterLockScreen feature="music creation tools" />;
-  }
   return (
-    <div className="container mx-auto max-w-4xl py-10 px-4">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
-          Create Your Next Hit
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Generate songs with our powerful AI or collaborate with our professional team for a fully custom track.
+    <div className="space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold">Create Amazing Music</h1>
+        <p className="text-muted-foreground">
+          Use AI to generate unique songs and instrumentals in any style
         </p>
       </div>
-      
-      <Tabs defaultValue="ai-generation" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-12 p-1">
-          <TabsTrigger value="ai-generation" className="text-base">AI Song Generation</TabsTrigger>
-          <TabsTrigger value="custom-song" className="text-base">Custom Song (with Team)</TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="ai-generation" className="mt-6">
-          <AiSongGeneration />
-        </TabsContent>
-
-        <TabsContent value="custom-song" className="mt-6">
-          <CustomSongCreation />
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Music Generation</CardTitle>
+          <CardDescription>
+            Describe the music you want to create and let AI bring it to life
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MusicGenerationWorkflow 
+            preSelectedGenre={selectedGenre}
+            initialPrompt={initialPrompt}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -36,9 +36,7 @@ serve(async (req) => {
       throw new Error("Stripe webhook secret not configured");
     }
 
-    // Verify webhook signature
     const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-
     console.log(`Processing webhook event: ${event.type}`);
 
     switch (event.type) {
@@ -49,12 +47,11 @@ serve(async (req) => {
         if (session.metadata?.type === 'credits') {
           // Handle credit purchase
           const userId = session.metadata.user_id;
-          const credits = parseInt(session.metadata.credits);
+          const credits = parseInt(session.metadata.credits || '0');
           
-          if (userId && credits) {
+          if (userId && credits > 0) {
             console.log(`Adding ${credits} credits to user ${userId}`);
             
-            // Use the RPC function to update credits
             const { data, error } = await supabaseClient.rpc('update_user_credits', {
               p_user_id: userId,
               p_amount: credits
@@ -62,11 +59,21 @@ serve(async (req) => {
 
             if (error) {
               console.error('Error updating credits:', error);
-            } else {
-              console.log(`Successfully added ${credits} credits to user ${userId}. New balance: ${data}`);
+              throw error;
             }
-          } else {
-            console.error('Missing userId or credits in metadata:', { userId, credits });
+
+            // Record the transaction
+            await supabaseClient.from('payment_transactions').insert({
+              user_id: userId,
+              payment_id: session.id,
+              amount: (session.amount_total || 0) / 100,
+              credits_purchased: credits,
+              status: 'completed',
+              payment_method: 'stripe',
+              currency: session.currency || 'usd'
+            });
+
+            console.log(`Successfully added ${credits} credits to user ${userId}. New balance: ${data}`);
           }
         } else if (session.metadata?.type === 'subscription') {
           // Handle subscription creation
@@ -89,23 +96,28 @@ serve(async (req) => {
 
             if (subError) {
               console.error('Error updating subscription:', subError);
-            } else {
-              // Add subscriber role
-              const { error: roleError } = await supabaseClient
-                .from('user_roles')
-                .upsert({
-                  user_id: userId,
-                  role: 'subscriber'
-                }, { onConflict: 'user_id,role' });
-
-              if (roleError) {
-                console.error('Error adding subscriber role:', roleError);
-              } else {
-                console.log(`Successfully activated subscription for user ${userId}`);
-              }
+              throw subError;
             }
-          } else {
-            console.error('Missing userId or planId in metadata:', { userId, planId });
+
+            // Remove voter role and add subscriber role
+            await supabaseClient
+              .from('user_roles')
+              .delete()
+              .eq('user_id', userId)
+              .eq('role', 'voter');
+
+            const { error: roleError } = await supabaseClient
+              .from('user_roles')
+              .upsert({
+                user_id: userId,
+                role: 'subscriber'
+              }, { onConflict: 'user_id,role' });
+
+            if (roleError) {
+              console.error('Error adding subscriber role:', roleError);
+            } else {
+              console.log(`Successfully activated subscription for user ${userId}`);
+            }
           }
         }
         break;
@@ -115,7 +127,6 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('Subscription updated:', subscription.id);
 
-        // Find user by customer ID
         const { data: customer } = await stripe.customers.retrieve(subscription.customer as string);
         if (customer && !customer.deleted && customer.email) {
           const { data: profile } = await supabaseClient
@@ -127,8 +138,7 @@ serve(async (req) => {
           if (profile) {
             const isActive = subscription.status === 'active';
             
-            // Update subscription status
-            const { error: subError } = await supabaseClient
+            await supabaseClient
               .from('user_subscriptions')
               .upsert({
                 user_id: profile.id,
@@ -137,19 +147,26 @@ serve(async (req) => {
                 updated_at: new Date().toISOString()
               }, { onConflict: 'user_id' });
 
-            if (!subError) {
-              // Update user role
-              if (isActive) {
-                await supabaseClient
-                  .from('user_roles')
-                  .upsert({ user_id: profile.id, role: 'subscriber' }, { onConflict: 'user_id,role' });
-              } else {
-                await supabaseClient
-                  .from('user_roles')
-                  .delete()
-                  .eq('user_id', profile.id)
-                  .eq('role', 'subscriber');
-              }
+            if (isActive) {
+              await supabaseClient
+                .from('user_roles')
+                .delete()
+                .eq('user_id', profile.id)
+                .eq('role', 'voter');
+              
+              await supabaseClient
+                .from('user_roles')
+                .upsert({ user_id: profile.id, role: 'subscriber' }, { onConflict: 'user_id,role' });
+            } else {
+              await supabaseClient
+                .from('user_roles')
+                .delete()
+                .eq('user_id', profile.id)
+                .eq('role', 'subscriber');
+              
+              await supabaseClient
+                .from('user_roles')
+                .upsert({ user_id: profile.id, role: 'voter' }, { onConflict: 'user_id,role' });
             }
           }
         }
@@ -160,7 +177,6 @@ serve(async (req) => {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('Subscription cancelled:', subscription.id);
 
-        // Similar logic to handle subscription cancellation
         const { data: customer } = await stripe.customers.retrieve(subscription.customer as string);
         if (customer && !customer.deleted && customer.email) {
           const { data: profile } = await supabaseClient
@@ -170,7 +186,6 @@ serve(async (req) => {
             .single();
 
           if (profile) {
-            // Deactivate subscription
             await supabaseClient
               .from('user_subscriptions')
               .update({
@@ -179,7 +194,6 @@ serve(async (req) => {
               })
               .eq('user_id', profile.id);
 
-            // Remove subscriber role, add voter role back
             await supabaseClient
               .from('user_roles')
               .delete()
