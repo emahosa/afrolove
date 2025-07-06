@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -54,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userData);
         const roles = await fetchUserRoles(authUser.id);
         setUserRoles(roles);
-        console.log("AuthContext: User data and roles set successfully");
+        console.log("AuthContext: User data and roles set successfully", { userData, roles });
       } else {
         console.error(`User profile not found for ID: ${authUser.id}. Invalid application state.`);
         setUser(null);
@@ -202,10 +203,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(null);
             setSession(null);
             setUserRoles([]);
-          }
-        } finally {
-          if (mounted) {
-            setLoading(false);
           }
         }
       }
