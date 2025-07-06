@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -11,6 +12,26 @@ export interface SunoGenerationRequest {
   customMode: boolean;
   model: 'V3_5' | 'V4' | 'V4_5';
 }
+
+// Model mapping for display purposes
+export const getModelDisplayName = (model: string): string => {
+  const modelMap: Record<string, string> = {
+    'V3_5': 'Afro Model 1',
+    'V4': 'Afro Model 2', 
+    'V4_5': 'Afro Model 3'
+  };
+  return modelMap[model] || model;
+};
+
+// Reverse mapping for API calls
+export const getApiModelName = (displayName: string): string => {
+  const reverseMap: Record<string, string> = {
+    'Afro Model 1': 'V3_5',
+    'Afro Model 2': 'V4',
+    'Afro Model 3': 'V4_5'
+  };
+  return reverseMap[displayName] || displayName;
+};
 
 export const useSunoGeneration = () => {
   const { user } = useAuth();

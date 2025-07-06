@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Calendar, Users, Upload, Music } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trophy, Calendar, Users, Upload, Music, Vote } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -26,6 +26,25 @@ interface Contest {
   status: string;
 }
 
+interface ContestEntry {
+  id: string;
+  contest_id: string;
+  user_id: string;
+  description: string;
+  vote_count: number;
+  song_id: string | null;
+  video_url: string | null;
+  approved: boolean;
+  created_at: string;
+  profiles: {
+    full_name: string;
+  };
+  songs?: {
+    title: string;
+    audio_url: string;
+  };
+}
+
 interface Song {
   id: string;
   title: string;
@@ -36,8 +55,10 @@ const Contest = () => {
   const { user, isVoter, isSubscriber, userRoles } = useAuth();
   const { submitEntry, isSubmitting } = useContestSubmission();
   const [contests, setContests] = useState<Contest[]>([]);
+  const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [entriesLoading, setEntriesLoading] = useState(false);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -46,9 +67,10 @@ const Contest = () => {
 
   useEffect(() => {
     fetchContests();
+    fetchContestEntries();
     if (user) {
       fetchUserSongs();
-      ensureStorageBuckets(); // Ensure storage buckets exist
+      ensureStorageBuckets();
     }
   }, [user]);
 
@@ -67,6 +89,29 @@ const Contest = () => {
       toast.error('Failed to load contests');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchContestEntries = async () => {
+    setEntriesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contest_entries')
+        .select(`
+          *,
+          profiles!inner(full_name),
+          songs(title, audio_url)
+        `)
+        .eq('approved', true)
+        .order('vote_count', { ascending: false });
+
+      if (error) throw error;
+      setContestEntries(data || []);
+    } catch (error: any) {
+      console.error('Error fetching contest entries:', error);
+      toast.error('Failed to load contest entries');
+    } finally {
+      setEntriesLoading(false);
     }
   };
 
@@ -112,6 +157,7 @@ const Contest = () => {
       setVideoFile(null);
       setDescription("");
       setSelectedContest(null);
+      fetchContestEntries(); // Refresh entries
     }
   };
 
@@ -121,6 +167,7 @@ const Contest = () => {
   };
 
   const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+  const canViewContests = !isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
 
   if (loading) {
     return (
@@ -140,68 +187,151 @@ const Contest = () => {
         </p>
       </div>
 
-      {contests.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No Active Contests</h3>
-            <p className="text-muted-foreground">
-              Check back later for new contests to participate in
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {contests.map((contest) => (
-            <Card key={contest.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-5 w-5 text-melody-secondary" />
-                  {contest.title}
-                </CardTitle>
-                <CardDescription>{contest.description}</CardDescription>
-              </CardHeader>
-              
-              <CardContent className="flex-1">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {new Date(contest.start_date).toLocaleDateString()} - {new Date(contest.end_date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-melody-secondary">
-                      Prize: {contest.prize}
-                    </Badge>
-                    {contest.entry_fee > 0 && (
-                      <Badge variant="outline">
-                        Entry: {contest.entry_fee} credits
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+      <Tabs defaultValue="entries" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="contests">Contests</TabsTrigger>
+          <TabsTrigger value="entries">Contest Entries</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contests" className="space-y-6">
+          {!canViewContests ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
+                <p className="text-muted-foreground mb-4">
+                  Subscribe to view and participate in contests
+                </p>
+                <Button onClick={() => window.location.href = '/subscribe'}>
+                  View Subscription Plans
+                </Button>
               </CardContent>
-              
-              <CardFooter>
-                {canParticipate ? (
-                  <Button 
-                    className="w-full"
-                    onClick={() => openSubmissionDialog(contest)}
-                  >
-                    Enter Contest
-                  </Button>
-                ) : (
-                  <Button disabled className="w-full">
-                    Subscription Required
-                  </Button>
-                )}
-              </CardFooter>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : contests.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Active Contests</h3>
+                <p className="text-muted-foreground">
+                  Check back later for new contests to participate in
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {contests.map((contest) => (
+                <Card key={contest.id} className="w-full">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-melody-secondary" />
+                        <CardTitle>{contest.title}</CardTitle>
+                      </div>
+                      <Badge variant="secondary" className="text-melody-secondary">
+                        Prize: {contest.prize}
+                      </Badge>
+                    </div>
+                    <CardDescription>{contest.description}</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>
+                          {new Date(contest.start_date).toLocaleDateString()} - {new Date(contest.end_date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {contest.entry_fee > 0 && (
+                        <Badge variant="outline">
+                          Entry: {contest.entry_fee} credits
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter>
+                    {canParticipate ? (
+                      <Button 
+                        className="w-full"
+                        onClick={() => openSubmissionDialog(contest)}
+                      >
+                        Enter Contest
+                      </Button>
+                    ) : (
+                      <Button disabled className="w-full">
+                        Subscription Required
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="entries" className="space-y-6">
+          {entriesLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+              <span className="ml-2">Loading contest entries...</span>
+            </div>
+          ) : contestEntries.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Contest Entries</h3>
+                <p className="text-muted-foreground">
+                  Be the first to submit an entry to any contest
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {contestEntries.map((entry) => (
+                <Card key={entry.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{entry.songs?.title || 'Contest Entry'}</CardTitle>
+                    <CardDescription>
+                      By {entry.profiles.full_name}
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {entry.description}
+                    </p>
+                    
+                    {entry.songs?.audio_url && (
+                      <audio controls className="w-full mb-4">
+                        <source src={entry.songs.audio_url} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    )}
+                    
+                    {entry.video_url && (
+                      <video controls className="w-full mb-4">
+                        <source src={entry.video_url} type="video/mp4" />
+                        Your browser does not support the video element.
+                      </video>
+                    )}
+                  </CardContent>
+                  
+                  <CardFooter className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Vote className="h-4 w-4" />
+                      <span className="text-sm">{entry.vote_count} votes</span>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Vote
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Submission Dialog */}
       <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>

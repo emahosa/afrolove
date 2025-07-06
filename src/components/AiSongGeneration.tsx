@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSunoGeneration, SunoGenerationRequest } from "@/hooks/use-suno-generation";
+import { useSunoGeneration, SunoGenerationRequest, getModelDisplayName, getApiModelName } from "@/hooks/use-suno-generation";
 import { useGenres } from "@/hooks/use-genres";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,10 +22,17 @@ const AiSongGeneration = () => {
   const [title, setTitle] = useState("");
   const [instrumental, setInstrumental] = useState(false);
   const [selectedGenreId, setSelectedGenreId] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("Afro Model 3");
 
   const { user } = useAuth();
   const { generateSong, isGenerating } = useSunoGeneration();
   const { genres, loading: genresLoading } = useGenres();
+
+  const availableModels = [
+    { value: "Afro Model 1", label: "Afro Model 1" },
+    { value: "Afro Model 2", label: "Afro Model 2" },
+    { value: "Afro Model 3", label: "Afro Model 3" }
+  ];
 
   const handleGenerate = async () => {
     if (!selectedGenreId) {
@@ -55,6 +62,7 @@ const AiSongGeneration = () => {
     }
 
     const adminPrompt = selectedGenre.prompt_template;
+    const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
     let request: SunoGenerationRequest;
 
     if (creationMode === 'prompt') {
@@ -66,7 +74,7 @@ const AiSongGeneration = () => {
         prompt: `${adminPrompt} ${prompt}`,
         customMode: false,
         instrumental,
-        model: 'V4_5',
+        model: apiModelName,
       };
     } else { // lyrics mode
       request = {
@@ -75,7 +83,7 @@ const AiSongGeneration = () => {
         instrumental,
         title: title,
         style: adminPrompt,
-        model: 'V4_5',
+        model: apiModelName,
       };
     }
 
@@ -112,6 +120,20 @@ const AiSongGeneration = () => {
               </SelectContent>
             </Select>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="model">AI Model</Label>
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger id="model">
+              <SelectValue placeholder="Select an AI model" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableModels.map(model => (
+                <SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
