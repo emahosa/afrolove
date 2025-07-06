@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Template, Plus, Edit, Trash2, Loader2, Upload, Play, Pause } from "lucide-react";
+import { FileText, Plus, Edit, Trash2, Loader2, Upload, Play, Pause } from "lucide-react";
 import { useGenreTemplates, GenreTemplate } from "@/hooks/use-genre-templates";
 import { useGenres } from "@/hooks/use-genres";
 import { toast } from "sonner";
@@ -315,7 +315,7 @@ export const GenreTemplateManagement = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Template className="h-5 w-5" />
+                  <FileText className="h-5 w-5" />
                   <CardTitle className="text-lg">{template.template_name}</CardTitle>
                 </div>
                 <div className="flex items-center gap-1">
@@ -377,7 +377,7 @@ export const GenreTemplateManagement = () => {
 
       {templates.length === 0 && (
         <div className="text-center py-12">
-          <Template className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
+          <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No templates found</h3>
           <p className="text-muted-foreground mb-4">
             Create your first genre template to provide guided AI music generation.

@@ -29,6 +29,14 @@ export const GenresTab = () => {
     }
   };
 
+  const handleGenreCreate = async (genreData: any): Promise<Genre> => {
+    return await createGenre(genreData);
+  };
+
+  const handleGenreUpdate = async (id: string, genreData: any): Promise<Genre> => {
+    return await updateGenre(id, genreData);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -48,8 +56,8 @@ export const GenresTab = () => {
         
         <GenreFormDialog
           editingGenre={editingGenre}
-          onGenreCreate={createGenre}
-          onGenreUpdate={updateGenre}
+          onGenreCreate={handleGenreCreate}
+          onGenreUpdate={handleGenreUpdate}
         />
       </div>
 

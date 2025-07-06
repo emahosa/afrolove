@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface GenreFormDialogProps {
   editingGenre: Genre | null;
-  onGenreCreate: (genreData: any) => Promise<void>;
-  onGenreUpdate: (id: string, genreData: any) => Promise<void>;
+  onGenreCreate: (genreData: any) => Promise<Genre>;
+  onGenreUpdate: (id: string, genreData: any) => Promise<Genre>;
 }
 
 export const GenreFormDialog = ({ editingGenre, onGenreCreate, onGenreUpdate }: GenreFormDialogProps) => {
