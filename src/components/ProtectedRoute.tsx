@@ -33,6 +33,31 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Check for subscription success in URL and handle it
+  const urlParams = new URLSearchParams(location.search);
+  const subscriptionStatus = urlParams.get('subscription');
+  
+  if (subscriptionStatus === 'success') {
+    // Show success message and redirect to dashboard after a brief delay
+    setTimeout(() => {
+      const newUrl = location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      if (location.pathname !== '/dashboard') {
+        window.location.href = '/dashboard';
+      }
+    }, 2000);
+    
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <div className="text-lg font-medium text-green-600">Subscription activated successfully!</div>
+          <div className="text-sm text-muted-foreground">Redirecting to dashboard...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Determine user's effective role status - STRICT CHECK
   const isOnlyVoter = isVoter() && !isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
   const hasActiveSubscription = isSubscriber() && userRoles.includes('subscriber');

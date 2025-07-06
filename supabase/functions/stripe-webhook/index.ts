@@ -44,80 +44,19 @@ serve(async (req) => {
         const session = event.data.object
         const userId = session.metadata?.user_id
         const creditsAmount = parseInt(session.metadata?.credits || '0')
-        const subscriptionType = session.metadata?.subscription_type
+        const planId = session.metadata?.plan_id
+        const planName = session.metadata?.plan_name
 
-        console.log('Checkout completed:', { userId, creditsAmount, subscriptionType })
+        console.log('Checkout completed:', { userId, creditsAmount, planId, planName })
 
         if (!userId) {
           console.error('No user_id in session metadata')
           return new Response('No user_id', { status: 400, headers: corsHeaders })
         }
 
-        // Handle credit purchases
-        if (creditsAmount > 0) {
-          console.log(`Adding ${creditsAmount} credits to user ${userId}`)
-          
-          // Update user credits
-          const { data: profileData, error: profileError } = await supabaseClient
-            .from('profiles')
-            .select('credits')
-            .eq('id', userId)
-            .single()
-
-          if (profileError) {
-            console.error('Error fetching user profile:', profileError)
-            return new Response('Profile error', { status: 500, headers: corsHeaders })
-          }
-
-          const newCredits = (profileData?.credits || 0) + creditsAmount
-
-          const { error: updateError } = await supabaseClient
-            .from('profiles')
-            .update({ credits: newCredits })
-            .eq('id', userId)
-
-          if (updateError) {
-            console.error('Error updating credits:', updateError)
-            return new Response('Update error', { status: 500, headers: corsHeaders })
-          }
-
-          // Log the transaction
-          const { error: transactionError } = await supabaseClient
-            .from('credit_transactions')
-            .insert({
-              user_id: userId,
-              amount: creditsAmount,
-              transaction_type: 'purchase',
-              description: `Credits purchased via Stripe - ${creditsAmount} credits`
-            })
-
-          if (transactionError) {
-            console.error('Error logging transaction:', transactionError)
-          }
-
-          // Log payment transaction
-          const { error: paymentError } = await supabaseClient
-            .from('payment_transactions')
-            .insert({
-              user_id: userId,
-              amount: session.amount_total / 100,
-              currency: session.currency?.toUpperCase() || 'USD',
-              payment_method: 'stripe',
-              status: 'completed',
-              payment_id: session.payment_intent,
-              credits_purchased: creditsAmount
-            })
-
-          if (paymentError) {
-            console.error('Error logging payment:', paymentError)
-          }
-
-          console.log(`Successfully added ${creditsAmount} credits to user ${userId}`)
-        }
-
         // Handle subscription purchases
-        if (subscriptionType) {
-          console.log(`Updating subscription for user ${userId} to ${subscriptionType}`)
+        if (planId && planName) {
+          console.log(`Processing subscription for user ${userId} to ${planName}`)
           
           const expiresAt = new Date()
           expiresAt.setMonth(expiresAt.getMonth() + 1) // 1 month subscription
@@ -127,7 +66,7 @@ serve(async (req) => {
             .from('user_subscriptions')
             .upsert({
               user_id: userId,
-              subscription_type: subscriptionType,
+              subscription_type: planId,
               subscription_status: 'active',
               started_at: new Date().toISOString(),
               expires_at: expiresAt.toISOString()
@@ -158,9 +97,64 @@ serve(async (req) => {
 
           if (roleInsertError) {
             console.error('Error adding subscriber role:', roleInsertError)
+          } else {
+            console.log(`Successfully added subscriber role to user ${userId}`)
+          }
+
+          // Log subscription transaction
+          const { error: subscriptionTransactionError } = await supabaseClient
+            .from('payment_transactions')
+            .insert({
+              user_id: userId,
+              amount: session.amount_total / 100,
+              currency: session.currency?.toUpperCase() || 'USD',
+              payment_method: 'stripe',
+              status: 'completed',
+              payment_id: session.payment_intent,
+              subscription_type: planId
+            })
+
+          if (subscriptionTransactionError) {
+            console.error('Error logging subscription transaction:', subscriptionTransactionError)
           }
 
           console.log(`Successfully updated subscription for user ${userId}`)
+        }
+
+        // Handle credit purchases
+        if (creditsAmount > 0) {
+          console.log(`Adding ${creditsAmount} credits to user ${userId}`)
+          
+          // Update user credits using RPC function
+          const { data: newCredits, error: creditsError } = await supabaseClient
+            .rpc('update_user_credits', {
+              p_user_id: userId,
+              p_amount: creditsAmount
+            })
+
+          if (creditsError) {
+            console.error('Error updating credits:', creditsError)
+            return new Response('Credits update error', { status: 500, headers: corsHeaders })
+          }
+
+          console.log(`Successfully updated credits for user ${userId}. New balance: ${newCredits}`)
+
+          // Log payment transaction
+          const { error: paymentError } = await supabaseClient
+            .from('payment_transactions')
+            .insert({
+              user_id: userId,
+              amount: session.amount_total / 100,
+              currency: session.currency?.toUpperCase() || 'USD',
+              payment_method: 'stripe',
+              status: 'completed',
+              payment_id: session.payment_intent,
+              credits_purchased: creditsAmount
+            })
+
+          if (paymentError) {
+            console.error('Error logging payment:', paymentError)
+          }
         }
 
         break

@@ -1,6 +1,5 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
@@ -45,6 +44,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle subscription success from URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const subscriptionStatus = urlParams.get('subscription');
+    
+    if (subscriptionStatus === 'success' && user?.id) {
+      console.log('Subscription success detected, syncing roles for user:', user.id);
+      syncSubscriptionRole(user.id);
+    }
+  }, [location.search, user?.id]);
+
+  const syncSubscriptionRole = async (userId: string) => {
+    try {
+      console.log('Calling sync-subscription-role function for user:', userId);
+      
+      const { data, error } = await supabase.functions.invoke('sync-subscription-role', {
+        body: { user_id: userId }
+      });
+
+      if (error) {
+        console.error('Error syncing subscription role:', error);
+        return;
+      }
+
+      console.log('Subscription role sync response:', data);
+      // Refresh user data and roles after sync
+      await refreshUserData();
+      
+    } catch (error) {
+      console.error('Error in syncSubscriptionRole:', error);
+    }
+  };
+
+  const refreshUserData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const userData = await fetchUserData(user.id);
+      if (userData) {
+        setUser(userData);
+        const roles = await fetchUserRoles(user.id);
+        setUserRoles(roles);
+        console.log('User data refreshed:', { userData, roles });
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  };
 
   // Session refresh interval
   useEffect(() => {
@@ -141,6 +190,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(updatedUser);
           }
         }
+        
+        // Ensure loading is set to false after any auth state change
+        if (mounted) {
+          setLoading(false);
+        }
       }
     );
 
@@ -160,6 +214,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error handling user session:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
