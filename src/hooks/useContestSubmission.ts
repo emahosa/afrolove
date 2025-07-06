@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { ensureStorageBuckets } from '@/utils/storageSetup';
 
 interface SubmissionData {
   contestId: string;
@@ -24,6 +25,9 @@ export const useContestSubmission = () => {
     setIsSubmitting(true);
 
     try {
+      // Ensure storage buckets exist
+      await ensureStorageBuckets();
+
       let videoUrl = null;
 
       // Upload video file if provided
@@ -32,24 +36,6 @@ export const useContestSubmission = () => {
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
         
         console.log('Uploading video file:', fileName);
-        
-        // First ensure the bucket exists
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const contestVideosBucket = buckets?.find(bucket => bucket.name === 'contest-videos');
-        
-        if (!contestVideosBucket) {
-          console.log('Contest-videos bucket does not exist, creating it...');
-          const { error: bucketError } = await supabase.storage.createBucket('contest-videos', {
-            public: true,
-            allowedMimeTypes: ['video/*'],
-            fileSizeLimit: 100 * 1024 * 1024 // 100MB limit
-          });
-          
-          if (bucketError) {
-            console.error('Error creating bucket:', bucketError);
-            // Try to continue anyway, maybe bucket exists but we can't see it
-          }
-        }
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('contest-videos')
@@ -60,14 +46,7 @@ export const useContestSubmission = () => {
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          
-          // If upload fails due to RLS, try with a different approach
-          if (uploadError.message.includes('policy')) {
-            toast.error('Video upload failed due to permissions. Please contact support.');
-          } else {
-            toast.error(`Failed to upload video: ${uploadError.message}`);
-          }
-          
+          toast.error(`Failed to upload video: ${uploadError.message}`);
           return false;
         }
 
@@ -80,14 +59,14 @@ export const useContestSubmission = () => {
         console.log('Video uploaded successfully:', videoUrl);
       }
 
-      // Create contest entry
+      // Create contest entry with proper typing
       const entryData = {
         contest_id: data.contestId,
         user_id: user.id,
         song_id: data.songId || null,
         video_url: videoUrl,
         description: data.description,
-        status: 'pending',
+        status: 'pending' as const, // Use const assertion for proper typing
         approved: false
       };
 

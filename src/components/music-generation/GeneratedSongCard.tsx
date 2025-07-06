@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,7 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const { currentSong, isPlaying, playPause, stop } = useAudioPlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
 
   const handlePlay = () => {
     if (!song.audio_url) {
@@ -30,10 +29,17 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
       return;
     }
 
-    if (currentSong?.id === song.id && isPlaying) {
-      playPause();
+    const track = {
+      id: song.id,
+      title: song.title,
+      audio_url: song.audio_url,
+      artist: 'AI Generated'
+    };
+
+    if (currentTrack?.id === song.id && isPlaying) {
+      togglePlayPause();
     } else {
-      playPause(song);
+      playTrack(track);
     }
   };
 
@@ -56,7 +62,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
       
       const blob = await response.blob();
       
-      // Create download link with proper filename
+      // Create download link with proper filename using song title
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -107,7 +113,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isCurrentlyPlaying = currentSong?.id === song.id && isPlaying;
+  const isCurrentlyPlaying = currentTrack?.id === song.id && isPlaying;
 
   return (
     <Card className="group hover:shadow-lg transition-shadow duration-200">
