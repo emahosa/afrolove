@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { useGenreTemplates, GenreTemplate } from "@/hooks/use-genre-templates";
@@ -41,7 +40,13 @@ export const GenreTemplateManagement = () => {
   };
 
   const handleTemplateUpdate = async (id: string, templateData: any): Promise<GenreTemplate> => {
-    return await updateTemplate(id, templateData);
+    await updateTemplate(id, templateData);
+    // Return the updated template by finding it from the current templates
+    const updatedTemplate = templates.find(t => t.id === id);
+    if (updatedTemplate) {
+      return { ...updatedTemplate, ...templateData };
+    }
+    throw new Error('Template not found after update');
   };
 
   if (loading) {
