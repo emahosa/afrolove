@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Calendar, Users, Upload, Heart, Music } from "lucide-react";
+import { Trophy, Calendar, Users, Upload, Play, Pause, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ContestEntryCard from "@/components/contest/ContestEntryCard";
 import { useContestSubmission } from "@/hooks/useContestSubmission";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -44,15 +45,15 @@ interface ContestEntry {
   profiles: {
     full_name: string;
     username: string;
-  } | null;
+  };
   songs?: {
     title: string;
     audio_url: string;
-  } | null;
+  };
 }
 
 const Contest = () => {
-  const { user } = useAuth();
+  const { user, isVoter } = useAuth();
   const { submitEntry, isSubmitting } = useContestSubmission();
   const [contests, setContests] = useState<Contest[]>([]);
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -99,27 +100,16 @@ const Contest = () => {
   };
 
   const fetchContestEntries = async (contestId: string) => {
-    if (!contestId) {
-      console.log('No contest ID provided for fetching entries');
-      setContestEntries([]);
-      return;
-    }
-
     try {
-      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
-      
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
-      
-      // First get contest entries
       const { data, error } = await supabase
         .from('contest_entries')
         .select(`
           *,
-          profiles (
+          profiles:user_id (
             full_name,
             username
           ),
-          songs (
+          songs:song_id (
             title,
             audio_url
           )
@@ -128,65 +118,11 @@ const Contest = () => {
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching entries:', error);
-        throw error;
-      }
-
-      console.log('Contest entries fetched:', data);
-      console.log('Sample entry data:', data?.[0]);
-      
-      // Transform the data to match our interface and handle potential null values
-      const transformedEntries: ContestEntry[] = (data || []).map(entry => {
-        // Type-safe profile access with explicit type checking
-        let profileData: { full_name: string; username: string } | null = null;
-        if (entry.profiles && 
-            typeof entry.profiles === 'object' && 
-            entry.profiles !== null &&
-            'full_name' in entry.profiles && 
-            'username' in entry.profiles) {
-          profileData = {
-            full_name: (entry.profiles as any).full_name || '',
-            username: (entry.profiles as any).username || ''
-          };
-        }
-        
-        // Type-safe songs access
-        let songsData: { title: string; audio_url: string } | null = null;
-        if (entry.songs && 
-            typeof entry.songs === 'object' && 
-            entry.songs !== null &&
-            'title' in entry.songs && 
-            'audio_url' in entry.songs) {
-          songsData = {
-            title: (entry.songs as any).title || '',
-            audio_url: (entry.songs as any).audio_url || ''
-          };
-        }
-
-        return {
-          id: entry.id,
-          contest_id: entry.contest_id,
-          user_id: entry.user_id,
-          song_id: entry.song_id,
-          video_url: entry.video_url,
-          description: entry.description,
-          status: entry.status || 'pending',
-          approved: entry.approved,
-          vote_count: entry.vote_count || 0,
-          created_at: entry.created_at,
-          profiles: profileData,
-          songs: songsData
-        };
-      });
-      
-      console.log('✅ Combined entries with profiles');
-      setContestEntries(transformedEntries);
+      if (error) throw error;
+      setContestEntries(data || []);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
-      const errorMessage = error.message || 'Unknown error occurred';
-      toast.error('Failed to load contest entries: ' + errorMessage);
-      setContestEntries([]);
+      toast.error('Failed to load contest entries');
     }
   };
 
@@ -287,7 +223,7 @@ const Contest = () => {
       </div>
 
       {/* Contest Selection */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid gap-4">
         {contests.map((contest) => (
           <Card 
             key={contest.id} 
@@ -406,35 +342,32 @@ const Contest = () => {
                   <p className="text-muted-foreground">No entries yet. Be the first to submit!</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-4">
                   {contestEntries.map((entry, index) => (
-                    <div key={entry.id} className="border rounded-lg p-6 space-y-4">
+                    <div key={entry.id} className="border rounded-lg p-4 space-y-3">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="text-lg px-3 py-1">
-                            #{index + 1}
-                          </Badge>
-                          <div>
-                            <h3 className="font-semibold text-lg">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">#{index + 1}</Badge>
+                            <h3 className="font-semibold">
                               {entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}
                             </h3>
-                            {entry.description && (
-                              <p className="text-muted-foreground mt-1">{entry.description}</p>
-                            )}
                           </div>
+                          {entry.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{entry.description}</p>
+                          )}
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2 text-lg">
-                            <Heart className="h-5 w-5 text-red-500" />
-                            <span className="font-semibold">{entry.vote_count || 0}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-sm">
+                            <Heart className="h-4 w-4 text-red-500" />
+                            <span>{entry.vote_count}</span>
                           </div>
                           {selectedContest.voting_enabled && user && (
                             <Button
+                              size="sm"
                               variant="outline"
                               onClick={() => handleVote(entry.id)}
-                              className="flex items-center gap-2"
                             >
-                              <Heart className="h-4 w-4" />
                               Vote
                             </Button>
                           )}
@@ -442,10 +375,10 @@ const Contest = () => {
                       </div>
                       
                       {entry.video_url && (
-                        <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                        <div className="aspect-video">
                           <video
                             controls
-                            className="w-full h-full"
+                            className="w-full h-full rounded-md"
                             src={entry.video_url}
                           >
                             Your browser does not support the video tag.
@@ -454,9 +387,9 @@ const Contest = () => {
                       )}
                       
                       {entry.songs && (
-                        <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                          <Music className="h-5 w-5 text-primary" />
-                          <span className="font-medium">{entry.songs.title}</span>
+                        <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                          <Music className="h-4 w-4" />
+                          <span className="text-sm font-medium">{entry.songs.title}</span>
                           {entry.songs.audio_url && (
                             <audio controls className="ml-auto">
                               <source src={entry.songs.audio_url} type="audio/mpeg" />
@@ -466,7 +399,7 @@ const Contest = () => {
                         </div>
                       )}
                       
-                      <div className="text-sm text-muted-foreground pt-2 border-t">
+                      <div className="text-xs text-muted-foreground">
                         Submitted on {new Date(entry.created_at).toLocaleDateString()}
                       </div>
                     </div>

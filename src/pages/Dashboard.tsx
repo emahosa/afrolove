@@ -20,7 +20,7 @@ const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState({
     totalSongs: 0,
     completedSongs: 0,
-    pendingSongs: 0,
+    processingSongs: 0,
     monthSongs: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
@@ -46,12 +46,12 @@ const Dashboard = () => {
           .eq('user_id', user.id)
           .eq('status', 'completed');
 
-        // Get pending songs (using valid enum value)
-        const { count: pendingSongs } = await supabase
+        // Get processing songs
+        const { count: processingSongs } = await supabase
           .from('songs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-          .eq('status', 'pending');
+          .in('status', ['pending', 'processing']);
 
         // Get songs created this month
         const startOfMonth = new Date();
@@ -67,7 +67,7 @@ const Dashboard = () => {
         setDashboardStats({
           totalSongs: totalSongs || 0,
           completedSongs: completedSongs || 0,
-          pendingSongs: pendingSongs || 0,
+          processingSongs: processingSongs || 0,
           monthSongs: monthSongs || 0
         });
         
@@ -81,29 +81,14 @@ const Dashboard = () => {
     fetchDashboardStats();
   }, [user?.id]);
 
-  // Check payment success and refresh user data with polling
+  // Check payment success and refresh user data
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('payment') === 'success' || urlParams.get('subscription') === 'success') {
-      // Poll for user data updates with exponential backoff
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      const pollForUpdates = async () => {
-        attempts++;
-        await refreshUserData();
-        
-        if (attempts < maxAttempts) {
-          const delay = Math.min(1000 * Math.pow(1.5, attempts), 10000); // Cap at 10 seconds
-          setTimeout(pollForUpdates, delay);
-        }
-      };
-      
-      // Start polling after initial 2-second delay
-      setTimeout(pollForUpdates, 2000);
-      
-      // Clean up URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Refresh user data after successful payment
+      setTimeout(() => {
+        refreshUserData();
+      }, 2000); // Wait 2 seconds for webhook processing
     }
   }, [refreshUserData]);
 
@@ -189,8 +174,8 @@ const Dashboard = () => {
       color: "text-green-600"
     },
     {
-      title: "Pending",
-      value: loadingStats ? "..." : dashboardStats.pendingSongs,
+      title: "Processing",
+      value: loadingStats ? "..." : dashboardStats.processingSongs,
       icon: Clock,
       description: "Songs in progress",
       color: "text-yellow-600"
@@ -352,7 +337,7 @@ const Dashboard = () => {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </div>
     </div>
   );
 };

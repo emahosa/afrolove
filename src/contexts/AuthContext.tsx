@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -136,49 +137,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user?.id) return;
     
     try {
-      console.log('AuthContext: Refreshing user data for:', user.id);
-      
       // Refresh user profile data
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
         
-      if (profileError) {
-        console.error('AuthContext: Error fetching profile:', profileError);
-      } else if (profile) {
-        console.log('AuthContext: Profile updated, credits:', profile.credits);
+      if (profile) {
         setUser(prev => prev ? { ...prev, credits: profile.credits } : null);
       }
       
       // Refresh roles
-      const { data: userRoleData, error: rolesError } = await supabase
+      const { data: userRoleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id);
-        
-      if (rolesError) {
-        console.error('AuthContext: Error fetching roles:', rolesError);
-      } else {
-        const roles = userRoleData?.map(r => r.role) || ['voter'];
-        console.log('AuthContext: Roles updated:', roles);
-        setUserRoles(roles);
-      }
+      const roles = userRoleData?.map(r => r.role) || ['voter'];
+      setUserRoles(roles);
 
       // Refresh subscription status
-      const { data: isSubscriberResult, error: subError } = await supabase
+      const { data: isSubscriberResult } = await supabase
         .rpc('is_subscriber', { _user_id: user.id });
-        
-      if (subError) {
-        console.error('AuthContext: Error checking subscription:', subError);
-      } else {
-        console.log('AuthContext: Subscription status updated:', !!isSubscriberResult);
-        setSubscriberStatus(!!isSubscriberResult);
-      }
+      setSubscriberStatus(!!isSubscriberResult);
       
     } catch (error) {
-      console.error('AuthContext: Error refreshing user data:', error);
+      console.error('Error refreshing user data:', error);
     }
   };
 
@@ -322,8 +306,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     setLoading(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('AuthContext: Auth state changed:', event, !!session);
+      (_event, session) => {
         setSession(session);
       }
     );
@@ -352,23 +335,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userId = session.user.id;
           console.log('AuthContext: Processing session for user:', userId);
 
-          // Fetch profile
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', userId)
             .maybeSingle();
             
-          // Fetch roles
           const { data: userRoleData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', userId);
           const roles = userRoleData?.map(r => r.role) || ['voter'];
-          console.log('AuthContext: User roles:', roles);
           setUserRoles(roles);
 
-          // Fetch admin permissions
           const { data: permissionsData } = await supabase
             .from('admin_permissions')
             .select('permission')
@@ -376,12 +355,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const permissions = permissionsData?.map(p => p.permission) || [];
           setAdminPermissions(permissions);
 
-          // Check subscription status
           const { data: isSubscriberResult } = await supabase
             .rpc('is_subscriber', { _user_id: userId });
-          const subStatus = !!isSubscriberResult;
-          console.log('AuthContext: Subscription status:', subStatus);
-          setSubscriberStatus(subStatus);
+          setSubscriberStatus(!!isSubscriberResult);
           
           const fullUser: ExtendedUser = {
             ...session.user,
@@ -405,7 +381,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         // Session is null, clear everything
-        console.log('AuthContext: Clearing session data');
         setUser(null);
         setSession(null);
         setUserRoles([]);
