@@ -104,33 +104,46 @@ const Contest = () => {
 
       if (entriesError) throw entriesError;
 
-      // Then get profiles and songs for each entry separately
-      const entriesWithDetails = await Promise.all(
+      // Transform entries with safe data handling
+      const entriesWithDetails: ContestEntry[] = await Promise.all(
         (entriesData || []).map(async (entry) => {
-          // Get profile data with proper error handling
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', entry.user_id)
-            .single();
+          // Safely get profile data
+          let profileData = null;
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', entry.user_id)
+              .maybeSingle(); // Use maybeSingle instead of single
+            
+            if (!error && data) {
+              profileData = data;
+            }
+          } catch (error) {
+            console.warn('Failed to fetch profile for user:', entry.user_id, error);
+          }
 
-          // Get song data if song_id exists with proper error handling
+          // Safely get song data if song_id exists
           let songData = null;
           if (entry.song_id) {
-            const { data, error: songError } = await supabase
-              .from('songs')
-              .select('title, audio_url')
-              .eq('id', entry.song_id)
-              .single();
-            
-            if (!songError && data) {
-              songData = data;
+            try {
+              const { data, error } = await supabase
+                .from('songs')
+                .select('title, audio_url')
+                .eq('id', entry.song_id)
+                .maybeSingle(); // Use maybeSingle instead of single
+              
+              if (!error && data) {
+                songData = data;
+              }
+            } catch (error) {
+              console.warn('Failed to fetch song for entry:', entry.song_id, error);
             }
           }
 
           return {
             ...entry,
-            profiles: (!profileError && profileData) ? { 
+            profiles: profileData ? { 
               full_name: profileData.full_name || 'Unknown Artist' 
             } : null,
             songs: songData ? { 
