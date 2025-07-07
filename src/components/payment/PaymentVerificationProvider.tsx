@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { verifyPaymentSuccess, refreshUserData } from '@/utils/paymentVerification';
+import { verifyPaymentSuccess } from '@/utils/paymentVerification';
 import { toast } from 'sonner';
 
 interface PaymentVerificationContextType {
@@ -31,32 +31,31 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     console.log("Starting payment verification for session:", sessionId);
     
     try {
-      // Give webhook a moment to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const result = await verifyPaymentSuccess(sessionId);
       
       if (result && result.success) {
         toast.success("Payment Successful!", {
-          description: result.message
+          description: result.message,
+          duration: 3000
         });
         
         // Clean up URL parameters
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
         
-        // Navigate after a short delay to allow toast to show
+        // Navigate to dashboard after showing success
         setTimeout(() => {
           navigate('/dashboard');
-        }, 1500);
+        }, 2000);
         
       } else {
         console.error("Payment verification failed:", result?.message);
-        toast.error("Payment Verification Failed", {
-          description: result?.message || "Unable to verify payment. Please contact support."
+        toast.error("Payment Verification Issue", {
+          description: result?.message || "Unable to verify payment immediately. Your payment may still be processing.",
+          duration: 5000
         });
         
-        // Navigate to dashboard anyway after showing error
+        // Navigate to dashboard anyway
         setTimeout(() => {
           navigate('/dashboard');
         }, 3000);
@@ -64,10 +63,11 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     } catch (error) {
       console.error("Payment verification error:", error);
       toast.error("Verification Error", {
-        description: "Unable to verify payment. Please contact support if the issue persists."
+        description: "Unable to verify payment. Please check your account or contact support.",
+        duration: 5000
       });
       
-      // Navigate to dashboard anyway
+      // Navigate to dashboard
       setTimeout(() => {
         navigate('/dashboard');
       }, 3000);
@@ -81,7 +81,12 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     const subscriptionStatus = searchParams.get('subscription');
     const sessionId = searchParams.get('session_id');
 
-    console.log("Payment verification check:", { paymentStatus, subscriptionStatus, sessionId });
+    console.log("Payment verification check:", { 
+      paymentStatus, 
+      subscriptionStatus, 
+      sessionId,
+      hasSession: !!sessionId 
+    });
 
     if ((paymentStatus === 'success' || subscriptionStatus === 'success') && sessionId) {
       console.log("Triggering payment verification");

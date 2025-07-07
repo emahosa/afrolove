@@ -20,7 +20,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       };
     }
 
-    // Check recent payment transactions for this user
+    // Get current user
     const { data: user } = await supabase.auth.getUser();
     
     if (!user?.user) {
@@ -31,12 +31,15 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       };
     }
 
-    // Check for recent payment transactions with more retries and shorter waits
+    // Wait for webhook to process
+    console.log("Waiting for webhook to process payment...");
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Check for payment transaction
     let attempts = 0;
-    const maxAttempts = 8; // Increased from 5 to 8
-    let transactions = null;
+    const maxAttempts = 10;
     
-    while (attempts < maxAttempts && !transactions) {
+    while (attempts < maxAttempts) {
       console.log(`Attempt ${attempts + 1}/${maxAttempts}: Checking for payment transaction`);
       
       const { data: transactionData, error: transactionError } = await supabase
@@ -49,35 +52,36 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
         .limit(1);
 
       if (!transactionError && transactionData && transactionData.length > 0) {
-        transactions = transactionData;
-        console.log("Found payment transaction:", transactions[0]);
-        break;
+        const transaction = transactionData[0];
+        console.log("Found payment transaction:", transaction);
+        
+        const isCredits = transaction.credits_purchased > 0;
+        
+        // Force refresh user session
+        await supabase.auth.refreshSession();
+        
+        // Trigger page reload after short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+        
+        return {
+          success: true,
+          type: isCredits ? 'credits' : 'subscription',
+          message: isCredits 
+            ? `${transaction.credits_purchased} credits added successfully`
+            : "Subscription activated successfully"
+        };
       }
       
       attempts++;
       if (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    if (transactions && transactions.length > 0) {
-      const transaction = transactions[0];
-      const isCredits = transaction.credits_purchased > 0;
-      
-      // Force refresh user data immediately
-      await refreshUserData();
-      
-      return {
-        success: true,
-        type: isCredits ? 'credits' : 'subscription',
-        message: isCredits 
-          ? `${transaction.credits_purchased} credits added successfully`
-          : "Subscription activated successfully"
-      };
-    }
-
-    // If no transaction found, check subscription status directly
-    const { data: subData, error: subError } = await supabase
+    // Check subscription status as fallback
+    const { data: subData } = await supabase
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', user.user.id)
@@ -85,8 +89,12 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (!subError && subData && subData.length > 0) {
-      await refreshUserData();
+    if (subData && subData.length > 0) {
+      await supabase.auth.refreshSession();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
       return {
         success: true,
         type: 'subscription',
@@ -97,7 +105,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
     return {
       success: false,
       type: null,
-      message: "Payment verification failed - transaction not found. Please contact support if payment was successful"
+      message: "Payment verification failed. Please contact support if payment was successful."
     };
 
   } catch (error: any) {
@@ -114,7 +122,7 @@ export const refreshUserData = async (): Promise<void> => {
   try {
     console.log("Refreshing user session data...");
     
-    // Force refresh the user session to get updated data
+    // Force refresh the user session
     const { error } = await supabase.auth.refreshSession();
     
     if (error) {
@@ -123,14 +131,14 @@ export const refreshUserData = async (): Promise<void> => {
       console.log("User session refreshed successfully");
     }
 
-    // Trigger immediate page reload to ensure all components get the updated data
+    // Reload the page to ensure fresh data
     setTimeout(() => {
       window.location.reload();
     }, 1000);
     
   } catch (error) {
     console.error("Error refreshing user data:", error);
-    // Still reload the page to try to get fresh data
+    // Still reload the page
     setTimeout(() => {
       window.location.reload();
     }, 1000);

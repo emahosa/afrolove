@@ -14,6 +14,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Webhook called - starting processing')
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -36,17 +38,16 @@ serve(async (req) => {
     let event
     try {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret || '')
+      console.log('Webhook event constructed successfully:', event.type, event.id)
     } catch (err) {
       console.error('Webhook signature verification failed:', err.message)
       return new Response(`Webhook Error: ${err.message}`, { status: 400, headers: corsHeaders })
     }
 
-    console.log(`Processing webhook event: ${event.type}`, event.id)
-
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object
-        console.log('Processing checkout session:', session.id)
+        console.log('Processing checkout session completed:', session.id)
         
         // Extract metadata
         const userId = session.metadata?.user_id
@@ -66,120 +67,117 @@ serve(async (req) => {
         if (paymentType === 'credits' && creditsAmount > 0) {
           console.log(`Processing credit purchase: ${creditsAmount} credits for user ${userId}`)
           
-          // Update user credits using RPC function
-          const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
-            p_user_id: userId,
-            p_amount: creditsAmount
-          })
-
-          if (creditError) {
-            console.error('Error updating credits:', creditError)
-            return new Response('Credits update error', { status: 500, headers: corsHeaders })
-          }
-
-          // Log the transaction
-          const { error: transactionError } = await supabaseClient
-            .from('payment_transactions')
-            .insert({
-              user_id: userId,
-              amount: session.amount_total / 100,
-              currency: session.currency?.toUpperCase() || 'USD',
-              payment_method: 'stripe',
-              status: 'completed',
-              payment_id: session.id,
-              credits_purchased: creditsAmount
+          try {
+            // Update user credits using RPC function
+            const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
+              p_user_id: userId,
+              p_amount: creditsAmount
             })
 
-          if (transactionError) {
-            console.error('Error logging transaction:', transactionError)
-          }
+            if (creditError) {
+              console.error('Error updating credits:', creditError)
+              throw creditError
+            }
 
-          console.log(`Successfully added ${creditsAmount} credits to user ${userId}, new balance: ${newBalance}`)
+            console.log(`Successfully added ${creditsAmount} credits to user ${userId}, new balance: ${newBalance}`)
+
+            // Log the transaction
+            const { error: transactionError } = await supabaseClient
+              .from('payment_transactions')
+              .insert({
+                user_id: userId,
+                amount: (session.amount_total || 0) / 100,
+                currency: session.currency?.toUpperCase() || 'USD',
+                payment_method: 'stripe',
+                status: 'completed',
+                payment_id: session.id,
+                credits_purchased: creditsAmount
+              })
+
+            if (transactionError) {
+              console.error('Error logging transaction:', transactionError)
+            } else {
+              console.log('Transaction logged successfully')
+            }
+
+          } catch (error) {
+            console.error('Failed to process credit purchase:', error)
+            return new Response('Credit processing failed', { status: 500, headers: corsHeaders })
+          }
         }
 
         // Handle subscription purchases
         if (paymentType === 'subscription' && planId && planName) {
-          console.log(`Processing new subscription for user ${userId} to plan ${planName} (ID: ${planId})`)
+          console.log(`Processing subscription for user ${userId} to plan ${planName} (ID: ${planId})`)
           
-          const subscriptionStartDate = new Date()
-          const expiresAt = new Date(subscriptionStartDate)
-          expiresAt.setMonth(expiresAt.getMonth() + 1) // Assuming monthly subscription
-
-          const stripeSubscriptionId = session.subscription // Added: Get Stripe Subscription ID
-          const stripeCustomerId = session.customer // Added: Get Stripe Customer ID
-
-          if (!stripeSubscriptionId || !stripeCustomerId) {
-            console.error(`Missing stripe_subscription_id or stripe_customer_id for checkout session ${session.id}`)
-            // Decide if this is fatal. For now, log and continue, but ideally, this should be present.
-          }
-
-          // 1. Update/Insert into user_subscriptions
-          const upsertData: any = {
-            user_id: userId,
-            subscription_type: planId,
-            subscription_status: 'active',
-            started_at: subscriptionStartDate.toISOString(),
-            expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString(),
-            stripe_subscription_id: stripeSubscriptionId, // Added
-            stripe_customer_id: stripeCustomerId,     // Added
-          }
-
-          // Clean up undefined IDs to avoid issues with Supabase client
-          if (!stripeSubscriptionId) delete upsertData.stripe_subscription_id;
-          if (!stripeCustomerId) delete upsertData.stripe_customer_id;
-
-
-          const { error: subUpsertError } = await supabaseClient
-            .from('user_subscriptions')
-            .upsert(upsertData, {
-              onConflict: 'user_id', // This might need to change if a user can have multiple (e.g. old, new) subscriptions.
-                                     // If stripe_subscription_id is the true unique key for active subs, onConflict should be 'stripe_subscription_id'
-                                     // For now, keeping 'user_id' assuming one active sub per user.
-            })
-
-          if (subUpsertError) {
-            console.error(`Error upserting user_subscriptions for user ${userId}:`, subUpsertError.message)
-            // Consider if this error is critical enough to return 500
-            // If stripe_subscription_id is made unique and there's a conflict, this will error.
-            // The logic should ideally handle finding an existing subscription by stripe_subscription_id and updating it.
-            // However, checkout.session.completed is usually for NEW subscriptions.
-          } else {
-            console.log(`Successfully upserted user_subscriptions for ${userId}. Stripe Sub ID: ${stripeSubscriptionId}, Expires: ${expiresAt.toISOString()}`)
-          }
-
-          // 2. Update user roles - remove voter, add subscriber
           try {
-            await supabaseClient.from('user_roles').delete().match({ user_id: userId, role: 'voter' });
+            const subscriptionStartDate = new Date()
+            const expiresAt = new Date(subscriptionStartDate)
+            expiresAt.setMonth(expiresAt.getMonth() + 1)
+
+            const stripeSubscriptionId = session.subscription
+            const stripeCustomerId = session.customer
+
+            // Update/Insert subscription
+            const { error: subError } = await supabaseClient
+              .from('user_subscriptions')
+              .upsert({
+                user_id: userId,
+                subscription_type: planId,
+                subscription_status: 'active',
+                started_at: subscriptionStartDate.toISOString(),
+                expires_at: expiresAt.toISOString(),
+                updated_at: new Date().toISOString(),
+                stripe_subscription_id: stripeSubscriptionId,
+                stripe_customer_id: stripeCustomerId,
+              }, { onConflict: 'user_id' })
+
+            if (subError) {
+              console.error('Error updating subscription:', subError)
+              throw subError
+            }
+
+            console.log('Subscription updated successfully')
+
+            // Update user roles - remove voter, add subscriber
+            await supabaseClient.from('user_roles').delete().match({ user_id: userId, role: 'voter' })
             
-            const { error: roleInsertError } = await supabaseClient
+            const { error: roleError } = await supabaseClient
               .from('user_roles')
               .upsert({ user_id: userId, role: 'subscriber' }, { onConflict: 'user_id,role' })
             
-            if (roleInsertError) throw roleInsertError;
-            console.log(`Ensured 'subscriber' role for user ${userId}.`)
-          } catch (roleError) {
-            console.error(`Error managing roles for user ${userId}:`, roleError.message)
-          }
+            if (roleError) {
+              console.error('Error updating user role:', roleError)
+            } else {
+              console.log('User role updated to subscriber')
+            }
 
-          // 3. Log the transaction
-          const { error: transactionError } = await supabaseClient
-            .from('payment_transactions')
-            .insert({
-              user_id: userId,
-              amount: session.amount_total ? session.amount_total / 100 : 0,
-              currency: session.currency?.toUpperCase() || 'USD',
-              payment_method: 'stripe',
-              status: 'completed',
-              payment_id: session.id,
-              credits_purchased: 0
-            })
+            // Log subscription transaction
+            const { error: transactionError } = await supabaseClient
+              .from('payment_transactions')
+              .insert({
+                user_id: userId,
+                amount: (session.amount_total || 0) / 100,
+                currency: session.currency?.toUpperCase() || 'USD',
+                payment_method: 'stripe',
+                status: 'completed',
+                payment_id: session.id,
+                credits_purchased: 0
+              })
 
-          if (transactionError) {
-            console.error('Error logging new subscription transaction:', transactionError.message)
+            if (transactionError) {
+              console.error('Error logging subscription transaction:', transactionError)
+            } else {
+              console.log('Subscription transaction logged successfully')
+            }
+
+          } catch (error) {
+            console.error('Failed to process subscription:', error)
+            return new Response('Subscription processing failed', { status: 500, headers: corsHeaders })
           }
-          console.log(`New subscription for user ${userId} to ${planName} processed successfully.`)
         }
+        
+        console.log('Checkout session processing completed successfully')
         break
       }
 
@@ -332,7 +330,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Webhook error:', error)
     return new Response(`Webhook error: ${error.message}`, {
-      status: 400,
+      status: 500,
       headers: corsHeaders,
     })
   }
