@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Music, Sparkles, Users, CreditCard, Plus, Search, Vote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
-import { useGenres, Genre } from "@/hooks/use-genres";
+import { useGenreTemplates, GenreTemplate } from "@/hooks/use-genre-templates";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -33,7 +33,7 @@ interface ContestEntry {
 const Dashboard = () => {
   const { user, isSubscriber, isVoter } = useAuth();
   const navigate = useNavigate();
-  const { genres, loading: genresLoading } = useGenres();
+  const { templates, loading: templatesLoading } = useGenreTemplates();
   const [userCredits, setUserCredits] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -134,11 +134,14 @@ const Dashboard = () => {
     }
   };
 
-  const handleGenreSelect = (genre: Genre) => {
+  const handleTemplateSelect = (template: GenreTemplate) => {
     const searchParams = new URLSearchParams();
-    searchParams.set('genre', genre.id);
-    if (genre.sample_prompt) {
-      searchParams.set('prompt', genre.sample_prompt);
+    searchParams.set('genre', template.genre_id);
+    if (template.admin_prompt) {
+      searchParams.set('prompt', template.admin_prompt);
+    }
+    if (template.user_prompt_guide) {
+      searchParams.set('guide', template.user_prompt_guide);
     }
     navigate(`/create?${searchParams.toString()}`);
   };
@@ -151,9 +154,10 @@ const Dashboard = () => {
     navigate("/credits");
   };
 
-  const filteredGenres = genres.filter(genre =>
-    genre.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (genre.description && genre.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredTemplates = templates.filter(template =>
+    template.template_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (template.user_prompt_guide && template.user_prompt_guide.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (template.genres?.name && template.genres.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const stats = [
@@ -180,7 +184,7 @@ const Dashboard = () => {
     }
   ];
 
-  if (genresLoading) {
+  if (templatesLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
@@ -223,7 +227,7 @@ const Dashboard = () => {
 
       <Tabs defaultValue="templates" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="templates">Genre Templates</TabsTrigger>
           <TabsTrigger value="entries">Contest Entries</TabsTrigger>
         </TabsList>
 
@@ -240,7 +244,7 @@ const Dashboard = () => {
           </div>
 
           {/* Pinterest-style Genre Templates Grid */}
-          {filteredGenres.length > 0 && (
+          {filteredTemplates.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Explore Templates</h2>
@@ -249,11 +253,11 @@ const Dashboard = () => {
                 </p>
               </div>
               <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
-                {filteredGenres.map((genre) => (
-                  <div key={genre.id} className="break-inside-avoid mb-4">
+                {filteredTemplates.map((template) => (
+                  <div key={template.id} className="break-inside-avoid mb-4">
                     <GenreTemplateCard
-                      genre={genre}
-                      onSelect={handleGenreSelect}
+                      template={template}
+                      onSelect={handleTemplateSelect}
                     />
                   </div>
                 ))}
@@ -262,10 +266,18 @@ const Dashboard = () => {
           )}
 
           {/* Empty State */}
-          {filteredGenres.length === 0 && searchQuery && (
+          {filteredTemplates.length === 0 && searchQuery && (
             <div className="text-center py-12">
               <h3 className="text-lg font-medium">No templates found</h3>
               <p className="text-muted-foreground">Try adjusting your search query</p>
+            </div>
+          )}
+
+          {/* Empty State when no templates exist */}
+          {filteredTemplates.length === 0 && !searchQuery && (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium">No genre templates available</h3>
+              <p className="text-muted-foreground">Admin needs to create genre templates first</p>
             </div>
           )}
         </TabsContent>

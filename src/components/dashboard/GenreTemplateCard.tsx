@@ -1,132 +1,96 @@
 
-import React, { useState, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Play, Pause } from 'lucide-react';
-import { Genre } from '@/hooks/use-genres';
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Play, Pause } from "lucide-react";
+import { GenreTemplate } from "@/hooks/use-genre-templates";
 
 interface GenreTemplateCardProps {
-  genre: Genre;
-  onSelect: (genre: Genre) => void;
+  template: GenreTemplate;
+  onSelect: (template: GenreTemplate) => void;
 }
 
-export const GenreTemplateCard: React.FC<GenreTemplateCardProps> = ({ genre, onSelect }) => {
+export const GenreTemplateCard = ({ template, onSelect }: GenreTemplateCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
-  // Generate random height for Pinterest-style layout
-  const cardHeight = Math.floor(Math.random() * 200) + 250; // Random height between 250px and 450px
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    if (genre.audio_preview_url && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-    }
-  };
-
-  const togglePlayPause = (e: React.MouseEvent) => {
+  const handleAudioToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!audioRef.current || !genre.audio_preview_url) return;
+    
+    if (!template.audio_url) return;
 
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    if (audio) {
+      if (isPlaying) {
+        audio.pause();
+        setIsPlaying(false);
+      } else {
+        audio.play();
+        setIsPlaying(true);
+      }
     } else {
-      audioRef.current.play();
+      const newAudio = new Audio(template.audio_url);
+      newAudio.addEventListener('ended', () => setIsPlaying(false));
+      newAudio.addEventListener('pause', () => setIsPlaying(false));
+      newAudio.play();
+      setAudio(newAudio);
       setIsPlaying(true);
     }
-  };
-
-  const handleAudioEnded = () => {
-    setIsPlaying(false);
   };
 
   const handleCardClick = () => {
-    onSelect(genre);
+    onSelect(template);
   };
+
+  const backgroundImage = template.cover_image_url 
+    ? `url(${template.cover_image_url})`
+    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 
   return (
     <Card 
-      className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl group overflow-hidden"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group overflow-hidden"
       onClick={handleCardClick}
-      style={{ height: `${cardHeight}px` }}
     >
-      <CardContent className="p-0 relative h-full">
-        <div className="relative h-full overflow-hidden rounded-lg">
-          {genre.cover_image_url ? (
-            <img 
-              src={genre.cover_image_url} 
-              alt={genre.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div 
-              className="w-full h-full flex items-center justify-center text-white text-2xl font-bold"
-              style={{
-                background: `linear-gradient(135deg, hsl(${Math.random() * 360}, 70%, 50%), hsl(${Math.random() * 360}, 70%, 30%))`
-              }}
-            >
-              {genre.name.charAt(0)}
-            </div>
-          )}
-          
-          {/* Overlay with gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-          
-          {/* Play/Pause overlay */}
-          <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-            {genre.audio_preview_url && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-melody-secondary bg-black/20 hover:bg-black/40 backdrop-blur-sm"
-                onClick={togglePlayPause}
-              >
-                {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" />}
-              </Button>
+      <div 
+        className="relative h-48 bg-cover bg-center"
+        style={{ backgroundImage }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-50 transition-all duration-300" />
+        
+        {template.audio_url && (
+          <button
+            onClick={handleAudioToggle}
+            className="absolute top-3 right-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-opacity-30"
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4 text-white" />
+            ) : (
+              <Play className="h-4 w-4 text-white" />
             )}
-          </div>
-          
-          {/* Content overlay */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-            <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{genre.name}</h3>
-            {genre.description && (
-              <p className="text-sm text-gray-200 drop-shadow-md line-clamp-2 mb-2">
-                {genre.description}
-              </p>
-            )}
-            {genre.sample_prompt && (
-              <p className="text-xs text-gray-300 drop-shadow-md italic line-clamp-1">
-                "{genre.sample_prompt.substring(0, 60)}..."
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Hidden audio element */}
-        {genre.audio_preview_url && (
-          <audio
-            ref={audioRef}
-            src={genre.audio_preview_url}
-            preload="metadata"
-            onEnded={handleAudioEnded}
-            onError={() => console.error('Audio playback error')}
-          />
+          </button>
         )}
+
+        <div className="absolute bottom-3 left-3 right-3">
+          <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">
+            {template.template_name}
+          </h3>
+          {template.genres?.name && (
+            <Badge variant="secondary" className="bg-white bg-opacity-20 text-white border-0">
+              {template.genres.name}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <CardContent className="p-4">
+        {template.user_prompt_guide && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+            {template.user_prompt_guide}
+          </p>
+        )}
+        
+        <p className="text-xs text-muted-foreground italic line-clamp-1">
+          "{template.admin_prompt}"
+        </p>
       </CardContent>
     </Card>
   );
