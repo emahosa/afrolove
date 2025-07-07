@@ -13,7 +13,7 @@ interface ExtendedUser extends User {
   name?: string;
   avatar?: string;
   credits?: number;
-  subscription?: SubscriptionInfo | null; // Changed to SubscriptionInfo
+  subscription?: SubscriptionInfo | null;
 }
 
 interface AuthContextType {
@@ -70,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
       
-      // Get the auth user for email
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       console.log("AuthContext: Profile data:", { id: data.id, username: data.username, full_name: data.full_name });
@@ -78,14 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let subscriptionInfo: SubscriptionInfo | null = null;
       
       try {
-        // Fixed: Remove the .single() call and use array format to avoid 406 errors
+        // Fixed query - remove .single() and handle array properly
         const { data: subData, error: subError } = await supabase
           .from('user_subscriptions')
           .select('subscription_type, subscription_status, expires_at')
           .eq('user_id', userId)
           .eq('subscription_status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1);
+          .order('created_at', { ascending: false });
 
         if (subError) {
           console.error(`Error fetching user subscription for ID ${userId}:`, subError.message);
