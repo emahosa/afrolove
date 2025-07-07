@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,7 +67,6 @@ const Dashboard = () => {
   const fetchContestEntries = async () => {
     setEntriesLoading(true);
     try {
-      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select('*')
@@ -76,17 +76,15 @@ const Dashboard = () => {
 
       if (entriesError) throw entriesError;
 
-      // Transform entries with safe data handling
       const entriesWithDetails: ContestEntry[] = await Promise.all(
         (entriesData || []).map(async (entry) => {
-          // Safely get profile data
           let profileData = null;
           try {
             const { data, error } = await supabase
               .from('profiles')
               .select('full_name')
               .eq('id', entry.user_id)
-              .maybeSingle(); // Use maybeSingle instead of single
+              .maybeSingle();
             
             if (!error && data) {
               profileData = data;
@@ -95,7 +93,6 @@ const Dashboard = () => {
             console.warn('Failed to fetch profile for user:', entry.user_id, error);
           }
 
-          // Safely get song data if song_id exists
           let songData = null;
           if (entry.song_id) {
             try {
@@ -103,7 +100,7 @@ const Dashboard = () => {
                 .from('songs')
                 .select('title, audio_url')
                 .eq('id', entry.song_id)
-                .maybeSingle(); // Use maybeSingle instead of single
+                .maybeSingle();
               
               if (!error && data) {
                 songData = data;
@@ -188,7 +185,7 @@ const Dashboard = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
-        <div className="ml-3">Loading...</div>
+        <div className="ml-3">Loading templates...</div>
       </div>
     );
   }
@@ -243,13 +240,13 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* Pinterest-style Genre Templates Grid */}
-          {filteredTemplates.length > 0 && (
+          {/* Genre Templates Display */}
+          {filteredTemplates.length > 0 ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Explore Templates</h2>
+                <h2 className="text-2xl font-bold">Genre Templates</h2>
                 <p className="text-sm text-muted-foreground">
-                  Hover to preview • Click to create
+                  {filteredTemplates.length} templates available
                 </p>
               </div>
               <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
@@ -263,21 +260,14 @@ const Dashboard = () => {
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Empty State */}
-          {filteredTemplates.length === 0 && searchQuery && (
+          ) : (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium">No templates found</h3>
-              <p className="text-muted-foreground">Try adjusting your search query</p>
-            </div>
-          )}
-
-          {/* Empty State when no templates exist */}
-          {filteredTemplates.length === 0 && !searchQuery && (
-            <div className="text-center py-12">
-              <h3 className="text-lg font-medium">No genre templates available</h3>
-              <p className="text-muted-foreground">Admin needs to create genre templates first</p>
+              <h3 className="text-lg font-medium">
+                {searchQuery ? 'No templates found' : 'No genre templates available'}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? 'Try adjusting your search query' : 'Admin needs to create genre templates first'}
+              </p>
             </div>
           )}
         </TabsContent>

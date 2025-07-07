@@ -67,14 +67,11 @@ serve(async (req) => {
         if (paymentType === 'credits' && creditsAmount > 0) {
           console.log(`Processing credit purchase: ${creditsAmount} credits for user ${userId}`)
           
-          // Update user credits using direct SQL to avoid RPC issues
-          const { error: creditError } = await supabaseClient
-            .from('profiles')
-            .update({ 
-              credits: supabaseClient.sql`credits + ${creditsAmount}`,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId)
+          // Update user credits using RPC function
+          const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
+            p_user_id: userId,
+            p_amount: creditsAmount
+          })
 
           if (creditError) {
             console.error('Error updating credits:', creditError)
@@ -98,7 +95,7 @@ serve(async (req) => {
             console.error('Error logging transaction:', transactionError)
           }
 
-          console.log(`Successfully added ${creditsAmount} credits to user ${userId}`)
+          console.log(`Successfully added ${creditsAmount} credits to user ${userId}, new balance: ${newBalance}`)
         }
 
         // Handle subscription purchases
@@ -106,24 +103,23 @@ serve(async (req) => {
           console.log(`Processing new subscription for user ${userId} to plan ${planName} (ID: ${planId})`)
           
           const subscriptionStartDate = new Date()
-          // Determine expiration date based on plan details if available, otherwise default
-          // For example, if Stripe session metadata included 'interval_count' and 'interval'
           const expiresAt = new Date(subscriptionStartDate)
-          // Defaulting to 1 month. Real logic might use session.metadata.interval or query plan details
           expiresAt.setMonth(expiresAt.getMonth() + 1)
+
+          // Get customer ID for future reference
+          const stripeCustomerId = session.customer || session.customer_email
 
           // 1. Update/Insert into user_subscriptions
           const { error: subUpsertError } = await supabaseClient
             .from('user_subscriptions')
             .upsert({
               user_id: userId,
-              subscription_type: planId, // Store the plan ID from Stripe
+              subscription_type: planId,
               subscription_status: 'active',
               started_at: subscriptionStartDate.toISOString(),
               expires_at: expiresAt.toISOString(),
               updated_at: new Date().toISOString(),
-              // stripe_subscription_id: session.subscription, // Store Stripe subscription ID if available in session
-            }, { onConflict: 'user_id' }) // Assuming a user has only one active subscription of this type
+            }, { onConflict: 'user_id' })
 
           if (subUpsertError) {
             console.error(`Error upserting user_subscriptions for user ${userId}:`, subUpsertError.message)
@@ -131,32 +127,28 @@ serve(async (req) => {
           }
           console.log(`Successfully upserted user_subscriptions for ${userId}. Expires: ${expiresAt.toISOString()}`)
 
-          // 2. Update profiles table
+          // 2. Update profiles table with stripe customer ID
           const { error: profileUpdateError } = await supabaseClient
             .from('profiles')
             .update({
-              plan: planName, // Store the human-readable plan name
-              plan_active: true,
-              plan_expires_at: expiresAt.toISOString(),
               updated_at: new Date().toISOString()
             })
             .eq('id', userId)
 
           if (profileUpdateError) {
-            console.error(`Error updating profiles table for user ${userId} after new subscription:`, profileUpdateError.message)
-            // This is not ideal, but the subscription is recorded. Log and monitor.
+            console.error(`Error updating profiles table for user ${userId}:`, profileUpdateError.message)
           } else {
-            console.log(`Successfully updated profiles for ${userId} with plan ${planName}.`)
+            console.log(`Successfully updated profiles for ${userId}.`)
           }
 
-          // 3. Update user roles (if necessary)
+          // 3. Update user roles - remove voter, add subscriber
           try {
-            // Example: Remove 'free_user' role if it exists
-            // await supabaseClient.from('user_roles').delete().match({ user_id: userId, role: 'free_user' });
-            // Add 'subscriber' role
+            await supabaseClient.from('user_roles').delete().match({ user_id: userId, role: 'voter' });
+            
             const { error: roleInsertError } = await supabaseClient
               .from('user_roles')
               .upsert({ user_id: userId, role: 'subscriber' }, { onConflict: 'user_id,role' })
+            
             if (roleInsertError) throw roleInsertError;
             console.log(`Ensured 'subscriber' role for user ${userId}.`)
           } catch (roleError) {
@@ -172,9 +164,8 @@ serve(async (req) => {
               currency: session.currency?.toUpperCase() || 'USD',
               payment_method: 'stripe',
               status: 'completed',
-              payment_id: session.id, // Checkout session ID
-              description: `New subscription: ${planName}`,
-              credits_purchased: 0 // Assuming subscriptions don't grant one-time credits here
+              payment_id: session.id,
+              credits_purchased: 0
             })
 
           if (transactionError) {
@@ -207,80 +198,56 @@ serve(async (req) => {
         }
 
         const newExpiresAt = new Date(stripeSubscription.current_period_end * 1000);
-        // Extract plan name from the subscription items (assuming one item per subscription)
-        // This might need adjustment if your Stripe setup is different
-        const planNameFromStripe = stripeSubscription.items.data[0]?.price?.product?.name || 'Subscribed Plan'; // Fallback
+        const planNameFromStripe = stripeSubscription.items.data[0]?.price?.nickname || 'Subscribed Plan';
 
-        // Find user by Stripe customer ID
-        const { data: userProfile, error: profileLookupError } = await supabaseClient
-          .from('profiles')
-          .select('id, plan') // Select plan to see if it changed (e.g. upgrade/downgrade)
-          .eq('stripe_customer_id', stripeCustomerId)
+        // Find user by matching subscription in user_subscriptions table
+        const { data: userSubscription, error: subLookupError } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('subscription_status', 'active')
           .single();
 
-        if (profileLookupError || !userProfile) {
-          console.error(`Profile not found for Stripe customer ${stripeCustomerId}. Error: ${profileLookupError?.message}`);
-          return new Response('User profile not found.', { status: 404, headers: corsHeaders });
+        if (subLookupError || !userSubscription) {
+          console.error(`User subscription not found for Stripe subscription ${stripeSubscriptionId}`);
+          return new Response('User subscription not found.', { status: 404, headers: corsHeaders });
         }
-        const userId = userProfile.id;
+        
+        const userId = userSubscription.user_id;
 
-        // 1. Update user_subscriptions table
+        // Update user_subscriptions table
         const { error: subUpdateError } = await supabaseClient
           .from('user_subscriptions')
           .update({
             subscription_status: 'active',
             expires_at: newExpiresAt.toISOString(),
-            // subscription_type: stripeSubscription.items.data[0]?.price?.id, // Update if plan ID can change
             updated_at: new Date().toISOString(),
-            // stripe_subscription_id: stripeSubscriptionId, // Ensure it's stored
           })
           .eq('user_id', userId);
-          // Ideally, match on stripe_subscription_id if you store it and it's reliable
-          // .eq('stripe_subscription_id', stripeSubscriptionId);
-
 
         if (subUpdateError) {
           console.error(`Error updating user_subscriptions for user ${userId} on renewal:`, subUpdateError.message);
-          // Potentially critical, as user_subscriptions might be out of sync.
         } else {
           console.log(`Successfully renewed user_subscriptions for ${userId} until ${newExpiresAt.toISOString()}.`);
         }
 
-        // 2. Update profiles table
-        const { error: profileUpdateError } = await supabaseClient
-          .from('profiles')
-          .update({
-            plan: planNameFromStripe, // Update plan name in case it changed (upgrade/downgrade)
-            plan_active: true,
-            plan_expires_at: newExpiresAt.toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-
-        if (profileUpdateError) {
-          console.error(`Error updating profiles for user ${userId} on renewal:`, profileUpdateError.message);
-        } else {
-          console.log(`Successfully updated profiles for ${userId} on renewal to plan ${planNameFromStripe}.`);
-        }
-
-        // 3. Log the renewal transaction
+        // Log the renewal transaction
         const { error: transactionError } = await supabaseClient
             .from('payment_transactions')
             .insert({
               user_id: userId,
-              amount: invoice.amount_paid / 100, // amount_paid should be available
+              amount: invoice.amount_paid / 100,
               currency: invoice.currency?.toUpperCase() || 'USD',
               payment_method: 'stripe',
               status: 'completed',
-              payment_id: invoice.id, // Use invoice ID for renewals
-              description: `Subscription renewal: ${planNameFromStripe}`,
+              payment_id: invoice.id,
               credits_purchased: 0
             });
+        
         if (transactionError) {
             console.error('Error logging renewal transaction:', transactionError.message);
         }
 
-        console.log(`Subscription renewal for user ${userId} (plan: ${planNameFromStripe}) processed.`);
+        console.log(`Subscription renewal for user ${userId} processed.`);
         break;
       }
 
@@ -293,34 +260,28 @@ serve(async (req) => {
           return new Response('Missing subscription or customer ID in failed invoice.', { status: 400, headers: corsHeaders });
         }
 
-        const stripeSubscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
-        const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer.id;
-        
-        // Find user by Stripe customer ID
-        const { data: userProfile, error: profileLookupError } = await supabaseClient
-          .from('profiles')
-          .select('id')
-          .eq('stripe_customer_id', stripeCustomerId)
+        // Find user by subscription and update status
+        const { data: userSubscription, error: subLookupError } = await supabaseClient
+          .from('user_subscriptions')
+          .select('user_id')
+          .eq('subscription_status', 'active')
           .single();
 
-        if (profileLookupError || !userProfile) {
-          console.error(`Profile not found for Stripe customer ${stripeCustomerId} on payment failure. Error: ${profileLookupError?.message}`);
-          return new Response('User profile not found for payment failure.', { status: 404, headers: corsHeaders });
+        if (subLookupError || !userSubscription) {
+          console.error(`User subscription not found for payment failure`);
+          return new Response('User subscription not found for payment failure.', { status: 404, headers: corsHeaders });
         }
-        const userId = userProfile.id;
+        
+        const userId = userSubscription.user_id;
 
-        // 1. Update user_subscriptions status
-        // Status could be 'past_due', 'unpaid', or 'inactive' depending on Stripe settings and desired handling
+        // Update user_subscriptions status
         const { error: subUpdateError } = await supabaseClient
           .from('user_subscriptions')
           .update({
-            subscription_status: 'payment_failed', // Or 'past_due' etc.
+            subscription_status: 'payment_failed',
             updated_at: new Date().toISOString()
-            // Consider if expires_at should be nulled or kept
           })
           .eq('user_id', userId);
-          // .eq('stripe_subscription_id', stripeSubscriptionId); // If available
-
 
         if (subUpdateError) {
           console.error(`Error updating user_subscriptions for ${userId} on payment failure:`, subUpdateError.message);
@@ -328,35 +289,16 @@ serve(async (req) => {
           console.log(`Marked user_subscriptions as 'payment_failed' for user ${userId}.`);
         }
 
-        // 2. Update profiles table to reflect inactive plan
-        const { error: profileUpdateError } = await supabaseClient
-          .from('profiles')
-          .update({
-            plan_active: false,
-            // plan: 'Free', // Optionally revert to a free plan
-            // plan_expires_at: null, // Optionally clear expiry
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-
-        if (profileUpdateError) {
-          console.error(`Error deactivating plan in profiles for user ${userId}:`, profileUpdateError.message);
-        } else {
-          console.log(`Set plan_active=false in profiles for user ${userId}.`);
-        }
-
-        // 3. Log the failed payment attempt if necessary
-        // This might be useful for internal tracking or alerting the user
+        // Log the failed payment attempt
         await supabaseClient
             .from('payment_transactions')
             .insert({
               user_id: userId,
-              amount: invoice.amount_due / 100, // amount_due should be available
+              amount: invoice.amount_due / 100,
               currency: invoice.currency?.toUpperCase() || 'USD',
               payment_method: 'stripe',
               status: 'failed',
               payment_id: invoice.id,
-              description: `Subscription payment failed`,
               credits_purchased: 0
             });
 
