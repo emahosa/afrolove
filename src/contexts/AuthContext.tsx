@@ -4,11 +4,17 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 
+interface SubscriptionInfo {
+  planId: string | null;
+  status: string | null;
+  expiresAt: string | null;
+}
+
 interface ExtendedUser extends User {
   name?: string;
   avatar?: string;
   credits?: number;
-  subscription?: string;
+  subscription?: SubscriptionInfo | null; // Changed to SubscriptionInfo
 }
 
 interface AuthContextType {
@@ -69,6 +75,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: { user: authUser } } = await supabase.auth.getUser();
       
       console.log("AuthContext: Profile data:", { id: data.id, username: data.username, full_name: data.full_name });
+
+      let subscriptionInfo: SubscriptionInfo | null = null;
+      try {
+        const { data: subData, error: subError } = await supabase
+          .from('user_subscriptions')
+          .select('subscription_type, subscription_status, expires_at')
+          .eq('user_id', userId)
+          .eq('subscription_status', 'active') // Only fetch active subscriptions
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (subError && subError.code !== 'PGRST116') { // PGRST116: "Searched item was not found" - not an error if no active sub
+          console.error(`Error fetching user subscription for ID ${userId}:`, subError.message);
+        } else if (subData) {
+          subscriptionInfo = {
+            planId: subData.subscription_type,
+            status: subData.subscription_status,
+            expiresAt: subData.expires_at,
+          };
+          console.log(`AuthContext: Active subscription found for user ${userId}:`, subscriptionInfo);
+        }
+      } catch (subFetchError: any) {
+        console.error('Exception in fetchUserData while fetching subscription:', subFetchError.message);
+      }
       
       return {
         id: data.id,
@@ -76,10 +107,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.full_name || data.username || '',
         avatar: data.avatar_url,
         credits: data.credits || 0,
-        subscription: 'free',
+        subscription: subscriptionInfo, // Assign fetched subscription info
       } as ExtendedUser;
     } catch (error: any) {
-      console.error('Exception in fetchUserData:', error.message);
+      console.error('Exception in fetchUserData (profile fetch):', error.message);
       return null;
     }
   };

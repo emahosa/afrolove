@@ -84,16 +84,19 @@ const Credits = () => {
   useEffect(() => {
     if (user) {
       setCreditBalance(user.credits || 0);
-      // Get current plan from user subscription or role
-      if (isSubscriber()) {
-        // You can determine the current plan based on user subscription data
-        // For now, setting a default - this should be based on actual subscription data
-        setCurrentPlan("premium");
+      // user.subscription is now an object like { planId: 'actual_plan_id', status: 'active', ... } or null
+      if (user.subscription && user.subscription.planId && user.subscription.status === 'active') {
+        setCurrentPlan(user.subscription.planId);
+        console.log("Credits.tsx: Current active plan ID set to:", user.subscription.planId);
       } else {
         setCurrentPlan(null);
+        console.log("Credits.tsx: No active plan found or planId missing.");
       }
+    } else {
+      setCreditBalance(0);
+      setCurrentPlan(null);
     }
-  }, [user, isSubscriber]);
+  }, [user]); // user object itself is the dependency
 
   if (isVerifying) {
     return <PaymentLoadingScreen title="Verifying Payment..." />;
