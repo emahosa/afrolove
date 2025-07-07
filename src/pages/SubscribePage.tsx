@@ -165,7 +165,8 @@ const SubscribePage: React.FC = () => {
                   </CardContent>
                   <CardFooter className="mt-auto pt-6">
                     <Button
-                      className="w-full text-lg py-3"
+                      size="lg" // Use the large size variant
+                      className="w-full text-lg" // Keep w-full and text-lg, remove custom py-3
                       onClick={() => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
