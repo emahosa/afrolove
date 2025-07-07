@@ -31,11 +31,13 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       };
     }
 
-    // Check for recent payment transactions with fewer retries but longer waits
+    // Check for recent payment transactions with more retries and shorter waits
     let attempts = 0;
     let transactions = null;
     
-    while (attempts < 3 && !transactions) {
+    while (attempts < 5 && !transactions) {
+      console.log(`Attempt ${attempts + 1}: Checking for payment transaction`);
+      
       const { data: transactionData, error: transactionError } = await supabase
         .from('payment_transactions')
         .select('*')
@@ -47,12 +49,13 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
 
       if (!transactionError && transactionData && transactionData.length > 0) {
         transactions = transactionData;
+        console.log("Found payment transaction:", transactions[0]);
         break;
       }
       
       attempts++;
-      if (attempts < 3) {
-        await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds before retry
+      if (attempts < 5) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
       }
     }
 
@@ -93,7 +96,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
     return {
       success: false,
       type: null,
-      message: "Payment verification failed - please contact support if payment was successful"
+      message: "Payment verification failed - transaction not found. Please contact support if payment was successful"
     };
 
   } catch (error: any) {
@@ -108,21 +111,27 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
 
 export const refreshUserData = async (): Promise<void> => {
   try {
+    console.log("Refreshing user session data...");
+    
     // Force refresh the user session to get updated data
     const { error } = await supabase.auth.refreshSession();
     
     if (error) {
       console.error("Error refreshing session:", error);
-      return;
+    } else {
+      console.log("User session refreshed successfully");
     }
 
-    console.log("User session refreshed successfully");
-    
     // Trigger immediate page reload to ensure all components get the updated data
-    window.location.reload();
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
   } catch (error) {
     console.error("Error refreshing user data:", error);
     // Still reload the page to try to get fresh data
-    window.location.reload();
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   }
 };

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from "https://esm.sh/stripe@14.21.0"
@@ -106,9 +105,6 @@ serve(async (req) => {
           const expiresAt = new Date(subscriptionStartDate)
           expiresAt.setMonth(expiresAt.getMonth() + 1)
 
-          // Get customer ID for future reference
-          const stripeCustomerId = session.customer || session.customer_email
-
           // 1. Update/Insert into user_subscriptions
           const { error: subUpsertError } = await supabaseClient
             .from('user_subscriptions')
@@ -127,21 +123,7 @@ serve(async (req) => {
           }
           console.log(`Successfully upserted user_subscriptions for ${userId}. Expires: ${expiresAt.toISOString()}`)
 
-          // 2. Update profiles table with stripe customer ID
-          const { error: profileUpdateError } = await supabaseClient
-            .from('profiles')
-            .update({
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId)
-
-          if (profileUpdateError) {
-            console.error(`Error updating profiles table for user ${userId}:`, profileUpdateError.message)
-          } else {
-            console.log(`Successfully updated profiles for ${userId}.`)
-          }
-
-          // 3. Update user roles - remove voter, add subscriber
+          // 2. Update user roles - remove voter, add subscriber
           try {
             await supabaseClient.from('user_roles').delete().match({ user_id: userId, role: 'voter' });
             
@@ -155,7 +137,7 @@ serve(async (req) => {
             console.error(`Error managing roles for user ${userId}:`, roleError.message)
           }
 
-          // 4. Log the transaction
+          // 3. Log the transaction
           const { error: transactionError } = await supabaseClient
             .from('payment_transactions')
             .insert({

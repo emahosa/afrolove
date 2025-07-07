@@ -28,9 +28,11 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     if (isVerifying) return;
     
     setIsVerifying(true);
+    console.log("Starting payment verification for session:", sessionId);
+    
     try {
-      // Give webhook time to process
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Give webhook a moment to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const result = await verifyPaymentSuccess(sessionId);
       
@@ -39,15 +41,17 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
           description: result.message
         });
         
-        // Clean up URL and navigate
+        // Clean up URL parameters
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
         
         // Navigate after a short delay to allow toast to show
         setTimeout(() => {
           navigate('/dashboard');
-        }, 1000);
+        }, 1500);
+        
       } else {
+        console.error("Payment verification failed:", result?.message);
         toast.error("Payment Verification Failed", {
           description: result?.message || "Unable to verify payment. Please contact support."
         });
@@ -55,7 +59,7 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
         // Navigate to dashboard anyway after showing error
         setTimeout(() => {
           navigate('/dashboard');
-        }, 2000);
+        }, 3000);
       }
     } catch (error) {
       console.error("Payment verification error:", error);
@@ -66,7 +70,7 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
       // Navigate to dashboard anyway
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
+      }, 3000);
     } finally {
       setIsVerifying(false);
     }
@@ -77,7 +81,10 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     const subscriptionStatus = searchParams.get('subscription');
     const sessionId = searchParams.get('session_id');
 
+    console.log("Payment verification check:", { paymentStatus, subscriptionStatus, sessionId });
+
     if ((paymentStatus === 'success' || subscriptionStatus === 'success') && sessionId) {
+      console.log("Triggering payment verification");
       verifyPayment(sessionId);
     }
   }, [searchParams]);
