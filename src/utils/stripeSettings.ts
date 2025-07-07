@@ -1,6 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+interface StripeSettingValue {
+  enabled: boolean;
+}
+
 export const isStripeEnabled = async (): Promise<boolean> => {
   try {
     const { data, error } = await supabase
@@ -15,7 +19,8 @@ export const isStripeEnabled = async (): Promise<boolean> => {
     }
 
     if (data?.value) {
-      return data.value.enabled === true;
+      const settingValue = data.value as StripeSettingValue;
+      return settingValue.enabled === true;
     }
 
     return true; // Default to enabled if no setting exists
