@@ -61,12 +61,34 @@ serve(async (req) => {
         return new Response('No user_id in metadata', { status: 400, headers: corsHeaders })
       }
 
+      // ALWAYS log the transaction first
+      console.log('💾 Logging payment transaction...')
+      const transactionData = {
+        user_id: userId,
+        amount: (session.amount_total || 0) / 100,
+        currency: session.currency?.toUpperCase() || 'USD',
+        payment_method: 'stripe',
+        status: 'completed',
+        payment_id: session.id,
+        credits_purchased: creditsAmount || 0
+      }
+
+      const { error: transactionError } = await supabaseClient
+        .from('payment_transactions')
+        .insert(transactionData)
+
+      if (transactionError) {
+        console.error('❌ Error logging transaction:', transactionError)
+      } else {
+        console.log('✅ Transaction logged successfully:', transactionData)
+      }
+
       // Handle credit purchases
       if (paymentType === 'credits' && creditsAmount > 0) {
         console.log(`💳 Processing credit purchase: ${creditsAmount} credits for user ${userId}`)
         
         try {
-          // Update user credits
+          // Update user credits using the RPC function
           const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
             p_user_id: userId,
             p_amount: creditsAmount
@@ -78,25 +100,6 @@ serve(async (req) => {
           }
 
           console.log(`✅ Credits updated successfully. New balance: ${newBalance}`)
-
-          // Log the transaction
-          const { error: transactionError } = await supabaseClient
-            .from('payment_transactions')
-            .insert({
-              user_id: userId,
-              amount: (session.amount_total || 0) / 100,
-              currency: session.currency?.toUpperCase() || 'USD',
-              payment_method: 'stripe',
-              status: 'completed',
-              payment_id: session.id,
-              credits_purchased: creditsAmount
-            })
-
-          if (transactionError) {
-            console.error('⚠️  Error logging transaction:', transactionError)
-          } else {
-            console.log('✅ Transaction logged successfully')
-          }
 
         } catch (error) {
           console.error('❌ Failed to process credit purchase:', error)
@@ -123,6 +126,7 @@ serve(async (req) => {
           })
 
           // First, deactivate any existing subscriptions for this user
+          console.log('🔄 Deactivating existing subscriptions...')
           const { error: deactivateError } = await supabaseClient
             .from('user_subscriptions')
             .update({ 
@@ -134,22 +138,27 @@ serve(async (req) => {
 
           if (deactivateError) {
             console.error('⚠️  Error deactivating existing subscriptions:', deactivateError)
+          } else {
+            console.log('✅ Existing subscriptions deactivated')
           }
 
           // Create new subscription record
+          const subscriptionData = {
+            user_id: userId,
+            subscription_type: planId,
+            subscription_status: 'active',
+            started_at: subscriptionStartDate.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            stripe_subscription_id: stripeSubscriptionId,
+            stripe_customer_id: stripeCustomerId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+
+          console.log('💾 Creating subscription record:', subscriptionData)
           const { error: subError } = await supabaseClient
             .from('user_subscriptions')
-            .insert({
-              user_id: userId,
-              subscription_type: planId,
-              subscription_status: 'active',
-              started_at: subscriptionStartDate.toISOString(),
-              expires_at: expiresAt.toISOString(),
-              stripe_subscription_id: stripeSubscriptionId,
-              stripe_customer_id: stripeCustomerId,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
+            .insert(subscriptionData)
 
           if (subError) {
             console.error('❌ Error creating subscription:', subError)
@@ -159,6 +168,7 @@ serve(async (req) => {
           console.log('✅ Subscription created successfully')
 
           // Update user roles - remove voter, add subscriber
+          console.log('🔄 Updating user roles...')
           const { error: deleteRoleError } = await supabaseClient
             .from('user_roles')
             .delete()
@@ -182,25 +192,6 @@ serve(async (req) => {
             console.error('⚠️  Error adding subscriber role:', roleError)
           } else {
             console.log('✅ User role updated to subscriber')
-          }
-
-          // Log subscription transaction
-          const { error: transactionError } = await supabaseClient
-            .from('payment_transactions')
-            .insert({
-              user_id: userId,
-              amount: (session.amount_total || 0) / 100,
-              currency: session.currency?.toUpperCase() || 'USD',
-              payment_method: 'stripe',
-              status: 'completed',
-              payment_id: session.id,
-              credits_purchased: 0
-            })
-
-          if (transactionError) {
-            console.error('⚠️  Error logging subscription transaction:', transactionError)
-          } else {
-            console.log('✅ Subscription transaction logged')
           }
 
         } catch (error) {
