@@ -33,17 +33,29 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    // Check if Stripe is enabled
-    const { data: stripeSettings, error: settingsError } = await supabaseClient
+    console.log('🔍 Checking Stripe settings...');
+
+    // Check if Stripe is enabled - using service role key for reliable access
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const { data: stripeSettings, error: settingsError } = await supabaseService
       .from('system_settings')
       .select('value')
       .eq('key', 'stripe_enabled')
-      .single();
+      .maybeSingle();
 
-    let isStripeEnabled = true; // Default to enabled
+    let isStripeEnabled = true; // Default to enabled for safety
+    
     if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
+      console.log('🔍 Stripe setting found:', settingValue);
+    } else {
+      console.log('🔍 No Stripe setting found or error:', settingsError);
     }
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
@@ -66,7 +78,7 @@ serve(async (req) => {
       }
 
       // Log the transaction
-      const { error: transactionError } = await supabaseClient
+      const { error: transactionError } = await supabaseService
         .from('payment_transactions')
         .insert({
           user_id: user.id,

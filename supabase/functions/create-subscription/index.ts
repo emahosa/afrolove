@@ -32,17 +32,29 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    // Check if Stripe is enabled
-    const { data: stripeSettings, error: settingsError } = await supabaseClient
+    console.log('🔍 Checking Stripe settings...');
+
+    // Check if Stripe is enabled - using service role key for reliable access
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    const { data: stripeSettings, error: settingsError } = await supabaseService
       .from('system_settings')
       .select('value')
       .eq('key', 'stripe_enabled')
-      .single();
+      .maybeSingle();
 
-    let isStripeEnabled = true; // Default to enabled
+    let isStripeEnabled = true; // Default to enabled for safety
+    
     if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
+      console.log('🔍 Stripe setting found:', settingValue);
+    } else {
+      console.log('🔍 No Stripe setting found or error:', settingsError);
     }
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
@@ -58,7 +70,7 @@ serve(async (req) => {
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
       // Deactivate existing subscriptions
-      await supabaseClient
+      await supabaseService
         .from('user_subscriptions')
         .update({ 
           subscription_status: 'inactive',
@@ -68,7 +80,7 @@ serve(async (req) => {
         .eq('subscription_status', 'active');
 
       // Create new subscription record
-      const { error: subError } = await supabaseClient
+      const { error: subError } = await supabaseService
         .from('user_subscriptions')
         .insert({
           user_id: user.id,
@@ -88,13 +100,13 @@ serve(async (req) => {
       }
 
       // Update user roles
-      await supabaseClient
+      await supabaseService
         .from('user_roles')
         .delete()
         .eq('user_id', user.id)
         .eq('role', 'voter');
 
-      await supabaseClient
+      await supabaseService
         .from('user_roles')
         .upsert({ 
           user_id: user.id, 
@@ -104,7 +116,7 @@ serve(async (req) => {
         });
 
       // Log the transaction
-      const { error: transactionError } = await supabaseClient
+      const { error: transactionError } = await supabaseService
         .from('payment_transactions')
         .insert({
           user_id: user.id,
