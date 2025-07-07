@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -103,40 +104,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const handleUserSession = async (authUser: User): Promise<void> => {
-    try {
-      console.log("AuthContext: handleUserSession called for user:", authUser.id, "email:", authUser.email);
-      
-      const userData = await fetchUserData(authUser.id);
-      if (userData) {
-        const roles = await fetchUserRoles(authUser.id);
-        setUser(userData);
-        setUserRoles(roles);
-        console.log("AuthContext: User data and roles set", { 
-          userData: { id: userData.id, email: userData.email }, 
-          roles 
-        });
-      } else {
-        console.error(`User profile not found for ID: ${authUser.id}`);
-        setUser(null);
-        setUserRoles([]);
-      }
-    } catch (error) {
-      console.error('Error in handleUserSession:', error);
-      setUser(null);
-      setUserRoles([]);
-    }
-  };
-
   // Initialize auth state
   useEffect(() => {
     console.log("AuthContext: Initializing auth state");
     
     let mounted = true;
 
-    const initializeAuth = async () => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        if (!mounted) return;
+
+        console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
+
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          // Defer user data fetching to prevent callback issues
+          setTimeout(async () => {
+            if (!mounted) return;
+            
+            try {
+              const userData = await fetchUserData(currentSession.user.id);
+              if (userData && mounted) {
+                const roles = await fetchUserRoles(currentSession.user.id);
+                setUser(userData);
+                setUserRoles(roles);
+                console.log("AuthContext: User data and roles set", { 
+                  userData: { id: userData.id, email: userData.email }, 
+                  roles 
+                });
+              } else {
+                console.error(`User profile not found for ID: ${currentSession.user.id}`);
+                setUser(null);
+                setUserRoles([]);
+              }
+            } catch (error) {
+              console.error('Error fetching user data:', error);
+              setUser(null);
+              setUserRoles([]);
+            } finally {
+              if (mounted) {
+                setLoading(false);
+              }
+            }
+          }, 0);
+        } else {
+          console.log("AuthContext: No session, clearing user state");
+          setUser(null);
+          setUserRoles([]);
+          if (mounted) {
+            setLoading(false);
+          }
+        }
+      }
+    );
+
+    // Get initial session
+    const getInitialSession = async () => {
       try {
-        // Get initial session
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -150,7 +176,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentSession?.user && mounted) {
           console.log("AuthContext: Initial session found");
           setSession(currentSession);
-          await handleUserSession(currentSession.user);
+          
+          // Fetch user data
+          try {
+            const userData = await fetchUserData(currentSession.user.id);
+            if (userData && mounted) {
+              const roles = await fetchUserRoles(currentSession.user.id);
+              setUser(userData);
+              setUserRoles(roles);
+            }
+          } catch (error) {
+            console.error('Error fetching initial user data:', error);
+          }
         } else {
           console.log("AuthContext: No initial session found");
         }
@@ -166,34 +203,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!mounted) return;
-
-        console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
-
-        try {
-          if (currentSession?.user) {
-            setSession(currentSession);
-            await handleUserSession(currentSession.user);
-          } else {
-            console.log("AuthContext: No session, clearing user state");
-            setUser(null);
-            setSession(null);
-            setUserRoles([]);
-          }
-        } catch (error: any) {
-          console.error(`AuthContext: Error processing auth event ${event}:`, error.message);
-          setUser(null);
-          setSession(null);
-          setUserRoles([]);
-        }
-      }
-    );
-
-    // Initialize auth
-    initializeAuth();
+    getInitialSession();
 
     return () => {
       console.log("AuthContext: Cleanup - unsubscribing from auth listener");
@@ -226,7 +236,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthContext: sync-subscription-role function completed. Refreshing user data.');
       const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
       if (currentAuthUser) {
-        await handleUserSession(currentAuthUser);
+        const userData = await fetchUserData(currentAuthUser.id);
+        if (userData) {
+          const roles = await fetchUserRoles(currentAuthUser.id);
+          setUser(userData);
+          setUserRoles(roles);
+        }
       }
     } catch (error: any) {
       console.error('AuthContext: Exception during syncSubscriptionRole:', error.message);
