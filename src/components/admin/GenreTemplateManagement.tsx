@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,6 @@ export const GenreTemplateManagement = () => {
   };
 
   const canAddMoreToPrompt = formData.admin_prompt.length < 100;
-  const remainingChars = 100 - formData.admin_prompt.length;
 
   if (loading) {
     return (
@@ -241,7 +241,7 @@ export const GenreTemplateManagement = () => {
                   maxLength={100}
                   rows={3}
                   required
-                  disabled={!canAddMoreToPrompt && e.target.value === formData.admin_prompt}
+                  disabled={!canAddMoreToPrompt && formData.admin_prompt.length === 100}
                 />
                 <p className="text-sm text-muted-foreground mt-1">
                   {formData.admin_prompt.length}/100 characters
