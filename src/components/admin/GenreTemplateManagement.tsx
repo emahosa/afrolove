@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +39,15 @@ export const GenreTemplateManagement = () => {
       cover_image_url: ""
     });
     setEditingTemplate(null);
+  };
+
+  const handleGenreChange = (genreId: string) => {
+    const selectedGenre = genres.find(g => g.id === genreId);
+    setFormData(prev => ({ 
+      ...prev, 
+      genre_id: genreId,
+      admin_prompt: selectedGenre?.prompt_template || ""
+    }));
   };
 
   const handleFileUpload = async (file: File, type: 'audio' | 'image') => {
@@ -153,6 +161,9 @@ export const GenreTemplateManagement = () => {
     }
   };
 
+  const canAddMoreToPrompt = formData.admin_prompt.length < 100;
+  const remainingChars = 100 - formData.admin_prompt.length;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -191,7 +202,7 @@ export const GenreTemplateManagement = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="genre_id">Genre</Label>
-                <Select value={formData.genre_id} onValueChange={(value) => setFormData(prev => ({ ...prev, genre_id: value }))}>
+                <Select value={formData.genre_id} onValueChange={handleGenreChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a genre" />
                   </SelectTrigger>
@@ -222,13 +233,19 @@ export const GenreTemplateManagement = () => {
                   id="admin_prompt"
                   placeholder="e.g., emotional heartbreak in Lagos with piano melody"
                   value={formData.admin_prompt}
-                  onChange={(e) => setFormData(prev => ({ ...prev, admin_prompt: e.target.value }))}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 100) {
+                      setFormData(prev => ({ ...prev, admin_prompt: e.target.value }));
+                    }
+                  }}
                   maxLength={100}
                   rows={3}
                   required
+                  disabled={!canAddMoreToPrompt && e.target.value === formData.admin_prompt}
                 />
                 <p className="text-sm text-muted-foreground mt-1">
                   {formData.admin_prompt.length}/100 characters
+                  {!canAddMoreToPrompt && " (Maximum reached)"}
                 </p>
               </div>
 
@@ -246,46 +263,55 @@ export const GenreTemplateManagement = () => {
                 </p>
               </div>
 
-              <div>
-                <Label>Cover Image</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file, 'image');
-                    }}
-                    disabled={uploading}
-                  />
-                  {formData.cover_image_url && (
-                    <img src={formData.cover_image_url} alt="Cover" className="w-10 h-10 rounded object-cover" />
-                  )}
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label>Cover Image</Label>
+                  <div className="space-y-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'image');
+                      }}
+                      disabled={uploading}
+                    />
+                    {formData.cover_image_url && (
+                      <div className="flex items-center gap-2">
+                        <img src={formData.cover_image_url} alt="Cover" className="w-12 h-12 rounded object-cover" />
+                        <span className="text-sm text-green-600">Image uploaded</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <Label>Audio Preview</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file, 'audio');
-                    }}
-                    disabled={uploading}
-                  />
-                  {formData.audio_url && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAudioPreview(formData.audio_url)}
-                    >
-                      {playingAudio === formData.audio_url ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </Button>
-                  )}
+                <div>
+                  <Label>Audio Preview</Label>
+                  <div className="space-y-2">
+                    <Input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'audio');
+                      }}
+                      disabled={uploading}
+                    />
+                    {formData.audio_url && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleAudioPreview(formData.audio_url)}
+                        >
+                          {playingAudio === formData.audio_url ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                          Preview
+                        </Button>
+                        <span className="text-sm text-green-600">Audio uploaded</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               

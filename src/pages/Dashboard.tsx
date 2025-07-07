@@ -221,18 +221,18 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <Tabs defaultValue="genres" className="w-full">
+      <Tabs defaultValue="templates" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="genres">Explore Genres</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="entries">Contest Entries</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="genres" className="space-y-6">
+        <TabsContent value="templates" className="space-y-6">
           {/* Search Bar */}
           <div className="relative max-w-md mx-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search genres..."
+              placeholder="Search templates..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-muted/50 border-0 rounded-full"
@@ -243,7 +243,7 @@ const Dashboard = () => {
           {filteredGenres.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Explore Genres</h2>
+                <h2 className="text-2xl font-bold">Explore Templates</h2>
                 <p className="text-sm text-muted-foreground">
                   Hover to preview • Click to create
                 </p>
@@ -264,7 +264,7 @@ const Dashboard = () => {
           {/* Empty State */}
           {filteredGenres.length === 0 && searchQuery && (
             <div className="text-center py-12">
-              <h3 className="text-lg font-medium">No genres found</h3>
+              <h3 className="text-lg font-medium">No templates found</h3>
               <p className="text-muted-foreground">Try adjusting your search query</p>
             </div>
           )}
