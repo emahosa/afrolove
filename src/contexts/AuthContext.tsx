@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -129,11 +128,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Simplified useEffect for auth state management
+  // Initialize auth state
   useEffect(() => {
     console.log("AuthContext: Initializing auth state");
     
     let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // Get initial session
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error fetching initial session:', error.message);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (currentSession?.user && mounted) {
+          console.log("AuthContext: Initial session found");
+          setSession(currentSession);
+          await handleUserSession(currentSession.user);
+        } else {
+          console.log("AuthContext: No initial session found");
+        }
+        
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error: any) {
+        console.error('AuthContext: Error during initialization:', error.message);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -157,45 +188,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setSession(null);
           setUserRoles([]);
-        } finally {
-          if (mounted) {
-            setLoading(false);
-          }
         }
       }
     );
 
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('AuthContext: Error fetching initial session:', error.message);
-          setLoading(false);
-          return;
-        }
-
-        if (currentSession?.user && mounted) {
-          console.log("AuthContext: Initial session found");
-          setSession(currentSession);
-          await handleUserSession(currentSession.user);
-        } else {
-          console.log("AuthContext: No initial session found");
-        }
-        
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error: any) {
-        console.error('AuthContext: Error during initialization:', error.message);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    getInitialSession();
+    // Initialize auth
+    initializeAuth();
 
     return () => {
       console.log("AuthContext: Cleanup - unsubscribing from auth listener");
