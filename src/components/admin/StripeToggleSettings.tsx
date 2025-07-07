@@ -9,10 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { CreditCard, Shield, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface StripeSettingValue {
-  enabled: boolean;
-}
-
 export const StripeToggleSettings = () => {
   const [stripeEnabled, setStripeEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -36,8 +32,8 @@ export const StripeToggleSettings = () => {
         return;
       }
 
-      if (data?.value) {
-        const settingValue = data.value as StripeSettingValue;
+      if (data?.value && typeof data.value === 'object' && data.value !== null && !Array.isArray(data.value)) {
+        const settingValue = data.value as { enabled?: boolean };
         setStripeEnabled(settingValue.enabled === true);
       }
     } catch (error) {
@@ -64,7 +60,7 @@ export const StripeToggleSettings = () => {
         .from('system_settings')
         .upsert({
           key: 'stripe_enabled',
-          value: { enabled: newEnabled } as StripeSettingValue,
+          value: { enabled: newEnabled },
           category: 'payment',
           description: 'Controls whether Stripe payment processing is enabled',
           updated_by: user.id
