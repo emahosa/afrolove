@@ -29,47 +29,44 @@ export const PaymentVerificationProvider: React.FC<{ children: React.ReactNode }
     
     setIsVerifying(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Give webhook time to process
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
-      let attempts = 0;
-      let result;
-      
-      while (attempts < 3) {
-        result = await verifyPaymentSuccess(sessionId);
-        
-        if (result && result.success) {
-          break;
-        }
-        
-        attempts++;
-        if (attempts < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
-      }
+      const result = await verifyPaymentSuccess(sessionId);
       
       if (result && result.success) {
         toast.success("Payment Successful!", {
           description: result.message
         });
         
-        await refreshUserData();
-        
+        // Clean up URL and navigate
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
         
+        // Navigate after a short delay to allow toast to show
         setTimeout(() => {
           navigate('/dashboard');
-        }, 1500);
+        }, 1000);
       } else {
-        toast.warning("Payment Processing", {
-          description: "Your payment is being processed. Please check back in a moment."
+        toast.error("Payment Verification Failed", {
+          description: result?.message || "Unable to verify payment. Please contact support."
         });
+        
+        // Navigate to dashboard anyway after showing error
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 2000);
       }
     } catch (error) {
       console.error("Payment verification error:", error);
       toast.error("Verification Error", {
         description: "Unable to verify payment. Please contact support if the issue persists."
       });
+      
+      // Navigate to dashboard anyway
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
     } finally {
       setIsVerifying(false);
     }

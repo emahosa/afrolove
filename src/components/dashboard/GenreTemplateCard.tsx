@@ -83,14 +83,16 @@ export const GenreTemplateCard = ({ template, onSelect }: GenreTemplateCardProps
 
       <CardContent className="p-4">
         {template.user_prompt_guide && (
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-sm text-muted-foreground line-clamp-3">
             {template.user_prompt_guide}
           </p>
         )}
         
-        <p className="text-xs text-muted-foreground italic line-clamp-1">
-          "{template.admin_prompt}"
-        </p>
+        {!template.user_prompt_guide && (
+          <p className="text-xs text-muted-foreground italic">
+            Click to use this template for music generation
+          </p>
+        )}
       </CardContent>
     </Card>
   );
