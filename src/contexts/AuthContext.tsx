@@ -133,8 +133,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log("AuthContext: Main useEffect starting.");
     let mounted = true;
-    // Set loading true at the very start of the effect, once.
-    setLoading(true);
+    setLoading(true); // Set loading true at the very start
+
+    const LOADING_TIMEOUT_MS = 20000; // 20 seconds
+    let loadingTimeoutId: NodeJS.Timeout | null = null;
+
+    const finishLoading = () => {
+      if (loadingTimeoutId) { // Clear timeout first
+        clearTimeout(loadingTimeoutId);
+        loadingTimeoutId = null;
+      }
+      // Check current loading state before setting, to avoid redundant calls or if unmounted
+      if (mounted && loading) {
+        setLoading(false);
+        console.log("AuthContext: Loading state set to false by finishLoading().");
+      } else if (mounted && !loading) {
+        console.log("AuthContext: finishLoading() called, but loading state already false.");
+      }
+    };
+
+    loadingTimeoutId = setTimeout(() => {
+      console.warn(`AuthContext: Initialization timeout after ${LOADING_TIMEOUT_MS / 1000}s. Forcing loading to false.`);
+      finishLoading(); // Force finish loading
+    }, LOADING_TIMEOUT_MS);
 
     const initialize = async () => {
       try {
@@ -142,44 +163,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
 
         if (!mounted) {
-          console.log("AuthContext: Component unmounted during initialization");
-          return; // setLoading(false) will be in finally if needed, or handled if unmounted
+          console.log("AuthContext: Component unmounted during initialization, clearing timeout.");
+          // Ensure timeout is cleared if component unmounts during initialize
+          if (loadingTimeoutId) clearTimeout(loadingTimeoutId);
+          return;
         }
 
         if (sessionError) {
           console.error('AuthContext: Error fetching initial session:', sessionError.message);
-          setUser(null);
-          setSession(null);
-          setUserRoles([]);
-          // setLoading(false) will be handled in finally
+          setUser(null); setSession(null); setUserRoles([]);
+          finishLoading(); // Error case for initialization, call finishLoading
           return;
         }
 
         if (currentSession?.user) {
-          console.log("AuthContext: Initial session found, setting session state:", currentSession.user.id);
-          setSession(currentSession); // Set session first
-          // Wait for user data and roles to be processed by handleUserSession.
-          // handleUserSession itself calls setUser and setUserRoles.
+          console.log("AuthContext: Initial session found. User:", currentSession.user.id, ". Deferring to onAuthStateChange to finish loading.");
+          setSession(currentSession);
+          // IMPORTANT: We await handleUserSession here. If it completes and onAuthStateChange
+          // for INITIAL_USER_SESSION (or equivalent) doesn't call finishLoading,
+          // the timeout is the only backstop. The onAuthStateChange.finally block is key.
           await handleUserSession(currentSession.user);
+          // It's expected that onAuthStateChange will fire for an existing session and its finally block will call finishLoading.
         } else {
-          console.log("AuthContext: No initial session found.");
-          setUser(null);
-          setSession(null);
-          setUserRoles([]);
+          console.log("AuthContext: No initial session found during init. Calling finishLoading.");
+          setUser(null); setSession(null); setUserRoles([]);
+          finishLoading(); // No session from init, so finish loading.
         }
       } catch (error: any) {
-        console.error('AuthContext: Error during initialization:', error.message);
+        console.error('AuthContext: Error during initialize function:', error.message);
         if (mounted) {
-          setUser(null);
-          setSession(null);
-          setUserRoles([]);
+          setUser(null); setSession(null); setUserRoles([]);
         }
-      } finally {
-        if (mounted) {
-          console.log("AuthContext: Initialization process complete, setting loading to false.");
-          setLoading(false); // Set loading to false after all initialization processing
-        }
+        finishLoading(); // Finish loading on any error during init function itself
       }
+      // No 'finally' block for initialize() that calls finishLoading.
+      // It's handled by specific paths within initialize() or by onAuthStateChange / timeout.
     };
 
     initialize();
@@ -192,32 +210,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        console.log(`AuthContext: Auth state change: ${event}`, currentSession?.user?.id || 'No user');
+        console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
 
-        // Set loading to true when auth state changes that require data fetching/processing
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          console.log(`AuthContext: Event ${event} requires processing, setting loading to true.`);
-          setLoading(true);
-        }
+        // No setLoading(true) here; initial true is set at useEffect start.
+        // finishLoading() in the finally block handles setting it to false.
 
         try {
           if (event === 'SIGNED_IN' && currentSession?.user) {
-            console.log("AuthContext: User signed in, setting session and processing user...");
+            console.log("AuthContext: SIGNED_IN: Setting session and processing user.");
             setSession(currentSession);
             await handleUserSession(currentSession.user);
           } else if (event === 'SIGNED_OUT') {
-            console.log("AuthContext: User signed out, clearing state...");
+            console.log("AuthContext: SIGNED_OUT: Clearing user, session, roles.");
             setUser(null);
             setSession(null);
             setUserRoles([]);
-            // For SIGNED_OUT, ensure loading is false as no further data fetching is pending.
-            // This is important if a loading=true was set by a quick succession of events.
-            if (mounted) setLoading(false);
           } else if (event === 'TOKEN_REFRESHED' && currentSession?.user) {
-            console.log("AuthContext: Token refreshed, updating session and user...");
+            console.log("AuthContext: TOKEN_REFRESHED: Updating session and user.");
+            setSession(currentSession);
+            await handleUserSession(currentSession.user);
+          } else if (event === 'INITIAL_SESSION' && currentSession?.user) {
+            // Supabase v2 might fire INITIAL_SESSION. Treat like SIGNED_IN.
+            console.log("AuthContext: INITIAL_SESSION: Setting session and processing user.");
             setSession(currentSession);
             await handleUserSession(currentSession.user);
           }
+          // Other events (USER_UPDATED, PASSWORD_RECOVERY) can be handled if they affect auth state significantly.
         } catch (error: any) {
           console.error(`AuthContext: Error processing auth event ${event}:`, error.message);
           if (mounted) {
@@ -226,21 +244,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserRoles([]);
           }
         } finally {
-          // Set loading to false after processing SIGNED_IN or TOKEN_REFRESHED
-          // For SIGNED_OUT, it's handled above. For other events, loading might not have changed.
-          if (mounted && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-            console.log(`AuthContext: Finished processing ${event}, setting loading to false.`);
-            setLoading(false);
+          // This 'finally' block is crucial. It ensures that after any event is processed (or fails),
+          // we attempt to finish the loading sequence.
+          if (mounted) {
+            console.log(`AuthContext: Auth event '${event}' processing complete. Calling finishLoading().`);
+            finishLoading();
           }
         }
       }
     );
 
     return () => {
-      console.log("AuthContext: Cleanup - unsubscribing from auth listener");
+      console.log("AuthContext: Cleanup - unsubscribing from auth listener and clearing timeout.");
       mounted = false;
       if (authListener?.subscription) {
         authListener.subscription.unsubscribe();
+      }
+      if (loadingTimeoutId) { // Ensure timeout is cleared on unmount
+        clearTimeout(loadingTimeoutId);
+        loadingTimeoutId = null;
       }
     };
   }, []); // Empty dependency array: runs once on mount and cleans up on unmount
