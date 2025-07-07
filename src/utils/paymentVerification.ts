@@ -33,10 +33,11 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
 
     // Check for recent payment transactions with more retries and shorter waits
     let attempts = 0;
+    const maxAttempts = 8; // Increased from 5 to 8
     let transactions = null;
     
-    while (attempts < 5 && !transactions) {
-      console.log(`Attempt ${attempts + 1}: Checking for payment transaction`);
+    while (attempts < maxAttempts && !transactions) {
+      console.log(`Attempt ${attempts + 1}/${maxAttempts}: Checking for payment transaction`);
       
       const { data: transactionData, error: transactionError } = await supabase
         .from('payment_transactions')
@@ -54,7 +55,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       }
       
       attempts++;
-      if (attempts < 5) {
+      if (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
       }
     }

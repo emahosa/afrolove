@@ -103,25 +103,50 @@ serve(async (req) => {
           
           const subscriptionStartDate = new Date()
           const expiresAt = new Date(subscriptionStartDate)
-          expiresAt.setMonth(expiresAt.getMonth() + 1)
+          expiresAt.setMonth(expiresAt.getMonth() + 1) // Assuming monthly subscription
+
+          const stripeSubscriptionId = session.subscription // Added: Get Stripe Subscription ID
+          const stripeCustomerId = session.customer // Added: Get Stripe Customer ID
+
+          if (!stripeSubscriptionId || !stripeCustomerId) {
+            console.error(`Missing stripe_subscription_id or stripe_customer_id for checkout session ${session.id}`)
+            // Decide if this is fatal. For now, log and continue, but ideally, this should be present.
+          }
 
           // 1. Update/Insert into user_subscriptions
+          const upsertData: any = {
+            user_id: userId,
+            subscription_type: planId,
+            subscription_status: 'active',
+            started_at: subscriptionStartDate.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            updated_at: new Date().toISOString(),
+            stripe_subscription_id: stripeSubscriptionId, // Added
+            stripe_customer_id: stripeCustomerId,     // Added
+          }
+
+          // Clean up undefined IDs to avoid issues with Supabase client
+          if (!stripeSubscriptionId) delete upsertData.stripe_subscription_id;
+          if (!stripeCustomerId) delete upsertData.stripe_customer_id;
+
+
           const { error: subUpsertError } = await supabaseClient
             .from('user_subscriptions')
-            .upsert({
-              user_id: userId,
-              subscription_type: planId,
-              subscription_status: 'active',
-              started_at: subscriptionStartDate.toISOString(),
-              expires_at: expiresAt.toISOString(),
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'user_id' })
+            .upsert(upsertData, {
+              onConflict: 'user_id', // This might need to change if a user can have multiple (e.g. old, new) subscriptions.
+                                     // If stripe_subscription_id is the true unique key for active subs, onConflict should be 'stripe_subscription_id'
+                                     // For now, keeping 'user_id' assuming one active sub per user.
+            })
 
           if (subUpsertError) {
             console.error(`Error upserting user_subscriptions for user ${userId}:`, subUpsertError.message)
-            return new Response('Failed to update user subscription details', { status: 500, headers: corsHeaders })
+            // Consider if this error is critical enough to return 500
+            // If stripe_subscription_id is made unique and there's a conflict, this will error.
+            // The logic should ideally handle finding an existing subscription by stripe_subscription_id and updating it.
+            // However, checkout.session.completed is usually for NEW subscriptions.
+          } else {
+            console.log(`Successfully upserted user_subscriptions for ${userId}. Stripe Sub ID: ${stripeSubscriptionId}, Expires: ${expiresAt.toISOString()}`)
           }
-          console.log(`Successfully upserted user_subscriptions for ${userId}. Expires: ${expiresAt.toISOString()}`)
 
           // 2. Update user roles - remove voter, add subscriber
           try {
@@ -180,43 +205,48 @@ serve(async (req) => {
         }
 
         const newExpiresAt = new Date(stripeSubscription.current_period_end * 1000);
-        const planNameFromStripe = stripeSubscription.items.data[0]?.price?.nickname || 'Subscribed Plan';
+        const planNameFromStripe = stripeSubscription.items.data[0]?.price?.nickname || 'Subscribed Plan'; // Keep for logging if needed
 
-        // Find user by matching subscription in user_subscriptions table
-        const { data: userSubscription, error: subLookupError } = await supabaseClient
+        // Find user subscription by stripe_subscription_id
+        const { data: existingSubscription, error: subLookupError } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id')
-          .eq('subscription_status', 'active')
+          .select('user_id, id') // Select user_id and the subscription record's own id if needed
+          .eq('stripe_subscription_id', stripeSubscriptionId)
           .single();
 
-        if (subLookupError || !userSubscription) {
-          console.error(`User subscription not found for Stripe subscription ${stripeSubscriptionId}`);
-          return new Response('User subscription not found.', { status: 404, headers: corsHeaders });
+        if (subLookupError || !existingSubscription) {
+          console.error(`User subscription not found for Stripe subscription ID ${stripeSubscriptionId}. Error: ${subLookupError?.message}`);
+          // This is critical. If we can't find the subscription, we can't update it.
+          // This might happen if the stripe_subscription_id was not correctly saved during checkout.session.completed.
+          return new Response('User subscription record not found using stripe_subscription_id.', { status: 404, headers: corsHeaders });
         }
         
-        const userId = userSubscription.user_id;
+        const userId = existingSubscription.user_id;
 
-        // Update user_subscriptions table
+        // Update user_subscriptions table using stripe_subscription_id
         const { error: subUpdateError } = await supabaseClient
           .from('user_subscriptions')
           .update({
-            subscription_status: 'active',
+            subscription_status: 'active', // Ensure it's marked active
             expires_at: newExpiresAt.toISOString(),
             updated_at: new Date().toISOString(),
+            // Optionally, update stripe_customer_id if it can change or was missing
+            // stripe_customer_id: stripeCustomerId,
           })
-          .eq('user_id', userId);
+          .eq('stripe_subscription_id', stripeSubscriptionId); // Key change: update by stripe_subscription_id
 
         if (subUpdateError) {
-          console.error(`Error updating user_subscriptions for user ${userId} on renewal:`, subUpdateError.message);
+          console.error(`Error updating user_subscriptions for user ${userId} (Stripe Sub ID: ${stripeSubscriptionId}) on renewal:`, subUpdateError.message);
+          // Potentially return 500 if this fails
         } else {
-          console.log(`Successfully renewed user_subscriptions for ${userId} until ${newExpiresAt.toISOString()}.`);
+          console.log(`Successfully renewed user_subscriptions for user ${userId} (Stripe Sub ID: ${stripeSubscriptionId}) until ${newExpiresAt.toISOString()}.`);
         }
 
         // Log the renewal transaction
         const { error: transactionError } = await supabaseClient
             .from('payment_transactions')
             .insert({
-              user_id: userId,
+              user_id: userId, // userId obtained from the subscription record
               amount: invoice.amount_paid / 100,
               currency: invoice.currency?.toUpperCase() || 'USD',
               payment_method: 'stripe',
@@ -242,40 +272,42 @@ serve(async (req) => {
           return new Response('Missing subscription or customer ID in failed invoice.', { status: 400, headers: corsHeaders });
         }
 
-        // Find user by subscription and update status
-        const { data: userSubscription, error: subLookupError } = await supabaseClient
+        const stripeSubscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription.id;
+
+        // Find user subscription by stripe_subscription_id
+        const { data: existingSubscription, error: subLookupError } = await supabaseClient
           .from('user_subscriptions')
-          .select('user_id')
-          .eq('subscription_status', 'active')
+          .select('user_id') // Only need user_id for logging transaction
+          .eq('stripe_subscription_id', stripeSubscriptionId)
           .single();
 
-        if (subLookupError || !userSubscription) {
-          console.error(`User subscription not found for payment failure`);
-          return new Response('User subscription not found for payment failure.', { status: 404, headers: corsHeaders });
+        if (subLookupError || !existingSubscription) {
+          console.error(`User subscription not found for Stripe subscription ID ${stripeSubscriptionId} on payment failure. Error: ${subLookupError?.message}`);
+          return new Response('User subscription record not found using stripe_subscription_id for payment failure.', { status: 404, headers: corsHeaders });
         }
         
-        const userId = userSubscription.user_id;
+        const userId = existingSubscription.user_id;
 
-        // Update user_subscriptions status
+        // Update user_subscriptions status using stripe_subscription_id
         const { error: subUpdateError } = await supabaseClient
           .from('user_subscriptions')
           .update({
-            subscription_status: 'payment_failed',
+            subscription_status: 'payment_failed', // Or 'past_due', 'unpaid' depending on Stripe's final state vs. your desired state
             updated_at: new Date().toISOString()
           })
-          .eq('user_id', userId);
+          .eq('stripe_subscription_id', stripeSubscriptionId); // Key change: update by stripe_subscription_id
 
         if (subUpdateError) {
-          console.error(`Error updating user_subscriptions for ${userId} on payment failure:`, subUpdateError.message);
+          console.error(`Error updating user_subscriptions for user ${userId} (Stripe Sub ID: ${stripeSubscriptionId}) on payment failure:`, subUpdateError.message);
         } else {
-          console.log(`Marked user_subscriptions as 'payment_failed' for user ${userId}.`);
+          console.log(`Marked user_subscriptions as 'payment_failed' for user ${userId} (Stripe Sub ID: ${stripeSubscriptionId}).`);
         }
 
         // Log the failed payment attempt
         await supabaseClient
             .from('payment_transactions')
             .insert({
-              user_id: userId,
+              user_id: userId, // userId obtained from the subscription record
               amount: invoice.amount_due / 100,
               currency: invoice.currency?.toUpperCase() || 'USD',
               payment_method: 'stripe',
