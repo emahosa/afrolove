@@ -15,7 +15,8 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
   );
 
   try {
@@ -69,8 +70,8 @@ serve(async (req) => {
       const expiresAt = new Date(subscriptionStartDate);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-      // Deactivate existing subscriptions
-      await supabaseService
+      // First, deactivate existing subscriptions
+      const { error: deactivateError } = await supabaseService
         .from('user_subscriptions')
         .update({ 
           subscription_status: 'inactive',
@@ -78,6 +79,10 @@ serve(async (req) => {
         })
         .eq('user_id', user.id)
         .eq('subscription_status', 'active');
+
+      if (deactivateError) {
+        console.error('❌ Error deactivating existing subscriptions:', deactivateError);
+      }
 
       // Create new subscription record
       const { error: subError } = await supabaseService
@@ -99,14 +104,18 @@ serve(async (req) => {
         throw new Error('Failed to create subscription');
       }
 
-      // Update user roles
-      await supabaseService
+      // Update user roles - remove voter, add subscriber
+      const { error: deleteRoleError } = await supabaseService
         .from('user_roles')
         .delete()
         .eq('user_id', user.id)
         .eq('role', 'voter');
 
-      await supabaseService
+      if (deleteRoleError) {
+        console.error('❌ Error removing voter role:', deleteRoleError);
+      }
+
+      const { error: addRoleError } = await supabaseService
         .from('user_roles')
         .upsert({ 
           user_id: user.id, 
@@ -114,6 +123,10 @@ serve(async (req) => {
         }, { 
           onConflict: 'user_id,role' 
         });
+
+      if (addRoleError) {
+        console.error('❌ Error adding subscriber role:', addRoleError);
+      }
 
       // Log the transaction
       const { error: transactionError } = await supabaseService
