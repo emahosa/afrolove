@@ -103,11 +103,19 @@ const SubscribePage: React.FC = () => {
         throw new Error(error.message || 'Failed to create subscription session.');
       }
 
-      if (data?.url) {
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
+      if (data?.success) {
+        toast.success("Subscription Activated!", { 
+          description: `Your ${plan.name} subscription has been activated successfully.` 
+        });
+        // Redirect to dashboard or refresh page
+        window.location.href = '/dashboard';
+      } else if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error('No checkout URL received from server.');
+        throw new Error('No response received from subscription processor.');
       }
+      
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error subscribing:", error);

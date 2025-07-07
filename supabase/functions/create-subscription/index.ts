@@ -32,13 +32,111 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
-    });
+    // Check if Stripe is enabled
+    const { data: stripeSettings, error: settingsError } = await supabaseClient
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'stripe_enabled')
+      .single();
+
+    let isStripeEnabled = true; // Default to enabled
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+      const settingValue = stripeSettings.value as { enabled?: boolean };
+      isStripeEnabled = settingValue.enabled === true;
+    }
+
+    console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
     const { priceId, planId, planName, amount } = await req.json();
 
-    console.log("Creating subscription session for:", { planId, planName, user: user.email });
+    // If Stripe is disabled, process subscription automatically
+    if (!isStripeEnabled) {
+      console.log('🔄 Stripe disabled - processing automatic subscription');
+      
+      const subscriptionStartDate = new Date();
+      const expiresAt = new Date(subscriptionStartDate);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      // Deactivate existing subscriptions
+      await supabaseClient
+        .from('user_subscriptions')
+        .update({ 
+          subscription_status: 'inactive',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .eq('subscription_status', 'active');
+
+      // Create new subscription record
+      const { error: subError } = await supabaseClient
+        .from('user_subscriptions')
+        .insert({
+          user_id: user.id,
+          subscription_type: planId,
+          subscription_status: 'active',
+          started_at: subscriptionStartDate.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          stripe_subscription_id: `auto-${Date.now()}`,
+          stripe_customer_id: `auto-customer-${user.id}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (subError) {
+        console.error('❌ Error creating subscription:', subError);
+        throw new Error('Failed to create subscription');
+      }
+
+      // Update user roles
+      await supabaseClient
+        .from('user_roles')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('role', 'voter');
+
+      await supabaseClient
+        .from('user_roles')
+        .upsert({ 
+          user_id: user.id, 
+          role: 'subscriber' 
+        }, { 
+          onConflict: 'user_id,role' 
+        });
+
+      // Log the transaction
+      const { error: transactionError } = await supabaseClient
+        .from('payment_transactions')
+        .insert({
+          user_id: user.id,
+          amount: amount / 100, // Convert from cents
+          currency: 'USD',
+          payment_method: 'automatic',
+          status: 'completed',
+          payment_id: `auto-${Date.now()}`,
+          credits_purchased: 0
+        });
+
+      if (transactionError) {
+        console.error('❌ Error logging transaction:', transactionError);
+      }
+
+      console.log('✅ Subscription activated automatically');
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Subscription activated successfully' 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Stripe is enabled - proceed with normal Stripe checkout
+    console.log('🔄 Stripe enabled - creating subscription session');
+
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2023-10-16",
+    });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });

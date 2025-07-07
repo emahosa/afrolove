@@ -84,7 +84,6 @@ const Credits = () => {
   useEffect(() => {
     if (user) {
       setCreditBalance(user.credits || 0);
-      // user.subscription is now an object like { planId: 'actual_plan_id', status: 'active', ... } or null
       if (user.subscription && user.subscription.planId && user.subscription.status === 'active') {
         setCurrentPlan(user.subscription.planId);
         console.log("Credits.tsx: Current active plan ID set to:", user.subscription.planId);
@@ -96,7 +95,7 @@ const Credits = () => {
       setCreditBalance(0);
       setCurrentPlan(null);
     }
-  }, [user]); // user object itself is the dependency
+  }, [user]);
 
   if (isVerifying) {
     return <PaymentLoadingScreen title="Verifying Payment..." />;
@@ -128,8 +127,19 @@ const Credits = () => {
       });
 
       if (error) throw new Error(error.message || 'Failed to create checkout session');
-      if (data?.url) window.location.href = data.url;
-      else throw new Error('No checkout URL received');
+      
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
+      if (data?.success) {
+        toast.success("Credits Added Successfully!", { 
+          description: `${pack.credits} credits have been added to your account.` 
+        });
+        // Refresh user data to update credit balance
+        window.location.reload();
+      } else if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No response received from payment processor');
+      }
       
       setDialogOpen(false);
     } catch (error: any) {
@@ -160,8 +170,19 @@ const Credits = () => {
       });
 
       if (error) throw new Error(error.message || 'Failed to create subscription session');
-      if (data?.url) window.location.href = data.url;
-      else throw new Error('No checkout URL received');
+      
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
+      if (data?.success) {
+        toast.success("Subscription Activated!", { 
+          description: `Your ${plan.name} subscription has been activated successfully.` 
+        });
+        // Refresh user data to update subscription status
+        window.location.reload();
+      } else if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No response received from subscription processor');
+      }
       
       setDialogOpen(false);
     } catch (error: any) {

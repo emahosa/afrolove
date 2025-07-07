@@ -33,13 +33,73 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
-    });
+    // Check if Stripe is enabled
+    const { data: stripeSettings, error: settingsError } = await supabaseClient
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'stripe_enabled')
+      .single();
+
+    let isStripeEnabled = true; // Default to enabled
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+      const settingValue = stripeSettings.value as { enabled?: boolean };
+      isStripeEnabled = settingValue.enabled === true;
+    }
+
+    console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
     const { type, packId, amount, credits, description } = await req.json();
 
-    console.log("Creating payment session for:", { type, packId, amount, credits, user: user.email });
+    // If Stripe is disabled, process payment automatically
+    if (!isStripeEnabled) {
+      console.log('💳 Stripe disabled - processing automatic payment');
+      
+      // Automatically add credits without payment
+      const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
+        p_user_id: user.id,
+        p_amount: credits
+      });
+
+      if (creditError) {
+        console.error('❌ Error updating credits:', creditError);
+        throw new Error('Failed to add credits');
+      }
+
+      // Log the transaction
+      const { error: transactionError } = await supabaseClient
+        .from('payment_transactions')
+        .insert({
+          user_id: user.id,
+          amount: amount / 100, // Convert from cents
+          currency: 'USD',
+          payment_method: 'automatic',
+          status: 'completed',
+          payment_id: `auto-${Date.now()}`,
+          credits_purchased: credits
+        });
+
+      if (transactionError) {
+        console.error('❌ Error logging transaction:', transactionError);
+      }
+
+      console.log(`✅ Credits added automatically. New balance: ${newBalance}`);
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Credits added successfully',
+        newBalance: newBalance 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Stripe is enabled - proceed with normal Stripe checkout
+    console.log('💳 Stripe enabled - creating checkout session');
+    
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2023-10-16",
+    });
 
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
