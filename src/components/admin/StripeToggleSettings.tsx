@@ -56,18 +56,36 @@ export const StripeToggleSettings = () => {
 
       const newEnabled = !stripeEnabled;
 
-      const { error } = await supabase
+      // First, try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('system_settings')
-        .upsert({
-          key: 'stripe_enabled',
+        .update({
           value: { enabled: newEnabled },
-          category: 'payment',
-          description: 'Controls whether Stripe payment processing is enabled',
-          updated_by: user.id
-        });
+          updated_by: user.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('key', 'stripe_enabled')
+        .select();
 
-      if (error) {
-        console.error('Error updating Stripe settings:', error);
+      // If update didn't affect any rows, insert new record
+      if (updateData && updateData.length === 0) {
+        const { error: insertError } = await supabase
+          .from('system_settings')
+          .insert({
+            key: 'stripe_enabled',
+            value: { enabled: newEnabled },
+            category: 'payment',
+            description: 'Controls whether Stripe payment processing is enabled',
+            updated_by: user.id
+          });
+
+        if (insertError) {
+          console.error('Error inserting Stripe settings:', insertError);
+          toast.error('Failed to update Stripe settings');
+          return;
+        }
+      } else if (updateError) {
+        console.error('Error updating Stripe settings:', updateError);
         toast.error('Failed to update Stripe settings');
         return;
       }
