@@ -35,13 +35,14 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
     console.log("Waiting for webhook to process payment...");
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Check for payment transaction
+    // Check for payment transaction with increased attempts
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 15; // Increased from 10
     
     while (attempts < maxAttempts) {
       console.log(`Attempt ${attempts + 1}/${maxAttempts}: Checking for payment transaction`);
       
+      // Check payment transactions
       const { data: transactionData, error: transactionError } = await supabase
         .from('payment_transactions')
         .select('*')
@@ -57,10 +58,10 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
         
         const isCredits = transaction.credits_purchased > 0;
         
-        // Force refresh user session
+        // Refresh user session to get updated data
         await supabase.auth.refreshSession();
         
-        // Trigger page reload after short delay
+        // Trigger a page reload to ensure all data is fresh
         setTimeout(() => {
           window.location.reload();
         }, 1000);
@@ -74,38 +75,48 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
         };
       }
       
+      // Also check for subscription updates
+      const { data: subData, error: subError } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user.user.id)
+        .eq('subscription_status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!subError && subData && subData.length > 0) {
+        console.log("Found active subscription:", subData[0]);
+        
+        // Check if this is a recent subscription (within last 5 minutes)
+        const subscriptionTime = new Date(subData[0].created_at || subData[0].updated_at);
+        const now = new Date();
+        const timeDiff = now.getTime() - subscriptionTime.getTime();
+        const fiveMinutes = 5 * 60 * 1000;
+        
+        if (timeDiff <= fiveMinutes) {
+          await supabase.auth.refreshSession();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+          
+          return {
+            success: true,
+            type: 'subscription',
+            message: "Subscription verified successfully"
+          };
+        }
+      }
+      
       attempts++;
       if (attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    // Check subscription status as fallback
-    const { data: subData } = await supabase
-      .from('user_subscriptions')
-      .select('*')
-      .eq('user_id', user.user.id)
-      .eq('subscription_status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (subData && subData.length > 0) {
-      await supabase.auth.refreshSession();
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-      
-      return {
-        success: true,
-        type: 'subscription',
-        message: "Subscription verified successfully"
-      };
-    }
-
     return {
       success: false,
       type: null,
-      message: "Payment verification failed. Please contact support if payment was successful."
+      message: "Payment verification timed out. Please check your account or contact support if payment was successful."
     };
 
   } catch (error: any) {

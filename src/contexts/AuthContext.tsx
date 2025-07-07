@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -77,25 +76,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("AuthContext: Profile data:", { id: data.id, username: data.username, full_name: data.full_name });
 
       let subscriptionInfo: SubscriptionInfo | null = null;
+      
       try {
+        // Fixed: Remove the .single() call and use array format to avoid 406 errors
         const { data: subData, error: subError } = await supabase
           .from('user_subscriptions')
           .select('subscription_type, subscription_status, expires_at')
           .eq('user_id', userId)
-          .eq('subscription_status', 'active') // Only fetch active subscriptions
+          .eq('subscription_status', 'active')
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .limit(1);
 
-        if (subError && subError.code !== 'PGRST116') { // PGRST116: "Searched item was not found" - not an error if no active sub
+        if (subError) {
           console.error(`Error fetching user subscription for ID ${userId}:`, subError.message);
-        } else if (subData) {
+        } else if (subData && subData.length > 0) {
+          const subscription = subData[0];
           subscriptionInfo = {
-            planId: subData.subscription_type,
-            status: subData.subscription_status,
-            expiresAt: subData.expires_at,
+            planId: subscription.subscription_type,
+            status: subscription.subscription_status,
+            expiresAt: subscription.expires_at,
           };
           console.log(`AuthContext: Active subscription found for user ${userId}:`, subscriptionInfo);
+        } else {
+          console.log(`AuthContext: No active subscription found for user ${userId}`);
         }
       } catch (subFetchError: any) {
         console.error('Exception in fetchUserData while fetching subscription:', subFetchError.message);
@@ -107,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: data.full_name || data.username || '',
         avatar: data.avatar_url,
         credits: data.credits || 0,
-        subscription: subscriptionInfo, // Assign fetched subscription info
+        subscription: subscriptionInfo,
       } as ExtendedUser;
     } catch (error: any) {
       console.error('Exception in fetchUserData (profile fetch):', error.message);
