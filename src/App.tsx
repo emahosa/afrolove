@@ -36,14 +36,7 @@ import AdminLayout from "./layouts/AdminLayout";
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import { useEffect } from 'react';
-import { ensureStorageBuckets } from './utils/storageSetup';
-
 const App = () => {
-  useEffect(() => {
-    ensureStorageBuckets();
-  }, []);
-  
   return (
     <ErrorBoundary>
       <BrowserRouter>
