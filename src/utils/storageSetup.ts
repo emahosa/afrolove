@@ -18,7 +18,7 @@ export const ensureStorageBuckets = async () => {
       const { error: createError } = await supabase.storage.createBucket('contest-videos', {
         public: true,
         allowedMimeTypes: ['video/*'],
-        fileSizeLimit: 100 * 1024 * 1024 // 100MB limit
+        fileSizeLimit: 10 * 1024 * 1024 // 10MB limit
       });
       
       if (createError) {
