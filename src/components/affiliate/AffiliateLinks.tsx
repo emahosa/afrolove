@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Link as LinkIcon, Copy, BarChart } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface AffiliateLink {
-  id: string;
-  link_code: string;
-  clicks_count: number;
-  created_at: string;
-}
+import { AffiliateLink } from '@/types/affiliate';
 
 interface AffiliateLinksProps {
   affiliateId: string;
@@ -24,11 +18,10 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
 
   const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase
-        .from('affiliate_links')
-        .select('*')
-        .eq('affiliate_user_id', affiliateId)
-        .order('created_at', { ascending: false });
+      // Use RPC call to get affiliate links data since the table isn't in types
+      const { data, error } = await supabase.rpc('get_affiliate_links', {
+        user_id: affiliateId
+      });
 
       if (error) {
         console.error('Error fetching affiliate links:', error);

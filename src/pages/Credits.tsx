@@ -1,314 +1,222 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, CreditCard } from "lucide-react";
-import PaymentDialog from "@/components/payment/PaymentDialog";
-import { toast } from "sonner";
-import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
+import { Coins, DollarSign, Zap } from 'lucide-react';
+import { toast } from 'sonner';
+import PaymentDialog from '@/components/payment/PaymentDialog';
+import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 
 const Credits: React.FC = () => {
-  const { user, refreshUserData, isSubscriber } = useAuth();
-  const { trackActivity } = useAffiliateTracking();
-  const [userCredits, setUserCredits] = useState<number>(0);
+  const { user, profile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
-
-  // Track subscription page visit
-  useEffect(() => {
-    trackActivity('subscription_page_visit');
-  }, [trackActivity]);
-
-  const fetchUserCredits = async () => {
-    if (user?.id) {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("credits")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching credits:", error);
-          return;
-        }
-
-        setUserCredits(data?.credits || 0);
-      } catch (err) {
-        console.error("Error fetching user credits:", err);
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchUserCredits();
-  }, [user?.id]);
+  const { trackActivity } = useAffiliateTracking();
 
   const creditPackages = [
-    {
-      id: "starter",
-      name: "Starter Pack",
-      credits: 50,
-      price: 9.99,
-      popular: false,
-    },
-    {
-      id: "pro",
-      name: "Pro Pack",
-      credits: 120,
-      price: 19.99,
-      popular: true,
-      bonus: 20,
-    },
-    {
-      id: "ultimate",
-      name: "Ultimate Pack",
-      credits: 250,
-      price: 39.99,
-      popular: false,
-      bonus: 50,
-    },
+    { credits: 5, amount: 5, popular: false },
+    { credits: 15, amount: 10, popular: false },
+    { credits: 50, amount: 25, popular: true },
+    { credits: 100, amount: 45, popular: false },
+    { credits: 250, amount: 100, popular: false },
+    { credits: 500, amount: 180, popular: false },
   ];
 
-  const subscriptionPlans = [
-    {
-      id: "basic",
-      name: "Basic Plan",
-      price: 14.99,
-      credits: 100,
-      features: [
-        "100 monthly credits",
-        "Standard music generation",
-        "Basic voice cloning",
-        "Email support"
-      ],
-      popular: false,
-    },
-    {
-      id: "premium",
-      name: "Premium Plan",
-      price: 29.99,
-      credits: 250,
-      features: [
-        "250 monthly credits",
-        "Advanced music generation",
-        "Unlimited voice cloning",
-        "Priority support",
-        "Custom song requests"
-      ],
-      popular: true,
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise Plan",
-      price: 59.99,
-      credits: 500,
-      features: [
-        "500 monthly credits",
-        "Premium music generation",
-        "Unlimited everything",
-        "24/7 dedicated support",
-        "Custom integrations"
-      ],
-      popular: false,
-    },
-  ];
+  const handlePurchase = async (pkg: any) => {
+    if (!user) {
+      toast.error('Please log in to purchase credits');
+      return;
+    }
 
-  const handlePurchase = (packageData: any, type: 'credits' | 'subscription') => {
-    setSelectedPackage({ ...packageData, type });
-    setIsPaymentDialogOpen(true);
+    // Track subscription page visit for affiliate system
+    await trackActivity('subscription_page_visit');
+
+    setSelectedPackage(pkg);
+    setPaymentDialogOpen(true);
   };
 
-  const handlePaymentConfirm = async () => {
+  const handleCustomPurchase = async () => {
+    const amount = parseFloat(customAmount);
+    if (isNaN(amount) || amount < 1) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (!user) {
+      toast.error('Please log in to purchase credits');
+      return;
+    }
+
+    // Track subscription page visit for affiliate system
+    await trackActivity('subscription_page_visit');
+
+    const customPkg = {
+      credits: Math.floor(amount),
+      amount: amount,
+      popular: false
+    };
+
+    setSelectedPackage(customPkg);
+    setPaymentDialogOpen(true);
+  };
+
+  const processPayment = async () => {
     if (!selectedPackage || !user) return;
 
     setProcessing(true);
     try {
-      if (selectedPackage.type === 'subscription') {
-        const { data, error } = await supabase.functions.invoke('create-subscription', {
-          body: {
-            plan_id: selectedPackage.id,
-            user_id: user.id
-          }
-        });
-
-        if (error) throw error;
-
-        if (data?.checkout_url) {
-          window.location.href = data.checkout_url;
-        } else {
-          // Track subscription completion for affiliate system
-          await trackActivity('subscription_completed', {
-            subscription_amount: selectedPackage.price,
-            plan_id: selectedPackage.id
-          });
-          
-          toast.success("Subscription activated successfully!");
-          await refreshUserData();
-          fetchUserCredits();
-          setIsPaymentDialogOpen(false);
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          amount: selectedPackage.amount,
+          currency: 'USD',
+          credits: selectedPackage.credits,
+          description: `Purchase ${selectedPackage.credits} credits`
         }
+      });
+
+      if (error) throw error;
+
+      if (data?.payment_url) {
+        // Track subscription completion for affiliate system
+        await trackActivity('subscription_completed', {
+          amount: selectedPackage.amount,
+          credits: selectedPackage.credits
+        });
+        
+        window.location.href = data.payment_url;
       } else {
-        const { data, error } = await supabase.functions.invoke('purchase-credits', {
-          body: {
-            package_id: selectedPackage.id,
-            credits: selectedPackage.credits + (selectedPackage.bonus || 0),
-            amount: selectedPackage.price
-          }
-        });
-
-        if (error) throw error;
-
-        if (data?.checkout_url) {
-          window.location.href = data.checkout_url;
-        } else {
-          toast.success("Credits purchased successfully!");
-          fetchUserCredits();
-          setIsPaymentDialogOpen(false);
-        }
+        throw new Error('Payment URL not received');
       }
     } catch (error: any) {
-      console.error("Payment error:", error);
-      toast.error(error.message || "Payment failed. Please try again.");
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Failed to process payment');
     } finally {
       setProcessing(false);
     }
   };
 
-  const isUserSubscribed = isSubscriber();
-
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 md:px-6">
+      
+      
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Credits</h1>
+        <p className="text-muted-foreground">Purchase credits to generate amazing songs with AI</p>
+      </div>
+
       {/* Current Credits Display */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <CreditCard className="mr-2 h-6 w-6" />
+            <Coins className="mr-2 h-5 w-5" />
             Your Credits
           </CardTitle>
+          <CardDescription>
+            Use credits to generate songs, create custom tracks, and more
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-3xl font-bold text-primary">{userCredits} Credits</div>
-          <p className="text-muted-foreground mt-2">
-            Use credits to generate music, create custom songs, and more!
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="text-3xl font-bold text-primary">
+                {profile?.credits || 0}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                credits available
+              </div>
+            </div>
+            <Badge variant="outline" className="text-sm">
+              1 credit = 1 song generation
+            </Badge>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Subscription Plans Section */}
-      {!isUserSubscribed && (
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold tracking-tight mb-4">Choose Your Plan</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Get unlimited access to all features with monthly credits included
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {subscriptionPlans.map((plan) => (
-              <Card key={plan.id} className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}>
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">${plan.price}</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{plan.credits} credits included</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? "default" : "outline"}
-                    onClick={() => handlePurchase(plan, 'subscription')}
-                  >
-                    Subscribe Now
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Credit Packages Section */}
-      <div className="mb-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold tracking-tight mb-4">
-            {isUserSubscribed ? "Additional Credits" : "Credit Packages"}
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {isUserSubscribed 
-              ? "Need more credits? Purchase additional credit packages" 
-              : "One-time credit purchases for flexible usage"
-            }
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {creditPackages.map((pkg) => (
-            <Card key={pkg.id} className={`relative ${pkg.popular ? 'border-primary shadow-md' : ''}`}>
-              {pkg.popular && (
-                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                  <Badge variant="secondary">Best Value</Badge>
-                </div>
-              )}
-              <CardHeader className="text-center">
-                <CardTitle>{pkg.name}</CardTitle>
-                <div className="mt-4">
-                  <span className="text-3xl font-bold">${pkg.price}</span>
-                </div>
-                <div className="mt-2">
-                  <span className="text-lg font-semibold">{pkg.credits} Credits</span>
-                  {pkg.bonus && (
-                    <span className="text-sm text-green-600 block">+ {pkg.bonus} Bonus Credits!</span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  className="w-full"
-                  variant={pkg.popular ? "default" : "outline"}
-                  onClick={() => handlePurchase(pkg, 'credits')}
-                >
-                  Purchase Credits
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Credit Packages */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {creditPackages.map((pkg, index) => (
+          <Card key={index} className={`relative ${pkg.popular ? 'border-primary shadow-lg' : ''}`}>
+            {pkg.popular && (
+              <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                Most Popular
+              </Badge>
+            )}
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center">
+                <Zap className="mr-2 h-5 w-5" />
+                {pkg.credits} Credits
+              </CardTitle>
+              <CardDescription>
+                <span className="text-2xl font-bold text-primary">${pkg.amount}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <div className="text-sm text-muted-foreground mb-4">
+                ${(pkg.amount / pkg.credits).toFixed(2)} per credit
+              </div>
+              <Button 
+                onClick={() => handlePurchase(pkg)}
+                className="w-full"
+                variant={pkg.popular ? "default" : "outline"}
+              >
+                Purchase Now
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Custom Amount Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <DollarSign className="mr-2 h-5 w-5" />
+            Custom Amount
+          </CardTitle>
+          <CardDescription>
+            Purchase any amount of credits (1 USD = 1 Credit)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <div className="flex-1">
+              <Label htmlFor="custom-amount">Amount (USD)</Label>
+              <Input
+                id="custom-amount"
+                type="number"
+                placeholder="Enter amount"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                min="1"
+                step="1"
+              />
+            </div>
+            <Button onClick={handleCustomPurchase} disabled={!customAmount}>
+              Purchase
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Payment Dialog */}
       <PaymentDialog
-        open={isPaymentDialogOpen}
-        onOpenChange={setIsPaymentDialogOpen}
-        title={selectedPackage?.type === 'subscription' ? `Subscribe to ${selectedPackage?.name}` : `Purchase ${selectedPackage?.name}`}
-        description={selectedPackage?.type === 'subscription' 
-          ? `Monthly subscription with ${selectedPackage?.credits} credits included` 
-          : `Get ${selectedPackage?.credits}${selectedPackage?.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} credits`
-        }
-        amount={selectedPackage?.price || 0}
-        credits={selectedPackage?.type === 'credits' ? selectedPackage?.credits + (selectedPackage?.bonus || 0) : undefined}
-        onConfirm={handlePaymentConfirm}
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        title="Purchase Credits"
+        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.amount}`}
+        amount={selectedPackage?.amount || 0}
+        credits={selectedPackage?.credits || 0}
+        onConfirm={processPayment}
         processing={processing}
-        type={selectedPackage?.type || 'credits'}
+        type="credits"
       />
     </div>
   );

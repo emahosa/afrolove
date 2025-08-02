@@ -6,26 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, TrendingUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-
-interface Earning {
-  id: string;
-  referred_user_id: string;
-  earning_type: 'free_referral' | 'subscription_commission';
-  amount: number;
-  status: string;
-  created_at: string;
-  profile?: {
-    full_name?: string;
-    username?: string;
-  };
-}
+import { AffiliateEarning } from '@/types/affiliate';
 
 interface EarningsBreakdownProps {
   affiliateId: string;
 }
 
 const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) => {
-  const [earnings, setEarnings] = useState<Earning[]>([]);
+  const [earnings, setEarnings] = useState<AffiliateEarning[]>([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
     free_referrals: { count: 0, total: 0 },
@@ -34,35 +22,42 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
   const fetchEarnings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('affiliate_earnings')
-        .select(`
-          *,
-          profile:profiles!referred_user_id(full_name, username)
-        `)
-        .eq('affiliate_user_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Use RPC call to get earnings data since the table isn't in types
+      const { data, error } = await supabase.rpc('get_affiliate_earnings', {
+        user_id: affiliateId
+      });
 
       if (error) {
         console.error('Error fetching earnings:', error);
         return;
       }
 
-      setEarnings(data || []);
+      const earningsData: AffiliateEarning[] = data?.map((item: any) => ({
+        id: item.id,
+        affiliate_user_id: item.affiliate_user_id,
+        referred_user_id: item.referred_user_id,
+        earning_type: item.earning_type,
+        amount: parseFloat(item.amount),
+        status: item.status,
+        created_at: item.created_at,
+        processed_at: item.processed_at,
+        profile: item.profile
+      })) || [];
+
+      setEarnings(earningsData);
 
       // Calculate summary
-      const freeReferrals = data?.filter(e => e.earning_type === 'free_referral') || [];
-      const commissions = data?.filter(e => e.earning_type === 'subscription_commission') || [];
+      const freeReferrals = earningsData.filter(e => e.earning_type === 'free_referral');
+      const commissions = earningsData.filter(e => e.earning_type === 'subscription_commission');
 
       setSummary({
         free_referrals: {
           count: freeReferrals.length,
-          total: freeReferrals.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+          total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
         },
         commissions: {
           count: commissions.length,
-          total: commissions.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+          total: commissions.reduce((sum, e) => sum + e.amount, 0)
         }
       });
 
@@ -149,7 +144,7 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${parseFloat(earning.amount).toFixed(2)}
+                      ${earning.amount.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>

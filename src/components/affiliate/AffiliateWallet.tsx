@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,13 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Wallet, Download } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface WalletData {
-  balance: number;
-  total_earned: number;
-  total_withdrawn: number;
-  usdt_wallet_address?: string;
-}
+import { AffiliateWallet as WalletData } from '@/types/affiliate';
 
 interface AffiliateWalletProps {
   affiliateId: string;
@@ -33,22 +26,39 @@ const AffiliateWallet: React.FC<AffiliateWalletProps> = ({ affiliateId }) => {
 
   const fetchWallet = async () => {
     try {
-      const { data, error } = await supabase
-        .from('affiliate_wallets')
-        .select('*')
-        .eq('affiliate_user_id', affiliateId)
-        .single();
+      // Use RPC call to get wallet data since the table isn't in types
+      const { data, error } = await supabase.rpc('get_affiliate_wallet', {
+        user_id: affiliateId
+      });
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching wallet:', error);
         return;
       }
 
-      if (data) {
-        setWallet(data);
-        setUsdtAddress(data.usdt_wallet_address || '');
+      if (data && data.length > 0) {
+        const walletData = data[0];
+        setWallet({
+          id: walletData.id,
+          affiliate_user_id: walletData.affiliate_user_id,
+          balance: parseFloat(walletData.balance) || 0,
+          total_earned: parseFloat(walletData.total_earned) || 0,
+          total_withdrawn: parseFloat(walletData.total_withdrawn) || 0,
+          usdt_wallet_address: walletData.usdt_wallet_address,
+          created_at: walletData.created_at,
+          updated_at: walletData.updated_at
+        });
+        setUsdtAddress(walletData.usdt_wallet_address || '');
       } else {
-        setWallet({ balance: 0, total_earned: 0, total_withdrawn: 0 });
+        setWallet({
+          id: '',
+          affiliate_user_id: affiliateId,
+          balance: 0,
+          total_earned: 0,
+          total_withdrawn: 0,
+          created_at: '',
+          updated_at: ''
+        });
       }
     } catch (err) {
       console.error('Error fetching wallet:', err);
@@ -65,7 +75,7 @@ const AffiliateWallet: React.FC<AffiliateWalletProps> = ({ affiliateId }) => {
         .in('key', ['affiliate_minimum_withdrawal', 'affiliate_withdrawal_fee_percent']);
 
       if (!error && data) {
-        const settingsMap = new Map(data.map(s => [s.key, parseFloat(s.value)]));
+        const settingsMap = new Map(data.map(s => [s.key, parseFloat(String(s.value))]));
         setMinWithdrawal(settingsMap.get('affiliate_minimum_withdrawal') || 50);
         setWithdrawalFee(settingsMap.get('affiliate_withdrawal_fee_percent') || 10);
       }
