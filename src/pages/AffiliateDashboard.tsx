@@ -6,55 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Copy, Link as LinkIcon } from 'lucide-react';
+import AffiliateLinks from '@/components/affiliate/AffiliateLinks';
+import AffiliateWallet from '@/components/affiliate/AffiliateWallet';
+import EarningsBreakdown from '@/components/affiliate/EarningsBreakdown';
 import ReferralsList from '@/components/affiliate/ReferralsList';
-import EarningsInfo from '@/components/affiliate/EarningsInfo';
 import PayoutHistory from '@/components/affiliate/PayoutHistory';
-import LockScreen from '@/components/LockScreen'; // For subscription lapse
-
-// ReferralLinkDisplay component (kept local as it's specific to this dashboard's layout)
-const ReferralLinkDisplay: React.FC<{ referralCode: string | null }> = ({ referralCode }) => {
-  if (!referralCode) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Your Referral Link</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-muted-foreground">Referral code not yet available.</p></CardContent>
-      </Card>
-    );
-  }
-  const referralLink = `${window.location.origin}/register?ref=${referralCode}`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(referralLink)
-      .then(() => toast.success("Referral link copied to clipboard!"))
-      .catch(() => toast.error("Failed to copy referral link."));
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center"><LinkIcon className="mr-2 h-5 w-5" /> Your Referral Link</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={referralLink}
-            readOnly
-            className="flex-grow p-2 border rounded-md bg-muted text-sm"
-          />
-          <Button variant="outline" size="icon" onClick={copyToClipboard} aria-label="Copy referral link">
-            <Copy className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">Share this link with your friends to earn commissions!</p>
-      </CardContent>
-    </Card>
-  );
-};
+import LockScreen from '@/components/LockScreen';
 
 const AffiliateDashboard: React.FC = () => {
-  const { user, isSubscriber, isAffiliate, loading: authLoading } = useAuth(); // Get subscriber & affiliate status
+  const { user, isSubscriber, isAffiliate, loading: authLoading } = useAuth();
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [loadingCode, setLoadingCode] = useState(true);
   const [affiliateDataExists, setAffiliateDataExists] = useState(false);
@@ -89,7 +49,7 @@ const AffiliateDashboard: React.FC = () => {
           setLoadingCode(false);
         }
       } else {
-         setLoadingCode(false);
+        setLoadingCode(false);
       }
     };
 
@@ -114,38 +74,33 @@ const AffiliateDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/*
-        ProtectedRoute handles if user is 'affiliate' role.
-        This component now checks if they are also an active 'subscriber'.
-      */}
       {!user ? (
-         <Card>
-            <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
-            <CardContent><p>Please log in to view your affiliate dashboard.</p></CardContent>
-        </Card>
-      ) : !isAffiliate() || !affiliateDataExists ? ( // Should not be hit if ProtectedRoute works, but good fallback
         <Card>
-         <CardHeader>
-           <CardTitle>Affiliate Access Not Found</CardTitle>
-           <CardDescription>Your affiliate status could not be confirmed.</CardDescription>
-         </CardHeader>
-         <CardContent>
-           <p className="text-muted-foreground mb-4">
-             If you have applied, your application might be pending review. Otherwise, you can apply if you are a subscriber.
-           </p>
-           {isSubscriber() && ( // Only show apply button if they are a subscriber but somehow not affiliate yet
+          <CardHeader><CardTitle>Access Denied</CardTitle></CardHeader>
+          <CardContent><p>Please log in to view your affiliate dashboard.</p></CardContent>
+        </Card>
+      ) : !isAffiliate() || !affiliateDataExists ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Affiliate Access Not Found</CardTitle>
+            <CardDescription>Your affiliate status could not be confirmed.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Anyone can apply to become an affiliate. If you have applied, your application might be pending review.
+            </p>
             <Link to="/become-affiliate">
               <Button>Apply to Become an Affiliate</Button>
             </Link>
-           )}
-         </CardContent>
-       </Card>
-      ) : !isSubscriber() && isAffiliate() ? ( // Is an affiliate, but subscription lapsed
+          </CardContent>
+        </Card>
+      ) : !isSubscriber() && isAffiliate() ? (
         <LockScreen message="Your subscription has lapsed. Please resubscribe to access your Affiliate Dashboard features." buttonText="Renew Subscription"/>
-      ) : ( // Is Affiliate and Is Subscriber
+      ) : (
         <div className="space-y-8">
-          <ReferralLinkDisplay referralCode={referralCode} />
-          <EarningsInfo affiliateId={user.id} />
+          <AffiliateWallet affiliateId={user.id} />
+          <AffiliateLinks affiliateId={user.id} />
+          <EarningsBreakdown affiliateId={user.id} />
           <ReferralsList affiliateId={user.id} />
           <PayoutHistory affiliateId={user.id} />
         </div>

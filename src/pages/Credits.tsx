@@ -1,378 +1,315 @@
-
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
-import { Star, Info, Lock, Check } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { usePaymentVerification } from "@/components/payment/PaymentVerificationProvider";
-import PaymentLoadingScreen from "@/components/payment/PaymentLoadingScreen";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, CreditCard } from "lucide-react";
 import PaymentDialog from "@/components/payment/PaymentDialog";
+import { toast } from "sonner";
+import { useAffiliateTracking } from "@/hooks/useAffiliateTracking";
 
-const creditPacks = [
-  { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, popular: false },
-  { id: "pack2", name: "Creator Pack", credits: 30, price: 9.99, popular: true },
-  { id: "pack3", name: "Pro Pack", credits: 75, price: 19.99, popular: false },
-  { id: "pack4", name: "Studio Pack", credits: 200, price: 49.99, popular: false },
-];
+const Credits: React.FC = () => {
+  const { user, refreshUserData, isSubscriber } = useAuth();
+  const { trackActivity } = useAffiliateTracking();
+  const [userCredits, setUserCredits] = useState<number>(0);
+  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
-const subscriptionPlans = [
-  { 
-    id: "basic",
-    name: "Basic", 
-    price: 9.99, 
-    popular: false,
-    creditsPerMonth: 20,
-    priceId: "price_basic_monthly",
-    features: [
-      "20 credits monthly",
-      "Access to all basic AI models",
-      "Standard quality exports",
-      "Email support"
-    ] 
-  },
-  { 
-    id: "premium",
-    name: "Premium", 
-    price: 19.99, 
-    popular: true,
-    creditsPerMonth: 75,
-    priceId: "price_premium_monthly",
-    features: [
-      "75 credits monthly",
-      "Access to all premium AI models",
-      "High quality exports",
-      "Priority email support",
-      "Unlimited song storage"
-    ] 
-  },
-  { 
-    id: "unlimited",
-    name: "Professional", 
-    price: 39.99, 
-    popular: false,
-    creditsPerMonth: 200,
-    priceId: "price_professional_monthly",
-    features: [
-      "200 credits monthly",
-      "Access to all AI models including beta",
-      "Maximum quality exports",
-      "Priority support with 24hr response",
-      "Unlimited song storage",
-      "Commercial usage rights",
-      "Advanced editing tools"
-    ] 
-  }
-];
+  // Track subscription page visit
+  useEffect(() => {
+    trackActivity('subscription_page_visit');
+  }, [trackActivity]);
 
-const Credits = () => {
-  const { user, isVoter, isSubscriber, isAdmin, isSuperAdmin } = useAuth();
-  const { isVerifying } = usePaymentVerification();
-  
-  const userIsOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-  const [activeTab, setActiveTab] = useState(userIsOnlyVoter ? "membership" : "credits");
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-  const [creditBalance, setCreditBalance] = useState(user?.credits || 0);
-  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const fetchUserCredits = async () => {
+    if (user?.id) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("credits")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching credits:", error);
+          return;
+        }
+
+        setUserCredits(data?.credits || 0);
+      } catch (err) {
+        console.error("Error fetching user credits:", err);
+      }
+    }
+  };
 
   useEffect(() => {
-    if (user) {
-      setCreditBalance(user.credits || 0);
-      if (user.subscription && user.subscription.planId && user.subscription.status === 'active') {
-        setCurrentPlan(user.subscription.planId);
-        console.log("Credits.tsx: Current active plan ID set to:", user.subscription.planId);
-      } else {
-        setCurrentPlan(null);
-        console.log("Credits.tsx: No active plan found or planId missing.");
-      }
-    } else {
-      setCreditBalance(0);
-      setCurrentPlan(null);
-    }
-  }, [user]);
+    fetchUserCredits();
+  }, [user?.id]);
 
-  if (isVerifying) {
-    return <PaymentLoadingScreen title="Verifying Payment..." />;
-  }
+  const creditPackages = [
+    {
+      id: "starter",
+      name: "Starter Pack",
+      credits: 50,
+      price: 9.99,
+      popular: false,
+    },
+    {
+      id: "pro",
+      name: "Pro Pack",
+      credits: 120,
+      price: 19.99,
+      popular: true,
+      bonus: 20,
+    },
+    {
+      id: "ultimate",
+      name: "Ultimate Pack",
+      credits: 250,
+      price: 39.99,
+      popular: false,
+      bonus: 50,
+    },
+  ];
 
-  const handleBuyCredits = async (packId: string) => {
-    if (userIsOnlyVoter) {
-      toast.error("Subscription Required", { description: "Please subscribe to a plan to purchase credits." });
-      setActiveTab("membership");
-      return;
-    }
+  const subscriptionPlans = [
+    {
+      id: "basic",
+      name: "Basic Plan",
+      price: 14.99,
+      credits: 100,
+      features: [
+        "100 monthly credits",
+        "Standard music generation",
+        "Basic voice cloning",
+        "Email support"
+      ],
+      popular: false,
+    },
+    {
+      id: "premium",
+      name: "Premium Plan",
+      price: 29.99,
+      credits: 250,
+      features: [
+        "250 monthly credits",
+        "Advanced music generation",
+        "Unlimited voice cloning",
+        "Priority support",
+        "Custom song requests"
+      ],
+      popular: true,
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise Plan",
+      price: 59.99,
+      credits: 500,
+      features: [
+        "500 monthly credits",
+        "Premium music generation",
+        "Unlimited everything",
+        "24/7 dedicated support",
+        "Custom integrations"
+      ],
+      popular: false,
+    },
+  ];
 
-    setPaymentProcessing(true);
-    
+  const handlePurchase = (packageData: any, type: 'credits' | 'subscription') => {
+    setSelectedPackage({ ...packageData, type });
+    setIsPaymentDialogOpen(true);
+  };
+
+  const handlePaymentConfirm = async () => {
+    if (!selectedPackage || !user) return;
+
+    setProcessing(true);
     try {
-      const pack = creditPacks.find(p => p.id === packId);
-      if (!pack || !user?.id) {
-        throw new Error("Invalid pack or user not found");
-      }
-      
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          type: 'credits',
-          packId: pack.id,
-          amount: Math.round(pack.price * 100),
-          credits: pack.credits,
-          description: `${pack.name} - ${pack.credits} credits`
-        }
-      });
-
-      if (error) throw new Error(error.message || 'Failed to create checkout session');
-      
-      // Check if response contains success (automatic processing) or url (Stripe redirect)
-      if (data?.success) {
-        toast.success("Credits Added Successfully!", { 
-          description: `${pack.credits} credits have been added to your account.` 
+      if (selectedPackage.type === 'subscription') {
+        const { data, error } = await supabase.functions.invoke('create-subscription', {
+          body: {
+            plan_id: selectedPackage.id,
+            user_id: user.id
+          }
         });
-        // Refresh user data to update credit balance
-        window.location.reload();
-      } else if (data?.url) {
-        window.location.href = data.url;
+
+        if (error) throw error;
+
+        if (data?.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else {
+          // Track subscription completion for affiliate system
+          await trackActivity('subscription_completed', {
+            subscription_amount: selectedPackage.price,
+            plan_id: selectedPackage.id
+          });
+          
+          toast.success("Subscription activated successfully!");
+          await refreshUserData();
+          fetchUserCredits();
+          setIsPaymentDialogOpen(false);
+        }
       } else {
-        throw new Error('No response received from payment processor');
+        const { data, error } = await supabase.functions.invoke('purchase-credits', {
+          body: {
+            package_id: selectedPackage.id,
+            credits: selectedPackage.credits + (selectedPackage.bonus || 0),
+            amount: selectedPackage.price
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else {
+          toast.success("Credits purchased successfully!");
+          fetchUserCredits();
+          setIsPaymentDialogOpen(false);
+        }
       }
-      
-      setDialogOpen(false);
     } catch (error: any) {
-      console.error("Error purchasing credits:", error);
-      toast.error("Purchase failed", { description: error.message });
+      console.error("Payment error:", error);
+      toast.error(error.message || "Payment failed. Please try again.");
     } finally {
-      setPaymentProcessing(false);
-      setSelectedPackId(null);
+      setProcessing(false);
     }
   };
 
-  const handleSubscribe = async (planId: string) => {
-    setPaymentProcessing(true);
-    
-    try {
-      const plan = subscriptionPlans.find(p => p.id === planId);
-      if (!plan || !user?.id) {
-        throw new Error("Invalid plan or user not found");
-      }
-      
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: {
-          priceId: plan.priceId,
-          planId: plan.id,
-          planName: plan.name,
-          amount: Math.round(plan.price * 100)
-        }
-      });
-
-      if (error) throw new Error(error.message || 'Failed to create subscription session');
-      
-      // Check if response contains success (automatic processing) or url (Stripe redirect)
-      if (data?.success) {
-        toast.success("Subscription Activated!", { 
-          description: `Your ${plan.name} subscription has been activated successfully.` 
-        });
-        // Refresh user data to update subscription status
-        window.location.reload();
-      } else if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No response received from subscription processor');
-      }
-      
-      setDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error subscribing:", error);
-      toast.error("Subscription failed", { description: error.message });
-    } finally {
-      setPaymentProcessing(false);
-      setSelectedPlanId(null);
-    }
-  };
-
-  const selectedPack = creditPacks.find(p => p.id === selectedPackId);
-  const selectedPlan = subscriptionPlans.find(p => p.id === selectedPlanId);
+  const isUserSubscribed = isSubscriber();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Credits & Membership</h1>
-        <p className="text-muted-foreground">Purchase credits or subscribe to a membership plan</p>
-      </div>
-      
-      <div className="flex items-center gap-3 p-4 bg-card rounded-lg border">
-        <div className="flex items-center gap-1 text-lg">
-          <Star className="h-6 w-6 fill-melody-secondary text-melody-secondary" />
-          <span className="font-bold">{creditBalance}</span>
-        </div>
-        <div className="text-sm text-muted-foreground">Current credit balance</div>
-      </div>
-      
-      <Tabs defaultValue="credits" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="credits">Buy Credits</TabsTrigger>
-          <TabsTrigger value="membership">Membership Plans</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="credits" className="space-y-4">
-          {userIsOnlyVoter ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-yellow-500" />
-                  Unlock Credit Purchases
-                </CardTitle>
-                <CardDescription>
-                  Purchasing additional credits is a feature for subscribers.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  To buy credit packs, please subscribe to one of our membership plans. Subscribers get monthly credits and the ability to top-up anytime.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={() => setActiveTab("membership")} className="w-full sm:w-auto">
-                  View Membership Plans
-                </Button>
-              </CardFooter>
-            </Card>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {creditPacks.map((pack) => (
-                  <Card key={pack.id} className={pack.popular ? "border-melody-secondary" : ""}>
-                    {pack.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <Badge className="bg-melody-secondary">Most Popular</Badge>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <CardTitle>{pack.name}</CardTitle>
-                      <CardDescription>One-time purchase</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold mb-4">${pack.price}</div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
-                        <span className="font-medium">{pack.credits} credits</span>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-                        onClick={() => {
-                          setSelectedPackId(pack.id);
-                          setDialogOpen(true);
-                        }}
-                      >
-                        Purchase
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+    <div className="container mx-auto py-8 px-4">
+      {/* Current Credits Display */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <CreditCard className="mr-2 h-6 w-6" />
+            Your Credits
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold text-primary">{userCredits} Credits</div>
+          <p className="text-muted-foreground mt-2">
+            Use credits to generate music, create custom songs, and more!
+          </p>
+        </CardContent>
+      </Card>
 
-              <div className="bg-muted p-4 rounded flex items-center gap-3 text-sm">
-                <Info className="h-5 w-5 text-melody-secondary flex-shrink-0" />
-                <div>
-                  Credits never expire and can be used for song generation, competition entries, and other premium features.
-                </div>
-              </div>
-            </>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="membership" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Subscription Plans Section */}
+      {!isUserSubscribed && (
+        <div className="mb-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold tracking-tight mb-4">Choose Your Plan</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Get unlimited access to all features with monthly credits included
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {subscriptionPlans.map((plan) => (
-              <Card key={plan.id} className={`flex flex-col ${plan.popular ? "border-melody-secondary" : ""}`}>
+              <Card key={plan.id} className={`relative ${plan.popular ? 'border-primary shadow-lg scale-105' : ''}`}>
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-melody-secondary">Most Popular</Badge>
+                    <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
                   </div>
                 )}
-                <CardHeader>
-                  <CardTitle>{plan.name}</CardTitle>
-                  <CardDescription>Monthly subscription</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="text-3xl font-bold mb-4">${plan.price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
-                  <div className="flex items-center gap-2 mb-6">
-                    <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
-                    <span className="font-medium">{plan.creditsPerMonth} credits monthly</span>
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">${plan.price}</span>
+                    <span className="text-muted-foreground">/month</span>
                   </div>
+                  <p className="text-sm text-muted-foreground">{plan.credits} credits included</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <ul className="space-y-2">
                     {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-melody-secondary flex-shrink-0 mt-0.5" />
-                        <span>{feature}</span>
+                      <li key={index} className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                        <span className="text-sm">{feature}</span>
                       </li>
                     ))}
                   </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className={`w-full ${currentPlan === plan.id ? "bg-muted hover:bg-muted" : "bg-melody-secondary hover:bg-melody-secondary/90"}`}
-                    disabled={currentPlan === plan.id}
-                    onClick={() => {
-                      setSelectedPlanId(plan.id);
-                      setDialogOpen(true);
-                    }}
+                  <Button
+                    className="w-full"
+                    variant={plan.popular ? "default" : "outline"}
+                    onClick={() => handlePurchase(plan, 'subscription')}
                   >
-                    {currentPlan === plan.id ? "Current Plan" : "Subscribe"}
+                    Subscribe Now
                   </Button>
-                </CardFooter>
+                </CardContent>
               </Card>
             ))}
           </div>
-          
-          <div className="bg-muted p-4 rounded flex items-center gap-3 text-sm">
-            <Info className="h-5 w-5 text-melody-secondary flex-shrink-0" />
-            <div>
-              Membership benefits include monthly credits and exclusive features. You can cancel your subscription anytime.
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Payment Dialogs */}
-      {selectedPack && (
-        <PaymentDialog
-          open={dialogOpen && selectedPackId !== null}
-          onOpenChange={(open) => {
-            if (!open) setSelectedPackId(null);
-            setDialogOpen(open);
-          }}
-          title={`Purchase ${selectedPack.name}`}
-          description={`You are about to purchase ${selectedPack.credits} credits for $${selectedPack.price}.`}
-          amount={selectedPack.price}
-          credits={selectedPack.credits}
-          onConfirm={() => handleBuyCredits(selectedPackId!)}
-          processing={paymentProcessing}
-          type="credits"
-        />
+        </div>
       )}
 
-      {selectedPlan && (
-        <PaymentDialog
-          open={dialogOpen && selectedPlanId !== null}
-          onOpenChange={(open) => {
-            if (!open) setSelectedPlanId(null);
-            setDialogOpen(open);
-          }}
-          title={`Subscribe to ${selectedPlan.name} Plan`}
-          description={`You are about to subscribe to the ${selectedPlan.name} plan for $${selectedPlan.price}/month.`}
-          amount={selectedPlan.price}
-          onConfirm={() => handleSubscribe(selectedPlanId!)}
-          processing={paymentProcessing}
-          type="subscription"
-        />
-      )}
+      {/* Credit Packages Section */}
+      <div className="mb-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold tracking-tight mb-4">
+            {isUserSubscribed ? "Additional Credits" : "Credit Packages"}
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            {isUserSubscribed 
+              ? "Need more credits? Purchase additional credit packages" 
+              : "One-time credit purchases for flexible usage"
+            }
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {creditPackages.map((pkg) => (
+            <Card key={pkg.id} className={`relative ${pkg.popular ? 'border-primary shadow-md' : ''}`}>
+              {pkg.popular && (
+                <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                  <Badge variant="secondary">Best Value</Badge>
+                </div>
+              )}
+              <CardHeader className="text-center">
+                <CardTitle>{pkg.name}</CardTitle>
+                <div className="mt-4">
+                  <span className="text-3xl font-bold">${pkg.price}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-lg font-semibold">{pkg.credits} Credits</span>
+                  {pkg.bonus && (
+                    <span className="text-sm text-green-600 block">+ {pkg.bonus} Bonus Credits!</span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  variant={pkg.popular ? "default" : "outline"}
+                  onClick={() => handlePurchase(pkg, 'credits')}
+                >
+                  Purchase Credits
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        title={selectedPackage?.type === 'subscription' ? `Subscribe to ${selectedPackage?.name}` : `Purchase ${selectedPackage?.name}`}
+        description={selectedPackage?.type === 'subscription' 
+          ? `Monthly subscription with ${selectedPackage?.credits} credits included` 
+          : `Get ${selectedPackage?.credits}${selectedPackage?.bonus ? ` + ${selectedPackage.bonus} bonus` : ''} credits`
+        }
+        amount={selectedPackage?.price || 0}
+        credits={selectedPackage?.type === 'credits' ? selectedPackage?.credits + (selectedPackage?.bonus || 0) : undefined}
+        onConfirm={handlePaymentConfirm}
+        processing={processing}
+        type={selectedPackage?.type || 'credits'}
+      />
     </div>
   );
 };

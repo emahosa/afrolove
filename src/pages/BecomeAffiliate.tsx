@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { AlertCircle } from 'lucide-react';
 
 const BecomeAffiliatePage: React.FC = () => {
   const { user } = useAuth();
@@ -15,19 +17,87 @@ const BecomeAffiliatePage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [socialMediaUrl, setSocialMediaUrl] = useState('');
   const [reasonToJoin, setReasonToJoin] = useState('');
+  const [usdtWalletAddress, setUsdtWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [programEnabled, setProgramEnabled] = useState(true);
+  const [canApply, setCanApply] = useState(true);
+  const [rejectionMessage, setRejectionMessage] = useState('');
 
   useEffect(() => {
     if (user?.email) {
       setEmail(user.email);
     }
-    // Potentially fetch full name from profile if available and not already in user object
     if (user?.user_metadata?.full_name && !fullName) {
-        setFullName(user.user_metadata.full_name);
+      setFullName(user.user_metadata.full_name);
     } else if (user?.name && !fullName) {
-        setFullName(user.name);
+      setFullName(user.name);
     }
+    
+    checkProgramStatus();
+    checkApplicationEligibility();
   }, [user, fullName]);
+
+  const checkProgramStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'affiliate_program_enabled')
+        .single();
+
+      setProgramEnabled(data?.value === 'true');
+    } catch (err) {
+      console.error('Error checking program status:', err);
+    }
+  };
+
+  const checkApplicationEligibility = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Check existing applications
+      const { data: applications, error } = await supabase
+        .from('affiliate_applications')
+        .select('status, rejection_date')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error checking applications:', error);
+        return;
+      }
+
+      if (applications && applications.length > 0) {
+        const latestApp = applications[0];
+        
+        if (latestApp.status === 'pending') {
+          setCanApply(false);
+          setRejectionMessage('You have a pending application under review.');
+          return;
+        }
+        
+        if (latestApp.status === 'approved') {
+          setCanApply(false);
+          setRejectionMessage('You are already an approved affiliate.');
+          return;
+        }
+        
+        if (latestApp.status === 'rejected' && latestApp.rejection_date) {
+          const rejectionDate = new Date(latestApp.rejection_date);
+          const canReapplyDate = new Date(rejectionDate);
+          canReapplyDate.setDate(canReapplyDate.getDate() + 60);
+          
+          if (new Date() < canReapplyDate) {
+            setCanApply(false);
+            setRejectionMessage(`You can reapply after ${canReapplyDate.toLocaleDateString()}.`);
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error checking eligibility:', err);
+    }
+  };
 
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
@@ -60,6 +130,10 @@ const BecomeAffiliatePage: React.FC = () => {
       toast.error("Reason to join is required.");
       return false;
     }
+    if (!usdtWalletAddress.trim()) {
+      toast.error("USDT wallet address is required.");
+      return false;
+    }
     return true;
   };
 
@@ -69,8 +143,8 @@ const BecomeAffiliatePage: React.FC = () => {
       return;
     }
     if (!user) {
-        toast.error("You must be logged in to apply.");
-        return;
+      toast.error("You must be logged in to apply.");
+      return;
     }
 
     setLoading(true);
@@ -82,38 +156,37 @@ const BecomeAffiliatePage: React.FC = () => {
           phone,
           social_media_url: socialMediaUrl,
           reason_to_join: reasonToJoin,
+          usdt_wallet_address: usdtWalletAddress,
         },
       });
 
       if (error) {
         console.error("Error submitting application:", error);
-        // Attempt to parse error message from function if available
         let errorMessage = 'Failed to submit application. Please try again.';
         if (error.context && typeof error.context.error === 'string') {
-            errorMessage = error.context.error;
+          errorMessage = error.context.error;
         } else if (error.message) {
-            // Check for common Supabase Function invoke error structure
-            try {
-                const parsedError = JSON.parse(error.message);
-                if (parsedError.error) {
-                    errorMessage = parsedError.error;
-                }
-            } catch (e) {
-                // If parsing fails, use the original error message if it's not too generic
-                if (error.message && !error.message.includes('FunctionReturnedNon2xx') && !error.message.includes('Relay Error')) {
-                    errorMessage = error.message;
-                }
+          try {
+            const parsedError = JSON.parse(error.message);
+            if (parsedError.error) {
+              errorMessage = parsedError.error;
             }
+          } catch (e) {
+            if (error.message && !error.message.includes('FunctionReturnedNon2xx') && !error.message.includes('Relay Error')) {
+              errorMessage = error.message;
+            }
+          }
         }
         toast.error(errorMessage);
       } else {
         toast.success(data?.message || "Application submitted successfully! We'll review it shortly.");
-        // Optionally clear the form or redirect
         setFullName('');
-        // setEmail(''); // Keep email if it's from logged-in user
         setPhone('');
         setSocialMediaUrl('');
         setReasonToJoin('');
+        setUsdtWalletAddress('');
+        setCanApply(false);
+        setRejectionMessage('Your application has been submitted and is under review.');
       }
     } catch (err: any) {
       console.error("Unexpected error submitting application:", err);
@@ -122,6 +195,44 @@ const BecomeAffiliatePage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (!programEnabled) {
+    return (
+      <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-orange-600">
+              <AlertCircle className="mr-2 h-5 w-5" />
+              Affiliate Program Temporarily Paused
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              The affiliate program is currently paused. Please check back later for updates.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!canApply) {
+    return (
+      <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center text-blue-600">
+              <AlertCircle className="mr-2 h-5 w-5" />
+              Application Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">{rejectionMessage}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-12 px-4 md:px-6 max-w-2xl">
@@ -181,7 +292,20 @@ const BecomeAffiliatePage: React.FC = () => {
                 required
                 className="mt-1"
               />
-               <p className="text-xs text-muted-foreground mt-1">E.g., Instagram, TikTok, YouTube, Twitter link.</p>
+              <p className="text-xs text-muted-foreground mt-1">E.g., Instagram, TikTok, YouTube, Twitter link.</p>
+            </div>
+            <div>
+              <Label htmlFor="usdtWalletAddress">USDT Wallet Address</Label>
+              <Input
+                id="usdtWalletAddress"
+                type="text"
+                placeholder="Your USDT wallet address for withdrawals"
+                value={usdtWalletAddress}
+                onChange={(e) => setUsdtWalletAddress(e.target.value)}
+                required
+                className="mt-1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Required for receiving affiliate payouts via USDT.</p>
             </div>
             <div>
               <Label htmlFor="reasonToJoin">Why do you want to join?</Label>
