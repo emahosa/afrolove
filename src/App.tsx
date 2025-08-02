@@ -1,4 +1,5 @@
 
+import React, { useEffect } from 'react';
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -36,7 +37,6 @@ import AdminLayout from "./layouts/AdminLayout";
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import { useEffect } from 'react';
 import { ensureStorageBuckets } from './utils/storageSetup';
 
 const App = () => {
