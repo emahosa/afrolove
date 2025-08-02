@@ -50,7 +50,12 @@ const AiSongGeneration = () => {
       return;
     }
 
-    if ((user?.credits || 0) < 5) {
+    if (!user) {
+      toast.error("Please log in to generate songs.");
+      return;
+    }
+
+    if ((user.credits || 0) < 5) {
       toast.error("Insufficient credits. Please purchase more to continue.");
       return;
     }
@@ -61,7 +66,7 @@ const AiSongGeneration = () => {
       return;
     }
 
-    const adminPrompt = selectedGenre.prompt_template;
+    const adminPrompt = selectedGenre.prompt_template || selectedGenre.description || "";
     const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
     let request: SunoGenerationRequest;
 
@@ -91,6 +96,7 @@ const AiSongGeneration = () => {
     if (taskId) {
       setPrompt("");
       setTitle("");
+      toast.success("Song generation started! Check your library for the result.");
     }
   };
 
@@ -103,11 +109,13 @@ const AiSongGeneration = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-
         <div className="space-y-2">
           <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
           {genresLoading ? (
-            <div className="flex items-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading genres...</div>
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+              Loading genres...
+            </div>
           ) : (
             <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
               <SelectTrigger id="genre">
@@ -115,7 +123,9 @@ const AiSongGeneration = () => {
               </SelectTrigger>
               <SelectContent>
                 {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id}>{genre.name}</SelectItem>
+                  <SelectItem key={genre.id} value={genre.id}>
+                    {genre.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -130,7 +140,9 @@ const AiSongGeneration = () => {
             </SelectTrigger>
             <SelectContent>
               {availableModels.map(model => (
-                <SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>
+                <SelectItem key={model.value} value={model.value}>
+                  {model.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -182,11 +194,11 @@ const AiSongGeneration = () => {
 
         <Button
           onClick={handleGenerate}
-          disabled={isGenerating || genresLoading}
+          disabled={isGenerating || genresLoading || !selectedGenreId}
           className="w-full"
           size="lg"
         >
-          {isGenerating || genresLoading ? (
+          {isGenerating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Music className="mr-2 h-4 w-4" />

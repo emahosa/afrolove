@@ -1,239 +1,227 @@
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Music, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Music, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { useGenres } from '@/hooks/use-genres';
-import { useSunoGeneration } from '@/hooks/use-suno-generation';
-import { updateUserCredits } from '@/utils/credits';
-import { supabase } from '@/integrations/supabase/client';
+import { useSunoGeneration, SunoGenerationRequest, getModelDisplayName, getApiModelName } from "@/hooks/use-suno-generation";
+import { useGenres } from "@/hooks/use-genres";
+import { useAuth } from "@/contexts/AuthContext";
+
+type CreationMode = 'prompt' | 'lyrics';
 
 interface MusicGenerationWorkflowProps {
   preSelectedGenre?: string;
   initialPrompt?: string;
 }
 
-export const MusicGenerationWorkflow: React.FC<MusicGenerationWorkflowProps> = ({
-  preSelectedGenre = "",
-  initialPrompt = ""
-}) => {
+export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: MusicGenerationWorkflowProps) => {
+  const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
+  const [prompt, setPrompt] = useState(initialPrompt || "");
+  const [title, setTitle] = useState("");
+  const [instrumental, setInstrumental] = useState(false);
+  const [selectedGenreId, setSelectedGenreId] = useState<string>(preSelectedGenre || "");
+  const [selectedModel, setSelectedModel] = useState<string>("Afro Model 3");
+
   const { user } = useAuth();
-  const { genres, loading: genresLoading } = useGenres();
   const { generateSong, isGenerating } = useSunoGeneration();
-  
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [selectedGenre, setSelectedGenre] = useState(preSelectedGenre);
-  const [songType, setSongType] = useState<'song' | 'instrumental'>('song');
-  const [title, setTitle] = useState('');
-  const [userCredits, setUserCredits] = useState(0);
+  const { genres, loading: genresLoading } = useGenres();
 
-  // Fetch user credits
-  useEffect(() => {
-    if (user) {
-      fetchUserCredits();
-    }
-  }, [user]);
+  const availableModels = [
+    { value: "Afro Model 1", label: "Afro Model 1" },
+    { value: "Afro Model 2", label: "Afro Model 2" },
+    { value: "Afro Model 3", label: "Afro Model 3" }
+  ];
 
-  // Set pre-selected values
+  // Set initial genre when preSelectedGenre changes
   useEffect(() => {
     if (preSelectedGenre) {
-      setSelectedGenre(preSelectedGenre);
+      setSelectedGenreId(preSelectedGenre);
     }
   }, [preSelectedGenre]);
 
+  // Set initial prompt when initialPrompt changes
   useEffect(() => {
     if (initialPrompt) {
       setPrompt(initialPrompt);
     }
   }, [initialPrompt]);
 
-  const fetchUserCredits = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase.from('profiles')
-        .select('credits')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      setUserCredits(data?.credits || 0);
-    } catch (error) {
-      console.error('Error fetching credits:', error);
-    }
-  };
-
   const handleGenerate = async () => {
+    if (!selectedGenreId) {
+      toast.error("Please select a genre.");
+      return;
+    }
+
+    if (creationMode === 'prompt' && !prompt.trim()) {
+      toast.error("Please enter a song description.");
+      return;
+    }
+
+    if (creationMode === 'lyrics' && (!prompt.trim() || !title.trim())) {
+      toast.error("Lyrics and Title are required for Lyrics Mode.");
+      return;
+    }
+
     if (!user) {
-      toast.error('Please log in to generate music');
+      toast.error("Please log in to generate songs.");
       return;
     }
 
-    if (!prompt.trim()) {
-      toast.error('Please enter a prompt for your song');
+    // Check user credits
+    if ((user.credits || 0) < 5) {
+      toast.error("Insufficient credits. Please purchase more to continue.");
       return;
     }
 
-    if (prompt.length > 99) {
-      toast.error('Prompt must be 99 characters or less');
+    const selectedGenre = genres.find(g => g.id === selectedGenreId);
+    if (!selectedGenre) {
+      toast.error("Selected genre not found. Please try again.");
       return;
     }
 
-    if (userCredits < 1) {
-      toast.error('Insufficient credits. Please purchase more credits to continue.');
-      return;
-    }
+    const adminPrompt = selectedGenre.prompt_template || selectedGenre.description || "";
+    const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
+    let request: SunoGenerationRequest;
 
-    try {
-      const selectedGenreData = genres.find(g => g.id === selectedGenre);
-      const genrePrompt = selectedGenreData?.prompt_template || '';
-      
-      const finalPrompt = genrePrompt ? `${genrePrompt} ${prompt}` : prompt;
-      
-      await generateSong({
-        prompt: finalPrompt,
-        title: title || 'Untitled Song',
-        instrumental: songType === 'instrumental',
-        customMode: false,
-        model: 'V3_5'
-      });
-
-      // Update credits locally and refresh from server
-      await updateUserCredits(user.id, -1);
-      await fetchUserCredits();
-      
-      // Clear form
-      setPrompt('');
-      setTitle('');
-      if (!preSelectedGenre) {
-        setSelectedGenre('');
+    if (creationMode === 'prompt') {
+      if (prompt.length > 99) {
+        toast.error("Prompt cannot exceed 99 characters.");
+        return;
       }
-      
-      toast.success('Song generation started! Check your library for the result.');
-    } catch (error: any) {
-      console.error('Generation error:', error);
-      toast.error(error.message || 'Failed to generate song');
+      request = {
+        prompt: `${adminPrompt} ${prompt}`,
+        customMode: false,
+        instrumental,
+        model: apiModelName,
+      };
+    } else { // lyrics mode
+      request = {
+        prompt: prompt, // user lyrics
+        customMode: true,
+        instrumental,
+        title: title,
+        style: adminPrompt,
+        model: apiModelName,
+      };
+    }
+
+    const taskId = await generateSong(request);
+    if (taskId) {
+      setPrompt("");
+      setTitle("");
+      toast.success("Song generation started! Check your library for the result.");
     }
   };
-
-  const isFormValid = prompt.trim() && prompt.length <= 99;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="title">Song Title (Optional)</Label>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter song title..."
-            maxLength={50}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="type">Type</Label>
-          <Select value={songType} onValueChange={(value: 'song' | 'instrumental') => setSongType(value)}>
-            <SelectTrigger>
-              <SelectValue />
+      <div className="space-y-2">
+        <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
+        {genresLoading ? (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+            Loading genres...
+          </div>
+        ) : (
+          <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
+            <SelectTrigger id="genre">
+              <SelectValue placeholder="Select a genre" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="song">Song (with lyrics)</SelectItem>
-              <SelectItem value="instrumental">Instrumental</SelectItem>
+              {genres.map(genre => (
+                <SelectItem key={genre.id} value={genre.id}>
+                  {genre.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-        </div>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="genre">Genre {preSelectedGenre && "(Pre-selected)"}</Label>
-        <Select 
-          value={selectedGenre} 
-          onValueChange={setSelectedGenre}
-          disabled={genresLoading}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a genre (optional)" />
+        <Label htmlFor="model">AI Model</Label>
+        <Select value={selectedModel} onValueChange={setSelectedModel}>
+          <SelectTrigger id="model">
+            <SelectValue placeholder="Select an AI model" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No specific genre</SelectItem>
-            {genres.map((genre) => (
-              <SelectItem key={genre.id} value={genre.id}>
-                {genre.name}
+            {availableModels.map(model => (
+              <SelectItem key={model.value} value={model.value}>
+                {model.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
+      <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
+        <div>
+          <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
+          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+            Prompt Mode
+            <span className="text-xs font-normal text-muted-foreground">Simple description</span>
+          </Label>
+        </div>
+        <div>
+          <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
+          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+            Lyrics Mode
+            <span className="text-xs font-normal text-muted-foreground">Use your own lyrics</span>
+          </Label>
+        </div>
+      </RadioGroup>
+
+      {creationMode === 'lyrics' && (
+        <div className="space-y-2">
+          <Label htmlFor="title">Song Title <span className="text-destructive">*</span></Label>
+          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </div>
+      )}
+
       <div className="space-y-2">
-        <Label htmlFor="prompt">
-          Prompt {initialPrompt && "(Pre-filled)"}
-          <span className="text-sm text-muted-foreground ml-2">
-            ({prompt.length}/99 characters)
-          </span>
-        </Label>
+        <Label htmlFor="prompt-input">{creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}</Label>
         <Textarea
-          id="prompt"
+          id="prompt-input"
+          placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe the music you want to create..."
-          className="min-h-[100px]"
-          maxLength={99}
+          className="min-h-[120px]"
+          maxLength={creationMode === 'prompt' ? 99 : undefined}
         />
-        {prompt.length > 99 && (
-          <p className="text-sm text-red-500 flex items-center">
-            <AlertCircle className="w-4 h-4 mr-1" />
-            Prompt must be 99 characters or less
-          </p>
+        {creationMode === 'prompt' && (
+          <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
         )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center text-sm">
-            <Music className="w-4 h-4 mr-2" />
-            Generation Cost
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span>Available Credits: {userCredits}</span>
-            <span>Cost: 1 credit</span>
-          </div>
-          {userCredits < 1 && (
-            <p className="text-sm text-red-500 mt-2">
-              Insufficient credits. Please purchase more to continue.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex items-center space-x-2">
+        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} />
+        <Label htmlFor="instrumental">Generate instrumental only</Label>
+      </div>
 
       <Button
         onClick={handleGenerate}
-        disabled={!isFormValid || isGenerating || userCredits < 1}
+        disabled={isGenerating || genresLoading || !selectedGenreId}
         className="w-full"
         size="lg"
       >
         {isGenerating ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Generating...
-          </>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
-          <>
-            <Music className="w-4 h-4 mr-2" />
-            Generate Song (1 Credit)
-          </>
+          <Music className="mr-2 h-4 w-4" />
         )}
+        Generate Song (5 Credits)
       </Button>
+
+      <p className="text-xs text-muted-foreground text-center">
+        Generation takes 1-2 minutes. Your song will appear in the Library.
+      </p>
     </div>
   );
 };

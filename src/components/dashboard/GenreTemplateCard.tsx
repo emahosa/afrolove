@@ -1,98 +1,95 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Play, Pause } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Music, Play, Pause } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { GenreTemplate } from "@/hooks/use-genre-templates";
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
-  onSelect: (template: GenreTemplate) => void;
+  isPlaying: boolean;
+  onTogglePlay: (audioUrl: string) => void;
 }
 
-export const GenreTemplateCard = ({ template, onSelect }: GenreTemplateCardProps) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+export const GenreTemplateCard = ({
+  template,
+  isPlaying,
+  onTogglePlay,
+}: GenreTemplateCardProps) => {
+  const navigate = useNavigate();
 
-  const handleAudioToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCreateWithTemplate = () => {
+    const genreId = template.genre_id;
+    const prompt = template.user_prompt_guide || '';
     
-    if (!template.audio_url) return;
-
-    if (audio) {
-      if (isPlaying) {
-        audio.pause();
-        setIsPlaying(false);
-      } else {
-        audio.play();
-        setIsPlaying(true);
-      }
+    if (genreId) {
+      navigate(`/create?genre=${genreId}&prompt=${encodeURIComponent(prompt)}`);
     } else {
-      const newAudio = new Audio(template.audio_url);
-      newAudio.addEventListener('ended', () => setIsPlaying(false));
-      newAudio.addEventListener('pause', () => setIsPlaying(false));
-      newAudio.play();
-      setAudio(newAudio);
-      setIsPlaying(true);
+      navigate('/create');
     }
   };
 
-  const handleCardClick = () => {
-    onSelect(template);
+  const handlePreviewPlay = () => {
+    if (template.audio_url) {
+      onTogglePlay(template.audio_url);
+    }
   };
 
-  const backgroundImage = template.cover_image_url 
-    ? `url(${template.cover_image_url})`
-    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-
   return (
-    <Card 
-      className="cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group overflow-hidden"
-      onClick={handleCardClick}
-    >
-      <div 
-        className="relative h-48 bg-cover bg-center"
-        style={{ backgroundImage }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-50 transition-all duration-300" />
-        
-        {template.audio_url && (
-          <button
-            onClick={handleAudioToggle}
-            className="absolute top-3 right-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-opacity-30"
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4 text-white" />
-            ) : (
-              <Play className="h-4 w-4 text-white" />
-            )}
-          </button>
-        )}
-
-        <div className="absolute bottom-3 left-3 right-3">
-          <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">
-            {template.template_name}
-          </h3>
-          {template.genres?.name && (
-            <Badge variant="secondary" className="bg-white bg-opacity-20 text-white border-0">
-              {template.genres.name}
-            </Badge>
-          )}
+    <Card className="group hover:shadow-md transition-shadow">
+      {template.cover_image_url && (
+        <div className="aspect-video overflow-hidden rounded-t-lg">
+          <img
+            src={template.cover_image_url}
+            alt={template.template_name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
         </div>
-      </div>
-
-      <CardContent className="p-4">
+      )}
+      
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg font-semibold line-clamp-1">
+          {template.template_name}
+        </CardTitle>
+        {template.genres?.name && (
+          <CardDescription className="text-sm text-muted-foreground">
+            Genre: {template.genres.name}
+          </CardDescription>
+        )}
+      </CardHeader>
+      
+      <CardContent className="pt-0">
         {template.user_prompt_guide && (
-          <p className="text-sm text-muted-foreground line-clamp-3">
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
             {template.user_prompt_guide}
           </p>
         )}
         
-        {!template.user_prompt_guide && (
-          <p className="text-xs text-muted-foreground italic">
-            Click to use this template for music generation
-          </p>
-        )}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleCreateWithTemplate}
+            className="flex-1"
+            size="sm"
+          >
+            <Music className="w-4 h-4 mr-1" />
+            Use Template
+          </Button>
+          
+          {template.audio_url && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviewPlay}
+              className="px-3"
+            >
+              {isPlaying ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
