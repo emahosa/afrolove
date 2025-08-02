@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,6 +38,8 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<HTMLAudioElement | null>(null);
+  const [playingUrl, setPlayingUrl] = useState<string>("");
 
   useEffect(() => {
     if (user) {
@@ -131,16 +132,24 @@ const Dashboard = () => {
     }
   };
 
-  const handleTemplateSelect = (template: GenreTemplate) => {
-    const searchParams = new URLSearchParams();
-    searchParams.set('genre', template.genre_id);
-    if (template.admin_prompt) {
-      searchParams.set('prompt', template.admin_prompt);
+  const handleTogglePlay = (audioUrl: string) => {
+    if (playingAudio) {
+      playingAudio.pause();
+      setPlayingAudio(null);
+      setPlayingUrl("");
     }
-    if (template.user_prompt_guide) {
-      searchParams.set('guide', template.user_prompt_guide);
+
+    if (audioUrl !== playingUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play();
+      setPlayingAudio(audio);
+      setPlayingUrl(audioUrl);
+      
+      audio.onended = () => {
+        setPlayingAudio(null);
+        setPlayingUrl("");
+      };
     }
-    navigate(`/create?${searchParams.toString()}`);
   };
 
   const handleCreateClick = () => {
@@ -254,7 +263,8 @@ const Dashboard = () => {
                   <div key={template.id} className="break-inside-avoid mb-4">
                     <GenreTemplateCard
                       template={template}
-                      onSelect={handleTemplateSelect}
+                      isPlaying={playingUrl === template.audio_url}
+                      onTogglePlay={handleTogglePlay}
                     />
                   </div>
                 ))}
