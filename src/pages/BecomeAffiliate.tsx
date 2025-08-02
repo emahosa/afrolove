@@ -16,7 +16,6 @@ const BecomeAffiliate: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [canReapply, setCanReapply] = useState(false);
-  const [rejectionDate, setRejectionDate] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: user?.user_metadata?.full_name || '',
     email: user?.email || '',
@@ -33,24 +32,23 @@ const BecomeAffiliate: React.FC = () => {
       try {
         const { data: applicationData, error: applicationError } = await supabase
           .from('affiliate_applications')
-          .select('status, rejection_date')
+          .select('status, updated_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
-        if (!applicationError && applicationData) {
-          setApplicationStatus(applicationData.status);
+        if (applicationError) {
+          console.error('Error checking application status:', applicationError);
+        } else if (applicationData) {
+          setApplicationStatus(applicationData.status as 'pending' | 'approved' | 'rejected');
+          
+          // For rejected applications, check if 60 days have passed since last update
           if (applicationData.status === 'rejected') {
-            setRejectionDate(applicationData.rejection_date);
-            
-            // Check if 60 days have passed since rejection
-            if (applicationData.rejection_date) {
-              const rejectionDateObj = new Date(applicationData.rejection_date);
-              const currentDate = new Date();
-              const daysDifference = (currentDate.getTime() - rejectionDateObj.getTime()) / (1000 * 3600 * 24);
-              setCanReapply(daysDifference >= 60);
-            }
+            const rejectionDate = new Date(applicationData.updated_at);
+            const currentDate = new Date();
+            const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24);
+            setCanReapply(daysDifference >= 60);
           }
         }
       } catch (err) {
@@ -142,11 +140,6 @@ const BecomeAffiliate: React.FC = () => {
               <div className="text-red-600">
                 <h3 className="text-lg font-semibold">Application Rejected</h3>
                 <p>Your affiliate application was rejected. You can reapply after 60 days from the rejection date.</p>
-                {rejectionDate && (
-                  <p className="text-sm">
-                    Rejection date: {new Date(rejectionDate).toLocaleDateString()}
-                  </p>
-                )}
               </div>
             </div>
           )}
