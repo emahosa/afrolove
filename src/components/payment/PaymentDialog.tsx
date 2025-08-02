@@ -19,6 +19,7 @@ interface PaymentDialogProps {
   title: string;
   description: string;
   amount: number;
+  credits?: number;
   onConfirm: () => void;
   processing: boolean;
   type: 'credits' | 'subscription';
@@ -30,6 +31,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   title,
   description,
   amount,
+  credits,
   onConfirm,
   processing,
   type
