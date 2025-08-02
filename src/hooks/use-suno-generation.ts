@@ -11,6 +11,7 @@ export interface SunoGenerationRequest {
   instrumental: boolean;
   customMode: boolean;
   model: 'V3_5' | 'V4' | 'V4_5';
+  templatePrompt?: string; // Add template prompt support
 }
 
 // Model mapping for display purposes
@@ -34,7 +35,7 @@ export const getApiModelName = (displayName: string): string => {
 };
 
 export const useSunoGeneration = () => {
-  const { user } = useAuth();
+  const { user, updateUserCredits } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateSong = async (request: SunoGenerationRequest): Promise<string | null> => {
@@ -43,13 +44,25 @@ export const useSunoGeneration = () => {
       return null;
     }
 
+    // Check if user has enough credits (now 20 credits)
+    if ((user.credits || 0) < 20) {
+      toast.error('You need 20 credits to generate a song');
+      return null;
+    }
+
     setIsGenerating(true);
     try {
       console.log('useSunoGeneration: Starting song generation with request:', request);
 
+      // Use template prompt if provided, otherwise use the regular prompt
+      const finalPrompt = request.templatePrompt ? 
+        `${request.templatePrompt}. User request: ${request.prompt}` : 
+        request.prompt;
+
       const { data, error } = await supabase.functions.invoke('suno-generate', {
         body: {
           ...request,
+          prompt: finalPrompt, // Use the combined prompt
           userId: user.id
         }
       });
@@ -60,6 +73,9 @@ export const useSunoGeneration = () => {
         toast.error(`Generation failed: ${errorMessage}`);
         return null;
       }
+
+      // Deduct 20 credits after successful generation
+      await updateUserCredits(-20);
 
       const taskId = data.task_id;
       toast.success('🎵 Your song is being generated! It will appear in your library shortly.');

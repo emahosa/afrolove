@@ -1,53 +1,33 @@
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
-import { useGenres } from "@/hooks/use-genres";
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import AiSongGeneration from '@/components/AiSongGeneration';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import LockScreen from "@/components/LockScreen";
 
 const Create = () => {
-  const [searchParams] = useSearchParams();
-  const { genres } = useGenres();
-  const [selectedGenre, setSelectedGenre] = useState<string>("");
-  const [initialPrompt, setInitialPrompt] = useState<string>("");
+  const { user, isSubscriber } = useAuth();
+  const location = useLocation();
+  const [templateData, setTemplateData] = useState(null);
 
   useEffect(() => {
-    // Check for pre-selected genre from URL params
-    const genreId = searchParams.get('genre');
-    const promptParam = searchParams.get('prompt');
-    
-    if (genreId) {
-      setSelectedGenre(genreId);
+    if (location.state?.selectedTemplate) {
+      setTemplateData(location.state);
     }
-    
-    if (promptParam) {
-      setInitialPrompt(promptParam);
-    }
-  }, [searchParams]);
+  }, [location.state]);
+
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
+
+  if (!isSubscriber()) {
+    return <LockScreen message="Subscribe to access the song creation feature and start making amazing music!" buttonText="Subscribe Now" />;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Create Amazing Music</h1>
-        <p className="text-muted-foreground">
-          Use AI to generate unique songs and instrumentals in any style
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Music Generation</CardTitle>
-          <CardDescription>
-            Describe the music you want to create and let AI bring it to life
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <MusicGenerationWorkflow 
-            preSelectedGenre={selectedGenre}
-            initialPrompt={initialPrompt}
-          />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto py-8 px-4">
+      <AiSongGeneration templateData={templateData} />
     </div>
   );
 };

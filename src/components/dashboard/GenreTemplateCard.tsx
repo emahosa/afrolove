@@ -1,96 +1,101 @@
 
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Play, Pause } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { GenreTemplate } from "@/hooks/use-genre-templates";
+import { Badge } from "@/components/ui/badge";
+import { Music, Play, Pause } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export interface GenreTemplate {
+  id: string;
+  template_name: string;
+  admin_prompt: string;
+  user_prompt_guide?: string;
+  genre_id: string;
+  audio_url?: string;
+  cover_image_url?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
   isPlaying: boolean;
-  onTogglePlay: (audioUrl: string) => void;
+  onTogglePlay: (templateId: string) => void;
 }
 
-export const GenreTemplateCard = ({
+const GenreTemplateCard: React.FC<GenreTemplateCardProps> = ({
   template,
   isPlaying,
-  onTogglePlay,
-}: GenreTemplateCardProps) => {
+  onTogglePlay
+}) => {
   const navigate = useNavigate();
 
-  const handleCreateWithTemplate = () => {
-    const genreId = template.genre_id;
-    const prompt = template.user_prompt_guide || '';
-    
-    if (genreId) {
-      navigate(`/create?genre=${genreId}&prompt=${encodeURIComponent(prompt)}`);
-    } else {
-      navigate('/create');
-    }
-  };
-
-  const handlePreviewPlay = () => {
-    if (template.audio_url) {
-      onTogglePlay(template.audio_url);
-    }
+  const handleUseTemplate = () => {
+    // Navigate to create page with template data
+    navigate('/create', { 
+      state: { 
+        selectedTemplate: template,
+        templatePrompt: template.admin_prompt // Pass the admin prompt
+      } 
+    });
   };
 
   return (
-    <Card className="group hover:shadow-md transition-shadow">
-      {template.cover_image_url && (
-        <div className="aspect-video overflow-hidden rounded-t-lg">
-          <img
-            src={template.cover_image_url}
-            alt={template.template_name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+    <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Music className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">{template.template_name}</CardTitle>
+          </div>
+          <Badge variant="secondary">Template</Badge>
         </div>
-      )}
-      
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold line-clamp-1">
-          {template.template_name}
-        </CardTitle>
-        {template.genres?.name && (
-          <CardDescription className="text-sm text-muted-foreground">
-            Genre: {template.genres.name}
-          </CardDescription>
-        )}
+        <CardDescription className="line-clamp-2">
+          {template.user_prompt_guide || "AI-generated music template"}
+        </CardDescription>
       </CardHeader>
       
-      <CardContent className="pt-0">
-        {template.user_prompt_guide && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {template.user_prompt_guide}
-          </p>
+      <CardContent className="space-y-4">
+        {template.cover_image_url && (
+          <div className="relative">
+            <img 
+              src={template.cover_image_url} 
+              alt={template.template_name}
+              className="w-full h-32 object-cover rounded-md"
+            />
+          </div>
         )}
         
-        <div className="flex gap-2">
-          <Button
-            onClick={handleCreateWithTemplate}
-            className="flex-1"
-            size="sm"
-          >
-            <Music className="w-4 h-4 mr-1" />
-            Use Template
-          </Button>
-          
+        <div className="flex items-center justify-between">
           {template.audio_url && (
             <Button
               variant="outline"
               size="sm"
-              onClick={handlePreviewPlay}
-              className="px-3"
+              onClick={() => onTogglePlay(template.id)}
+              className="flex items-center gap-2"
             >
               {isPlaying ? (
-                <Pause className="w-4 h-4" />
+                <Pause className="h-4 w-4" />
               ) : (
-                <Play className="w-4 h-4" />
+                <Play className="h-4 w-4" />
               )}
+              {isPlaying ? 'Pause' : 'Preview'}
             </Button>
           )}
+          
+          <Button 
+            onClick={handleUseTemplate}
+            className="flex items-center gap-2"
+          >
+            <Music className="h-4 w-4" />
+            Use Template
+          </Button>
         </div>
       </CardContent>
     </Card>
   );
 };
+
+export default GenreTemplateCard;
