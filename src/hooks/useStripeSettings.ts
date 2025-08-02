@@ -1,38 +1,28 @@
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useStripeSettings = () => {
-  const [isStripeEnabled, setIsStripeEnabled] = useState(true);
-  const [loading, setLoading] = useState(true);
+  return useQuery({
+    queryKey: ['stripe-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'stripe_enabled')
+        .maybeSingle();
 
-  useEffect(() => {
-    const checkStripeSettings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'stripe_enabled')
-          .maybeSingle();
-
-        if (!error && data?.value && typeof data.value === 'object') {
-          const settingValue = data.value as { enabled?: boolean };
-          setIsStripeEnabled(settingValue.enabled === true);
-        } else {
-          // Default to enabled if no setting found
-          setIsStripeEnabled(true);
-        }
-      } catch (error) {
-        console.error('Error checking Stripe settings:', error);
-        // Default to enabled on error
-        setIsStripeEnabled(true);
-      } finally {
-        setLoading(false);
+      if (error) {
+        console.error('Error fetching Stripe settings:', error);
+        return { enabled: true }; // Default to enabled if we can't fetch
       }
-    };
 
-    checkStripeSettings();
-  }, []);
+      if (!data?.value) {
+        return { enabled: true }; // Default to enabled if no setting found
+      }
 
-  return { isStripeEnabled, loading };
+      return data.value as { enabled: boolean };
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 };

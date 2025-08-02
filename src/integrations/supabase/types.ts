@@ -1248,6 +1248,8 @@ export type Database = {
           expires_at: string | null
           id: string
           started_at: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           subscription_status: string
           subscription_type: string
           updated_at: string
@@ -1258,6 +1260,8 @@ export type Database = {
           expires_at?: string | null
           id?: string
           started_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subscription_status?: string
           subscription_type?: string
           updated_at?: string
@@ -1268,6 +1272,8 @@ export type Database = {
           expires_at?: string | null
           id?: string
           started_at?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           subscription_status?: string
           subscription_type?: string
           updated_at?: string
