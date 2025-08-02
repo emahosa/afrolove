@@ -18,9 +18,8 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
 
   const fetchLinks = async () => {
     try {
-      // Use RPC call to get affiliate links data since the table isn't in types
-      const { data, error } = await supabase.rpc('get_affiliate_links', {
-        user_id: affiliateId
+      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
+        body: { type: 'links', userId: affiliateId }
       });
 
       if (error) {
@@ -28,7 +27,9 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
         return;
       }
 
-      setLinks(data || []);
+      if (data?.links) {
+        setLinks(data.links);
+      }
     } catch (err) {
       console.error('Error fetching links:', err);
     } finally {

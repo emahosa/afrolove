@@ -26,29 +26,18 @@ const AffiliateWallet: React.FC<AffiliateWalletProps> = ({ affiliateId }) => {
 
   const fetchWallet = async () => {
     try {
-      // Use RPC call to get wallet data since the table isn't in types
-      const { data, error } = await supabase.rpc('get_affiliate_wallet', {
-        user_id: affiliateId
+      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
+        body: { type: 'wallet', userId: affiliateId }
       });
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching wallet:', error);
         return;
       }
 
-      if (data && data.length > 0) {
-        const walletData = data[0];
-        setWallet({
-          id: walletData.id,
-          affiliate_user_id: walletData.affiliate_user_id,
-          balance: parseFloat(walletData.balance) || 0,
-          total_earned: parseFloat(walletData.total_earned) || 0,
-          total_withdrawn: parseFloat(walletData.total_withdrawn) || 0,
-          usdt_wallet_address: walletData.usdt_wallet_address,
-          created_at: walletData.created_at,
-          updated_at: walletData.updated_at
-        });
-        setUsdtAddress(walletData.usdt_wallet_address || '');
+      if (data?.wallet) {
+        setWallet(data.wallet);
+        setUsdtAddress(data.wallet.usdt_wallet_address || '');
       } else {
         setWallet({
           id: '',

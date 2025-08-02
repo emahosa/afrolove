@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,13 +14,32 @@ import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 
 const Credits: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const { trackActivity } = useAffiliateTracking();
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data) {
+        setUserProfile(data);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
 
   const creditPackages = [
     { credits: 5, amount: 5, popular: false },
@@ -127,7 +147,7 @@ const Credits: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="text-3xl font-bold text-primary">
-                {profile?.credits || 0}
+                {userProfile?.credits || 0}
               </div>
               <div className="text-sm text-muted-foreground">
                 credits available

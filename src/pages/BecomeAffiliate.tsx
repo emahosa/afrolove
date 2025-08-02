@@ -31,25 +31,25 @@ const BecomeAffiliate: React.FC = () => {
       if (!user?.id) return;
 
       try {
-        // Use RPC to check application status and reapply eligibility
-        const { data: statusData, error: statusError } = await supabase.rpc('check_affiliate_application_status', {
-          user_id_param: user.id
-        });
+        const { data: applicationData, error: applicationError } = await supabase
+          .from('affiliate_applications')
+          .select('status, rejection_date')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
 
-        if (!statusError && statusData) {
-          const status = statusData.status || 'none';
-          setApplicationStatus(status);
-          
-          if (status === 'rejected') {
-            setRejectionDate(statusData.rejection_date);
+        if (!applicationError && applicationData) {
+          setApplicationStatus(applicationData.status);
+          if (applicationData.status === 'rejected') {
+            setRejectionDate(applicationData.rejection_date);
             
-            // Check if user can reapply
-            const { data: reapplyData, error: reapplyError } = await supabase.rpc('can_reapply_for_affiliate', {
-              user_id_param: user.id
-            });
-            
-            if (!reapplyError) {
-              setCanReapply(reapplyData || false);
+            // Check if 60 days have passed since rejection
+            if (applicationData.rejection_date) {
+              const rejectionDateObj = new Date(applicationData.rejection_date);
+              const currentDate = new Date();
+              const daysDifference = (currentDate.getTime() - rejectionDateObj.getTime()) / (1000 * 3600 * 24);
+              setCanReapply(daysDifference >= 60);
             }
           }
         }
