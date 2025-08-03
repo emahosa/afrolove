@@ -16,43 +16,6 @@ const getSupabaseAdmin = () => {
   );
 }
 
-const isValidReferral = async (supabaseAdmin: any, userId: string, referrerUserId: string) => {
-  // Get user's registration details
-  const { data: user } = await supabaseAdmin
-    .from('profiles')
-    .select('registration_ip, device_id')
-    .eq('id', userId)
-    .single();
-
-  if (!user || !user.registration_ip || !user.device_id) {
-    return { isValid: false, reason: 'Missing registration details' };
-  }
-
-  // Check for duplicate IP addresses
-  const { data: duplicateIPs } = await supabaseAdmin
-    .from('profiles')
-    .select('id')
-    .eq('registration_ip', user.registration_ip)
-    .neq('id', userId);
-
-  if (duplicateIPs && duplicateIPs.length > 0) {
-    return { isValid: false, reason: 'Duplicate IP address' };
-  }
-
-  // Check for duplicate device IDs
-  const { data: duplicateDevices } = await supabaseAdmin
-    .from('profiles')
-    .select('id')
-    .eq('device_id', user.device_id)
-    .neq('id', userId);
-
-  if (duplicateDevices && duplicateDevices.length > 0) {
-    return { isValid: false, reason: 'Duplicate device ID' };
-  }
-
-  return { isValid: true, reason: null };
-};
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -77,20 +40,6 @@ serve(async (req) => {
 
     const supabaseAdmin = getSupabaseAdmin();
     const payload: ActivityPayload = await req.json();
-
-    // Check if affiliate program is enabled
-    const { data: programSettings } = await supabaseAdmin
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'affiliate_program_enabled')
-      .single();
-
-    if (!programSettings || programSettings.value !== 'true') {
-      return new Response(JSON.stringify({ message: 'Affiliate program is disabled' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    }
 
     let referrerAffiliateId = null;
 
@@ -136,137 +85,85 @@ serve(async (req) => {
 
     // Handle earning logic for subscription page visit (free referral)
     if (payload.activity_type === 'subscription_page_visit' && referrerAffiliateId) {
-      // Check if free referral program is enabled
-      const { data: freeReferralSettings } = await supabaseAdmin
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'affiliate_free_referral_enabled')
+      // Check if user signed up within 14 days and hasn't already earned free referral
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const { data: signupActivity } = await supabaseAdmin
+        .from('user_activities')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .eq('activity_type', 'signup')
+        .gte('created_at', fourteenDaysAgo.toISOString())
         .single();
 
-      if (freeReferralSettings?.value === 'true') {
-        // Check if user signed up within 14 days and hasn't already earned free referral
-        const fourteenDaysAgo = new Date();
-        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-        const { data: signupActivity } = await supabaseAdmin
-          .from('user_activities')
-          .select('created_at')
-          .eq('user_id', user.id)
-          .eq('activity_type', 'signup')
-          .gte('created_at', fourteenDaysAgo.toISOString())
+      if (signupActivity) {
+        // Check if free referral already paid
+        const { data: existingEarning } = await supabaseAdmin
+          .from('affiliate_earnings')
+          .select('id')
+          .eq('affiliate_user_id', referrerAffiliateId)
+          .eq('referred_user_id', user.id)
+          .eq('earning_type', 'free_referral')
           .single();
 
-        if (signupActivity) {
-          // Validate referral
-          const validation = await isValidReferral(supabaseAdmin, user.id, referrerAffiliateId);
-          
-          // Check if free referral already exists
-          const { data: existingEarning } = await supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id')
-            .eq('affiliate_user_id', referrerAffiliateId)
-            .eq('referred_user_id', user.id)
-            .eq('earning_type', 'free_referral')
-            .single();
-
-          if (!existingEarning) {
-            // Get compensation amount from settings
-            const { data: settings } = await supabaseAdmin
-              .from('system_settings')
-              .select('value')
-              .eq('key', 'affiliate_free_referral_compensation')
-              .single();
-
-            const compensationAmount = settings ? parseFloat(settings.value) : 0.10;
-
-            // Add free referral earning
-            await supabaseAdmin
-              .from('affiliate_earnings')
-              .insert({
-                affiliate_user_id: referrerAffiliateId,
-                referred_user_id: user.id,
-                earning_type: 'free_referral',
-                amount: compensationAmount,
-                status: 'pending',
-                is_valid: validation.isValid,
-                invalid_reason: validation.reason
-              });
-
-            // Update affiliate wallet if valid
-            if (validation.isValid) {
-              await supabaseAdmin
-                .from('affiliate_wallets')
-                .upsert({
-                  affiliate_user_id: referrerAffiliateId,
-                  balance: supabaseAdmin.sql`COALESCE(balance, 0) + ${compensationAmount}`,
-                  total_earned: supabaseAdmin.sql`COALESCE(total_earned, 0) + ${compensationAmount}`,
-                  updated_at: new Date().toISOString()
-                }, { onConflict: 'affiliate_user_id' });
-            }
-          }
-        }
-      }
-    }
-
-    // Handle subscription commission
-    if (payload.activity_type === 'subscription_completed' && referrerAffiliateId && payload.metadata?.subscription_amount) {
-      // Check if subscription commission is enabled
-      const { data: commissionSettings } = await supabaseAdmin
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'affiliate_subscription_commission_enabled')
-        .single();
-
-      if (commissionSettings?.value === 'true') {
-        // Check if signup was within 30 days
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const { data: signupActivity } = await supabaseAdmin
-          .from('user_activities')
-          .select('created_at')
-          .eq('user_id', user.id)
-          .eq('activity_type', 'signup')
-          .gte('created_at', thirtyDaysAgo.toISOString())
-          .single();
-
-        if (signupActivity) {
-          // Validate referral
-          const validation = await isValidReferral(supabaseAdmin, user.id, referrerAffiliateId);
-          
+        if (!existingEarning) {
+          // Get compensation amount from settings
           const { data: settings } = await supabaseAdmin
             .from('system_settings')
             .select('value')
-            .eq('key', 'affiliate_subscription_commission_percent')
+            .eq('key', 'affiliate_free_referral_compensation')
             .single();
 
-          const commissionPercent = settings ? parseFloat(settings.value) : 10;
-          const commissionAmount = (payload.metadata.subscription_amount * commissionPercent) / 100;
+          const compensationAmount = settings ? parseFloat(settings.value) : 0.10;
 
+          // Add free referral earning
           await supabaseAdmin
             .from('affiliate_earnings')
             .insert({
               affiliate_user_id: referrerAffiliateId,
               referred_user_id: user.id,
-              earning_type: 'subscription_commission',
-              amount: commissionAmount,
-              status: 'pending',
-              is_valid: validation.isValid,
-              invalid_reason: validation.reason
+              earning_type: 'free_referral',
+              amount: compensationAmount,
+              status: 'pending'
             });
-
-          // Update affiliate wallet if valid
-          if (validation.isValid) {
-            await supabaseAdmin
-              .from('affiliate_wallets')
-              .upsert({
-                affiliate_user_id: referrerAffiliateId,
-                balance: supabaseAdmin.sql`COALESCE(balance, 0) + ${commissionAmount}`,
-                total_earned: supabaseAdmin.sql`COALESCE(total_earned, 0) + ${commissionAmount}`,
-                updated_at: new Date().toISOString()
-              }, { onConflict: 'affiliate_user_id' });
-          }
         }
+      }
+    }
+
+    // Handle subscription commission (10% for subscriptions within 30 days)
+    if (payload.activity_type === 'subscription_completed' && referrerAffiliateId && payload.metadata?.subscription_amount) {
+      // Check if signup was within 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: signupActivity } = await supabaseAdmin
+        .from('user_activities')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .eq('activity_type', 'signup')
+        .gte('created_at', thirtyDaysAgo.toISOString())
+        .single();
+
+      if (signupActivity) {
+        const { data: settings } = await supabaseAdmin
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'affiliate_subscription_commission_percent')
+          .single();
+
+        const commissionPercent = settings ? parseFloat(settings.value) : 10;
+        const commissionAmount = (payload.metadata.subscription_amount * commissionPercent) / 100;
+
+        await supabaseAdmin
+          .from('affiliate_earnings')
+          .insert({
+            affiliate_user_id: referrerAffiliateId,
+            referred_user_id: user.id,
+            earning_type: 'subscription_commission',
+            amount: commissionAmount,
+            status: 'pending'
+          });
       }
     }
 

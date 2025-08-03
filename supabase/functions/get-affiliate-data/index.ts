@@ -1,140 +1,96 @@
 
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const getSupabaseAdmin = () => {
-  return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const userSupabaseClient = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
-
-    const supabaseAdmin = getSupabaseAdmin();
     const { type, userId } = await req.json();
+
+    let data = {};
 
     switch (type) {
       case 'links':
-        const { data: links } = await supabaseAdmin
+        const { data: links, error: linksError } = await supabaseAdmin
           .from('affiliate_links')
           .select('*')
           .eq('affiliate_user_id', userId);
-        
-        return new Response(JSON.stringify({ links: links || [] }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
+
+        if (linksError) {
+          console.error('Error fetching affiliate links:', linksError);
+        } else {
+          data = { links: links || [] };
+        }
+        break;
 
       case 'wallet':
-        const { data: wallet } = await supabaseAdmin
+        const { data: wallet, error: walletError } = await supabaseAdmin
           .from('affiliate_wallets')
           .select('*')
           .eq('affiliate_user_id', userId)
           .single();
-        
-        return new Response(JSON.stringify({ wallet }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
+
+        if (walletError && walletError.code !== 'PGRST116') {
+          console.error('Error fetching wallet:', walletError);
+        } else {
+          data = { wallet: wallet || null };
+        }
+        break;
 
       case 'earnings':
-        const { data: earnings } = await supabaseAdmin
+        const { data: earnings, error: earningsError } = await supabaseAdmin
           .from('affiliate_earnings')
           .select(`
             *,
-            profiles!referred_user_id(full_name, username)
+            profile:referred_user_id (
+              full_name,
+              username
+            )
           `)
           .eq('affiliate_user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        return new Response(JSON.stringify({ earnings: earnings || [] }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      case 'analytics':
-        // Get comprehensive analytics
-        const [
-          { data: totalReferrals },
-          { data: validReferrals },
-          { data: invalidReferrals },
-          { data: subscribedReferrals },
-          { data: activeFreeReferrals }
-        ] = await Promise.all([
-          supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id', { count: 'exact', head: true })
-            .eq('affiliate_user_id', userId),
-          supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id', { count: 'exact', head: true })
-            .eq('affiliate_user_id', userId)
-            .eq('is_valid', true),
-          supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id', { count: 'exact', head: true })
-            .eq('affiliate_user_id', userId)
-            .eq('is_valid', false),
-          supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id', { count: 'exact', head: true })
-            .eq('affiliate_user_id', userId)
-            .eq('earning_type', 'subscription_commission')
-            .eq('is_valid', true),
-          supabaseAdmin
-            .from('affiliate_earnings')
-            .select('id', { count: 'exact', head: true })
-            .eq('affiliate_user_id', userId)
-            .eq('earning_type', 'free_referral')
-            .eq('is_valid', true)
-        ]);
-
-        const analytics = {
-          totalReferrals: totalReferrals?.count || 0,
-          validReferrals: validReferrals?.count || 0,
-          invalidReferrals: invalidReferrals?.count || 0,
-          subscribedReferrals: subscribedReferrals?.count || 0,
-          activeFreeReferrals: activeFreeReferrals?.count || 0
-        };
-
-        return new Response(JSON.stringify({ analytics }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        })
+        if (earningsError) {
+          console.error('Error fetching earnings:', earningsError);
+        } else {
+          data = { earnings: earnings || [] };
+        }
+        break;
 
       default:
-        return new Response(JSON.stringify({ error: 'Invalid type' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        })
+        throw new Error('Invalid data type requested');
     }
 
+    return new Response(
+      JSON.stringify(data),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
+    );
+
   } catch (error) {
-    console.error('Unhandled error:', error.message)
-    return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    })
+    console.error('Error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    );
   }
-})
+});

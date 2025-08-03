@@ -11,7 +11,6 @@ import AffiliateWallet from '@/components/affiliate/AffiliateWallet';
 import EarningsBreakdown from '@/components/affiliate/EarningsBreakdown';
 import ReferralsList from '@/components/affiliate/ReferralsList';
 import PayoutHistory from '@/components/affiliate/PayoutHistory';
-import AffiliateAnalytics from '@/components/affiliate/AffiliateAnalytics';
 import LockScreen from '@/components/LockScreen';
 
 const AffiliateDashboard: React.FC = () => {
@@ -99,7 +98,6 @@ const AffiliateDashboard: React.FC = () => {
         <LockScreen message="Your subscription has lapsed. Please resubscribe to access your Affiliate Dashboard features." buttonText="Renew Subscription"/>
       ) : (
         <div className="space-y-8">
-          <AffiliateAnalytics affiliateId={user.id} />
           <AffiliateWallet affiliateId={user.id} />
           <AffiliateLinks affiliateId={user.id} />
           <EarningsBreakdown affiliateId={user.id} />
