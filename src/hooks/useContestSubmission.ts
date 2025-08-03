@@ -27,8 +27,8 @@ export const useContestSubmission = () => {
         console.log('Uploading video file:', fileName);
         
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('audio_files') // Using audio_files bucket as it's public
-          .upload(`contest-videos/${fileName}`, data.videoFile);
+          .from('contest-videos')
+          .upload(`${fileName}`, data.videoFile);
 
         if (uploadError) {
           console.error('Video upload error:', uploadError);
@@ -36,8 +36,8 @@ export const useContestSubmission = () => {
         }
 
         const { data: urlData } = supabase.storage
-          .from('audio_files')
-          .getPublicUrl(`contest-videos/${fileName}`);
+          .from('contest-videos')
+          .getPublicUrl(`${fileName}`);
 
         videoUrl = urlData.publicUrl;
         console.log('Video uploaded successfully:', videoUrl);
