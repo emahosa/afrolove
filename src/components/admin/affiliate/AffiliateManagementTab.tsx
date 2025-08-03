@@ -192,16 +192,51 @@ const AffiliateSettings: React.FC = () => {
   );
 };
 
-// Affiliate Stats Component (Placeholder)
+// Affiliate Stats Component
 const AffiliateStats: React.FC = () => {
-  // Dummy data for now
-  const stats = {
-    totalReferred: 120,
-    invalidReferrals: 15,
-    nonActiveReferrals: 30,
-    subscribedReferrals: 25,
-    activeFreeReferrals: 50,
-  };
+  const [stats, setStats] = useState({
+    totalReferred: 0,
+    invalidReferrals: 0,
+    nonActiveReferrals: 0,
+    subscribedReferrals: 0,
+    activeFreeReferrals: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-affiliate-stats');
+        if (error) {
+          toast.error('Failed to fetch affiliate stats.');
+          console.error(error);
+        } else {
+          setStats(data.stats);
+        }
+      } catch (error) {
+        toast.error('An error occurred while fetching stats.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Affiliate Statistics</CardTitle>
+          <CardDescription>An overview of the affiliate program performance.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2"><Loader2 className="animate-spin h-5 w-5" /><span>Loading stats...</span></div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
