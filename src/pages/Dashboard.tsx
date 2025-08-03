@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,7 +98,7 @@ const Dashboard = () => {
   };
 
   const StatCard = ({ icon: Icon, title, value, description }: any) => (
-    <Card>
+    <Card className="flex-1">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -110,23 +111,21 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user?.user_metadata?.full_name || 'User'}!</h1>
-          <p className="text-muted-foreground">Here's what's happening with your music journey</p>
-        </div>
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.user_metadata?.full_name || 'User'}!</h1>
+        <p className="text-muted-foreground">Here's what's happening with your music journey</p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="genres">Genres</TabsTrigger>
           <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               icon={Music}
               title="Songs Generated"
@@ -159,14 +158,14 @@ const Dashboard = () => {
                 <CardTitle>Quick Actions</CardTitle>
                 <CardDescription>Get started with these popular actions</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Button asChild className="w-full">
+              <CardContent className="space-y-3">
+                <Button asChild className="w-full justify-start">
                   <Link to="/create">Create New Song</Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full justify-start">
                   <Link to="/library">View My Library</Link>
                 </Button>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full justify-start">
                   <Link to="/contest">Join Contest</Link>
                 </Button>
               </CardContent>
@@ -178,42 +177,40 @@ const Dashboard = () => {
                 <CardDescription>Your latest actions on the platform</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">No recent activity to show</p>
+                <p className="text-muted-foreground text-center py-4">No recent activity to show</p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="genres">
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-2xl font-bold">Available Genres</h2>
-              <p className="text-muted-foreground">Choose from these genre templates to create your music</p>
-            </div>
-            
-            {templatesLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {templates.map((template) => (
-                  <GenreTemplateCard key={template.id} template={template} />
-                ))}
-              </div>
-            )}
+        <TabsContent value="genres" className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Available Genres</h2>
+            <p className="text-muted-foreground">Choose from these genre templates to create your music</p>
           </div>
+          
+          {templatesLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {templates.map((template) => (
+                <GenreTemplateCard key={template.id} template={template} />
+              ))}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="affiliate">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold">Affiliate Program</h2>
-              <p className="text-muted-foreground">
-                Earn money by referring new users to our platform
-              </p>
-            </div>
+        <TabsContent value="affiliate" className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Affiliate Program</h2>
+            <p className="text-muted-foreground">
+              Earn money by referring new users to our platform
+            </p>
+          </div>
 
+          <div className="max-w-2xl">
             {isAffiliate ? (
               <Card>
                 <CardHeader>
@@ -259,24 +256,24 @@ const Dashboard = () => {
                     Join our affiliate program and start earning money by referring new users to our platform.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="grid gap-4 text-sm">
                     <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
                       <div>
                         <div className="font-medium">Earn Commission</div>
                         <div className="text-muted-foreground">Get paid for every user you refer</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
                       <div>
                         <div className="font-medium">Marketing Materials</div>
                         <div className="text-muted-foreground">Access promotional content and tools</div>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2"></div>
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
                       <div>
                         <div className="font-medium">Real-time Analytics</div>
                         <div className="text-muted-foreground">Track your referrals and earnings</div>

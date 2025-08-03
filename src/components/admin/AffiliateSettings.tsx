@@ -50,16 +50,18 @@ const AffiliateSettings: React.FC = () => {
         throw error;
       }
 
-      const settingsMap: any = {};
-      data.forEach(item => {
-        if (item.key.includes('enabled')) {
-          settingsMap[item.key] = item.value === 'true';
-        } else {
-          settingsMap[item.key] = parseFloat(item.value as string);
-        }
-      });
+      if (data && data.length > 0) {
+        const settingsMap: any = {};
+        data.forEach(item => {
+          if (item.key.includes('enabled')) {
+            settingsMap[item.key] = item.value === 'true';
+          } else {
+            settingsMap[item.key] = parseFloat(item.value as string) || 0;
+          }
+        });
 
-      setSettings(settingsMap);
+        setSettings(prev => ({ ...prev, ...settingsMap }));
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
       toast.error('Failed to load affiliate settings');
@@ -70,13 +72,19 @@ const AffiliateSettings: React.FC = () => {
 
   const updateSetting = async (key: string, value: boolean | number) => {
     try {
+      // Ensure value is not undefined or null
+      const safeValue = value !== undefined && value !== null ? value : 
+        (typeof value === 'boolean' ? false : 0);
+      
       const { error } = await supabase
         .from('system_settings')
-        .update({ 
-          value: typeof value === 'boolean' ? value.toString() : value.toString(),
+        .upsert({ 
+          key,
+          value: safeValue.toString(),
           updated_at: new Date().toISOString()
-        })
-        .eq('key', key);
+        }, { 
+          onConflict: 'key' 
+        });
 
       if (error) {
         throw error;
@@ -94,8 +102,8 @@ const AffiliateSettings: React.FC = () => {
         updateSetting('affiliate_program_enabled', settings.affiliate_program_enabled),
         updateSetting('affiliate_free_referral_enabled', settings.affiliate_free_referral_enabled),
         updateSetting('affiliate_subscription_commission_enabled', settings.affiliate_subscription_commission_enabled),
-        updateSetting('affiliate_subscription_commission_percent', settings.affiliate_subscription_commission_percent),
-        updateSetting('affiliate_free_referral_compensation', settings.affiliate_free_referral_compensation)
+        updateSetting('affiliate_subscription_commission_percent', settings.affiliate_subscription_commission_percent || 0),
+        updateSetting('affiliate_free_referral_compensation', settings.affiliate_free_referral_compensation || 0)
       ]);
 
       toast.success('Affiliate settings updated successfully');
@@ -103,6 +111,16 @@ const AffiliateSettings: React.FC = () => {
       toast.error('Failed to update affiliate settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCompensationChange = (value: string, field: 'affiliate_free_referral_compensation' | 'affiliate_subscription_commission_percent') => {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue)) {
+      setSettings(prev => ({ 
+        ...prev, 
+        [field]: numValue
+      }));
     }
   };
 
@@ -198,13 +216,8 @@ const AffiliateSettings: React.FC = () => {
                 type="number"
                 step="0.01"
                 min="0"
-                value={settings.affiliate_free_referral_compensation}
-                onChange={(e) => 
-                  setSettings(prev => ({ 
-                    ...prev, 
-                    affiliate_free_referral_compensation: parseFloat(e.target.value) || 0 
-                  }))
-                }
+                value={settings.affiliate_free_referral_compensation || 0}
+                onChange={(e) => handleCompensationChange(e.target.value, 'affiliate_free_referral_compensation')}
                 disabled={!settings.affiliate_program_enabled || !settings.affiliate_free_referral_enabled}
               />
               <p className="text-xs text-muted-foreground">
@@ -219,13 +232,8 @@ const AffiliateSettings: React.FC = () => {
                 type="number"
                 min="0"
                 max="100"
-                value={settings.affiliate_subscription_commission_percent}
-                onChange={(e) => 
-                  setSettings(prev => ({ 
-                    ...prev, 
-                    affiliate_subscription_commission_percent: parseFloat(e.target.value) || 0 
-                  }))
-                }
+                value={settings.affiliate_subscription_commission_percent || 0}
+                onChange={(e) => handleCompensationChange(e.target.value, 'affiliate_subscription_commission_percent')}
                 disabled={!settings.affiliate_program_enabled || !settings.affiliate_subscription_commission_enabled}
               />
               <p className="text-xs text-muted-foreground">
