@@ -62,7 +62,7 @@ export const useSunoGeneration = () => {
       }
 
       const taskId = data.task_id;
-      toast.success('🎵 Your song is being generated! It will appear in your library shortly.');
+      toast.success('🎵 Your song is being generated! It will appear in your library shortly. 20 credits deducted.');
       console.log('useSunoGeneration: Successfully started generation with task ID:', taskId);
       return taskId;
 

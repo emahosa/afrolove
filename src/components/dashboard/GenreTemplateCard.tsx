@@ -1,95 +1,145 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Music, Play, Pause } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { GenreTemplate } from "@/hooks/use-genre-templates";
+import { Music, Play } from "lucide-react";
+import { useState } from "react";
+import { useSunoGeneration } from "@/hooks/use-suno-generation";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+interface GenreTemplate {
+  id: string;
+  template_name: string;
+  admin_prompt: string;
+  user_prompt_guide: string | null;
+  audio_url: string | null;
+  cover_image_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+  created_by: string | null;
+  genre_id: string;
+  genres?: {
+    name: string;
+    description: string | null;
+  };
+}
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
-  isPlaying: boolean;
-  onTogglePlay: (audioUrl: string) => void;
 }
 
-export const GenreTemplateCard = ({
-  template,
-  isPlaying,
-  onTogglePlay,
-}: GenreTemplateCardProps) => {
-  const navigate = useNavigate();
+export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { generateSong } = useSunoGeneration();
+  const { user, updateUserCredits } = useAuth();
 
-  const handleCreateWithTemplate = () => {
-    const genreId = template.genre_id;
-    const prompt = template.user_prompt_guide || '';
-    
-    if (genreId) {
-      navigate(`/create?genre=${genreId}&prompt=${encodeURIComponent(prompt)}`);
-    } else {
-      navigate('/create');
+  const handleGenerate = async () => {
+    if (!user) {
+      toast.error("Please log in to generate songs");
+      return;
     }
-  };
 
-  const handlePreviewPlay = () => {
-    if (template.audio_url) {
-      onTogglePlay(template.audio_url);
+    if ((user.credits || 0) < 20) {
+      toast.error("You need at least 20 credits to generate a song");
+      return;
+    }
+
+    setIsGenerating(true);
+    
+    try {
+      // Use the template's admin_prompt instead of genre prompt_template
+      const result = await generateSong({
+        prompt: template.admin_prompt, // This is the key fix
+        title: `${template.template_name} Song`,
+        instrumental: false,
+        customMode: false,
+        model: 'V3_5'
+      });
+      
+      if (result) {
+        updateUserCredits(-20);
+        toast.success(`Song generation started using ${template.template_name} template!`);
+      }
+    } catch (error) {
+      console.error('Generation failed:', error);
+      toast.error("Failed to start song generation. Please try again.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
   return (
-    <Card className="group hover:shadow-md transition-shadow">
-      {template.cover_image_url && (
-        <div className="aspect-video overflow-hidden rounded-t-lg">
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative">
+        {template.cover_image_url ? (
           <img
             src={template.cover_image_url}
             alt={template.template_name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-48 object-cover"
           />
-        </div>
-      )}
+        ) : (
+          <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+            <Music className="h-16 w-16 text-primary/50" />
+          </div>
+        )}
+        
+        {template.audio_url && (
+          <Button
+            size="sm"
+            variant="secondary"
+            className="absolute top-4 right-4"
+            onClick={() => {
+              const audio = new Audio(template.audio_url!);
+              audio.play().catch(console.error);
+            }}
+          >
+            <Play className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
       
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold line-clamp-1">
-          {template.template_name}
-        </CardTitle>
-        {template.genres?.name && (
-          <CardDescription className="text-sm text-muted-foreground">
+      <CardHeader>
+        <CardTitle className="text-lg">{template.template_name}</CardTitle>
+        {template.genres && (
+          <CardDescription>
             Genre: {template.genres.name}
+            {template.genres.description && ` - ${template.genres.description}`}
           </CardDescription>
         )}
       </CardHeader>
       
-      <CardContent className="pt-0">
+      <CardContent className="space-y-4">
         {template.user_prompt_guide && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {template.user_prompt_guide}
-          </p>
+          <div className="text-sm text-muted-foreground">
+            <p className="font-medium mb-2">Style Guide:</p>
+            <p>{template.user_prompt_guide}</p>
+          </div>
         )}
         
-        <div className="flex gap-2">
-          <Button
-            onClick={handleCreateWithTemplate}
-            className="flex-1"
-            size="sm"
-          >
-            <Music className="w-4 h-4 mr-1" />
-            Use Template
-          </Button>
-          
-          {template.audio_url && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePreviewPlay}
-              className="px-3"
-            >
-              {isPlaying ? (
-                <Pause className="w-4 h-4" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-            </Button>
+        <Button
+          onClick={handleGenerate}
+          disabled={isGenerating || !user || (user.credits || 0) < 20}
+          className="w-full"
+        >
+          {isGenerating ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Generating...
+            </>
+          ) : (
+            <>
+              <Music className="mr-2 h-4 w-4" />
+              Generate Song (20 Credits)
+            </>
           )}
-        </div>
+        </Button>
+        
+        {user && (user.credits || 0) < 20 && (
+          <p className="text-sm text-destructive text-center">
+            Not enough credits. You need 20 credits to generate a song.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

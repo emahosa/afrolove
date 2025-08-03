@@ -1,216 +1,183 @@
-
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Music, Loader2 } from "lucide-react";
+import { Loader2, Music } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSunoGeneration, SunoGenerationRequest, getModelDisplayName, getApiModelName } from "@/hooks/use-suno-generation";
-import { useGenres } from "@/hooks/use-genres";
 import { useAuth } from "@/contexts/AuthContext";
-
-type CreationMode = 'prompt' | 'lyrics';
+import { useSunoGeneration, getModelDisplayName, getApiModelName } from "@/hooks/use-suno-generation";
 
 const AiSongGeneration = () => {
-  const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
   const [prompt, setPrompt] = useState("");
+  const [style, setStyle] = useState("");
   const [title, setTitle] = useState("");
   const [instrumental, setInstrumental] = useState(false);
-  const [selectedGenreId, setSelectedGenreId] = useState<string>("");
-  const [selectedModel, setSelectedModel] = useState<string>("Afro Model 3");
-
-  const { user } = useAuth();
+  const [customMode, setCustomMode] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('Afro Model 1');
   const { generateSong, isGenerating } = useSunoGeneration();
-  const { genres, loading: genresLoading } = useGenres();
+  const { user, updateUserCredits } = useAuth();
 
-  const availableModels = [
-    { value: "Afro Model 1", label: "Afro Model 1" },
-    { value: "Afro Model 2", label: "Afro Model 2" },
-    { value: "Afro Model 3", label: "Afro Model 3" }
-  ];
-
-  const handleGenerate = async () => {
-    if (!selectedGenreId) {
-      toast.error("Please select a genre.");
-      return;
+  useEffect(() => {
+    if (customMode && !style) {
+      setStyle("Afrobeat");
     }
+  }, [customMode, style]);
 
-    if (creationMode === 'prompt' && !prompt.trim()) {
-      toast.error("Please enter a song description.");
-      return;
-    }
-
-    if (creationMode === 'lyrics' && (!prompt.trim() || !title.trim())) {
-      toast.error("Lyrics and Title are required for Lyrics Mode.");
-      return;
-    }
-
+  const handleSubmit = async (e: React.Event) => {
+    e.preventDefault();
+    
     if (!user) {
-      toast.error("Please log in to generate songs.");
+      toast.error("Please log in to generate songs");
       return;
     }
 
-    if ((user.credits || 0) < 5) {
-      toast.error("Insufficient credits. Please purchase more to continue.");
+    if ((user.credits || 0) < 20) {
+      toast.error("You need at least 20 credits to generate a song");
       return;
     }
 
-    const selectedGenre = genres.find(g => g.id === selectedGenreId);
-    if (!selectedGenre) {
-      toast.error("Selected genre not found. Please try again.");
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt for your song");
       return;
     }
 
-    const adminPrompt = selectedGenre.prompt_template || selectedGenre.description || "";
-    const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
-    let request: SunoGenerationRequest;
+    const taskId = await generateSong({
+      prompt: prompt.trim(),
+      style: customMode ? style : undefined,
+      title: customMode ? title : undefined,
+      instrumental,
+      customMode,
+      model: getApiModelName(selectedModel)
+    });
 
-    if (creationMode === 'prompt') {
-      if (prompt.length > 99) {
-        toast.error("Prompt cannot exceed 99 characters.");
-        return;
-      }
-      request = {
-        prompt: `${adminPrompt} ${prompt}`,
-        customMode: false,
-        instrumental,
-        model: apiModelName,
-      };
-    } else { // lyrics mode
-      request = {
-        prompt: prompt, // user lyrics
-        customMode: true,
-        instrumental,
-        title: title,
-        style: adminPrompt,
-        model: apiModelName,
-      };
-    }
-
-    const taskId = await generateSong(request);
     if (taskId) {
-      setPrompt("");
-      setTitle("");
-      toast.success("Song generation started! Check your library for the result.");
+      updateUserCredits(-20);
+      // Reset form after successful generation
+      setPrompt('');
+      setTitle('');
+      setStyle('');
+      setSelectedModel('Afro Model 1');
+      setCustomMode(false);
+      setInstrumental(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>🎵 AI Song Generation</CardTitle>
-        <CardDescription>
-          Select a genre, choose a mode, and create a song with AI.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
-          {genresLoading ? (
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-              Loading genres...
+    <div className="max-w-4xl mx-auto p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Song Generation</CardTitle>
+          <CardDescription>
+            Create unique songs using AI. Enter a prompt and let the AI generate a song for you.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="prompt">Prompt</Label>
+              <Textarea
+                id="prompt"
+                placeholder="Describe your song: e.g., A happy song about dancing in the rain"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
             </div>
-          ) : (
-            <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-              <SelectTrigger id="genre">
-                <SelectValue placeholder="Select a genre" />
-              </SelectTrigger>
-              <SelectContent>
-                {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id}>
-                    {genre.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="model">AI Model</Label>
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger id="model">
-              <SelectValue placeholder="Select an AI model" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.map(model => (
-                <SelectItem key={model.value} value={model.value}>
-                  {model.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="custom-mode"
+                type="checkbox"
+                checked={customMode}
+                onChange={(e) => setCustomMode(e.target.checked)}
+              />
+              <Label htmlFor="custom-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed">
+                Enable Custom Mode
+              </Label>
+            </div>
 
-        <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
-          <div>
-            <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
-            <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-              Prompt Mode
-              <span className="text-xs font-normal text-muted-foreground">Simple description</span>
-            </Label>
-          </div>
-          <div>
-            <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
-            <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
-              Lyrics Mode
-              <span className="text-xs font-normal text-muted-foreground">Use your own lyrics</span>
-            </Label>
-          </div>
-        </RadioGroup>
+            {customMode && (
+              <>
+                <div>
+                  <Label htmlFor="style">Style</Label>
+                  <Input
+                    id="style"
+                    placeholder="e.g., Afrobeat, Pop, Rock"
+                    value={style}
+                    onChange={(e) => setStyle(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Dancing in the Rain"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
-        {creationMode === 'lyrics' && (
-          <div className="space-y-2">
-            <Label htmlFor="title">Song Title <span className="text-destructive">*</span></Label>
-            <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-        )}
+            <div>
+              <Label htmlFor="model">Model</Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Afro Model 1">{getModelDisplayName('V3_5')}</SelectItem>
+                  <SelectItem value="Afro Model 2">{getModelDisplayName('V4')}</SelectItem>
+                  <SelectItem value="Afro Model 3">{getModelDisplayName('V4_5')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="prompt-input">{creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}</Label>
-          <Textarea
-            id="prompt-input"
-            placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="min-h-[120px]"
-            maxLength={creationMode === 'prompt' ? 99 : undefined}
-          />
-          {creationMode === 'prompt' && (
-            <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} />
-          <Label htmlFor="instrumental">Generate instrumental only</Label>
-        </div>
-
-        <Button
-          onClick={handleGenerate}
-          disabled={isGenerating || genresLoading || !selectedGenreId}
-          className="w-full"
-          size="lg"
-        >
-          {isGenerating ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Music className="mr-2 h-4 w-4" />
-          )}
-          Generate Song (5 Credits)
-        </Button>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Generation takes 1-2 minutes. Your song will appear in the Library.
-        </p>
-      </CardContent>
-    </Card>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="instrumental"
+                type="checkbox"
+                checked={instrumental}
+                onChange={(e) => setInstrumental(e.target.checked)}
+              />
+              <Label htmlFor="instrumental" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed">
+                Instrumental Only
+              </Label>
+            </div>
+            
+            <Button
+              type="submit"
+              disabled={isGenerating || !user || (user.credits || 0) < 20}
+              className="w-full bg-gradient-to-r from-melody-primary to-melody-secondary hover:opacity-90"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating Your Song...
+                </>
+              ) : (
+                <>
+                  <Music className="mr-2 h-4 w-4" />
+                  Generate Song (20 Credits)
+                </>
+              )}
+            </Button>
+            
+            {user && (user.credits || 0) < 20 && (
+              <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-destructive font-semibold">Insufficient Credits</p>
+                <p className="text-destructive/80">You need at least 20 credits to generate a song. Purchase more credits to continue.</p>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
       }
       // --- END ROLE CHECK ---
 
-      // Check user credits
+      // Check user credits - now requiring 20 credits
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('credits')
@@ -130,11 +130,11 @@ Deno.serve(async (req) => {
         })
       }
 
-      // Ensure user has enough credits
-      if (userProfile.credits < 5) {
+      // Ensure user has enough credits (changed from 5 to 20)
+      if (userProfile.credits < 20) {
         console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
         return new Response(JSON.stringify({ 
-          error: 'Insufficient credits. You need at least 5 credits to generate a song.',
+          error: 'Insufficient credits. You need at least 20 credits to generate a song.',
           success: false 
         }), {
           status: 400,
@@ -303,16 +303,16 @@ Deno.serve(async (req) => {
     console.log('✅ Task ID received:', taskId)
 
     if (!isAdminTest) {
-      // Deduct exactly 5 credits
+      // Deduct 20 credits (changed from 5)
       const { error: creditError } = await supabase.rpc('update_user_credits', {
         p_user_id: userId,
-        p_amount: -5
+        p_amount: -20
       })
 
       if (creditError) {
         console.error('❌ Failed to deduct credits:', creditError)
       } else {
-        console.log('✅ Exactly 5 credits deducted for user:', userId)
+        console.log('✅ 20 credits deducted for user:', userId)
       }
     }
 
@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
       type: instrumental ? 'instrumental' : 'song',
       prompt,
       status: 'pending',
-      credits_used: isAdminTest ? 0 : 5,
+      credits_used: isAdminTest ? 0 : 20, // Changed from 5 to 20
       task_id: taskId // This is the key fix - store task_id in the correct column
     }
 
@@ -354,7 +354,7 @@ Deno.serve(async (req) => {
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully - 5 credits deducted'
+      message: 'Song generation started successfully - 20 credits deducted'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
