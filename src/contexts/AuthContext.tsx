@@ -22,7 +22,7 @@ interface AuthContextType {
   userRoles: string[];
   loading: boolean;
   login: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  register: (name: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
+  register: (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string) => Promise<boolean>;
   logout: () => Promise<{ error: any }>;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
@@ -298,7 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string, referralCode?: string | null): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string): Promise<boolean> => {
     try {
       const redirectUrl = `${window.location.origin}/`;
       
@@ -309,7 +309,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailRedirectTo: redirectUrl,
           data: {
             full_name: name,
-            referral_code: referralCode
+            referral_code: referralCode,
+            device_id: deviceId
           }
         }
       });
