@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, Music } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
-  const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
+  const { user, signOut, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
 
   if (authLoading) {
     return (
@@ -32,7 +32,7 @@ const AdminLayout: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
     } catch (error) {
       console.error('Logout error:', error);
     }
