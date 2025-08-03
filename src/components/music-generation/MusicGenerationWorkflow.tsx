@@ -75,7 +75,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: Mus
     }
 
     // Check user credits
-    if ((user.credits || 0) < 5) {
+    if ((user.credits || 0) < 20) {
       toast.error("Insufficient credits. Please purchase more to continue.");
       return;
     }
@@ -216,7 +216,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: Mus
         ) : (
           <Music className="mr-2 h-4 w-4" />
         )}
-        Generate Song (5 Credits)
+        Generate Song (20 Credits)
       </Button>
 
       <p className="text-xs text-muted-foreground text-center">

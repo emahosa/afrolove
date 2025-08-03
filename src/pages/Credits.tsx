@@ -154,7 +154,7 @@ const Credits: React.FC = () => {
               </div>
             </div>
             <Badge variant="outline" className="text-sm">
-              1 credit = 1 song generation
+              20 credits = 1 song generation
             </Badge>
           </div>
         </CardContent>
