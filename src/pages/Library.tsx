@@ -58,6 +58,7 @@ const Library = () => {
         .from('songs')
         .select('*')
         .eq('user_id', user.id)
+        .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false });
       
       console.log('📊 Library: Raw songs data from database:', data);
@@ -178,15 +179,11 @@ const Library = () => {
     return <p className="text-muted-foreground">Please log in to view your songs.</p>
   }
 
-  const pendingSongs = songs.filter(s => s.status === 'pending');
-  const completedSongs = songs.filter(s => s.status === 'completed' || s.status === 'approved');
-  const failedSongs = songs.filter(s => s.status === 'rejected');
+  const completedSongs = songs;
 
   console.log('📊 Library: Song counts:', {
     total: songs.length,
-    pending: pendingSongs.length,
-    completed: completedSongs.length,
-    failed: failedSongs.length
+    completed: completedSongs.length
   });
 
   return (
@@ -194,7 +191,7 @@ const Library = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">My Library</h1>
-          <p className="text-muted-foreground">All your generated songs</p>
+          <p className="text-muted-foreground">All your completed songs</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -202,19 +199,6 @@ const Library = () => {
         </Button>
       </div>
 
-      {pendingSongs.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5" /> Generating Songs
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {pendingSongs.map((song) => (
-              <GeneratedSongCard key={song.id} song={song} />
-            ))}
-          </div>
-        </div>
-      )}
-      
       {completedSongs.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Completed Songs</h2>
@@ -232,17 +216,6 @@ const Library = () => {
             <h3 className="mt-4 text-lg font-medium">No songs yet</h3>
             <p className="mt-1 text-sm text-muted-foreground">Create your first song to see it here.</p>
          </div>
-      )}
-
-      {failedSongs.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-destructive">Failed Songs</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {failedSongs.map((song) => (
-              <GeneratedSongCard key={song.id} song={song} />
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );

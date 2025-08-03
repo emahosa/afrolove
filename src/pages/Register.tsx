@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,12 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [deviceId, setDeviceId] = useState("");
+
+  useEffect(() => {
+    const generatedDeviceId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    setDeviceId(generatedDeviceId);
+  }, []);
 
   const isValidEmail = (email: string) => {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
@@ -49,8 +55,8 @@ const Register = () => {
       const queryParams = new URLSearchParams(window.location.search);
       const referralCode = queryParams.get('ref');
 
-      console.log("Register: Registering user:", { email, name, referralCode });
-      const success = await register(name, email, password, referralCode);
+      console.log("Register: Registering user:", { email, name, referralCode, deviceId });
+      const success = await register(name, email, password, referralCode, deviceId);
       
       if (success) {
         toast.success("Registration successful! Welcome to Afroverse!");

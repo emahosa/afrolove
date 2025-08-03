@@ -6,8 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, AlertCircle, CheckCircle, XCircle, DollarSign } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, XCircle, DollarSign, Settings, BarChart2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AffiliateApplication {
   id: string;
@@ -40,7 +43,200 @@ interface PayoutRequest {
   profile?: PayoutRequestProfile | null; // From joined data
 }
 
-type ActiveSubTabType = 'pendingApps' | 'approvedApps' | 'rejectedApps' | 'payoutRequests';
+type ActiveSubTabType = 'pendingApps' | 'approvedApps' | 'rejectedApps' | 'payoutRequests' | 'settings';
+
+// Affiliate Settings Component
+interface AffiliateSettingsData {
+  affiliate_program_enabled: boolean;
+  is_free_tier_active: boolean;
+  affiliate_subscription_commission_percent: number;
+  affiliate_free_referral_compensation: number;
+}
+
+const AffiliateSettings: React.FC = () => {
+  const [settings, setSettings] = useState<Partial<AffiliateSettingsData>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', [
+          'affiliate_program_enabled',
+          'is_free_tier_active',
+          'affiliate_subscription_commission_percent',
+          'affiliate_free_referral_compensation',
+        ]);
+
+      if (error) {
+        toast.error('Failed to fetch affiliate settings.');
+        console.error(error);
+      } else {
+        const settingsData = data.reduce((acc, { key, value }) => {
+          if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
+            acc[key] = value === 'true';
+          } else {
+            acc[key] = Number(value);
+          }
+          return acc;
+        }, {} as AffiliateSettingsData);
+        setSettings(settingsData);
+      }
+    } catch (error) {
+      toast.error('An error occurred while fetching settings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const updates = Object.entries(settings).map(([key, value]) => ({
+      key,
+      value: String(value),
+    }));
+
+    try {
+      const { error } = await supabase.functions.invoke('update-affiliate-settings', {
+        body: { settings: updates },
+      });
+
+      if (error) {
+        toast.error('Failed to save settings.');
+      } else {
+        toast.success('Settings saved successfully.');
+        fetchSettings(); // Refresh settings
+      }
+    } catch (error) {
+      toast.error('An error occurred while saving settings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSettingChange = (key: keyof AffiliateSettingsData, value: any) => {
+    setSettings(prev => ({...prev, [key]: value}));
+  };
+
+  if (loading) {
+    return <div className="flex items-center space-x-2"><Loader2 className="animate-spin h-5 w-5" /><span>Loading settings...</span></div>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Affiliate Program Settings</CardTitle>
+        <CardDescription>Configure the affiliate program rules and compensation.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between space-x-2 p-4 border rounded-lg">
+          <Label htmlFor="program-enabled" className="flex flex-col space-y-1">
+            <span>Affiliate Program Enabled</span>
+            <span className="font-normal leading-snug text-muted-foreground">
+              Master switch to enable or disable the entire affiliate program.
+            </span>
+          </Label>
+          <Switch
+            id="program-enabled"
+            checked={settings.affiliate_program_enabled}
+            onCheckedChange={(value) => handleSettingChange('affiliate_program_enabled', value)}
+          />
+        </div>
+        <div className="flex items-center justify-between space-x-2 p-4 border rounded-lg">
+          <Label htmlFor="free-tier-enabled" className="flex flex-col space-y-1">
+            <span>Free Referral Program Enabled</span>
+            <span className="font-normal leading-snug text-muted-foreground">
+              Enable or disable earnings for free user referrals who become active.
+            </span>
+          </Label>
+          <Switch
+            id="free-tier-enabled"
+            checked={settings.is_free_tier_active}
+            onCheckedChange={(value) => handleSettingChange('is_free_tier_active', value)}
+          />
+        </div>
+        <div className="space-y-2 p-4 border rounded-lg">
+          <Label htmlFor="commission-percent">Subscription Commission (%)</Label>
+          <Input
+            id="commission-percent"
+            type="number"
+            value={settings.affiliate_subscription_commission_percent}
+            onChange={(e) => handleSettingChange('affiliate_subscription_commission_percent', parseFloat(e.target.value) || 0)}
+            placeholder="e.g., 10"
+          />
+           <p className="text-sm text-muted-foreground">The percentage of a subscription payment that goes to the affiliate.</p>
+        </div>
+        <div className="space-y-2 p-4 border rounded-lg">
+          <Label htmlFor="free-referral-comp">Free Referral Compensation ($)</Label>
+          <Input
+            id="free-referral-comp"
+            type="number"
+            value={settings.affiliate_free_referral_compensation}
+            onChange={(e) => handleSettingChange('affiliate_free_referral_compensation', parseFloat(e.target.value) || 0)}
+            placeholder="e.g., 0.10"
+          />
+           <p className="text-sm text-muted-foreground">The flat amount an affiliate earns for a referred free user who becomes active.</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Settings'}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Affiliate Stats Component (Placeholder)
+const AffiliateStats: React.FC = () => {
+  // Dummy data for now
+  const stats = {
+    totalReferred: 120,
+    invalidReferrals: 15,
+    nonActiveReferrals: 30,
+    subscribedReferrals: 25,
+    activeFreeReferrals: 50,
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Affiliate Statistics</CardTitle>
+        <CardDescription>An overview of the affiliate program performance.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <div className="p-4 border rounded-lg text-center">
+            <p className="text-2xl font-bold">{stats.totalReferred}</p>
+            <p className="text-sm text-muted-foreground">Total Referred</p>
+          </div>
+          <div className="p-4 border rounded-lg text-center">
+            <p className="text-2xl font-bold">{stats.invalidReferrals}</p>
+            <p className="text-sm text-muted-foreground">Invalid Referrals</p>
+          </div>
+           <div className="p-4 border rounded-lg text-center">
+            <p className="text-2xl font-bold">{stats.nonActiveReferrals}</p>
+            <p className="text-sm text-muted-foreground">Non-Active</p>
+          </div>
+          <div className="p-4 border rounded-lg text-center">
+            <p className="text-2xl font-bold">{stats.subscribedReferrals}</p>
+            <p className="text-sm text-muted-foreground">Subscribed</p>
+          </div>
+          <div className="p-4 border rounded-lg text-center">
+            <p className="text-2xl font-bold">{stats.activeFreeReferrals}</p>
+            <p className="text-sm text-muted-foreground">Active Free</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 const AffiliateManagementTab: React.FC = () => {
   const [applications, setApplications] = useState<AffiliateApplication[]>([]);
@@ -392,11 +588,15 @@ const AffiliateManagementTab: React.FC = () => {
           setPayoutsCurrentPage(1);
           if (value === 'payoutRequests' && !activePayoutStatusFilter) setActivePayoutStatusFilter('pending');
         }} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="pendingApps">Pending Applications</TabsTrigger>
             <TabsTrigger value="approvedApps">Approved Affiliates</TabsTrigger>
             <TabsTrigger value="rejectedApps">Rejected Applications</TabsTrigger>
             <TabsTrigger value="payoutRequests">Payout Requests</TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="mr-2 h-4 w-4" />
+              Settings & Stats
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="pendingApps">
             {renderApplicationsTable('pending')}
@@ -409,6 +609,12 @@ const AffiliateManagementTab: React.FC = () => {
           </TabsContent>
           <TabsContent value="payoutRequests">
             {renderPayoutRequestsTable()}
+          </TabsContent>
+          <TabsContent value="settings">
+            <div className="space-y-6">
+              <AffiliateStats />
+              <AffiliateSettings />
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>
