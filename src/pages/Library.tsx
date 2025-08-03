@@ -14,11 +14,10 @@ const Library = () => {
   const { user } = useAuth();
   const [selectedTrackId, setSelectedTrackId] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [genreFilter, setGenreFilter] = React.useState<string>('');
-  const [statusFilter, setStatusFilter] = React.useState<string>('');
+  const [activeTab, setActiveTab] = React.useState('all');
 
   const { data: songs, isLoading } = useQuery({
-    queryKey: ['user-songs', user?.id, searchQuery, genreFilter, statusFilter],
+    queryKey: ['user-songs', user?.id, searchQuery, activeTab],
     queryFn: async () => {
       if (!user) return [];
       
@@ -38,10 +37,6 @@ const Library = () => {
         query = query.ilike('title', `%${searchQuery}%`);
       }
 
-      if (genreFilter) {
-        query = query.eq('genre_id', genreFilter);
-      }
-
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
@@ -54,11 +49,38 @@ const Library = () => {
     enabled: !!user,
   });
 
-  if (selectedTrackId) {
+  // Transform songs to match Track interface
+  const tracks = React.useMemo(() => {
+    return (songs || []).map(song => ({
+      id: song.id,
+      title: song.title,
+      type: song.is_instrumental ? "instrumental" as const : "song" as const,
+      genre: song.genres?.name || 'Unknown',
+      date: new Date(song.created_at).toLocaleDateString(),
+      audioUrl: song.audio_url
+    }));
+  }, [songs]);
+
+  // Filter tracks based on active tab
+  const filteredTracks = React.useMemo(() => {
+    if (activeTab === 'all') return tracks;
+    if (activeTab === 'songs') return tracks.filter(track => track.type === 'song');
+    if (activeTab === 'instrumentals') return tracks.filter(track => track.type === 'instrumental');
+    return tracks;
+  }, [tracks, activeTab]);
+
+  // Find selected track
+  const selectedTrack = selectedTrackId ? tracks.find(track => track.id === selectedTrackId) : null;
+
+  if (selectedTrackId && selectedTrack) {
     return (
       <SingleTrackView 
-        trackId={selectedTrackId} 
-        onBack={() => setSelectedTrackId(null)} 
+        track={selectedTrack}
+        onBackClick={() => setSelectedTrackId(null)}
+        playingTrack={null}
+        onPlayToggle={() => {}}
+        onVoiceCloned={() => {}}
+        selectedVoiceId={null}
       />
     );
   }
@@ -80,10 +102,8 @@ const Library = () => {
           <LibraryFilters
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            genreFilter={genreFilter}
-            onGenreChange={setGenreFilter}
-            statusFilter={statusFilter}
-            onStatusChange={setStatusFilter}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
           />
 
           {isLoading ? (
@@ -91,7 +111,7 @@ const Library = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
               <span className="ml-2">Loading your music...</span>
             </div>
-          ) : songs?.length === 0 ? (
+          ) : filteredTracks.length === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>No Completed Songs Found</CardTitle>
@@ -107,7 +127,7 @@ const Library = () => {
             </Card>
           ) : (
             <TracksList 
-              songs={songs || []} 
+              tracks={filteredTracks} 
               onTrackSelect={setSelectedTrackId}
             />
           )}
