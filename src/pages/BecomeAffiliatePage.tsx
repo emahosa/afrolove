@@ -27,6 +27,7 @@ const affiliateFormSchema = z.object({
     .regex(/^\+?[1-9]\d{1,14}$/, { message: "Please enter a valid phone number (e.g., +1234567890)." }),
   socialMediaUrl: z.string().url({ message: "Please enter a valid URL for your social media profile." }),
   reasonToJoin: z.string().min(10, { message: "Reason must be at least 10 characters." }).max(500, { message: "Reason must be 500 characters or less." }),
+  usdt_wallet_address: z.string().min(10, { message: "Please enter a valid USDT wallet address." }),
 });
 
 type AffiliateFormValues = z.infer<typeof affiliateFormSchema>;
@@ -44,6 +45,7 @@ const BecomeAffiliatePage = () => {
       phone: "",
       socialMediaUrl: "",
       reasonToJoin: "",
+      usdt_wallet_address: "",
     },
     mode: "onChange",
   });
@@ -63,6 +65,7 @@ const BecomeAffiliatePage = () => {
           phone: data.phone,
           social_media_url: data.socialMediaUrl,
           reason_to_join: data.reasonToJoin,
+          usdt_wallet_address: data.usdt_wallet_address,
         },
       });
 
@@ -206,6 +209,22 @@ const BecomeAffiliatePage = () => {
                     </FormControl>
                      <FormDescription>
                       (Min 10 characters, Max 500 characters) This field is required.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="usdt_wallet_address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>USDT Wallet Address (TRC-20)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your TRC-20 USDT Wallet Address" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Please provide your TRC-20 USDT wallet address for payouts. This field is required.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

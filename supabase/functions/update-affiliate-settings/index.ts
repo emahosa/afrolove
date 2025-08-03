@@ -67,8 +67,7 @@ serve(async (req) => {
             key: key,
             value: String(value),
             category: 'affiliate',
-            description: `Affiliate program setting: ${key}`,
-            updated_at: new Date().toISOString()
+            description: `Affiliate program setting: ${key}`
           },
           { 
             onConflict: 'key',
