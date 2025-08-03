@@ -54,7 +54,7 @@ const Library = () => {
     return (songs || []).map(song => ({
       id: song.id,
       title: song.title,
-      type: song.is_instrumental ? "instrumental" as const : "song" as const,
+      type: song.type === "instrumental" ? "instrumental" as const : "song" as const,
       genre: song.genres?.name || 'Unknown',
       date: new Date(song.created_at).toLocaleDateString(),
       audioUrl: song.audio_url
