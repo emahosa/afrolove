@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 interface ContestSubmissionData {
   contestId: string;
   songId?: string;
-  videoFile?: File;
   description?: string;
 }
 
@@ -17,32 +16,6 @@ export const useContestSubmission = () => {
     setIsSubmitting(true);
     
     try {
-      let videoUrl = null;
-
-      // Upload video if provided
-      if (data.videoFile) {
-        const fileExt = data.videoFile.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        
-        console.log('Uploading video file:', fileName);
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('contest-videos')
-          .upload(`${fileName}`, data.videoFile);
-
-        if (uploadError) {
-          console.error('Video upload error:', uploadError);
-          throw new Error('Failed to upload video');
-        }
-
-        const { data: urlData } = supabase.storage
-          .from('contest-videos')
-          .getPublicUrl(`${fileName}`);
-
-        videoUrl = urlData.publicUrl;
-        console.log('Video uploaded successfully:', videoUrl);
-      }
-
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         throw new Error('User not authenticated');
@@ -53,11 +26,11 @@ export const useContestSubmission = () => {
         contest_id: data.contestId,
         user_id: user.id,
         song_id: data.songId || null,
-        video_url: videoUrl,
+        video_url: null,
         description: data.description || null,
         status: 'pending' as const,
         approved: false,
-        media_type: data.videoFile ? 'video' : 'audio'
+        media_type: 'audio' as const
       };
 
       console.log('Creating contest entry:', entryData);
