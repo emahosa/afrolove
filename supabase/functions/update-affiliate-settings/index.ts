@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -37,6 +38,7 @@ serve(async (req) => {
       .eq('user_id', user.id);
 
     if (rolesError) {
+      console.error('Error fetching user roles:', rolesError);
       return new Response(JSON.stringify({ error: 'Failed to verify user permissions' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
       });
@@ -55,18 +57,34 @@ serve(async (req) => {
 
     for (const setting of settings) {
       const { key, value } = setting;
-      console.log(`Updating setting: ${key} to ${value}`);
+      console.log(`Upserting setting: ${key} to ${value}`);
+      
+      // Use upsert to handle both insert and update cases
       const { data, error } = await supabaseAdmin
         .from('system_settings')
-        .update({ value: String(value) })
-        .eq('key', key)
+        .upsert(
+          {
+            key: key,
+            value: String(value),
+            category: 'affiliate',
+            description: `Affiliate program setting: ${key}`,
+            updated_at: new Date().toISOString()
+          },
+          { 
+            onConflict: 'key',
+            ignoreDuplicates: false 
+          }
+        )
         .select();
 
       if (error) {
-        console.error(`Error updating setting ${key}:`, error);
-        throw new Error(`Failed to update setting: ${key}`);
+        console.error(`Error upserting setting ${key}:`, error);
+        return new Response(JSON.stringify({ error: `Failed to save setting: ${key}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        });
       }
-      console.log(`Successfully updated ${key}. Response:`, data);
+      console.log(`Successfully upserted ${key}. Response:`, data);
     }
 
     return new Response(JSON.stringify({ message: 'Settings updated successfully' }), {
@@ -74,6 +92,7 @@ serve(async (req) => {
       status: 200,
     })
   } catch (error) {
+    console.error('Unexpected error:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
