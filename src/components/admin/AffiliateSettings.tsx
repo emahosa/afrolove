@@ -81,6 +81,8 @@ const AffiliateSettings: React.FC = () => {
         .upsert({ 
           key,
           value: safeValue.toString(),
+          category: 'affiliate',
+          description: `Affiliate program setting: ${key}`,
           updated_at: new Date().toISOString()
         }, { 
           onConflict: 'key' 
