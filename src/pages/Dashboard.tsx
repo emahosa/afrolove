@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ const Dashboard = () => {
   });
   const [isAffiliate, setIsAffiliate] = useState(false);
   const [hasApplication, setHasApplication] = useState(false);
-  const { genreTemplates, loading: templatesLoading } = useGenreTemplates();
+  const { templates, loading: templatesLoading } = useGenreTemplates();
 
   useEffect(() => {
     if (user) {
@@ -198,7 +197,7 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {genreTemplates.map((template) => (
+                {templates.map((template) => (
                   <GenreTemplateCard key={template.id} template={template} />
                 ))}
               </div>

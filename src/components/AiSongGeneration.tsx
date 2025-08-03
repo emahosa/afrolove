@@ -27,7 +27,7 @@ const AiSongGeneration = () => {
     }
   }, [customMode, style]);
 
-  const handleSubmit = async (e: React.Event) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user) {
@@ -51,7 +51,7 @@ const AiSongGeneration = () => {
       title: customMode ? title : undefined,
       instrumental,
       customMode,
-      model: getApiModelName(selectedModel)
+      model: getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5'
     });
 
     if (taskId) {
