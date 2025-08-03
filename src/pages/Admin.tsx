@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,7 +25,7 @@ interface AdminProps {
 }
 
 const Admin = ({ tab }: AdminProps) => {
-  const { user, signOut, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(tab || "overview");
   const [adminStats, setAdminStats] = useState({
     totalUsers: 0,
@@ -61,7 +60,7 @@ const Admin = ({ tab }: AdminProps) => {
   }, [user, isAdmin, isSuperAdmin]);
 
   const handleLogout = async () => {
-    await signOut();
+    await logout();
   };
 
   if (authLoading) {

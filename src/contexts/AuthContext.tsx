@@ -23,7 +23,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ data: any; error: any }>;
   register: (name: string, email: string, password: string, referralCode?: string | null) => Promise<boolean>;
-  signOut: () => Promise<{ error: any }>;
+  logout: () => Promise<{ error: any }>;
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isSubscriber: () => boolean;
@@ -136,11 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Initialize auth state
   useEffect(() => {
     console.log("AuthContext: Initializing auth state");
     
     let mounted = true;
 
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
@@ -150,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
         
         if (currentSession?.user) {
+          // Defer user data fetching to prevent callback issues
           setTimeout(async () => {
             if (!mounted) return;
             
@@ -189,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session: currentSession }, error } = await supabase.auth.getSession();
@@ -205,6 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("AuthContext: Initial session found");
           setSession(currentSession);
           
+          // Fetch user data
           try {
             const userData = await fetchUserData(currentSession.user.id);
             if (userData && mounted) {
@@ -239,6 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Handle subscription success URL parameter
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('subscription') === 'success' && user?.id) {
@@ -320,7 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {
+  const logout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -331,7 +337,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRoles([]);
-      navigate('/');
+      navigate('/login');
       return { error: null };
     } catch (error: any) {
       console.error('Logout error:', error);
@@ -397,7 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     login,
     register,
-    signOut,
+    logout,
     isAdmin,
     isSuperAdmin,
     isSubscriber,

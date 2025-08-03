@@ -3,35 +3,36 @@ import React, { useEffect } from 'react';
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "./contexts/AuthContext";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { PaymentVerificationProvider } from "@/components/payment/PaymentVerificationProvider";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-// Public Routes
+// Pages
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AdminRegister from "./pages/AdminRegister";
+import AdminLoginPage from "./pages/AdminLogin";
+import Dashboard from "./pages/Dashboard";
+import Create from "./pages/Create";
+import Library from "./pages/Library";
+import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
 import Credits from "./pages/Credits";
-import Library from "./pages/Library";
-import Create from "./pages/Create";
-import Dashboard from "./pages/Dashboard";
-import Contests from "./pages/Contests";
-import ContestDetail from "./pages/ContestDetail";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminUsers from "./pages/AdminUsers";
-import AdminContests from "./pages/AdminContests";
-import AdminGenres from "./pages/AdminGenres";
-import AdminAnalytics from "./pages/AdminAnalytics";
-import AdminSettings from "./pages/AdminSettings";
-import AdminSupport from "./pages/AdminSupport";
-import SupportTickets from "./pages/SupportTickets";
-import CreateSupportTicket from "./pages/CreateSupportTicket";
-import SupportTicketDetail from "./pages/SupportTicketDetail";
-import BecomeAffiliate from "./pages/BecomeAffiliate";
+import Support from "./pages/Support";
+import Admin from "./pages/Admin";
+import CustomSongManagement from "./pages/CustomSongManagement";
+import UserCustomSongs from "./pages/UserCustomSongs";
+import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
+import BecomeAffiliatePage from "./pages/BecomeAffiliate";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
-import AdminAffiliates from "./pages/AdminAffiliates";
-import AdminPayoutRequests from "./pages/AdminPayoutRequests";
+import SubscribePage from "./pages/SubscribePage";
+
+// Layouts
+import AppLayout from "./layouts/AppLayout";
+import AuthLayout from "./layouts/AuthLayout";
+import AdminLayout from "./layouts/AdminLayout";
 
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -39,67 +40,76 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { ensureStorageBuckets } from './utils/storageSetup';
 
 const App = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: 1,
-        refetchOnWindowFocus: false,
-      },
-    },
-  });
-
   useEffect(() => {
     ensureStorageBuckets();
   }, []);
-
+  
   return (
-    <QueryClientProvider client={queryClient}>
+    <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <TooltipProvider>
-            <div className="min-h-screen bg-background flex flex-col">
-              <Navbar />
-              <main className="flex-1">
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/become-affiliate" element={<BecomeAffiliate />} />
+          <PaymentVerificationProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/register/admin" element={<AdminRegister />} />
+                </Route>
+                
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/create" element={<Create />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/contest" element={<Contest />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/credits" element={<Credits />} />
+                    <Route path="/support" element={<Support />} />
+                    <Route path="/my-custom-songs" element={<UserCustomSongs />} />
+                    <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
+                    <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
+                    <Route path="/subscribe" element={<SubscribePage />} />
+                  </Route>
+                </Route>
 
-                  {/* Protected Routes */}
-                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                  <Route path="/credits" element={<ProtectedRoute><Credits /></ProtectedRoute>} />
-                  <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
-                  <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/contests" element={<ProtectedRoute><Contests /></ProtectedRoute>} />
-                  <Route path="/contests/:id" element={<ProtectedRoute><ContestDetail /></ProtectedRoute>} />
-                  <Route path="/affiliate" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
+                <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
+                  <Route element={<AdminLayout />}>
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/overview" element={<Admin tab="overview" />} />
+                    <Route path="/admin/users" element={<Admin tab="users" />} />
+                    <Route path="/admin/admins" element={<Admin tab="admins" />} />
+                    <Route path="/admin/genres" element={<Admin tab="genres" />} />
+                    <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+                    <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/contest" element={<Admin tab="contest" />} />
+                    <Route path="/admin/content" element={<Admin tab="content" />} />
+                    <Route path="/admin/payments" element={<Admin tab="payments" />} />
+                    <Route path="/admin/support" element={<Admin tab="support" />} />
+                    <Route path="/admin/reports" element={<Admin tab="reports" />} />
+                    <Route path="/admin/settings" element={<Admin tab="settings" />} />
+                  </Route>
+                </Route>
 
-                  {/* Support Routes */}
-                  <Route path="/support" element={<ProtectedRoute><SupportTickets /></ProtectedRoute>} />
-                  <Route path="/support/new" element={<ProtectedRoute><CreateSupportTicket /></ProtectedRoute>} />
-                  <Route path="/support/:id" element={<ProtectedRoute><SupportTicketDetail /></ProtectedRoute>} />
-
-                  {/* Admin Routes */}
-                  <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-                  <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
-                  <Route path="/admin/contests" element={<ProtectedRoute><AdminContests /></ProtectedRoute>} />
-                  <Route path="/admin/genres" element={<ProtectedRoute><AdminGenres /></ProtectedRoute>} />
-                  <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
-                  <Route path="/admin/settings" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
-                  <Route path="/admin/support" element={<ProtectedRoute><AdminSupport /></ProtectedRoute>} />
-                  <Route path="/admin/affiliates" element={<ProtectedRoute><AdminAffiliates /></ProtectedRoute>} />
-                  <Route path="/admin/affiliate-payouts" element={<ProtectedRoute><AdminPayoutRequests /></ProtectedRoute>} />
-                </Routes>
-              </main>
-              <Footer />
-            </div>
-            <Toaster />
-          </TooltipProvider>
+                <Route element={<ProtectedRoute allowedRoles={['affiliate', 'admin', 'super_admin']} />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/affiliate" element={<AffiliateDashboard />} />
+                  </Route>
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TooltipProvider>
+          </PaymentVerificationProvider>
         </AuthProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

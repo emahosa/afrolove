@@ -68,11 +68,15 @@ serve(async (req) => {
       });
     }
 
-    // Fetch payout requests with affiliate data - fixed query
+    // Fetch payout requests with affiliate data
     const { data: payoutRequests, error: fetchError } = await supabaseAdmin
       .from('affiliate_payout_requests')
       .select(`
         *,
+        affiliates (
+          affiliate_code,
+          user_id
+        ),
         profiles!affiliate_payout_requests_affiliate_user_id_fkey (
           username,
           full_name

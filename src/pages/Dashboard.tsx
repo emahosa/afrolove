@@ -1,320 +1,374 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Music, Zap, Trophy, Users, TrendingUp, Crown, Star } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useSongs } from "@/hooks/use-songs";
-import { useContests } from "@/hooks/use-contests";
-import { useGenres } from "@/hooks/use-genres";
-import { useGenreTemplates } from "@/hooks/use-genre-templates";
+import { Music, Sparkles, Users, CreditCard, Plus, Search, Vote } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
+import { useGenreTemplates, GenreTemplate } from "@/hooks/use-genre-templates";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Navigate, useNavigate } from "react-router-dom";
-import SongCard from "@/components/SongCard";
-import ContestCard from "@/components/ContestCard";
-import GenreCard from "@/components/GenreCard";
-import GenreTemplateCard from "@/components/dashboard/GenreTemplateCard";
-import { useSunoGeneration } from "@/hooks/use-suno-generation";
-import StatsCard from "@/components/dashboard/StatsCard";
-import RecentActivity from "@/components/dashboard/RecentActivity";
-import QuickActions from "@/components/dashboard/QuickActions";
-import WelcomeHeader from "@/components/dashboard/WelcomeHeader";
-import LockScreen from "@/components/LockScreen";
 
-interface Song {
+interface ContestEntry {
   id: string;
-  title: string;
-  artist: string;
-  genre: string;
-  audio_url: string;
-  cover_image_url: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Contest {
-  id: string;
-  title: string;
+  contest_id: string;
+  user_id: string;
   description: string;
-  start_date: string;
-  end_date: string;
-  status: 'active' | 'completed' | 'upcoming';
-  prize: string;
+  vote_count: number;
+  song_id: string | null;
+  video_url: string | null;
+  approved: boolean;
   created_at: string;
-  updated_at: string;
-}
-
-interface Genre {
-  id: string;
-  name: string;
-  description: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface GenreTemplate {
-  id: string;
-  template_name: string;
-  admin_prompt: string;
-  user_prompt_guide?: string;
-  genre_id: string;
-  audio_url?: string;
-  cover_image_url?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  profiles: {
+    full_name: string;
+  } | null;
+  songs?: {
+    title: string;
+    audio_url: string;
+  } | null;
 }
 
 const Dashboard = () => {
-  const { user, isSubscriber } = useAuth();
-  const { songs, loading: songsLoading } = useSongs();
-  const { contests, loading: contestsLoading } = useContests();
-  const { genres, loading: genresLoading } = useGenres();
-  const { templates, loading: templatesLoading } = useGenreTemplates();
-  const [playingTemplates, setPlayingTemplates] = useState<Set<string>>(new Set());
-  const { generateSong, isGenerating } = useSunoGeneration();
+  const { user, isSubscriber, isVoter } = useAuth();
   const navigate = useNavigate();
+  const { templates, loading: templatesLoading } = useGenreTemplates();
+  const [userCredits, setUserCredits] = useState<number>(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState<HTMLAudioElement | null>(null);
+  const [playingUrl, setPlayingUrl] = useState<string>("");
 
   useEffect(() => {
-    if (!user) return;
-    // Additional dashboard setup or data fetching can be done here
+    if (user) {
+      fetchUserCredits();
+      fetchContestEntries();
+    }
   }, [user]);
 
-  const handleTemplatePlay = (templateId: string) => {
-    setPlayingTemplates(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(templateId)) {
-        newSet.delete(templateId);
-      } else {
-        newSet.add(templateId);
-      }
-      return newSet;
-    });
+  const fetchUserCredits = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      setUserCredits(data?.credits || 0);
+    } catch (error) {
+      console.error('Error fetching credits:', error);
+    }
   };
 
-  if (!user) {
-    return <Navigate to="/auth" />;
-  }
+  const fetchContestEntries = async () => {
+    setEntriesLoading(true);
+    try {
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('contest_entries')
+        .select('*')
+        .eq('approved', true)
+        .order('vote_count', { ascending: false })
+        .limit(12);
 
-  if (!isSubscriber()) {
-    return <LockScreen message="Subscribe to access your dashboard and start creating amazing music!" buttonText="Subscribe Now" />;
-  }
+      if (entriesError) throw entriesError;
 
-  const recentSongs = songs.slice(0, 3);
-  const activeContests = contests.filter(contest => contest.status === 'active').slice(0, 2);
+      const entriesWithDetails: ContestEntry[] = await Promise.all(
+        (entriesData || []).map(async (entry) => {
+          let profileData = null;
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', entry.user_id)
+              .maybeSingle();
+            
+            if (!error && data) {
+              profileData = data;
+            }
+          } catch (error) {
+            console.warn('Failed to fetch profile for user:', entry.user_id, error);
+          }
+
+          let songData = null;
+          if (entry.song_id) {
+            try {
+              const { data, error } = await supabase
+                .from('songs')
+                .select('title, audio_url')
+                .eq('id', entry.song_id)
+                .maybeSingle();
+              
+              if (!error && data) {
+                songData = data;
+              }
+            } catch (error) {
+              console.warn('Failed to fetch song for entry:', entry.song_id, error);
+            }
+          }
+
+          return {
+            ...entry,
+            profiles: profileData ? { 
+              full_name: profileData.full_name || 'Unknown Artist' 
+            } : null,
+            songs: songData ? { 
+              title: songData.title, 
+              audio_url: songData.audio_url 
+            } : null
+          };
+        })
+      );
+
+      setContestEntries(entriesWithDetails);
+    } catch (error: any) {
+      console.error('Error fetching contest entries:', error);
+    } finally {
+      setEntriesLoading(false);
+    }
+  };
+
+  const handleTogglePlay = (audioUrl: string) => {
+    if (playingAudio) {
+      playingAudio.pause();
+      setPlayingAudio(null);
+      setPlayingUrl("");
+    }
+
+    if (audioUrl !== playingUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play();
+      setPlayingAudio(audio);
+      setPlayingUrl(audioUrl);
+      
+      audio.onended = () => {
+        setPlayingAudio(null);
+        setPlayingUrl("");
+      };
+    }
+  };
+
+  const handleCreateClick = () => {
+    navigate("/create");
+  };
+
+  const handleCreditsClick = () => {
+    navigate("/credits");
+  };
+
+  const filteredTemplates = templates.filter(template =>
+    template.template_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (template.user_prompt_guide && template.user_prompt_guide.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (template.genres?.name && template.genres.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const stats = [
+    {
+      title: "Available Credits",
+      value: userCredits.toString(),
+      description: "Create amazing songs",
+      icon: CreditCard,
+      action: handleCreditsClick
+    },
+    {
+      title: "AI Music Generation",
+      value: "Unlimited",
+      description: "Create with AI power",
+      icon: Sparkles,
+      action: handleCreateClick
+    },
+    {
+      title: "Community",
+      value: "Active",
+      description: "Join contests & vote",
+      icon: Users,
+      action: () => navigate("/contest")
+    }
+  ];
+
+  if (templatesLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-melody-secondary"></div>
+        <div className="ml-3">Loading templates...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
-      <WelcomeHeader />
-      
-      <Tabs defaultValue="overview" className="space-y-8">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="create">Create</TabsTrigger>
-          <TabsTrigger value="library">My Songs</TabsTrigger>
-          <TabsTrigger value="contests">Contests</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="affiliate">Affiliate</TabsTrigger>
-        </TabsList>
+    <div className="space-y-8">
+      {/* Welcome Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome back, {user?.name || 'Music Creator'}!</h1>
+          <p className="text-muted-foreground mt-1">
+            Create amazing music with AI-powered generation tools
+          </p>
+        </div>
+        <Button onClick={handleCreateClick} className="bg-melody-secondary hover:bg-melody-secondary/90">
+          <Plus className="mr-2 h-4 w-4" />
+          Create New Song
+        </Button>
+      </div>
 
-        <TabsContent value="overview" className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatsCard
-              title="Total Songs"
-              value={songs.length}
-              icon={<Music className="h-4 w-4" />}
-              description="Songs created"
-            />
-            <StatsCard
-              title="Credits"
-              value={user.credits || 0}
-              icon={<Zap className="h-4 w-4" />}
-              description="Available credits"
-              variant="primary"
-            />
-            <StatsCard
-              title="Active Contests"
-              value={activeContests.length}
-              icon={<Trophy className="h-4 w-4" />}
-              description="Ongoing contests"
-            />
-            <StatsCard
-              title="Genres"
-              value={genres.length}
-              icon={<Users className="h-4 w-4" />}
-              description="Available styles"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <RecentActivity songs={recentSongs} />
-            <QuickActions />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="create" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Songs</CardTitle>
-                <CardDescription>Check out the latest songs created by our users</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {songsLoading ? (
-                  <div className="flex justify-center items-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                    <span className="ml-2">Loading songs...</span>
-                  </div>
-                ) : recentSongs.length > 0 ? (
-                  recentSongs.map(song => (
-                    <SongCard key={song.id} song={song} />
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Music className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-                    <h3 className="text-lg font-semibold mb-1">No Songs Yet</h3>
-                    <p className="text-muted-foreground">Songs will appear here when they're created.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Contests</CardTitle>
-                <CardDescription>Participate in ongoing contests and win prizes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {contestsLoading ? (
-                  <div className="flex justify-center items-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                    <span className="ml-2">Loading contests...</span>
-                  </div>
-                ) : activeContests.length > 0 ? (
-                  activeContests.map(contest => (
-                    <ContestCard key={contest.id} contest={contest} />
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Trophy className="mx-auto h-10 w-10 text-muted-foreground mb-2" />
-                    <h3 className="text-lg font-semibold mb-1">No Active Contests</h3>
-                    <p className="text-muted-foreground">Check back later for new contests.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="library" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {songsLoading ? (
-              <div className="col-span-full flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                <span className="ml-2">Loading your songs...</span>
-              </div>
-            ) : songs.length > 0 ? (
-              songs.map(song => (
-                <SongCard key={song.id} song={song} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <Music className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-xl font-semibold mb-2">No Songs in Your Library</h3>
-                <p className="text-muted-foreground">Create your first song to start building your library!</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="contests" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {contestsLoading ? (
-              <div className="col-span-full flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                <span className="ml-2">Loading contests...</span>
-              </div>
-            ) : contests.length > 0 ? (
-              contests.map(contest => (
-                <ContestCard key={contest.id} contest={contest} />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <Trophy className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-xl font-semibold mb-2">No Contests Available</h3>
-                <p className="text-muted-foreground">Check back later for new contests.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="templates" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {genresLoading || templatesLoading ? (
-              <div className="col-span-full flex justify-center items-center p-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                <span className="ml-2">Loading templates...</span>
-              </div>
-            ) : genres.length > 0 && templates.length > 0 ? (
-              templates.map(template => (
-                <GenreTemplateCard
-                  key={template.id}
-                  template={template}
-                  isPlaying={playingTemplates.has(template.id)}
-                  onTogglePlay={handleTemplatePlay}
-                />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <Music className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
-                <h3 className="text-xl font-semibold mb-2">No Templates Available</h3>
-                <p className="text-muted-foreground">Check back later for new templates.</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="affiliate" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Affiliate Program
-              </CardTitle>
-              <CardDescription>
-                Earn money by referring new users to our platform
-              </CardDescription>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {stats.map((stat, index) => (
+          <Card key={index} className="cursor-pointer transition-colors hover:bg-accent" onClick={stat.action}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <Crown className="h-16 w-16 text-primary mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Join Our Affiliate Program</h3>
-                <p className="text-muted-foreground mb-6">
-                  Earn commissions by referring new subscribers to our platform. 
-                  Get paid for every successful referral!
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button 
-                    onClick={() => navigate('/become-affiliate')}
-                    className="flex items-center gap-2"
-                  >
-                    <Star className="h-4 w-4" />
-                    Apply to Become an Affiliate
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    onClick={() => navigate('/affiliate')}
-                  >
-                    View Affiliate Dashboard
-                  </Button>
-                </div>
-              </div>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <p className="text-xs text-muted-foreground">{stat.description}</p>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      <Tabs defaultValue="templates" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="templates">Genre Templates</TabsTrigger>
+          <TabsTrigger value="entries">Contest Entries</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="templates" className="space-y-6">
+          {/* Search Bar */}
+          <div className="relative max-w-md mx-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-muted/50 border-0 rounded-full"
+            />
+          </div>
+
+          {/* Genre Templates Display */}
+          {filteredTemplates.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Genre Templates</h2>
+                <p className="text-sm text-muted-foreground">
+                  {filteredTemplates.length} templates available
+                </p>
+              </div>
+              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
+                {filteredTemplates.map((template) => (
+                  <div key={template.id} className="break-inside-avoid mb-4">
+                    <GenreTemplateCard
+                      template={template}
+                      isPlaying={playingUrl === template.audio_url}
+                      onTogglePlay={handleTogglePlay}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium">
+                {searchQuery ? 'No templates found' : 'No genre templates available'}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? 'Try adjusting your search query' : 'Admin needs to create genre templates first'}
+              </p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="entries" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Featured Contest Entries</h2>
+            <Button variant="outline" onClick={() => navigate("/contest")}>
+              View All Contests
+            </Button>
+          </div>
+
+          {entriesLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+              <span className="ml-2">Loading contest entries...</span>
+            </div>
+          ) : contestEntries.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Contest Entries Yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Be the first to submit an entry to any contest
+                </p>
+                <Button onClick={() => navigate("/contest")}>
+                  View Contests
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {contestEntries.map((entry) => (
+                <Card key={entry.id}>
+                  <CardHeader>
+                    <CardTitle className="text-lg">{entry.songs?.title || 'Contest Entry'}</CardTitle>
+                    <CardDescription>
+                      By {entry.profiles?.full_name || 'Unknown Artist'}
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      {entry.description}
+                    </p>
+                    
+                    {entry.songs?.audio_url && (
+                      <audio controls className="w-full mb-4">
+                        <source src={entry.songs.audio_url} type="audio/mpeg" />
+                        Your browser does not support the audio element.
+                      </audio>
+                    )}
+                  </CardContent>
+                  
+                  <CardContent className="pt-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Vote className="h-4 w-4" />
+                        <span className="text-sm">{entry.vote_count} votes</span>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        Vote
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
+
+      {/* Voter-specific message */}
+      {isVoter() && !isSubscriber() && (
+        <Card className="border-melody-accent">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Music className="mr-2 h-5 w-5 text-melody-accent" />
+              Unlock Full Creative Power
+            </CardTitle>
+            <CardDescription>
+              Subscribe to access unlimited music generation, your personal library, and premium features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate("/subscribe")} className="bg-melody-accent hover:bg-melody-accent/90">
+              View Subscription Plans
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
