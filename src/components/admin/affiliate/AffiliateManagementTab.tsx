@@ -98,15 +98,19 @@ const AffiliateSettings: React.FC = () => {
 
   const handleSave = async () => {
     setSaving(true);
+    console.log('Saving settings:', settings);
     const updates = Object.entries(settings).map(([key, value]) => ({
       key,
       value: String(value),
     }));
+    console.log('Sending updates to backend:', updates);
 
     try {
-      const { error } = await supabase.functions.invoke('update-affiliate-settings', {
+      const { data, error } = await supabase.functions.invoke('update-affiliate-settings', {
         body: { settings: updates },
       });
+
+      console.log('Backend response:', { data, error });
 
       if (error) {
         toast.error('Failed to save settings.');
@@ -116,6 +120,7 @@ const AffiliateSettings: React.FC = () => {
       }
     } catch (error) {
       toast.error('An error occurred while saving settings.');
+      console.error('Save settings error:', error);
     } finally {
       setSaving(false);
     }

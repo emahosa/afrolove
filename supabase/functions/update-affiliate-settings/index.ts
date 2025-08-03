@@ -51,13 +51,22 @@ serve(async (req) => {
     }
 
     const { settings } = await req.json();
+    console.log('Received settings to update:', settings);
 
     for (const setting of settings) {
       const { key, value } = setting;
-      await supabaseAdmin
+      console.log(`Updating setting: ${key} to ${value}`);
+      const { data, error } = await supabaseAdmin
         .from('system_settings')
         .update({ value: String(value) })
-        .eq('key', key);
+        .eq('key', key)
+        .select();
+
+      if (error) {
+        console.error(`Error updating setting ${key}:`, error);
+        throw new Error(`Failed to update setting: ${key}`);
+      }
+      console.log(`Successfully updated ${key}. Response:`, data);
     }
 
     return new Response(JSON.stringify({ message: 'Settings updated successfully' }), {
