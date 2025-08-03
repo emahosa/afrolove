@@ -61,7 +61,6 @@ const Contest = () => {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
-  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
 
@@ -182,8 +181,8 @@ const Contest = () => {
   const handleSubmitEntry = async () => {
     if (!selectedContest) return;
 
-    if (!selectedSong && !videoFile) {
-      toast.error('Please select a song or upload a video');
+    if (!selectedSong) {
+      toast.error('Please select a song');
       return;
     }
 
@@ -195,14 +194,12 @@ const Contest = () => {
     const success = await submitEntry({
       contestId: selectedContest.id,
       songId: selectedSong || undefined,
-      videoFile: videoFile || undefined,
       description: description.trim()
     });
 
     if (success) {
       setSubmissionDialogOpen(false);
       setSelectedSong("");
-      setVideoFile(null);
       setDescription("");
       setSelectedContest(null);
       fetchContestEntries(); // Refresh entries
@@ -400,7 +397,7 @@ const Contest = () => {
 
             <div className="space-y-4">
               <div>
-                <Label htmlFor="song-select">Select Your Song (Optional)</Label>
+                <Label htmlFor="song-select">Select Your Song</Label>
                 <Select value={selectedSong} onValueChange={setSelectedSong}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a song from your library" />
@@ -415,21 +412,6 @@ const Contest = () => {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="video-upload">Upload Performance Video (Optional)</Label>
-                <Input
-                  id="video-upload"
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                  className="mt-1"
-                />
-                {videoFile && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Selected: {videoFile.name}
-                  </p>
-                )}
-              </div>
 
               <div>
                 <Label htmlFor="description">Entry Description</Label>
