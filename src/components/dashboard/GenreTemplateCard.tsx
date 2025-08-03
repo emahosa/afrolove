@@ -11,17 +11,17 @@ interface GenreTemplate {
   id: string;
   template_name: string;
   admin_prompt: string;
-  user_prompt_guide: string | null;
-  audio_url: string | null;
-  cover_image_url: string | null;
+  user_prompt_guide?: string | null;
+  audio_url?: string | null;
+  cover_image_url?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
-  created_by: string | null;
+  created_by?: string | null;
   genre_id: string;
   genres?: {
     name: string;
-    description: string | null;
+    description?: string | null;
   };
 }
 
