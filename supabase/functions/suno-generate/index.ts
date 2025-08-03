@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
         })
       }
 
-      // Ensure user has enough credits (changed from 5 to 20)
+      // Ensure user has enough credits
       if (userProfile.credits < 20) {
         console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
         return new Response(JSON.stringify({ 
@@ -303,7 +303,7 @@ Deno.serve(async (req) => {
     console.log('✅ Task ID received:', taskId)
 
     if (!isAdminTest) {
-      // Deduct 20 credits (changed from 5)
+      // Deduct 20 credits
       const { error: creditError } = await supabase.rpc('update_user_credits', {
         p_user_id: userId,
         p_amount: -20
@@ -323,8 +323,8 @@ Deno.serve(async (req) => {
       type: instrumental ? 'instrumental' : 'song',
       prompt,
       status: 'pending',
-      credits_used: isAdminTest ? 0 : 20, // Changed from 5 to 20
-      task_id: taskId // This is the key fix - store task_id in the correct column
+      credits_used: isAdminTest ? 0 : 20,
+      task_id: taskId
     }
 
     console.log('💾 Creating song record with data:', songData)
@@ -347,14 +347,13 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ Song record created with ID:', newSong.id)
-    console.log('✅ Song record task_id stored as:', newSong.task_id)
     console.log('🎉 GENERATION REQUEST COMPLETED SUCCESSFULLY')
 
     return new Response(JSON.stringify({ 
       success: true,
       task_id: taskId,
       song_id: newSong.id,
-      message: 'Song generation started successfully - 20 credits deducted'
+      message: 'Song generation started successfully'
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
