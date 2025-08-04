@@ -27,7 +27,7 @@ const SongLibrary = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const songsPerPage = 5;
+  const songsPerPage = 10;
 
   useEffect(() => {
     if (user) {
@@ -133,13 +133,14 @@ const SongLibrary = () => {
   const currentSongs = songs.slice(indexOfFirstSong, indexOfLastSong);
 
   const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
         <span className="ml-2">Loading your songs...</span>
       </div>
     );
@@ -147,31 +148,28 @@ const SongLibrary = () => {
 
   if (songs.length === 0) {
     return (
-      <Card>
+      <Card className="p-4">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Music className="h-5 w-5" />
-            Your Song Library
+            Completed Songs
           </CardTitle>
           <CardDescription>
-            Your generated songs will appear here
+            Your completed songs will appear here.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8">
           <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No completed songs yet</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Create your first song using the music generation tools
-          </p>
+          <p className="text-muted-foreground">No completed songs yet.</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
+    <Card className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">
           <Music className="h-6 w-6" />
           Completed Songs
         </h2>
@@ -180,44 +178,43 @@ const SongLibrary = () => {
 
       <div className="space-y-2">
         {currentSongs.map((song) => (
-          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-muted">
+          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-muted transition-colors">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handlePlay(song)}
+              disabled={!song.audio_url}
+              className="mr-2"
+            >
+              {currentTrack?.id === song.id && isPlaying ? (
+                <Pause className="h-5 w-5" />
+              ) : (
+                <Play className="h-5 w-5" />
+              )}
+            </Button>
             <div className="flex-grow">
-              <p className="font-semibold">{song.title}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-semibold text-sm truncate">{song.title}</p>
+              <p className="text-xs text-muted-foreground">
                 {new Date(song.created_at).toLocaleDateString()}
                 {song.genre && ` • ${song.genre.name}`}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {song.audio_url && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handlePlay(song)}
-                  >
-                    {currentTrack?.id === song.id && isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDownload(song)}
-                  >
-                    <Download className="h-5 w-5" />
-                  </Button>
-                </>
-              )}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDownload(song)}
+                disabled={!song.audio_url}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => handleDelete(song.id)}
                 className="text-destructive hover:text-destructive"
               >
-                <Trash2 className="h-5 w-5" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -225,7 +222,7 @@ const SongLibrary = () => {
       </div>
 
       {totalPages > 1 && (
-        <Pagination>
+        <Pagination className="mt-4">
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
@@ -264,7 +261,7 @@ const SongLibrary = () => {
           </PaginationContent>
         </Pagination>
       )}
-    </div>
+    </Card>
   );
 };
 

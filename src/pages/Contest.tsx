@@ -259,12 +259,12 @@ const Contest = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {contests.map((contest) => (
                 <Card key={contest.id} className="w-full overflow-hidden">
                   <CardHeader className="p-4 bg-muted/40">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-xl flex items-center gap-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
                         <Trophy className="h-5 w-5 text-primary" />
                         {contest.title}
                       </CardTitle>
@@ -274,8 +274,8 @@ const Contest = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-4">
-                    <p className="text-muted-foreground mb-4">{contest.description}</p>
-                    <div className="flex items-center justify-between text-sm">
+                    <p className="text-muted-foreground text-sm mb-4">{contest.description}</p>
+                    <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                         <span>
@@ -289,13 +289,13 @@ const Contest = () => {
                       )}
                     </div>
                   </CardContent>
-                  <CardFooter className="p-4 bg-muted/40">
+                  <CardFooter className="p-2 bg-muted/40">
                     {canParticipate ? (
-                      <Button className="w-full" onClick={() => openSubmissionDialog(contest)}>
+                      <Button size="sm" className="w-full" onClick={() => openSubmissionDialog(contest)}>
                         Submit Your Entry
                       </Button>
                     ) : (
-                      <Button disabled className="w-full">
+                      <Button size="sm" disabled className="w-full">
                         Subscription Required to Enter
                       </Button>
                     )}
