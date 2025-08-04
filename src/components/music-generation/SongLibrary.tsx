@@ -186,11 +186,6 @@ const SongLibrary = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {song.prompt && (
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  Prompt: {song.prompt}
-                </p>
-              )}
               
               <div className="flex items-center gap-2">
                 {song.audio_url && song.status === 'completed' && (
