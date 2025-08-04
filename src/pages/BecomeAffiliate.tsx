@@ -11,14 +11,14 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 const BecomeAffiliate: React.FC = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const [appStatusLoading, setAppStatusLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [canReapply, setCanReapply] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: user?.user_metadata?.full_name || '',
-    email: user?.email || '',
+    fullName: '',
+    email: '',
     phone: '',
     socialMediaUrl: '',
     reasonToJoin: '',
@@ -26,8 +26,21 @@ const BecomeAffiliate: React.FC = () => {
   });
 
   useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: user.name || '',
+        email: user.email || ''
+      }));
+    }
+  }, [user]);
+
+  useEffect(() => {
     const checkApplicationStatus = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        if (!authLoading) setAppStatusLoading(false);
+        return;
+      }
 
       try {
         const { data: applicationData, error: applicationError } = await supabase
@@ -54,12 +67,12 @@ const BecomeAffiliate: React.FC = () => {
       } catch (err) {
         console.error('Error checking application status:', err);
       } finally {
-        setLoading(false);
+        setAppStatusLoading(false);
       }
     };
 
     checkApplicationStatus();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +110,7 @@ const BecomeAffiliate: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  if (loading) {
+  if (authLoading || appStatusLoading) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="flex justify-center items-center h-64">
