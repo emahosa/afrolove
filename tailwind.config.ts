@@ -70,7 +70,8 @@ export default {
 					accent: '#FFCBDD',
 					light: '#F1F1F1',
 					dark: '#1A1A1A',
-				}
+				},
+				"melody-bright-violet": "#bb86fc",
 			},
 			fontFamily: {
 				montserrat: ['Montserrat', 'sans-serif'],
