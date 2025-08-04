@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -259,48 +259,50 @@ const Contest = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
               {contests.map((contest) => (
-                <Card key={contest.id} className="w-full overflow-hidden">
-                  <CardHeader className="p-4 bg-muted/40">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-primary" />
-                        {contest.title}
-                      </CardTitle>
-                      <Badge variant="secondary" className="text-sm">
-                        Prize: {contest.prize}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <p className="text-muted-foreground text-sm mb-4">{contest.description}</p>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          Ends {new Date(contest.end_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {contest.entry_fee > 0 && (
-                        <Badge>
-                          Entry: {contest.entry_fee} credits
+                <div key={contest.id} className="break-inside-avoid">
+                  <Card className="w-full overflow-hidden">
+                    <CardHeader className="p-4 bg-muted/40">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-primary" />
+                          {contest.title}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-sm">
+                          Prize: {contest.prize}
                         </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <p className="text-muted-foreground text-sm mb-4">{contest.description}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            Ends {new Date(contest.end_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {contest.entry_fee > 0 && (
+                          <Badge>
+                            Entry: {contest.entry_fee} credits
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-2 bg-muted/40">
+                      {canParticipate ? (
+                        <Button size="sm" className="w-full" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Your Entry
+                        </Button>
+                      ) : (
+                        <Button size="sm" disabled className="w-full">
+                          Subscription Required to Enter
+                        </Button>
                       )}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-2 bg-muted/40">
-                    {canParticipate ? (
-                      <Button size="sm" className="w-full" onClick={() => openSubmissionDialog(contest)}>
-                        Submit Your Entry
-                      </Button>
-                    ) : (
-                      <Button size="sm" disabled className="w-full">
-                        Subscription Required to Enter
-                      </Button>
-                    )}
-                  </CardFooter>
-                </Card>
+                    </CardFooter>
+                  </Card>
+                </div>
               ))}
             </div>
           )}
