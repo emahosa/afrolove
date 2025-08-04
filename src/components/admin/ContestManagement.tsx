@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar as CalendarIcon, Users, Trash2, Upload } from 'lucide-react';
+import { Eye, Check, X, Trophy, Plus, Loader2, AlertCircle, RefreshCw, Edit, Calendar as CalendarIcon, Users, Trash2, Upload, Play } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -99,6 +99,9 @@ export const ContestManagement = () => {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [instrumentalFile, setInstrumentalFile] = useState<File | null>(null);
   const [uploadingInstrumental, setUploadingInstrumental] = useState(false);
+  const [mediaPlaybackEntry, setMediaPlaybackEntry] = useState<ContestEntry | null>(null);
+  const [isMediaPlaybackDialogOpen, setIsMediaPlaybackDialogOpen] = useState(false);
+
 
   // Form states for creating/editing contest
   const [contestForm, setContestForm] = useState({
@@ -747,6 +750,17 @@ export const ContestManagement = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setMediaPlaybackEntry(entry);
+                                  setIsMediaPlaybackDialogOpen(true);
+                                }}
+                                disabled={!entry.video_url}
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
                               {!entry.approved ? (
                                 <>
                                   <Button 
@@ -796,6 +810,38 @@ export const ContestManagement = () => {
         </DialogContent>
       </Dialog>
       
+      {/* Media Playback Dialog */}
+      <Dialog open={isMediaPlaybackDialogOpen} onOpenChange={setIsMediaPlaybackDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Playback: {mediaPlaybackEntry?.description || 'Entry'}</DialogTitle>
+            <DialogDescription>
+              Playing submission from {mediaPlaybackEntry?.user_name || 'Anonymous'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {mediaPlaybackEntry?.video_url && (
+              mediaPlaybackEntry.media_type.startsWith('audio/') ? (
+                <audio controls autoPlay className="w-full">
+                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
+                  Your browser does not support the audio element.
+                </audio>
+              ) : (
+                <video controls autoPlay className="w-full rounded-md">
+                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
+                  Your browser does not support the video element.
+                </video>
+              )
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMediaPlaybackDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Contest Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
