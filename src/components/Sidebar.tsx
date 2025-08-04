@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
   { href: "/credits", label: "Credits & Plans", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
-  { href: "/affiliate", label: "Affiliate", icon: Folder, affiliateOnly: true },
+  { href: "/affiliate", label: "Affiliate", icon: Folder },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
