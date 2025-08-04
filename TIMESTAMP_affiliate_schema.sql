@@ -11,6 +11,7 @@ CREATE TABLE public.affiliate_applications (
     phone TEXT NOT NULL,
     social_media_url TEXT NOT NULL,
     reason_to_join TEXT NOT NULL,
+    usdt_wallet_address TEXT,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     unique_referral_code TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
