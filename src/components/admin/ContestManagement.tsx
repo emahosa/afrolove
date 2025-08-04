@@ -754,8 +754,9 @@ export const ContestManagement = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
-                                  setMediaPlaybackEntry(entry);
-                                  setIsMediaPlaybackDialogOpen(true);
+                                  if (entry.video_url) {
+                                    window.open(entry.video_url, '_blank');
+                                  }
                                 }}
                                 disabled={!entry.video_url}
                               >
@@ -810,38 +811,6 @@ export const ContestManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Media Playback Dialog */}
-      <Dialog open={isMediaPlaybackDialogOpen} onOpenChange={setIsMediaPlaybackDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Playback: {mediaPlaybackEntry?.description || 'Entry'}</DialogTitle>
-            <DialogDescription>
-              Playing submission from {mediaPlaybackEntry?.user_name || 'Anonymous'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            {mediaPlaybackEntry?.video_url && (
-              mediaPlaybackEntry.media_type.startsWith('audio/') ? (
-                <audio controls autoPlay className="w-full">
-                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
-                  Your browser does not support the audio element.
-                </audio>
-              ) : (
-                <video controls autoPlay className="w-full rounded-md">
-                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
-                  Your browser does not support the video element.
-                </video>
-              )
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMediaPlaybackDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Create Contest Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl">
