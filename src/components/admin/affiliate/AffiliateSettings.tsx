@@ -45,10 +45,21 @@ const AffiliateSettings: React.FC = () => {
       } else {
         console.log('Fetched settings data:', data);
         const settingsData = data.reduce((acc, { key, value }) => {
-          if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
-            acc[key] = value === 'true';
-          } else {
-            acc[key] = Number(value) || 0;
+          try {
+            // Parse the JSON value
+            const parsedValue = JSON.parse(value);
+            if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
+              acc[key] = parsedValue === true || parsedValue === 'true';
+            } else {
+              acc[key] = Number(parsedValue) || 0;
+            }
+          } catch (e) {
+            // Fallback for non-JSON values
+            if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
+              acc[key] = value === 'true' || value === true;
+            } else {
+              acc[key] = Number(value) || 0;
+            }
           }
           return acc;
         }, {} as Partial<AffiliateSettingsData>);
@@ -80,7 +91,7 @@ const AffiliateSettings: React.FC = () => {
     
     const updates = Object.entries(settings).map(([key, value]) => ({
       key,
-      value: String(value),
+      value,
     }));
     
     console.log('Sending updates to backend:', updates);

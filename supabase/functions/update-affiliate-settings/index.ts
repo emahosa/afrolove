@@ -40,7 +40,8 @@ serve(async (req) => {
     if (rolesError) {
       console.error('Error fetching user roles:', rolesError);
       return new Response(JSON.stringify({ error: 'Failed to verify user permissions' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 500,
       });
     }
 
@@ -65,7 +66,7 @@ serve(async (req) => {
         .upsert(
           {
             key: key,
-            value: String(value),
+            value: JSON.stringify(value), // Store as JSON string
             category: 'affiliate',
             description: `Affiliate program setting: ${key}`
           },
@@ -78,7 +79,7 @@ serve(async (req) => {
 
       if (error) {
         console.error(`Error upserting setting ${key}:`, error);
-        return new Response(JSON.stringify({ error: `Failed to save setting: ${key}` }), {
+        return new Response(JSON.stringify({ error: `Failed to save setting: ${key}`, details: error.message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
         });

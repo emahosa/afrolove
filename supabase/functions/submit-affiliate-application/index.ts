@@ -47,16 +47,17 @@ serve(async (req) => {
       .eq('key', 'affiliate_program_enabled')
       .single();
 
-    if (programStatus && programStatus.value === 'false') {
+    if (programStatus && programStatus.value === '"false"') {
       return new Response(JSON.stringify({ error: 'Affiliate program is currently paused.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 403,
       });
     }
 
-    // Check existing applications and 60-day rule
+    // Check existing applications
     const { data: existingApplications, error: existingCheckError } = await supabaseAdmin
       .from('affiliate_applications')
-      .select('id, status, rejection_date')
+      .select('id, status')
       .eq('user_id', userId)
       .in('status', ['pending', 'approved'])
 
@@ -78,26 +79,8 @@ serve(async (req) => {
       }
     }
 
-    // Check if user can reapply (60 days rule for rejected applications)
-    const { data: canReapply, error: reapplyError } = await supabaseAdmin
-      .rpc('can_reapply_for_affiliate', { user_id_param: userId });
-
-    if (reapplyError) {
-      console.error('Error checking reapply eligibility:', reapplyError);
-      return new Response(JSON.stringify({ error: 'Failed to verify application eligibility' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
-    }
-
-    if (!canReapply) {
-      return new Response(JSON.stringify({ error: 'You can only reapply 60 days after rejection.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 409,
-      })
-    }
-
     const payload: AffiliateApplicationPayload = await req.json()
+    console.log('Received payload:', payload)
 
     if (!payload.full_name || !payload.email || !payload.phone || !payload.social_media_url || !payload.reason_to_join || !payload.usdt_wallet_address) {
       return new Response(JSON.stringify({ error: 'Missing required fields including USDT wallet address' }), {
@@ -117,6 +100,8 @@ serve(async (req) => {
       status: 'pending',
     }
 
+    console.log('Creating application with data:', newApplication)
+
     const { data: createdApplication, error: insertError } = await supabaseAdmin
       .from('affiliate_applications')
       .insert(newApplication)
@@ -131,6 +116,7 @@ serve(async (req) => {
       })
     }
 
+    console.log('Application created successfully:', createdApplication)
     return new Response(JSON.stringify({ message: 'Affiliate application submitted successfully.', applicationId: createdApplication.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
