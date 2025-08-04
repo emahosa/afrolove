@@ -102,7 +102,6 @@ export const ContestManagement = () => {
   const [mediaPlaybackEntry, setMediaPlaybackEntry] = useState<ContestEntry | null>(null);
   const [isMediaPlaybackDialogOpen, setIsMediaPlaybackDialogOpen] = useState(false);
 
-
   // Form states for creating/editing contest
   const [contestForm, setContestForm] = useState({
     title: '',
@@ -754,10 +753,11 @@ export const ContestManagement = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
+                                  console.log('Play button clicked for entry:', entry);
                                   setMediaPlaybackEntry(entry);
                                   setIsMediaPlaybackDialogOpen(true);
                                 }}
-                                disabled={!entry.video_url}
+                                disabled={!entry.video_url || !entry.media_type.startsWith('audio/')}
                               >
                                 <Play className="h-4 w-4" />
                               </Button>
@@ -820,18 +820,11 @@ export const ContestManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            {mediaPlaybackEntry?.video_url && (
-              mediaPlaybackEntry.media_type.startsWith('audio/') ? (
-                <audio controls autoPlay className="w-full">
-                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
-                  Your browser does not support the audio element.
-                </audio>
-              ) : (
-                <video controls autoPlay className="w-full rounded-md">
-                  <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
-                  Your browser does not support the video element.
-                </video>
-              )
+            {mediaPlaybackEntry?.video_url && mediaPlaybackEntry.media_type.startsWith('audio/') && (
+              <audio controls autoPlay className="w-full">
+                <source src={mediaPlaybackEntry.video_url} type={mediaPlaybackEntry.media_type} />
+                Your browser does not support the audio element.
+              </audio>
             )}
           </div>
           <DialogFooter>
