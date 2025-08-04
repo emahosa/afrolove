@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -296,6 +297,7 @@ const AffiliateManagementTab: React.FC = () => {
   const [activePayoutStatusFilter, setActivePayoutStatusFilter] = useState<'pending' | 'approved' | 'rejected' | 'paid' | null>('pending');
 
   const [activeSubTab, setActiveSubTab] = useState<ActiveSubTabType>('pendingApps');
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
   const pageSize = 10;
 
   const fetchApplications = useCallback(async (status: 'pending' | 'approved' | 'rejected', page: number) => {
@@ -513,6 +515,10 @@ const AffiliateManagementTab: React.FC = () => {
       return <p className="p-4 text-center text-muted-foreground">No {statusToRender} applications found.</p>;
     }
 
+    const toggleRow = (id: string) => {
+      setExpandedRows(prev => ({...prev, [id]: !prev[id]}));
+    };
+
     return (
       <>
         <Table>
@@ -524,25 +530,54 @@ const AffiliateManagementTab: React.FC = () => {
               <TableHead>Status</TableHead>
               {statusToRender === 'approved' && <TableHead>Referral Code</TableHead>}
               {statusToRender === 'pending' && <TableHead>Actions</TableHead>}
+              <TableHead>Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {applications.map((app) => (
-              <TableRow key={app.id}>
-                <TableCell>{app.full_name}</TableCell>
-                <TableCell>{app.email}</TableCell>
-                <TableCell>{format(parseISO(app.created_at), 'MMM d, yyyy HH:mm')}</TableCell>
-                <TableCell><Badge variant={app.status === 'approved' ? 'default' : app.status === 'rejected' ? 'destructive' : 'outline'}>{app.status}</Badge></TableCell>
-                {statusToRender === 'approved' && <TableCell>{app.unique_referral_code || 'N/A'}</TableCell>}
-                {statusToRender === 'pending' && (
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="default" onClick={() => handleApproveApplication(app.id)} disabled={appsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleRejectApplication(app.id)} disabled={appsLoading}><XCircle className="h-4 w-4 mr-1"/>Reject</Button>
-                    </div>
-                  </TableCell>
-                )}
-              </TableRow>
+              <Collapsible asChild key={app.id} open={expandedRows[app.id] || false} onOpenChange={() => toggleRow(app.id)}>
+                <>
+                  <TableRow>
+                    <TableCell>{app.full_name}</TableCell>
+                    <TableCell>{app.email}</TableCell>
+                    <TableCell>{format(parseISO(app.created_at), 'MMM d, yyyy HH:mm')}</TableCell>
+                    <TableCell><Badge variant={app.status === 'approved' ? 'default' : app.status === 'rejected' ? 'destructive' : 'outline'}>{app.status}</Badge></TableCell>
+                    {statusToRender === 'approved' && <TableCell>{app.unique_referral_code || 'N/A'}</TableCell>}
+                    {statusToRender === 'pending' && (
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="default" onClick={() => handleApproveApplication(app.id)} disabled={appsLoading}><CheckCircle className="h-4 w-4 mr-1"/>Approve</Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleRejectApplication(app.id)} disabled={appsLoading}><XCircle className="h-4 w-4 mr-1"/>Reject</Button>
+                        </div>
+                      </TableCell>
+                    )}
+                     <TableCell>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="w-20">
+                          {expandedRows[app.id] ? 'Hide' : 'View'} Details
+                        </Button>
+                      </CollapsibleTrigger>
+                    </TableCell>
+                  </TableRow>
+                  <CollapsibleContent asChild>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableCell colSpan={statusToRender === 'pending' ? 7 : (statusToRender === 'approved' ? 6 : 5)}>
+                        <div className="p-4">
+                          <h4 className="font-semibold mb-2 text-foreground">Full Application Details:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                            <div><strong>Phone:</strong> <span className="text-muted-foreground">{app.phone}</span></div>
+                            <div><strong>Social Media:</strong> <a href={app.social_media_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{app.social_media_url}</a></div>
+                          </div>
+                          <div className="mt-3">
+                            <p><strong>Reason to Join:</strong></p>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{app.reason_to_join}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </CollapsibleContent>
+                </>
+              </Collapsible>
             ))}
           </TableBody>
         </Table>
