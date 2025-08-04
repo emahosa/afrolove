@@ -21,7 +21,7 @@ export const useContestSubmission = () => {
         throw new Error('User not authenticated');
       }
 
-      // Create contest entry
+      // Create contest entry with proper user_id
       const entryData = {
         contest_id: data.contestId,
         user_id: user.id,

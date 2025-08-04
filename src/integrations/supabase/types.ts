@@ -98,6 +98,7 @@ export type Database = {
           status: string
           unique_referral_code: string | null
           updated_at: string
+          usdt_wallet_address: string
           user_id: string
         }
         Insert: {
@@ -111,6 +112,7 @@ export type Database = {
           status?: string
           unique_referral_code?: string | null
           updated_at?: string
+          usdt_wallet_address: string
           user_id: string
         }
         Update: {
@@ -124,6 +126,7 @@ export type Database = {
           status?: string
           unique_referral_code?: string | null
           updated_at?: string
+          usdt_wallet_address?: string
           user_id?: string
         }
         Relationships: [

@@ -47,7 +47,7 @@ serve(async (req) => {
       .eq('key', 'affiliate_program_enabled')
       .single();
 
-    if (programStatus && programStatus.value === '"false"') {
+    if (programStatus && programStatus.value === false) {
       return new Response(JSON.stringify({ error: 'Affiliate program is currently paused.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
         status: 403,
