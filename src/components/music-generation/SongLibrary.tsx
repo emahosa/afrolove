@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 interface Song {
   id: string;
@@ -25,6 +26,8 @@ const SongLibrary = () => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const songsPerPage = 5;
 
   useEffect(() => {
     if (user) {
@@ -47,6 +50,7 @@ const SongLibrary = () => {
           genre:genres(name)
         `)
         .eq('user_id', user?.id)
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -81,10 +85,9 @@ const SongLibrary = () => {
       const response = await fetch(song.audio_url);
       const blob = await response.blob();
       
-      // Create a clean filename from the song title
       const cleanTitle = song.title
-        .replace(/[^a-zA-Z0-9\s-_]/g, '') // Remove special characters
-        .replace(/\s+/g, '_') // Replace spaces with underscores
+        .replace(/[^a-zA-Z0-9\s-_]/g, '')
+        .replace(/\s+/g, '_')
         .trim();
       
       const filename = `${cleanTitle || 'song'}.mp3`;
@@ -124,6 +127,15 @@ const SongLibrary = () => {
     }
   };
 
+  const totalPages = Math.ceil(songs.length / songsPerPage);
+  const indexOfLastSong = currentPage * songsPerPage;
+  const indexOfFirstSong = indexOfLastSong - songsPerPage;
+  const currentSongs = songs.slice(indexOfFirstSong, indexOfLastSong);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -147,7 +159,7 @@ const SongLibrary = () => {
         </CardHeader>
         <CardContent className="text-center py-8">
           <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">No songs generated yet</p>
+          <p className="text-muted-foreground">No completed songs yet</p>
           <p className="text-sm text-muted-foreground mt-2">
             Create your first song using the music generation tools
           </p>
@@ -157,74 +169,101 @@ const SongLibrary = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Music className="h-6 w-6" />
-          Your Song Library
+          Completed Songs
         </h2>
         <Badge variant="secondary">{songs.length} songs</Badge>
       </div>
 
-      <div className="grid gap-4">
-        {songs.map((song) => (
-          <Card key={song.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{song.title}</CardTitle>
-                  <CardDescription>
-                    Created {new Date(song.created_at).toLocaleDateString()}
-                    {song.genre && ` • ${song.genre.name}`}
-                  </CardDescription>
-                </div>
-                <Badge 
-                  variant={song.status === 'completed' ? 'default' : 'secondary'}
-                >
-                  {song.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              
-              <div className="flex items-center gap-2">
-                {song.audio_url && song.status === 'completed' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePlay(song)}
-                    >
-                      {currentTrack?.id === song.id && isPlaying ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownload(song)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDelete(song.id)}
-                  className="ml-auto text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="space-y-2">
+        {currentSongs.map((song) => (
+          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-muted">
+            <div className="flex-grow">
+              <p className="font-semibold">{song.title}</p>
+              <p className="text-sm text-muted-foreground">
+                {new Date(song.created_at).toLocaleDateString()}
+                {song.genre && ` • ${song.genre.name}`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {song.audio_url && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handlePlay(song)}
+                  >
+                    {currentTrack?.id === song.id && isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDownload(song)}
+                  >
+                    <Download className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleDelete(song.id)}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handlePageChange(currentPage - 1);
+                }}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, i) => (
+              <PaginationItem key={i}>
+                <PaginationLink
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePageChange(i + 1);
+                  }}
+                  isActive={currentPage === i + 1}
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handlePageChange(currentPage + 1);
+                }}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 };
