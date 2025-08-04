@@ -155,6 +155,9 @@ const BecomeAffiliate: React.FC = () => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     required
+                    readOnly
+                    disabled
+                    className="bg-gray-100 dark:bg-gray-800"
                   />
                 </div>
                 <div>
@@ -166,6 +169,9 @@ const BecomeAffiliate: React.FC = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
+                    readOnly
+                    disabled
+                    className="bg-gray-100 dark:bg-gray-800"
                   />
                 </div>
               </div>
