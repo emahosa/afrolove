@@ -26,6 +26,7 @@ import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
 import AffiliatePage from "./pages/Affiliate";
+import BecomeAffiliatePage from "./pages/BecomeAffiliatePage";
 import SubscribePage from "./pages/SubscribePage";
 
 // Layouts
@@ -73,6 +74,7 @@ const App = () => {
                     <Route path="/my-custom-songs" element={<UserCustomSongs />} />
                     <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
+                    <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
                     <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
                 </Route>
