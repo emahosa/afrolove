@@ -61,11 +61,7 @@ const BecomeAffiliatePage = () => {
       
     } catch (error) {
       console.error('Error submitting application:', error);
-      let errorMessage = 'Failed to submit application. Please try again.';
-      if (error.context && error.context.json) {
-        errorMessage = error.context.json.error;
-      }
-      toast.error(errorMessage);
+      toast.error('Failed to submit application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
