@@ -14,10 +14,10 @@ const BecomeAffiliatePage = () => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    phone_number: '',
+    phone: '',
     social_media_url: '',
-    reason: '',
-    wallet_address: ''
+    reason_to_join: '',
+    usdt_wallet_address: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +28,7 @@ const BecomeAffiliatePage = () => {
       return;
     }
 
-    if (!formData.phone_number || !formData.reason || !formData.wallet_address) {
+    if (!formData.phone || !formData.reason_to_join || !formData.usdt_wallet_address) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -40,10 +40,10 @@ const BecomeAffiliatePage = () => {
         body: {
           full_name: user.user_metadata?.full_name || user.email,
           email: user.email,
-          phone_number: formData.phone_number,
+          phone: formData.phone,
           social_media_url: formData.social_media_url,
-          reason: formData.reason,
-          wallet_address: formData.wallet_address
+          reason_to_join: formData.reason_to_join,
+          usdt_wallet_address: formData.usdt_wallet_address
         }
       });
 
@@ -53,10 +53,10 @@ const BecomeAffiliatePage = () => {
       
       // Reset form
       setFormData({
-        phone_number: '',
+        phone: '',
         social_media_url: '',
-        reason: '',
-        wallet_address: ''
+        reason_to_join: '',
+        usdt_wallet_address: ''
       });
       
     } catch (error) {
@@ -146,15 +146,15 @@ const BecomeAffiliatePage = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="phone_number" className="text-white">
+                <Label htmlFor="phone" className="text-white">
                   Phone Number <span className="text-red-500">*</span>
                 </Label>
                 <Input 
-                  id="phone_number"
+                  id="phone"
                   type="tel"
                   placeholder="+1 (555) 123-4567"
-                  value={formData.phone_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   className="bg-gray-800 border-gray-700 text-white"
                 />
               </div>
@@ -172,27 +172,27 @@ const BecomeAffiliatePage = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="wallet_address" className="text-white">
+              <Label htmlFor="usdt_wallet_address" className="text-white">
                 USDT Wallet Address <span className="text-red-500">*</span>
               </Label>
               <Input 
-                id="wallet_address"
+                id="usdt_wallet_address"
                 placeholder="Your USDT wallet address for payments"
-                value={formData.wallet_address}
-                onChange={(e) => setFormData(prev => ({ ...prev, wallet_address: e.target.value }))}
+                value={formData.usdt_wallet_address}
+                onChange={(e) => setFormData(prev => ({ ...prev, usdt_wallet_address: e.target.value }))}
                 className="bg-gray-800 border-gray-700 text-white"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason" className="text-white">
+              <Label htmlFor="reason_to_join" className="text-white">
                 Why do you want to join our affiliate program? <span className="text-red-500">*</span>
               </Label>
               <Textarea 
-                id="reason"
+                id="reason_to_join"
                 placeholder="Tell us about your motivation, experience, and how you plan to promote our platform..."
-                value={formData.reason}
-                onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+                value={formData.reason_to_join}
+                onChange={(e) => setFormData(prev => ({ ...prev, reason_to_join: e.target.value }))}
                 className="bg-gray-800 border-gray-700 text-white min-h-[120px]"
               />
             </div>

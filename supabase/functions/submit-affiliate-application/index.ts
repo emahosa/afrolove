@@ -97,8 +97,10 @@ serve(async (req) => {
         console.log('Days since rejection:', daysDifference);
         
         if (daysDifference < 60) {
+          const daysRemaining = Math.ceil(60 - daysDifference);
+          const errorMessage = `Your previous application was rejected. Please try again in ${daysRemaining} day(s).`;
           return new Response(JSON.stringify({ 
-            error: 'You can reapply 60 days after your application was rejected.' 
+            error: errorMessage
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 409,
