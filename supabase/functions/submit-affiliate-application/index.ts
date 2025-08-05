@@ -83,6 +83,7 @@ serve(async (req) => {
           ? 'You already have a pending application.'
           : 'You already have an approved application.'
         
+        console.log(`User ${userId} has an existing ${latestApplication.status} application.`);
         return new Response(JSON.stringify({ error: message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 409,
@@ -99,6 +100,7 @@ serve(async (req) => {
         if (daysDifference < 60) {
           const daysRemaining = Math.ceil(60 - daysDifference);
           const errorMessage = `Your previous application was rejected. Please try again in ${daysRemaining} day(s).`;
+          console.log(`User ${userId} was rejected within the last 60 days. ${daysRemaining} days remaining.`);
           return new Response(JSON.stringify({ 
             error: errorMessage
           }), {
