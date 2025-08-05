@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { FaGoogle, FaApple } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   // MFA verification state
   const [factorId, setFactorId] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -155,6 +157,29 @@ const Login = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      console.log("Attempting Google login...");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        console.error("Google login error:", error);
+        toast.error("Failed to login with Google: " + error.message);
+      }
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      toast.error("An unexpected error occurred during Google login");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const handleMFAVerified = () => {
     setShowMFAVerification(false);
     toast.success("Login successful!");
@@ -253,14 +278,15 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="w-full">
-          <FaGoogle className="mr-2" /> Google
-        </Button>
-        <Button variant="outline" className="w-full">
-          <FaApple className="mr-2" /> Apple
-        </Button>
-      </div>
+      <Button 
+        variant="outline" 
+        className="w-full"
+        onClick={handleGoogleLogin}
+        disabled={googleLoading}
+      >
+        <FaGoogle className="mr-2" /> 
+        {googleLoading ? "Signing in..." : "Google"}
+      </Button>
 
       <p className="text-center mt-8 text-sm">
         Don't have an account?{" "}

@@ -18,6 +18,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Headers:', Object.fromEntries(req.headers.entries()));
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -33,6 +35,8 @@ serve(async (req) => {
         status: 401,
       })
     }
+
+    console.log('Authenticated user:', user.id);
 
     const userId = user.id
     const supabaseAdmin = createClient(
@@ -71,6 +75,7 @@ serve(async (req) => {
 
     if (existingApplications && existingApplications.length > 0) {
       const latestApplication = existingApplications[0]
+      console.log('Latest application:', latestApplication);
       
       // If there's a pending or approved application, reject new submission
       if (latestApplication.status === 'pending' || latestApplication.status === 'approved') {
@@ -89,6 +94,7 @@ serve(async (req) => {
         const rejectionDate = new Date(latestApplication.updated_at)
         const currentDate = new Date()
         const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24)
+        console.log('Days since rejection:', daysDifference);
         
         if (daysDifference < 60) {
           return new Response(JSON.stringify({ 

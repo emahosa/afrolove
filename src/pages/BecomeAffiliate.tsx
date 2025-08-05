@@ -16,6 +16,7 @@ const BecomeAffiliate: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
   const [canReapply, setCanReapply] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -25,13 +26,51 @@ const BecomeAffiliate: React.FC = () => {
     usdtWalletAddress: ''
   });
 
+  // Fetch user profile data
   useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+
+      try {
+        console.log('Fetching profile for user:', user.id);
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        } else if (profileData) {
+          console.log('Profile data found:', profileData);
+          setUserProfile(profileData);
+          setFormData(prev => ({
+            ...prev,
+            fullName: profileData.full_name || user.user_metadata?.full_name || user.name || '',
+            email: user.email || profileData.username || ''
+          }));
+        } else {
+          // Fallback to auth user data
+          console.log('No profile found, using auth data');
+          setFormData(prev => ({
+            ...prev,
+            fullName: user.user_metadata?.full_name || user.name || '',
+            email: user.email || ''
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        // Fallback to auth user data
+        setFormData(prev => ({
+          ...prev,
+          fullName: user.user_metadata?.full_name || user.name || '',
+          email: user.email || ''
+        }));
+      }
+    };
+
     if (user) {
-      setFormData(prev => ({
-        ...prev,
-        fullName: user.name || '',
-        email: user.email || ''
-      }));
+      fetchUserProfile();
     }
   }, [user]);
 
@@ -43,6 +82,7 @@ const BecomeAffiliate: React.FC = () => {
       }
 
       try {
+        console.log('Checking application status for user:', user.id);
         const { data: applicationData, error: applicationError } = await supabase
           .from('affiliate_applications')
           .select('status, updated_at')
@@ -54,6 +94,7 @@ const BecomeAffiliate: React.FC = () => {
         if (applicationError) {
           console.error('Error checking application status:', applicationError);
         } else if (applicationData) {
+          console.log('Application status:', applicationData.status);
           setApplicationStatus(applicationData.status as 'pending' | 'approved' | 'rejected');
           
           // For rejected applications, check if 60 days have passed since last update
@@ -63,6 +104,9 @@ const BecomeAffiliate: React.FC = () => {
             const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24);
             setCanReapply(daysDifference >= 60);
           }
+        } else {
+          console.log('No application found');
+          setApplicationStatus('none');
         }
       } catch (err) {
         console.error('Error checking application status:', err);
@@ -76,10 +120,28 @@ const BecomeAffiliate: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user?.id) {
+      toast.error('Please log in to submit an application');
+      return;
+    }
+
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim() || 
+        !formData.reasonToJoin.trim() || !formData.usdtWalletAddress.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
 
     setSubmitting(true);
     try {
+      console.log('Submitting application with data:', {
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        social_media_url: formData.socialMediaUrl,
+        reason_to_join: formData.reasonToJoin,
+        usdt_wallet_address: formData.usdtWalletAddress
+      });
+
       const { data, error } = await supabase.functions.invoke('submit-affiliate-application', {
         body: {
           full_name: formData.fullName,
@@ -92,9 +154,11 @@ const BecomeAffiliate: React.FC = () => {
       });
 
       if (error) {
+        console.error('Application submission error:', error);
         throw error;
       }
 
+      console.log('Application submitted successfully:', data);
       toast.success('Affiliate application submitted successfully!');
       setApplicationStatus('pending');
     } catch (err: any) {
@@ -116,6 +180,24 @@ const BecomeAffiliate: React.FC = () => {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto py-8 px-4 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please log in to access the affiliate application form.</p>
+            <Link to="/login" className="mt-4 inline-block">
+              <Button>Go to Login</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -168,9 +250,8 @@ const BecomeAffiliate: React.FC = () => {
                     value={formData.fullName}
                     onChange={handleInputChange}
                     required
-                    readOnly
-                    disabled
-                    className="bg-gray-100 dark:bg-gray-800"
+                    className="bg-gray-50 dark:bg-gray-800"
+                    placeholder="Your full name"
                   />
                 </div>
                 <div>
@@ -182,9 +263,8 @@ const BecomeAffiliate: React.FC = () => {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    readOnly
-                    disabled
-                    className="bg-gray-100 dark:bg-gray-800"
+                    className="bg-gray-50 dark:bg-gray-800"
+                    placeholder="Your email address"
                   />
                 </div>
               </div>
@@ -197,6 +277,7 @@ const BecomeAffiliate: React.FC = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
+                  placeholder="+1234567890"
                 />
               </div>
 
@@ -209,7 +290,6 @@ const BecomeAffiliate: React.FC = () => {
                   value={formData.socialMediaUrl}
                   onChange={handleInputChange}
                   placeholder="https://instagram.com/youraccount"
-                  required
                 />
               </div>
 
@@ -234,6 +314,7 @@ const BecomeAffiliate: React.FC = () => {
                   onChange={handleInputChange}
                   rows={4}
                   required
+                  placeholder="Tell us why you want to join our affiliate program..."
                 />
               </div>
 

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -54,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserData = async (userId: string): Promise<ExtendedUser | null> => {
     try {
+      console.log('AuthContext: Fetching user data for:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -62,6 +64,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error(`Error fetching user data for ID ${userId}:`, error.message);
+        
+        // If no profile exists, create one from auth user data
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser && authUser.id === userId) {
+          console.log('AuthContext: Creating profile from auth user data');
+          
+          const profileData = {
+            id: authUser.id,
+            username: authUser.email,
+            full_name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || '',
+            avatar_url: authUser.user_metadata?.avatar_url || '',
+            credits: 5
+          };
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(profileData);
+
+          if (!insertError) {
+            return {
+              id: authUser.id,
+              email: authUser.email || '',
+              name: profileData.full_name,
+              avatar: profileData.avatar_url,
+              credits: profileData.credits,
+              subscription: null,
+            } as ExtendedUser;
+          }
+        }
         return null;
       }
       
@@ -109,6 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatar: data.avatar_url,
         credits: data.credits || 0,
         subscription: subscriptionInfo,
+        user_metadata: authUser?.user_metadata
       } as ExtendedUser;
     } catch (error: any) {
       console.error('Exception in fetchUserData (profile fetch):', error.message);
@@ -300,7 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string): Promise<boolean> => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -309,6 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           emailRedirectTo: redirectUrl,
           data: {
             full_name: name,
+            name: name,
             referral_code: referralCode,
             device_id: deviceId
           }
@@ -317,13 +350,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Registration error:', error);
-        return false;
+        throw error;
       }
 
+      console.log('Registration successful:', data);
       return !!data.user;
     } catch (error) {
       console.error('Registration error:', error);
-      return false;
+      throw error;
     }
   };
 

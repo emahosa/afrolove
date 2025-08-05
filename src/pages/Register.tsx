@@ -1,47 +1,36 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { FaGoogle, FaApple } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [deviceId, setDeviceId] = useState("");
-
-  useEffect(() => {
-    const generatedDeviceId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-    setDeviceId(generatedDeviceId);
-  }, []);
-
-  const isValidEmail = (email: string) => {
-    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim()) {
-      toast.error("Name cannot be empty");
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      toast.error("All fields are required");
       return;
     }
 
-    if (!email.trim()) {
-      toast.error("Email cannot be empty");
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      toast.error("Please enter a valid email address");
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -49,43 +38,61 @@ const Register = () => {
       toast.error("Password must be at least 6 characters long");
       return;
     }
-    
-    setLoading(true);
-    try {
-      const queryParams = new URLSearchParams(window.location.search);
-      const referralCode = queryParams.get('ref');
 
-      console.log("Register: Registering user:", { email, name, referralCode, deviceId });
-      const success = await register(name, email, password, referralCode, deviceId);
+    setLoading(true);
+    
+    try {
+      console.log("Register: Attempting to register user with:", { name, email });
+      
+      const success = await register(name, email, password);
       
       if (success) {
-        toast.success("Registration successful! Welcome to Afroverse!");
+        toast.success("Registration successful! Welcome to MelodyVerse!");
         navigate("/dashboard");
       } else {
-        toast.info("Registration successful! Please check your email to verify your account before signing in.");
-        // Redirect to login after showing the message
-        setTimeout(() => {
-          navigate("/login");
-        }, 3000);
+        toast.error("Registration failed. Please try again.");
       }
-    } catch (error) {
-      console.error("Register: Registration error:", error);
-      toast.error("Registration failed. Please try again.");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(error.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      console.log("Attempting Google signup...");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        console.error("Google signup error:", error);
+        toast.error("Failed to sign up with Google: " + error.message);
+      }
+    } catch (error: any) {
+      console.error("Google signup error:", error);
+      toast.error("An unexpected error occurred during Google signup");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
-    <div className="w-full max-w-md p-4 md:p-0">
+    <div className="w-full max-w-md p-4 md:p-0 mx-auto">
       <div className="md:hidden flex items-center justify-center mb-6">
         <Music className="h-10 w-10 text-melody-secondary" />
-        <h1 className="text-2xl font-bold ml-2">Afroverse</h1>
+        <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
       </div>
       
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-2">Create User Account</h2>
-        <p className="text-muted-foreground">Sign up to get started with Afroverse</p>
+      <div className="text-center mb-6">
+        <h2 className="text-3xl font-bold mb-2">Create Account</h2>
+        <p className="text-muted-foreground">Join MelodyVerse and start creating music</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -105,14 +112,11 @@ const Register = () => {
           <Input 
             id="email" 
             type="email" 
-            placeholder="you@example.com" 
+            placeholder="you@gmail.com" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            You may need to verify your email address after registration
-          </p>
         </div>
         <div>
           <Label htmlFor="password">Password</Label>
@@ -124,16 +128,24 @@ const Register = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Password must be at least 6 characters long
-          </p>
+        </div>
+        <div>
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Input 
+            id="confirmPassword" 
+            type="password" 
+            placeholder="••••••••" 
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
         </div>
         <Button 
           type="submit" 
           className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
           disabled={loading}
         >
-          {loading ? "Creating Account..." : "Create User Account"}
+          {loading ? "Creating account..." : "Sign Up"}
         </Button>
       </form>
 
@@ -148,14 +160,15 @@ const Register = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Button variant="outline" className="w-full">
-          <FaGoogle className="mr-2" /> Google
-        </Button>
-        <Button variant="outline" className="w-full">
-          <FaApple className="mr-2" /> Apple
-        </Button>
-      </div>
+      <Button 
+        variant="outline" 
+        className="w-full"
+        onClick={handleGoogleLogin}
+        disabled={googleLoading}
+      >
+        <FaGoogle className="mr-2" /> 
+        {googleLoading ? "Signing up..." : "Google"}
+      </Button>
 
       <p className="text-center mt-8 text-sm">
         Already have an account?{" "}
