@@ -54,9 +54,26 @@ export const useSunoGeneration = () => {
         }
       });
       
-      if (error || !data?.success) {
-        const errorMessage = data?.error || error?.message || 'An unknown error occurred during generation.';
+      if (error) {
+        const errorMessage = error.message || 'An unknown error occurred during generation.';
         console.error('Generation error:', errorMessage);
+        
+        // Better error handling for common issues
+        if (errorMessage.includes('insufficient credits') || errorMessage.includes('credit')) {
+          toast.error('🚫 Insufficient Suno API credits. Please contact support to top up credits.');
+        } else if (errorMessage.includes('api key') || errorMessage.includes('unauthorized')) {
+          toast.error('🔑 API configuration issue. Please contact support.');
+        } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+          toast.error('⏳ Rate limit reached. Please try again in a few minutes.');
+        } else {
+          toast.error(`Generation failed: ${errorMessage}`);
+        }
+        return null;
+      }
+
+      if (!data?.success) {
+        const errorMessage = data?.error || 'Generation failed unexpectedly.';
+        console.error('Generation failed:', errorMessage);
         toast.error(`Generation failed: ${errorMessage}`);
         return null;
       }
@@ -68,7 +85,13 @@ export const useSunoGeneration = () => {
 
     } catch (error: any) {
       console.error('Critical error calling generateSong function:', error);
-      toast.error('Generation failed: ' + error.message);
+      
+      // Handle network and other critical errors
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+        toast.error('🌐 Network error. Please check your connection and try again.');
+      } else {
+        toast.error('⚠️ Generation failed: ' + error.message);
+      }
       return null;
     } finally {
       setIsGenerating(false);
@@ -88,12 +111,14 @@ export const useSunoGeneration = () => {
 
       if (error) {
         console.error('Lyrics generation error:', error);
+        toast.error('Failed to generate lyrics: ' + error.message);
         return null;
       }
 
       return data?.lyrics || null;
     } catch (error) {
       console.error('Error generating lyrics:', error);
+      toast.error('Failed to generate lyrics');
       return null;
     }
   };
