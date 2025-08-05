@@ -25,8 +25,8 @@ import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
-import AffiliatePage from "./pages/Affiliate";
-import BecomeAffiliatePage from "./pages/BecomeAffiliatePage";
+import AffiliatePage from "./pages/AffiliateDashboard";
+import BecomeAffiliatePage from "./pages/BecomeAffiliate";
 import SubscribePage from "./pages/SubscribePage";
 
 // Layouts
