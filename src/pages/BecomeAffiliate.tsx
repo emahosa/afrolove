@@ -209,7 +209,7 @@ const BecomeAffiliate: React.FC = () => {
                 <h3 className="text-lg font-semibold">Application Approved! 🎉</h3>
                 <p>Your affiliate application has been approved. You can now access your affiliate dashboard.</p>
               </div>
-              <Link to="/affiliate">
+              <Link to="/affiliate-dashboard">
                 <Button>Go to Affiliate Dashboard</Button>
               </Link>
             </div>
