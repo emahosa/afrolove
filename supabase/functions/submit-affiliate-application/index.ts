@@ -57,9 +57,9 @@ serve(async (req) => {
     // Check existing applications
     const { data: existingApplications, error: existingCheckError } = await supabaseAdmin
       .from('affiliate_applications')
-      .select('id, status')
+      .select('id, status, updated_at')
       .eq('user_id', userId)
-      .in('status', ['pending', 'approved'])
+      .order('created_at', { ascending: false })
 
     if (existingCheckError) {
       console.error('Error checking existing applications:', existingCheckError)
@@ -70,12 +70,34 @@ serve(async (req) => {
     }
 
     if (existingApplications && existingApplications.length > 0) {
-      const pendingOrApproved = existingApplications.find(app => app.status === 'pending' || app.status === 'approved');
-      if (pendingOrApproved) {
-        return new Response(JSON.stringify({ error: 'You already have an active or pending application.' }), {
+      const latestApplication = existingApplications[0]
+      
+      // If there's a pending or approved application, reject new submission
+      if (latestApplication.status === 'pending' || latestApplication.status === 'approved') {
+        const message = latestApplication.status === 'pending' 
+          ? 'You already have a pending application.'
+          : 'You already have an approved application.'
+        
+        return new Response(JSON.stringify({ error: message }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 409,
         })
+      }
+      
+      // If the latest application is rejected, check if 60 days have passed
+      if (latestApplication.status === 'rejected') {
+        const rejectionDate = new Date(latestApplication.updated_at)
+        const currentDate = new Date()
+        const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24)
+        
+        if (daysDifference < 60) {
+          return new Response(JSON.stringify({ 
+            error: 'You can reapply 60 days after your application was rejected.' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 409,
+          })
+        }
       }
     }
 
@@ -110,6 +132,17 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error inserting application:', insertError)
+      
+      // Handle unique constraint violation specifically
+      if (insertError.code === '23505') {
+        return new Response(JSON.stringify({ 
+          error: 'You already have an application. Please check your application status.' 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409,
+        })
+      }
+      
       return new Response(JSON.stringify({ error: 'Failed to create affiliate application', details: insertError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
