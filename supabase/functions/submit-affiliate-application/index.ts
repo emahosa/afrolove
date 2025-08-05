@@ -18,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Headers:', Object.fromEntries(req.headers.entries()));
+    console.log('=== Affiliate Application Submission Start ===');
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -29,16 +29,15 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
-      console.error('Error getting user:', userError)
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      console.error('Authentication error:', userError?.message || 'No user found')
+      return new Response(JSON.stringify({ error: 'Please log in to submit an application' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
 
-    console.log('Authenticated user:', user.id);
+    console.log('User authenticated:', user.id);
 
-    const userId = user.id
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -58,32 +57,52 @@ serve(async (req) => {
       });
     }
 
-    // Check existing applications
+    // Check existing applications - get the most recent one
     const { data: existingApplications, error: existingCheckError } = await supabaseAdmin
       .from('affiliate_applications')
-      .select('id, status, updated_at')
-      .eq('user_id', userId)
+      .select('id, status, updated_at, created_at')
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
+      .limit(1)
 
     if (existingCheckError) {
       console.error('Error checking existing applications:', existingCheckError)
-      return new Response(JSON.stringify({ error: 'Database error while checking existing applications' }), {
+      return new Response(JSON.stringify({ error: 'Database error while checking applications' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
+    const payload: AffiliateApplicationPayload = await req.json()
+    console.log('Application payload received:', payload)
+
+    if (!payload.full_name || !payload.email || !payload.phone || !payload.reason_to_join || !payload.usdt_wallet_address) {
+      return new Response(JSON.stringify({ error: 'All required fields must be filled' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      })
+    }
+
+    // Handle existing applications logic
     if (existingApplications && existingApplications.length > 0) {
       const latestApplication = existingApplications[0]
-      console.log('Latest application:', latestApplication);
+      console.log('Found existing application:', latestApplication.status, 'updated at:', latestApplication.updated_at);
       
-      // If there's a pending or approved application, reject new submission
-      if (latestApplication.status === 'pending' || latestApplication.status === 'approved') {
-        const message = latestApplication.status === 'pending' 
-          ? 'You already have a pending application.'
-          : 'You already have an approved application.'
-        
-        return new Response(JSON.stringify({ error: message }), {
+      // If there's a pending application, reject new submission
+      if (latestApplication.status === 'pending') {
+        return new Response(JSON.stringify({ 
+          error: 'You already have a pending application. Please wait for review.' 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409,
+        })
+      }
+      
+      // If there's an approved application, reject new submission
+      if (latestApplication.status === 'approved') {
+        return new Response(JSON.stringify({ 
+          error: 'You already have an approved affiliate application.' 
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 409,
         })
@@ -93,42 +112,36 @@ serve(async (req) => {
       if (latestApplication.status === 'rejected') {
         const rejectionDate = new Date(latestApplication.updated_at)
         const currentDate = new Date()
-        const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24)
+        const daysDifference = Math.floor((currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24))
         console.log('Days since rejection:', daysDifference);
         
         if (daysDifference < 60) {
+          const remainingDays = 60 - daysDifference
           return new Response(JSON.stringify({ 
-            error: 'You can reapply 60 days after your application was rejected.' 
+            error: `Your previous application was rejected. You can reapply in ${remainingDays} days.`
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 409,
           })
         }
+        
+        console.log('User can reapply - 60 days have passed since rejection');
       }
     }
 
-    const payload: AffiliateApplicationPayload = await req.json()
-    console.log('Received payload:', payload)
-
-    if (!payload.full_name || !payload.email || !payload.phone || !payload.social_media_url || !payload.reason_to_join || !payload.usdt_wallet_address) {
-      return new Response(JSON.stringify({ error: 'Missing required fields including USDT wallet address' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      })
-    }
-
+    // Create new application
     const newApplication = {
-      user_id: userId,
-      full_name: payload.full_name,
-      email: payload.email,
-      phone: payload.phone,
-      social_media_url: payload.social_media_url,
-      reason_to_join: payload.reason_to_join,
-      usdt_wallet_address: payload.usdt_wallet_address,
+      user_id: user.id,
+      full_name: payload.full_name.trim(),
+      email: payload.email.trim(),
+      phone: payload.phone.trim(),
+      social_media_url: payload.social_media_url?.trim() || null,
+      reason_to_join: payload.reason_to_join.trim(),
+      usdt_wallet_address: payload.usdt_wallet_address.trim(),
       status: 'pending',
     }
 
-    console.log('Creating application with data:', newApplication)
+    console.log('Creating new application:', newApplication)
 
     const { data: createdApplication, error: insertError } = await supabaseAdmin
       .from('affiliate_applications')
@@ -138,32 +151,29 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error inserting application:', insertError)
-      
-      // Handle unique constraint violation specifically
-      if (insertError.code === '23505') {
-        return new Response(JSON.stringify({ 
-          error: 'You already have an application. Please check your application status.' 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 409,
-        })
-      }
-      
-      return new Response(JSON.stringify({ error: 'Failed to create affiliate application', details: insertError.message }), {
+      return new Response(JSON.stringify({ 
+        error: 'Failed to submit application. Please try again.', 
+        details: insertError.message 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
-    console.log('Application created successfully:', createdApplication)
-    return new Response(JSON.stringify({ message: 'Affiliate application submitted successfully.', applicationId: createdApplication.id }), {
+    console.log('Application created successfully:', createdApplication.id)
+    return new Response(JSON.stringify({ 
+      message: 'Affiliate application submitted successfully!', 
+      applicationId: createdApplication.id 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
     })
 
   } catch (error) {
     console.error('Unhandled error:', error)
-    return new Response(JSON.stringify({ error: 'An unexpected error occurred', details: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'An unexpected error occurred. Please try again.' 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
