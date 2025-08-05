@@ -83,13 +83,7 @@ const BecomeAffiliate: React.FC = () => {
 
       try {
         console.log('Checking application status for user:', user.id);
-        const { data: applicationData, error: applicationError } = await supabase
-          .from('affiliate_applications')
-          .select('status, updated_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: applicationData, error: applicationError } = await supabase.functions.invoke('get-affiliate-application-status');
 
         if (applicationError) {
           console.error('Error checking application status:', applicationError);
