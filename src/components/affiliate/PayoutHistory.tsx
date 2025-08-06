@@ -27,36 +27,27 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  const fetchPayoutHistory = useCallback(async (page: number) => {
+  const fetchPayoutHistory = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data, error: dbError, count } = await supabase
-        .from('affiliate_payout_requests')
-        .select('*', { count: 'exact' })
-        .eq('affiliate_user_id', affiliateId)
-        .order('requested_at', { ascending: false })
-        .range(from, to);
+      const { data, error: dbError } = await supabase
+        .rpc('get_affiliate_payout_history', { user_id_param: affiliateId })
 
       if (dbError) {
         throw new Error(`Failed to fetch payout history: ${dbError.message}`);
       }
 
-      // Type-safe mapping to ensure status is properly typed
       const typedData: PayoutRequest[] = (data || []).map(item => ({
         ...item,
         status: item.status as 'pending' | 'approved' | 'rejected' | 'paid'
       }));
 
       setPayoutRequests(typedData);
-      setTotalItems(count || 0);
+      setTotalItems(data?.length || 0);
 
     } catch (err: any) {
       console.error("Error in fetchPayoutHistory:", err);
@@ -70,11 +61,9 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
   useEffect(() => {
     if (affiliateId) {
-      fetchPayoutHistory(currentPage);
+      fetchPayoutHistory();
     }
-  }, [affiliateId, currentPage, fetchPayoutHistory]);
-
-  const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+  }, [affiliateId, fetchPayoutHistory]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -161,29 +150,6 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
             ))}
           </TableBody>
         </Table>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1 || loading}
-            >
-              Previous
-            </Button>
-            <span className="text-sm">
-              Page {currentPage} of {totalPages} ({totalItems} items)
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages || loading}
-            >
-              Next
-            </Button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
