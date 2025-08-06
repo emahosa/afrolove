@@ -1,8 +1,7 @@
-
 import React, { useEffect } from 'react';
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PaymentVerificationProvider } from "@/components/payment/PaymentVerificationProvider";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -74,6 +73,7 @@ const App = () => {
                     <Route path="/my-custom-songs" element={<UserCustomSongs />} />
                     <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
                     <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+                    <Route path="/affiliate" element={<Navigate to="/affiliate-dashboard" replace />} />
                     <Route path="/become-affiliate" element={<BecomeAffiliate />} />
                     <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
