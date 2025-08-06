@@ -85,6 +85,26 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
     );
   }
 
+  if (applicationStatus === 'approved') {
+    return (
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>You are an Approved Affiliate!</CardTitle>
+          <CardDescription>Welcome to the affiliate program. You can now access your dashboard.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="success">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Congratulations!</AlertTitle>
+            <AlertDescription>
+              You are an approved affiliate. Head over to the dashboard to get your referral links and start earning.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (applicationStatus === 'rejected') {
     return (
       <Card className="mt-6">
@@ -265,7 +285,7 @@ const AffiliateDashboardTab = () => {
   const fetchAffiliateStats = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-stats');
+      const { data, error } = await supabase.functions.invoke('get-my-affiliate-stats');
       if (error) throw error;
       setStats(data);
     } catch (error) {

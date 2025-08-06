@@ -163,6 +163,24 @@ serve(async (req) => {
       // For now, log and attempt to add. A more robust solution might stop here.
     }
 
+    // Create a new link for the affiliate
+    const { error: createLinkError } = await supabaseAdmin
+      .from('affiliate_links')
+      .insert({
+        affiliate_user_id: application.user_id,
+        link_code: referralCode,
+        // You can add a default target URL if you have one
+        // target_url: 'https://yourapp.com/pricing'
+      });
+
+    if (createLinkError) {
+      console.error(`CRITICAL: Failed to create affiliate link for user ${application.user_id}. Error: ${createLinkError.message}`);
+      // Application is approved, role might be set, but link creation failed.
+      // This is another state requiring potential manual intervention.
+    } else {
+      console.log(`Successfully created affiliate link for user ${application.user_id} with code ${referralCode}.`);
+    }
+
     if (!existingRole) {
       const { error: addRoleError } = await supabaseAdmin
         .from('user_roles')
