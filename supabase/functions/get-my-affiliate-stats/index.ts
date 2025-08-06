@@ -28,7 +28,11 @@ serve(async (req) => {
       .select('id', { count: 'exact', head: true })
       .eq('referrer_id', user.id);
 
-    if (referralsError) throw referralsError;
+    if (referralsError) {
+      console.error('Error fetching referrals count:', referralsError);
+      throw referralsError;
+    }
+    console.log('Referrals count:', referralsCount);
 
     // Get total earnings
     const { data: earnings, error: earningsError } = await supabaseClient
@@ -36,7 +40,11 @@ serve(async (req) => {
       .select('amount')
       .eq('affiliate_user_id', user.id);
 
-    if (earningsError) throw earningsError;
+    if (earningsError) {
+      console.error('Error fetching earnings:', earningsError);
+      throw earningsError;
+    }
+    console.log('Earnings:', earnings);
 
     // Get click stats
     const { data: links, error: linksError } = await supabaseClient
@@ -44,7 +52,11 @@ serve(async (req) => {
       .select('clicks_count')
       .eq('affiliate_user_id', user.id);
 
-    if (linksError) throw linksError;
+    if (linksError) {
+      console.error('Error fetching links:', linksError);
+      throw linksError;
+    }
+    console.log('Links:', links);
 
     const totalEarnings = earnings?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
     const totalClicks = links?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
