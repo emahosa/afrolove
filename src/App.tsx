@@ -25,7 +25,7 @@ import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
-import AffiliatePage from "./pages/AffiliateDashboard";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 import BecomeAffiliatePage from "./pages/BecomeAffiliate";
 import SubscribePage from "./pages/SubscribePage";
 
@@ -73,7 +73,7 @@ const App = () => {
                     <Route path="/support" element={<Support />} />
                     <Route path="/my-custom-songs" element={<UserCustomSongs />} />
                     <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
-                    <Route path="/affiliate" element={<AffiliatePage />} />
+                    <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
                     <Route path="/become-affiliate" element={<BecomeAffiliatePage />} />
                     <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
