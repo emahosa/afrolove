@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
 
     console.log('Removing vocals with request:', vocalRemovalRequest)
 
-    const response = await fetch('https://apiboxfiles.erweima.ai/api/v1/vocal-removal/generate', {
+    const response = await fetch('https://api.api.box/api/v1/vocal-removal/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

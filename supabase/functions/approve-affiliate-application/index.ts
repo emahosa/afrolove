@@ -22,6 +22,42 @@ interface AffiliateApplication {
   // other fields
 }
 
+// Helper to generate a unique referral code
+async function generateUniqueReferralCode(supabaseAdmin: SupabaseClient, baseName: string): Promise<string> {
+  let code = baseName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/gi, '');
+  if (code.length > 10) { // Keep it reasonably short
+    code = code.substring(0, 10);
+  }
+  if (code.length < 3 && baseName.length >=3) { // Ensure some minimum length if possible
+      code = baseName.toLowerCase().substring(0,3) + Math.random().toString(36).substring(2, 5);
+  } else if (code.length < 3) {
+      code = 'ref' + Math.random().toString(36).substring(2, 7);
+  }
+
+
+  let uniqueCode = `${code}${Math.random().toString(36).substring(2, 6)}`; // e.g., johnsmiab1c2d
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (attempts < maxAttempts) {
+    const { data, error } = await supabaseAdmin
+      .from('affiliate_applications')
+      .select('id')
+      .eq('unique_referral_code', uniqueCode)
+      .maybeSingle();
+
+    if (error) throw new Error(`Database error checking referral code uniqueness: ${error.message}`);
+    if (!data) return uniqueCode; // Code is unique
+
+    // Collision, try a new one
+    console.warn(`Referral code collision for ${uniqueCode}. Attempt ${attempts + 1}`);
+    uniqueCode = `${code}${Math.random().toString(36).substring(2, 7)}`; // Add more randomness
+    attempts++;
+  }
+  throw new Error('Failed to generate a unique referral code after several attempts.');
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -74,7 +110,7 @@ serve(async (req) => {
     // Fetch the application
     const { data: application, error: fetchError } = await supabaseAdmin
       .from('affiliate_applications')
-      .select('id, user_id, full_name, status, unique_referral_code')
+      .select('id, user_id, full_name, status')
       .eq('id', application_id)
       .single();
 
@@ -91,11 +127,15 @@ serve(async (req) => {
       });
     }
 
-    // Update application status
+    // Generate unique referral code
+    const referralCode = await generateUniqueReferralCode(supabaseAdmin, application.full_name);
+
+    // Update application status and add referral code
     const { data: updatedApplication, error: updateAppError } = await supabaseAdmin
       .from('affiliate_applications')
       .update({
         status: 'approved',
+        unique_referral_code: referralCode,
         updated_at: new Date().toISOString(),
       })
       .eq('id', application_id)
@@ -121,6 +161,24 @@ serve(async (req) => {
       console.error('Error checking existing user role:', checkRoleError.message);
       // Proceeding with caution: if this fails, we might add a duplicate or fail to add role.
       // For now, log and attempt to add. A more robust solution might stop here.
+    }
+
+    // Create a new link for the affiliate
+    const { error: createLinkError } = await supabaseAdmin
+      .from('affiliate_links')
+      .insert({
+        affiliate_user_id: application.user_id,
+        link_code: referralCode,
+        // You can add a default target URL if you have one
+        // target_url: 'https://yourapp.com/pricing'
+      });
+
+    if (createLinkError) {
+      console.error(`CRITICAL: Failed to create affiliate link for user ${application.user_id}. Error: ${createLinkError.message}`);
+      // Application is approved, role might be set, but link creation failed.
+      // This is another state requiring potential manual intervention.
+    } else {
+      console.log(`Successfully created affiliate link for user ${application.user_id} with code ${referralCode}.`);
     }
 
     if (!existingRole) {

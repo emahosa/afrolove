@@ -1,7 +1,7 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 interface AffiliateApplicationPayload {
   full_name: string
@@ -10,40 +10,6 @@ interface AffiliateApplicationPayload {
   social_media_url: string
   reason_to_join: string
   usdt_wallet_address: string
-}
-
-// Helper to generate a unique referral code
-async function generateUniqueReferralCode(supabaseAdmin: SupabaseClient, baseName: string): Promise<string> {
-  let code = baseName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/gi, '');
-  if (code.length > 10) { // Keep it reasonably short
-    code = code.substring(0, 10);
-  }
-  if (code.length < 3 && baseName.length >=3) { // Ensure some minimum length if possible
-      code = baseName.toLowerCase().substring(0,3) + Math.random().toString(36).substring(2, 5);
-  } else if (code.length < 3) {
-      code = 'ref' + Math.random().toString(36).substring(2, 7);
-  }
-
-  let uniqueCode = `${code}${Math.random().toString(36).substring(2, 6)}`; // e.g., johnsmiab1c2d
-  let attempts = 0;
-  const maxAttempts = 10;
-
-  while (attempts < maxAttempts) {
-    const { data, error } = await supabaseAdmin
-      .from('affiliate_applications')
-      .select('id')
-      .eq('unique_referral_code', uniqueCode)
-      .maybeSingle();
-
-    if (error) throw new Error(`Database error checking referral code uniqueness: ${error.message}`);
-    if (!data) return uniqueCode; // Code is unique
-
-    // Collision, try a new one
-    console.warn(`Referral code collision for ${uniqueCode}. Attempt ${attempts + 1}`);
-    uniqueCode = `${code}${Math.random().toString(36).substring(2, 7)}`; // Add more randomness
-    attempts++;
-  }
-  throw new Error('Failed to generate a unique referral code after several attempts.');
 }
 
 serve(async (req) => {
@@ -155,8 +121,6 @@ serve(async (req) => {
       })
     }
 
-    const referralCode = await generateUniqueReferralCode(supabaseAdmin, payload.full_name);
-
     const newApplication = {
       user_id: userId,
       full_name: payload.full_name,
@@ -165,7 +129,6 @@ serve(async (req) => {
       social_media_url: payload.social_media_url,
       reason_to_join: payload.reason_to_join,
       usdt_wallet_address: payload.usdt_wallet_address,
-      unique_referral_code: referralCode,
       status: 'pending',
     }
 

@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 
     console.log('Checking vocal separation status for task:', taskId)
 
-    const response = await fetch(`https://apiboxfiles.erweima.ai/api/v1/vocal-removal/record-info?taskId=${taskId}`, {
+    const response = await fetch(`https://api.api.box/api/v1/vocal-removal/record-info?taskId=${taskId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${sunoApiKey}`

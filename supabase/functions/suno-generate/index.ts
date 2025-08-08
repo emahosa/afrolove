@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
     const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     try {
-      sunoResponse = await fetch('https://apiboxfiles.erweima.ai/api/v1/generate', {
+      sunoResponse = await fetch('https://apibox.erweima.ai/api/v1/generate', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${sunoApiKey}`,

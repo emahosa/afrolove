@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     console.log('Generating lyrics with request:', lyricsRequest)
 
-    const response = await fetch('https://apiboxfiles.erweima.ai/api/v1/lyrics', {
+    const response = await fetch('https://apibox.erweima.ai/api/v1/lyrics', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -90,27 +90,25 @@ const SubscribePage: React.FC = () => {
         throw new Error("Selected plan not found.");
       }
 
-      const isUpgrade = !!user?.subscription?.planId;
-      const functionName = isUpgrade ? 'manage-subscription' : 'create-subscription';
-      const payload = {
-        priceId: plan.priceId,
-        planId: plan.id,
-        planName: plan.name,
-        amount: Math.round(plan.price * 100),
-      };
-
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: payload,
+      const { data, error } = await supabase.functions.invoke('create-subscription', {
+        body: {
+          priceId: plan.priceId,
+          planId: plan.id,
+          planName: plan.name,
+          amount: Math.round(plan.price * 100),
+        }
       });
 
       if (error) {
-        throw new Error(error.message || `Failed to ${isUpgrade ? 'update' : 'create'} subscription.`);
+        throw new Error(error.message || 'Failed to create subscription session.');
       }
 
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
       if (data?.success) {
-        toast.success(`Subscription ${isUpgrade ? 'Updated' : 'Activated'}!`, {
-          description: `Your ${plan.name} subscription has been ${isUpgrade ? 'updated' : 'activated'} successfully.`
+        toast.success("Subscription Activated!", { 
+          description: `Your ${plan.name} subscription has been activated successfully.` 
         });
+        // Redirect to dashboard or refresh page
         window.location.href = '/dashboard';
       } else if (data?.url) {
         window.location.href = data.url;
@@ -120,8 +118,8 @@ const SubscribePage: React.FC = () => {
       
       setDialogOpen(false);
     } catch (error: any) {
-      console.error(`Error ${isUpgrade ? 'updating' : 'creating'} subscription:`, error);
-      toast.error(`Subscription ${isUpgrade ? 'update' : 'creation'} failed`, {
+      console.error("Error subscribing:", error);
+      toast.error("Subscription failed", {
         description: error.message || "There was an error processing your subscription. Please try again.",
       });
     } finally {

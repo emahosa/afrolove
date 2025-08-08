@@ -76,9 +76,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
     navigate('/create', { 
       state: { 
         selectedGenre: template.genre_id,
-        initialPrompt: template.user_prompt_guide || '',
-        templateName: template.template_name,
-        adminPrompt: template.admin_prompt || ''
+        initialPrompt: template.user_prompt_guide || ''
       }
     });
   };

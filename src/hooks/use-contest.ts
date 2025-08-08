@@ -477,42 +477,45 @@ export const useContest = () => {
     }
   };
 
-  const voteForEntry = async (entryId: string) => {
-    if (!user) {
-      toast.error('Please log in to vote.');
-      return false;
-    }
-
+  // Vote for an entry - ONLY votes table
+  const voteForEntry = async (entryId: string, voterPhone?: string) => {
     try {
-      setSubmitting(true);
-      const { data, error } = await supabase.rpc('cast_vote', {
-        entry_id_to_vote_for: entryId,
-        voter_id: user.id,
-      });
+      console.log('🔄 use-contest: voteForEntry() - ONLY votes table');
+      console.log('Submitting vote for entry:', entryId);
+      
+      const voteData: any = {
+        contest_entry_id: entryId,
+        voter_phone: voterPhone || 'anonymous'
+      };
+
+      console.log('🔍 About to insert into supabase.from("votes")');
+
+      const { error } = await supabase
+        .from('votes')
+        .insert(voteData);
+
+      console.log('✅ Successfully inserted into votes table');
 
       if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data === 'Vote cast successfully.') {
-        toast.success(data);
-        // Refresh user credits as they might have changed
-        await checkUserCredits(user.id, true); // force refresh
-        // Refresh entries to show new vote count
-        if (currentContest) {
-          fetchContestEntries(currentContest.id);
+        if (error.code === '23505') { // Unique constraint violation
+          toast.error('You have already voted for this entry');
+        } else {
+          console.error('Vote error:', error);
+          throw error;
         }
-      } else {
-        toast.error(data);
+        return false;
       }
 
+      toast.success('Vote submitted successfully!');
+      // Refresh entries to get updated vote counts
+      if (currentContest) {
+        fetchContestEntries(currentContest.id);
+      }
       return true;
     } catch (error: any) {
-      console.error('Error casting vote:', error);
-      toast.error(error.message || 'Failed to cast vote.');
+      console.error('Error voting:', error);
+      toast.error(error.message || 'Failed to submit vote');
       return false;
-    } finally {
-      setSubmitting(false);
     }
   };
 

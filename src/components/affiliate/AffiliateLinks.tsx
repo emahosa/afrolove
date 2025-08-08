@@ -18,7 +18,8 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
 
   const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to get existing links
+      let { data, error } = await supabase
         .rpc('get_affiliate_links', { user_id: affiliateId });
 
       if (error) {
@@ -26,7 +27,39 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
         return;
       }
 
-      if (data) {
+      // If no links exist but user is approved, create one
+      if (!data || data.length === 0) {
+        const { data: applicationData } = await supabase
+          .from('affiliate_applications')
+          .select('unique_referral_code, status')
+          .eq('user_id', affiliateId)
+          .eq('status', 'approved')
+          .single();
+
+        if (applicationData?.unique_referral_code) {
+          // Create the affiliate link
+          const { data: newLink, error: createError } = await supabase
+            .from('affiliate_links')
+            .insert({
+              affiliate_user_id: affiliateId,
+              link_code: applicationData.unique_referral_code,
+              clicks_count: 0
+            })
+            .select()
+            .single();
+
+          if (!createError && newLink) {
+            setLinks([{
+              id: newLink.id,
+              affiliate_user_id: newLink.affiliate_user_id,
+              link_code: newLink.link_code,
+              clicks_count: newLink.clicks_count,
+              created_at: newLink.created_at,
+              updated_at: newLink.updated_at
+            }]);
+          }
+        }
+      } else {
         setLinks(data);
       }
     } catch (err) {

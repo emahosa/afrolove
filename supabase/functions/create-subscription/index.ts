@@ -159,17 +159,10 @@ serve(async (req) => {
     // Stripe is enabled - proceed with normal Stripe checkout
     console.log('🔄 Stripe enabled - creating subscription session');
 
-    const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecretKey) {
-      console.error("❌ STRIPE_SECRET_KEY is not set.");
-      throw new Error("Stripe is not configured correctly. Please contact support.");
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 
-    console.log('🔍 Checking for existing Stripe customer...');
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     let customerId;

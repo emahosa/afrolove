@@ -11,7 +11,6 @@ import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useContest } from "@/hooks/use-contest";
 import { useContestSubmission } from "@/hooks/useContestSubmission";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
@@ -54,7 +53,6 @@ interface Song {
 
 const Contest = () => {
   const { user, isVoter, isSubscriber, userRoles } = useAuth();
-  const { voteForEntry, submitting: voting } = useContest();
   const { submitEntry, isSubmitting } = useContestSubmission();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [contests, setContests] = useState<Contest[]>([]);
@@ -348,13 +346,8 @@ const Contest = () => {
                       <Vote className="h-4 w-4" />
                       <span>{entry.vote_count}</span>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => voteForEntry(entry.id)}
-                      disabled={voting || user?.id === entry.user_id}
-                    >
-                      {voting ? 'Voting...' : 'Vote'}
+                    <Button variant="outline" size="sm">
+                      Vote
                     </Button>
                   </div>
                 </div>
