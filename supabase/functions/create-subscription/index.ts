@@ -50,7 +50,7 @@ serve(async (req) => {
 
     let isStripeEnabled = true; // Default to enabled for safety
     
-    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object' && stripeSettings.value !== null) {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
       console.log('🔍 Stripe setting found:', settingValue);
@@ -104,7 +104,16 @@ serve(async (req) => {
         throw new Error('Failed to create subscription');
       }
 
-      // Update user roles - add subscriber
+      // Update user roles - remove voter, add subscriber
+      const { error: deleteRoleError } = await supabaseService
+        .from('user_roles')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('role', 'voter');
+
+      if (deleteRoleError) {
+        console.error('❌ Error removing voter role:', deleteRoleError);
+      }
 
       const { error: addRoleError } = await supabaseService
         .from('user_roles')

@@ -134,12 +134,7 @@ const SubscribePage: React.FC = () => {
       <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
         <Card className="shadow-lg border-none">
           <CardHeader className="text-center px-6 py-8 bg-gradient-to-br from-primary to-primary/80 rounded-t-lg">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-4xl font-extrabold tracking-tight text-primary-foreground">Unlock Your Full Potential</CardTitle>
-              <Link to="/buy-credits">
-                <Button variant="secondary">Buy Credits</Button>
-              </Link>
-            </div>
+            <CardTitle className="text-4xl font-extrabold tracking-tight text-primary-foreground">Unlock Your Full Potential</CardTitle>
             <CardDescription className="text-xl text-primary-foreground/90 mt-2">
               Choose a plan that fits your creative needs and access all premium features.
             </CardDescription>
