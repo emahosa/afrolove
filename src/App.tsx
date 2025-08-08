@@ -18,7 +18,7 @@ import Create from "./pages/Create";
 import Library from "./pages/Library";
 import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
-import Credits from "./pages/Credits";
+import BuyCreditsPage from "./pages/BuyCreditsPage";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
@@ -67,7 +67,8 @@ const App = () => {
                     <Route path="/library" element={<Library />} />
                     <Route path="/contest" element={<Contest />} />
                     <Route path="/profile" element={<Profile />} />
-                    <Route path="/credits" element={<Credits />} />
+                    <Route path="/credits" element={<SubscribePage />} />
+                    <Route path="/buy-credits" element={<BuyCreditsPage />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/my-custom-songs" element={<UserCustomSongs />} />
                     <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />

@@ -104,16 +104,7 @@ serve(async (req) => {
         throw new Error('Failed to create subscription');
       }
 
-      // Update user roles - remove voter, add subscriber
-      const { error: deleteRoleError } = await supabaseService
-        .from('user_roles')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('role', 'voter');
-
-      if (deleteRoleError) {
-        console.error('❌ Error removing voter role:', deleteRoleError);
-      }
+      // Update user roles - add subscriber
 
       const { error: addRoleError } = await supabaseService
         .from('user_roles')
