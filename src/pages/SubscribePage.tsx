@@ -170,9 +170,13 @@ const SubscribePage: React.FC = () => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
                       }}
-                      disabled={paymentProcessing || !user}
+                      disabled={paymentProcessing || !user || user?.subscription?.planId === plan.id}
                     >
-                      {paymentProcessing && selectedPlanId === plan.id ? 'Processing...' : 'Subscribe Now'}
+                      {user?.subscription?.planId === plan.id
+                        ? 'Current Plan'
+                        : user?.subscription?.planId
+                        ? 'Upgrade / Downgrade'
+                        : 'Subscribe Now'}
                     </Button>
                   </CardFooter>
                 </Card>
