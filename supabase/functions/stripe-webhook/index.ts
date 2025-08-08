@@ -53,8 +53,9 @@ serve(async (req) => {
       const creditsAmount = parseInt(session.metadata?.credits || '0')
       const planId = session.metadata?.plan_id
       const planName = session.metadata?.plan_name
+      const subscriptionCredits = parseInt(session.metadata?.credits || '0')
 
-      console.log('📋 Session metadata:', { userId, paymentType, creditsAmount, planId, planName })
+      console.log('📋 Session metadata:', { userId, paymentType, creditsAmount, planId, planName, subscriptionCredits })
 
       if (!userId) {
         console.error('❌ No user_id in session metadata')
@@ -142,7 +143,7 @@ serve(async (req) => {
             console.log('✅ Existing subscriptions deactivated')
           }
 
-          // Create new subscription record
+          // Upsert subscription record
           const subscriptionData = {
             user_id: userId,
             subscription_type: planId,
@@ -151,21 +152,34 @@ serve(async (req) => {
             expires_at: expiresAt.toISOString(),
             stripe_subscription_id: stripeSubscriptionId,
             stripe_customer_id: stripeCustomerId,
-            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
 
-          console.log('💾 Creating subscription record:', subscriptionData)
+          console.log('💾 Upserting subscription record:', subscriptionData)
           const { error: subError } = await supabaseClient
             .from('user_subscriptions')
-            .insert(subscriptionData)
+            .upsert(subscriptionData, { onConflict: 'user_id' })
 
           if (subError) {
-            console.error('❌ Error creating subscription:', subError)
+            console.error('❌ Error upserting subscription:', subError)
             throw subError
           }
 
-          console.log('✅ Subscription created successfully')
+          console.log('✅ Subscription upserted successfully')
+
+          // Add credits from subscription
+          if (subscriptionCredits > 0) {
+            console.log(`💳 Adding ${subscriptionCredits} credits from subscription for user ${userId}`)
+            const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
+              p_user_id: userId,
+              p_amount: subscriptionCredits
+            })
+            if (creditError) {
+              console.error('❌ Error adding subscription credits:', creditError)
+            } else {
+              console.log('✅ Subscription credits added successfully')
+            }
+          }
 
           // Update user roles - remove voter, add subscriber
           console.log('🔄 Updating user roles...')

@@ -7,7 +7,10 @@ export const ensureStorageBuckets = async () => {
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
-      console.error('Error listing buckets:', listError);
+      // If listing buckets fails, it's likely due to permissions.
+      // In this case, we can't check if the bucket exists.
+      // We will assume it does and not try to create it, to avoid the RLS error.
+      console.warn('Could not list buckets, assuming contest-videos bucket exists.', listError);
       return;
     }
 
@@ -21,6 +24,8 @@ export const ensureStorageBuckets = async () => {
       });
       
       if (createError) {
+        // This will still fail if the user doesn't have permission to create buckets.
+        // But at least we are only trying it when we are sure the bucket doesn't exist (according to the list).
         console.error('Error creating contest-videos bucket:', createError);
       }
     }

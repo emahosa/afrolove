@@ -25,6 +25,7 @@ const subscriptionPlansData = [
     interval: "month",
     description: "$9.99/month",
     creditsPerMonth: 20,
+    rank: 1,
     features: [
       "20 credits monthly",
       "Access to all basic AI models",
@@ -41,6 +42,7 @@ const subscriptionPlansData = [
     interval: "month",
     description: "$19.99/month",
     creditsPerMonth: 75,
+    rank: 2,
     features: [
       "75 credits monthly",
       "Access to all premium AI models",
@@ -58,6 +60,7 @@ const subscriptionPlansData = [
     interval: "month",
     description: "$39.99/month",
     creditsPerMonth: 200,
+    rank: 3,
     features: [
       "200 credits monthly",
       "Access to all AI models including beta",
@@ -72,6 +75,7 @@ const subscriptionPlansData = [
 
 const Credits: React.FC = () => {
   const { user } = useAuth();
+  console.log('Credits page user object:', user);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -202,6 +206,7 @@ const Credits: React.FC = () => {
           planId: plan.id,
           planName: plan.name,
           amount: Math.round(plan.price * 100),
+          credits: plan.creditsPerMonth,
         }
       });
 
@@ -232,6 +237,26 @@ const Credits: React.FC = () => {
   };
 
   const selectedPlanDetails = subscriptionPlansData.find(p => p.id === selectedPlanId);
+
+  const currentUserPlan = user?.subscription?.planId
+    ? subscriptionPlansData.find(p => p.id === user.subscription.planId)
+    : null;
+
+  const getButtonText = (plan: typeof subscriptionPlansData[0]) => {
+    if (!currentUserPlan) {
+      return 'Subscribe Now';
+    }
+    if (plan.id === currentUserPlan.id) {
+      return 'Current Plan';
+    }
+    if (plan.rank > currentUserPlan.rank) {
+      return 'Upgrade';
+    }
+    if (plan.rank < currentUserPlan.rank) {
+      return 'Downgrade';
+    }
+    return 'Subscribe Now';
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
@@ -281,13 +306,9 @@ const Credits: React.FC = () => {
                           setSelectedPlanId(plan.id);
                           setDialogOpen(true);
                         }}
-                        disabled={paymentProcessing || !user || user?.subscription?.planId === plan.id}
+                        disabled={paymentProcessing || !user || plan.id === currentUserPlan?.id}
                       >
-                        {user?.subscription?.planId === plan.id
-                          ? 'Current Plan'
-                          : user?.subscription?.planId
-                          ? 'Upgrade / Downgrade'
-                          : 'Subscribe Now'}
+                        {getButtonText(plan)}
                       </Button>
                     </CardFooter>
                   </Card>
@@ -412,8 +433,12 @@ const Credits: React.FC = () => {
           if (!open) setSelectedPlanId(null);
           setDialogOpen(open);
         }}
-        title={`Subscribe to ${selectedPlanDetails?.name}`}
-        description={`You are about to subscribe to the ${selectedPlanDetails?.name} plan for ${selectedPlanDetails?.description}.`}
+        title={
+          currentUserPlan
+            ? (selectedPlanDetails?.rank || 0) > currentUserPlan.rank ? `Upgrade to ${selectedPlanDetails?.name}` : `Downgrade to ${selectedPlanDetails?.name}`
+            : `Subscribe to ${selectedPlanDetails?.name}`
+        }
+        description={`You are about to change your subscription to the ${selectedPlanDetails?.name} plan for ${selectedPlanDetails?.description}.`}
         amount={selectedPlanDetails?.price || 0}
         onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
         processing={paymentProcessing}

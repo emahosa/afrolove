@@ -62,8 +62,8 @@ serve(async (req) => {
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
-    const { priceId, planId, planName, amount } = await req.json();
-    console.log(`Request body: priceId=${priceId}, planId=${planId}, planName=${planName}, amount=${amount}`);
+    const { priceId, planId, planName, amount, credits } = await req.json();
+    console.log(`Request body: priceId=${priceId}, planId=${planId}, planName=${planName}, amount=${amount}, credits=${credits}`);
 
     // If Stripe is disabled, process subscription automatically
     if (!isStripeEnabled) {
@@ -103,6 +103,7 @@ serve(async (req) => {
 
       if (deleteRoleError) {
         console.error('❌ Error removing voter role:', deleteRoleError);
+        throw new Error('Failed to remove voter role');
       }
 
       const { error: addRoleError } = await supabaseService
@@ -116,6 +117,22 @@ serve(async (req) => {
 
       if (addRoleError) {
         console.error('❌ Error adding subscriber role:', addRoleError);
+        throw new Error('Failed to add subscriber role');
+      }
+
+      // Add credits to user's account
+      if (credits && credits > 0) {
+        const { error: creditError } = await supabaseService.rpc('update_user_credits', {
+          p_user_id: user.id,
+          p_amount: credits
+        });
+
+        if (creditError) {
+          console.error('❌ Error adding credits to user account:', creditError);
+          // Non-fatal, we don't throw here, just log it. The subscription is more important.
+        } else {
+          console.log(`✅ ${credits} credits added to user ${user.id}`);
+        }
       }
 
       // Log the transaction
@@ -128,7 +145,7 @@ serve(async (req) => {
           payment_method: 'automatic',
           status: 'completed',
           payment_id: `auto-${Date.now()}`,
-          credits_purchased: 0
+          credits_purchased: credits || 0
         });
 
       if (transactionError) {
@@ -190,7 +207,8 @@ serve(async (req) => {
         user_id: user.id,
         plan_id: planId,
         plan_name: planName,
-        user_email: user.email
+        user_email: user.email,
+        credits: String(credits || 0)
       }
     });
 
