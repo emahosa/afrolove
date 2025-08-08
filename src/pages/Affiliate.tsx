@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -93,7 +94,7 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
           <CardDescription>Welcome to the affiliate program. You can now access your dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert variant="success">
+          <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Congratulations!</AlertTitle>
             <AlertDescription>
@@ -275,7 +276,6 @@ BecomeAffiliateTab.propTypes = {
   applicationStatus: PropTypes.string,
 };
 
-
 // AffiliateDashboardTab Component
 const AffiliateDashboardTab = () => {
   const { user, isSubscriber, loading: authLoading } = useAuth();
@@ -284,10 +284,33 @@ const AffiliateDashboardTab = () => {
 
   const fetchAffiliateStats = useCallback(async () => {
     if (!user?.id) return;
+    
     try {
-      const { data, error } = await supabase.functions.invoke('get-my-affiliate-stats');
-      if (error) throw error;
-      setStats(data);
+      // Fetch referral count
+      const { data: referralsData } = await supabase
+        .rpc('get_affiliate_referrals_count', { user_id_param: user.id });
+      
+      // Fetch total earnings
+      const { data: earningsData } = await supabase
+        .rpc('get_total_affiliate_earnings', { user_id_param: user.id });
+      
+      // Fetch link clicks
+      const { data: linksData } = await supabase
+        .from('affiliate_links')
+        .select('clicks_count')
+        .eq('affiliate_user_id', user.id);
+      
+      const totalClicks = linksData?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
+      const totalReferrals = referralsData || 0;
+      const totalEarnings = Number(earningsData) || 0;
+      const conversionRate = totalClicks > 0 ? (totalReferrals / totalClicks) * 100 : 0;
+
+      setStats({
+        totalReferrals,
+        totalEarnings,
+        conversionRate,
+        clicksCount: totalClicks
+      });
     } catch (error) {
       console.error('Error fetching affiliate stats:', error);
       toast.error('Failed to fetch affiliate stats.');
@@ -301,9 +324,11 @@ const AffiliateDashboardTab = () => {
   if (authLoading || loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
+  
   if (!user) {
     return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent><p>Please log in.</p></CardContent></Card>;
   }
+  
   if (!isSubscriber()) {
     return <LockScreen message="Please subscribe to access the affiliate dashboard." buttonText="Subscribe" />;
   }
@@ -372,7 +397,6 @@ const AffiliateDashboardTab = () => {
   );
 };
 
-
 // Main AffiliatePage Component
 const AffiliatePage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -391,8 +415,8 @@ const AffiliatePage = () => {
       const { data, error } = await supabase.functions.invoke('get-affiliate-application-status');
       if (error) throw error;
 
-      setApplicationStatus(data.status);
-      if (data.status === 'approved') {
+      setApplicationStatus(data?.status || null);
+      if (data?.status === 'approved') {
         setIsApprovedAffiliate(true);
         setActiveTab('dashboard');
       } else {

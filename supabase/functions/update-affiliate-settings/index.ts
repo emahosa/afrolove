@@ -32,6 +32,8 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = getSupabaseAdmin();
+    
+    // Check admin permissions
     const { data: userRolesData, error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -46,7 +48,9 @@ serve(async (req) => {
     }
 
     const userRoles = userRolesData?.map((item) => item.role) || [];
-    if (!userRoles.includes('admin') && !userRoles.includes('super_admin') && user.id !== '1a7e4d46-b4f2-464e-a1f4-2766836286c1') {
+    const isAdmin = userRoles.includes('admin') || userRoles.includes('super_admin') || user.id === '1a7e4d46-b4f2-464e-a1f4-2766836286c1';
+    
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
@@ -56,55 +60,89 @@ serve(async (req) => {
     const { settings } = await req.json();
     console.log('Received settings to update:', settings);
 
-    for (const setting of settings) {
-      const { key, value } = setting;
-      console.log(`Upserting setting: ${key} to ${value}`);
-      
-      // Convert value to proper JSON format for storage
-      let jsonValue;
-      if (typeof value === 'string' && (value === 'true' || value === 'false')) {
-        jsonValue = value === 'true';
-      } else if (!isNaN(Number(value))) {
-        jsonValue = Number(value);
-      } else {
-        jsonValue = value;
-      }
-      
-      // Use upsert to handle both insert and update cases
-      const { data, error } = await supabaseAdmin
-        .from('system_settings')
-        .upsert(
-          {
-            key: key,
-            value: jsonValue,
-            category: 'affiliate',
-            description: `Affiliate program setting: ${key}`,
-            updated_by: user.id
-          },
-          { 
-            onConflict: 'key',
-            ignoreDuplicates: false 
-          }
-        )
-        .select();
-
-      if (error) {
-        console.error(`Error upserting setting ${key}:`, error);
-        return new Response(JSON.stringify({ error: `Failed to save setting: ${key}`, details: error.message }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        });
-      }
-      console.log(`Successfully upserted ${key}. Response:`, data);
+    if (!settings || !Array.isArray(settings)) {
+      return new Response(JSON.stringify({ error: 'Invalid settings format' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
     }
 
-    return new Response(JSON.stringify({ message: 'Settings updated successfully' }), {
+    const results = [];
+
+    for (const setting of settings) {
+      const { key, value } = setting;
+      console.log(`Processing setting: ${key} = ${value}`);
+      
+      if (!key) {
+        console.error('Missing key for setting:', setting);
+        continue;
+      }
+      
+      console.log(`Upserting setting: ${key} with value:`, value);
+      
+      try {
+        // Use upsert to handle both insert and update cases
+        // The `value` column in `system_settings` is expected to be text.
+        // The client is responsible for parsing it into the correct type.
+        const { data, error } = await supabaseAdmin
+          .from('system_settings')
+          .upsert(
+            {
+              key: key,
+              value: String(value), // Ensure the value is always stored as a string
+              category: 'affiliate',
+              description: `Affiliate program setting: ${key}`,
+              updated_by: user.id,
+              updated_at: new Date().toISOString()
+            },
+            { 
+              onConflict: 'key',
+              ignoreDuplicates: false 
+            }
+          )
+          .select();
+
+        if (error) {
+          console.error(`Error upserting setting ${key}:`, error);
+          results.push({ key, success: false, error: error.message });
+        } else {
+          console.log(`Successfully upserted ${key}. Response:`, data);
+          results.push({ key, success: true, data });
+        }
+      } catch (settingError) {
+        console.error(`Exception upserting setting ${key}:`, settingError);
+        results.push({ key, success: false, error: settingError.message });
+      }
+    }
+
+    const failedSettings = results.filter(r => !r.success);
+    if (failedSettings.length > 0) {
+      console.error('Some settings failed to update:', failedSettings);
+      return new Response(JSON.stringify({ 
+        error: 'Some settings failed to update', 
+        details: failedSettings,
+        results 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 207, // Multi-status
+      });
+    }
+
+    return new Response(JSON.stringify({ 
+      message: 'Settings updated successfully',
+      results 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
+
   } catch (error) {
     console.error('Unexpected error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      details: error.message,
+      stack: error.stack 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
