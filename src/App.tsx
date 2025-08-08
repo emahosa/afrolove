@@ -1,16 +1,17 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { Navbar } from '@/components/Navbar';
+import Navbar from '@/components/Navbar';
 import { MobileNav } from '@/components/MobileNav';
 import { Home } from '@/pages/Home';
 import { Pricing } from '@/pages/Pricing';
 import { Contact } from '@/pages/Contact';
-import { Login } from '@/pages/Login';
-import { Register } from '@/pages/Register';
-import { Profile } from '@/pages/Profile';
-import { Admin } from '@/pages/Admin';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Profile from '@/pages/Profile';
+import Admin from '@/pages/Admin';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { AdminRoute } from '@/components/AdminRoute';
 import { Toaster } from "@/components/ui/toaster"
 import { Subscribe } from '@/pages/Subscribe';
@@ -23,9 +24,9 @@ import { Community } from '@/pages/Community';
 import { CommunityArticle } from '@/pages/CommunityArticle';
 import { SubmitArticle } from '@/pages/SubmitArticle';
 import { SubmitCommunityArticle } from '@/pages/SubmitCommunityArticle';
-import { Dashboard } from '@/pages/Dashboard';
+import Dashboard from '@/pages/Dashboard';
 import { Upgrade } from '@/pages/Upgrade';
-import { NotFound } from '@/pages/NotFound';
+import NotFound from '@/pages/NotFound';
 import { Unauthorized } from '@/pages/Unauthorized';
 import Affiliate from '@/pages/Affiliate';
 import AffiliateDashboard from '@/pages/AffiliateDashboard';
