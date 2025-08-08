@@ -51,13 +51,7 @@ export const useSunoGeneration = () => {
       console.log('Starting song generation with request:', request);
       
       const { data, error } = await supabase.functions.invoke('suno-generate', {
-        body: {
-          ...request,
-          // Ensure instrumental flag is properly passed
-          instrumental: request.instrumental === true,
-          // Ensure custom mode is properly set for lyrics
-          customMode: request.customMode === true
-        }
+        body: request
       });
 
       if (error) {
@@ -77,14 +71,7 @@ export const useSunoGeneration = () => {
       }
 
       if (data?.taskId) {
-        // Show different messages based on generation type
-        if (request.instrumental) {
-          toast.success('Instrumental generation started! Check your library for the result.');
-        } else if (request.customMode) {
-          toast.success('Custom song with lyrics generation started! Check your library for the result.');
-        } else {
-          toast.success('Song generation started! Check your library for the result.');
-        }
+        toast.success('Song generation started! Check your library for the result.');
         return data.taskId;
       } else {
         toast.error('Failed to start generation. Please try again.');
@@ -99,45 +86,8 @@ export const useSunoGeneration = () => {
     }
   };
 
-  const generateLyrics = async (prompt: string): Promise<any> => {
-    if (!user) {
-      toast.error('Please log in to generate lyrics');
-      return null;
-    }
-
-    setIsGenerating(true);
-    try {
-      console.log('Starting lyrics generation with prompt:', prompt);
-      
-      const { data, error } = await supabase.functions.invoke('suno-lyrics', {
-        body: { prompt }
-      });
-
-      if (error) {
-        console.error('Suno lyrics generation error:', error);
-        toast.error(`Lyrics generation failed: ${error.message}`);
-        return null;
-      }
-
-      if (data) {
-        toast.success('Lyrics generated successfully!');
-        return data;
-      } else {
-        toast.error('Failed to generate lyrics. Please try again.');
-        return null;
-      }
-    } catch (error) {
-      console.error('Unexpected error during lyrics generation:', error);
-      toast.error('An unexpected error occurred. Please try again.');
-      return null;
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   return {
     generateSong,
-    generateLyrics,
     isGenerating
   };
 };

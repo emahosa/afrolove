@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,46 +22,21 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
 
   const fetchWallet = async () => {
     try {
-      // First try to get existing wallet
-      let { data: walletData, error: walletError } = await supabase
+      const { data, error } = await supabase
         .from('affiliate_wallets')
         .select('*')
         .eq('affiliate_user_id', affiliateId)
         .single();
 
-      if (walletError && walletError.code === 'PGRST116') {
-        // No wallet found, get USDT address from affiliate application
-        const { data: applicationData } = await supabase
-          .from('affiliate_applications')
-          .select('usdt_wallet_address')
-          .eq('user_id', affiliateId)
-          .eq('status', 'approved')
-          .single();
-
-        if (applicationData?.usdt_wallet_address) {
-          // Create wallet with the registered USDT address
-          const { data: newWallet, error: createError } = await supabase
-            .from('affiliate_wallets')
-            .insert({
-              affiliate_user_id: affiliateId,
-              usdt_wallet_address: applicationData.usdt_wallet_address,
-              balance: 0,
-              total_earned: 0,
-              total_withdrawn: 0
-            })
-            .select()
-            .single();
-
-          if (!createError && newWallet) {
-            walletData = newWallet;
-          }
-        }
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching wallet:', error);
+        return;
       }
 
-      if (walletData) {
-        setWallet(walletData);
-        if (walletData.usdt_wallet_address) {
-          setUsdtAddress(walletData.usdt_wallet_address);
+      if (data) {
+        setWallet(data);
+        if (data.usdt_wallet_address) {
+          setUsdtAddress(data.usdt_wallet_address);
         }
       }
     } catch (err) {
@@ -186,13 +162,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
               placeholder="Enter your USDT wallet address"
               value={usdtAddress}
               onChange={(e) => setUsdtAddress(e.target.value)}
-              disabled={!!wallet?.usdt_wallet_address}
             />
-            {wallet?.usdt_wallet_address && (
-              <p className="text-xs text-muted-foreground">
-                Using registered wallet address from your application
-              </p>
-            )}
           </div>
           
           <Dialog>
