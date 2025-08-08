@@ -20,6 +20,7 @@ serve(async (req) => {
   );
 
   try {
+    console.log("--- create-subscription function started ---");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
@@ -32,6 +33,7 @@ serve(async (req) => {
     if (!user?.email) {
       throw new Error("User not authenticated");
     }
+    console.log(`Authenticated user: ${user.id}`);
 
     console.log('🔍 Checking Stripe settings...');
 
@@ -61,6 +63,7 @@ serve(async (req) => {
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
     const { priceId, planId, planName, amount } = await req.json();
+    console.log(`Request body: priceId=${priceId}, planId=${planId}, planName=${planName}, amount=${amount}`);
 
     // If Stripe is disabled, process subscription automatically
     if (!isStripeEnabled) {
@@ -70,24 +73,10 @@ serve(async (req) => {
       const expiresAt = new Date(subscriptionStartDate);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-      // First, deactivate existing subscriptions
-      const { error: deactivateError } = await supabaseService
-        .from('user_subscriptions')
-        .update({ 
-          subscription_status: 'inactive',
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-        .eq('subscription_status', 'active');
-
-      if (deactivateError) {
-        console.error('❌ Error deactivating existing subscriptions:', deactivateError);
-      }
-
-      // Create new subscription record
+      // Upsert subscription record to handle existing subscriptions
       const { error: subError } = await supabaseService
         .from('user_subscriptions')
-        .insert({
+        .upsert({
           user_id: user.id,
           subscription_type: planId,
           subscription_status: 'active',
@@ -95,13 +84,14 @@ serve(async (req) => {
           expires_at: expiresAt.toISOString(),
           stripe_subscription_id: `auto-${Date.now()}`,
           stripe_customer_id: `auto-customer-${user.id}`,
-          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
         });
 
       if (subError) {
-        console.error('❌ Error creating subscription:', subError);
-        throw new Error('Failed to create subscription');
+        console.error('❌ Error upserting subscription:', subError);
+        throw new Error('Failed to create or update subscription');
       }
 
       // Update user roles - remove voter, add subscriber
@@ -211,7 +201,11 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("!!! TOP-LEVEL CATCH BLOCK !!!");
     console.error("Subscription creation error:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
