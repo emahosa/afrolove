@@ -30,6 +30,15 @@ export const useVocalSeparation = () => {
     setStatus('Starting vocal separation...');
     
     try {
+      // First update the song status to indicate separation in progress
+      await supabase
+        .from('songs')
+        .update({ 
+          vocal_separation_status: 'processing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('task_id', taskId);
+
       const { data, error } = await supabase.functions.invoke('suno-vocal-removal', {
         body: { taskId, audioId }
       });
@@ -48,6 +57,16 @@ export const useVocalSeparation = () => {
     } catch (error: any) {
       console.error('Error starting vocal separation:', error);
       setStatus('Failed to start vocal separation');
+      
+      // Update song status to failed
+      await supabase
+        .from('songs')
+        .update({ 
+          vocal_separation_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('task_id', taskId);
+        
       toast.error(error.message || 'Failed to start vocal separation');
       return { success: false, error: error.message };
     } finally {
@@ -92,24 +111,33 @@ export const useVocalSeparation = () => {
 
       // Download each file
       for (const file of files) {
-        const response = await fetch(file.url);
-        if (!response.ok) throw new Error(`Failed to download ${file.name}`);
-        
-        const blob = await response.blob();
-        const downloadUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = file.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        URL.revokeObjectURL(downloadUrl);
+        try {
+          const response = await fetch(file.url);
+          if (!response.ok) throw new Error(`Failed to download ${file.name}`);
+          
+          const blob = await response.blob();
+          const downloadUrl = URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = file.name;
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          URL.revokeObjectURL(downloadUrl);
+          
+          // Add small delay between downloads
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (fileError) {
+          console.error(`Error downloading ${file.name}:`, fileError);
+          toast.error(`Failed to download ${file.name}`);
+        }
       }
 
       setStatus('Download completed');
-      toast.success('All vocal separation files downloaded successfully!');
+      toast.success('Vocal separation files download initiated!');
     } catch (error: any) {
       console.error('Error downloading vocal separation files:', error);
       setStatus('Download failed');
