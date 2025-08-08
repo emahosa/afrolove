@@ -13,25 +13,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSunoGeneration, SunoGenerationRequest, getModelDisplayName, getApiModelName } from "@/hooks/use-suno-generation";
 import { useGenres } from "@/hooks/use-genres";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 type CreationMode = 'prompt' | 'lyrics';
 
 interface MusicGenerationWorkflowProps {
   preSelectedGenre?: string;
   initialPrompt?: string;
-  templateId?: string;
 }
 
-export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templateId }: MusicGenerationWorkflowProps) => {
+export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: MusicGenerationWorkflowProps) => {
   const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
   const [prompt, setPrompt] = useState(initialPrompt || "");
   const [title, setTitle] = useState("");
   const [instrumental, setInstrumental] = useState(false);
   const [selectedGenreId, setSelectedGenreId] = useState<string>(preSelectedGenre || "");
   const [selectedModel, setSelectedModel] = useState<string>("Afro Model 3");
-  const [templateData, setTemplateData] = useState<any>(null);
-  const [templatePrompt, setTemplatePrompt] = useState("");
 
   const { user } = useAuth();
   const { generateSong, isGenerating } = useSunoGeneration();
@@ -43,58 +39,22 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
     { value: "Afro Model 3", label: "Afro Model 3" }
   ];
 
-  // Load template data if templateId is provided
+  // Set initial genre when preSelectedGenre changes
   useEffect(() => {
-    if (templateId) {
-      loadTemplateData();
-    }
-  }, [templateId]);
-
-  const loadTemplateData = async () => {
-    if (!templateId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('genre_templates')
-        .select(`
-          *,
-          genres(name)
-        `)
-        .eq('id', templateId)
-        .eq('is_active', true)
-        .single();
-
-      if (error) {
-        console.error('Error loading template:', error);
-        return;
-      }
-
-      if (data) {
-        setTemplateData(data);
-        setSelectedGenreId(data.genre_id);
-        setTemplatePrompt(data.user_prompt_guide || "");
-        setPrompt(data.user_prompt_guide || "");
-      }
-    } catch (error) {
-      console.error('Error loading template:', error);
-    }
-  };
-
-  // Set initial values when props change
-  useEffect(() => {
-    if (preSelectedGenre && !templateId) {
+    if (preSelectedGenre) {
       setSelectedGenreId(preSelectedGenre);
     }
-  }, [preSelectedGenre, templateId]);
+  }, [preSelectedGenre]);
 
+  // Set initial prompt when initialPrompt changes
   useEffect(() => {
-    if (initialPrompt && !templateId) {
+    if (initialPrompt) {
       setPrompt(initialPrompt);
     }
-  }, [initialPrompt, templateId]);
+  }, [initialPrompt]);
 
   const handleGenerate = async () => {
-    if (!selectedGenreId && !templateData) {
+    if (!selectedGenreId) {
       toast.error("Please select a genre.");
       return;
     }
@@ -120,17 +80,13 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       return;
     }
 
-    let adminPrompt = "";
-    
-    if (templateData) {
-      // Use template's admin prompt
-      adminPrompt = templateData.admin_prompt || "";
-    } else if (selectedGenreId) {
-      // Use genre's prompt template
-      const selectedGenre = genres.find(g => g.id === selectedGenreId);
-      adminPrompt = selectedGenre?.prompt_template || selectedGenre?.description || "";
+    const selectedGenre = genres.find(g => g.id === selectedGenreId);
+    if (!selectedGenre) {
+      toast.error("Selected genre not found. Please try again.");
+      return;
     }
 
+    const adminPrompt = selectedGenre.prompt_template || selectedGenre.description || "";
     const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
     let request: SunoGenerationRequest;
 
@@ -158,52 +114,36 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
     const taskId = await generateSong(request);
     if (taskId) {
-      setPrompt(templateData ? templatePrompt : "");
+      setPrompt("");
       setTitle("");
       toast.success("Song generation started! Check your library for the result.");
     }
   };
 
-  const displayName = templateData ? templateData.template_name : 
-    (selectedGenreId ? genres.find(g => g.id === selectedGenreId)?.name : "");
-
   return (
     <div className="space-y-6">
-      {templateData && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-lg">Using Template: {templateData.template_name}</CardTitle>
-            <CardDescription>
-              Genre: {templateData.genres?.name}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {!templateData && (
-        <div className="space-y-2">
-          <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
-          {genresLoading ? (
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-              Loading genres...
-            </div>
-          ) : (
-            <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-              <SelectTrigger id="genre">
-                <SelectValue placeholder="Select a genre" />
-              </SelectTrigger>
-              <SelectContent>
-                {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id}>
-                    {genre.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      )}
+      <div className="space-y-2">
+        <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
+        {genresLoading ? (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+            Loading genres...
+          </div>
+        ) : (
+          <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
+            <SelectTrigger id="genre">
+              <SelectValue placeholder="Select a genre" />
+            </SelectTrigger>
+            <SelectContent>
+              {genres.map(genre => (
+                <SelectItem key={genre.id} value={genre.id}>
+                  {genre.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="model">AI Model</Label>
@@ -246,14 +186,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="prompt-input">
-          {creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}
-          {templateData && creationMode === 'prompt' && (
-            <span className="text-sm text-muted-foreground ml-2">
-              (Template suggestion provided)
-            </span>
-          )}
-        </Label>
+        <Label htmlFor="prompt-input">{creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}</Label>
         <Textarea
           id="prompt-input"
           placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
@@ -274,7 +207,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
       <Button
         onClick={handleGenerate}
-        disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
+        disabled={isGenerating || genresLoading || !selectedGenreId}
         className="w-full"
         size="lg"
       >

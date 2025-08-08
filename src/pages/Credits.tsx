@@ -132,27 +132,6 @@ const Credits: React.FC = () => {
         <p className="text-muted-foreground">Purchase credits to generate amazing songs with AI</p>
       </div>
 
-      {/* Subscription Status */}
-      {user?.subscription?.planId && (
-        <Card className="mb-8 bg-secondary/50">
-          <CardHeader>
-            <CardTitle>Your Current Plan</CardTitle>
-            <CardDescription>
-              You are currently subscribed to the{' '}
-              <span className="font-semibold text-primary">
-                {user.subscription.planId.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-              </span>{' '}
-              plan.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <a href="/subscribe">
-              <Button>Manage Subscription</Button>
-            </a>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Current Credits Display */}
       <Card className="mb-8">
         <CardHeader>

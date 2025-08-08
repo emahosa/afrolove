@@ -184,66 +184,6 @@ export type Database = {
           },
         ]
       }
-      affiliate_earnings: {
-        Row: {
-          affiliate_user_id: string
-          amount: number
-          created_at: string
-          earning_type: string
-          id: string
-          processed_at: string | null
-          referred_user_id: string
-          status: string
-        }
-        Insert: {
-          affiliate_user_id: string
-          amount: number
-          created_at?: string
-          earning_type: string
-          id?: string
-          processed_at?: string | null
-          referred_user_id: string
-          status?: string
-        }
-        Update: {
-          affiliate_user_id?: string
-          amount?: number
-          created_at?: string
-          earning_type?: string
-          id?: string
-          processed_at?: string | null
-          referred_user_id?: string
-          status?: string
-        }
-        Relationships: []
-      }
-      affiliate_links: {
-        Row: {
-          affiliate_user_id: string
-          clicks_count: number
-          created_at: string
-          id: string
-          link_code: string
-          updated_at: string
-        }
-        Insert: {
-          affiliate_user_id: string
-          clicks_count?: number
-          created_at?: string
-          id?: string
-          link_code: string
-          updated_at?: string
-        }
-        Update: {
-          affiliate_user_id?: string
-          clicks_count?: number
-          created_at?: string
-          id?: string
-          link_code?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       affiliate_payout_requests: {
         Row: {
           admin_notes: string | null
@@ -287,39 +227,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      affiliate_wallets: {
-        Row: {
-          affiliate_user_id: string
-          balance: number
-          created_at: string
-          id: string
-          total_earned: number
-          total_withdrawn: number
-          updated_at: string
-          usdt_wallet_address: string | null
-        }
-        Insert: {
-          affiliate_user_id: string
-          balance?: number
-          created_at?: string
-          id?: string
-          total_earned?: number
-          total_withdrawn?: number
-          updated_at?: string
-          usdt_wallet_address?: string | null
-        }
-        Update: {
-          affiliate_user_id?: string
-          balance?: number
-          created_at?: string
-          id?: string
-          total_earned?: number
-          total_withdrawn?: number
-          updated_at?: string
-          usdt_wallet_address?: string | null
-        }
-        Relationships: []
       }
       affiliate_withdrawals: {
         Row: {
@@ -1314,33 +1221,6 @@ export type Database = {
           },
         ]
       }
-      user_activities: {
-        Row: {
-          activity_type: string
-          created_at: string
-          id: string
-          metadata: Json | null
-          referrer_affiliate_id: string | null
-          user_id: string
-        }
-        Insert: {
-          activity_type: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          referrer_affiliate_id?: string | null
-          user_id: string
-        }
-        Update: {
-          activity_type?: string
-          created_at?: string
-          id?: string
-          metadata?: Json | null
-          referrer_affiliate_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -1497,36 +1377,6 @@ export type Database = {
       generate_affiliate_code: {
         Args: { p_full_name: string }
         Returns: string
-      }
-      get_affiliate_links: {
-        Args: { user_id: string }
-        Returns: {
-          id: string
-          affiliate_user_id: string
-          link_code: string
-          clicks_count: number
-          created_at: string
-          updated_at: string
-        }[]
-      }
-      get_affiliate_payout_history: {
-        Args: { user_id_param: string }
-        Returns: {
-          id: string
-          requested_amount: number
-          status: string
-          requested_at: string
-          processed_at: string
-          admin_notes: string
-        }[]
-      }
-      get_affiliate_referrals_count: {
-        Args: { user_id_param: string }
-        Returns: number
-      }
-      get_total_affiliate_earnings: {
-        Args: { user_id_param: string }
-        Returns: number
       }
       get_user_role: {
         Args: { user_id_param: string }

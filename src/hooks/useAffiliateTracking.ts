@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -33,12 +34,9 @@ export const useAffiliateTracking = () => {
     if (!user) return;
 
     try {
-      const referrerCode = localStorage.getItem('affiliate_referrer');
-      
       await supabase.functions.invoke('track-affiliate-activity', {
         body: {
           activity_type: activityType,
-          referrer_code: referrerCode,
           metadata
         }
       });
@@ -66,8 +64,7 @@ export const useAffiliateTracking = () => {
       });
 
       localStorage.setItem('registration_tracked', 'true');
-      
-      // Don't remove referrer code yet - keep it for subscription tracking
+      localStorage.removeItem('affiliate_referrer');
     } catch (error) {
       console.error('Error tracking registration:', error);
     }
