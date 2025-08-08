@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Loader2, AlertCircle, Gift } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
@@ -21,13 +20,10 @@ interface PayoutRequest {
   admin_notes?: string | null;
 }
 
-const PAGE_SIZE = 10;
-
 const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalItems, setTotalItems] = useState(0);
 
   const fetchPayoutHistory = useCallback(async () => {
     setLoading(true);
@@ -35,7 +31,10 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
     try {
       const { data, error: dbError } = await supabase
-        .rpc('get_affiliate_payout_history', { user_id_param: affiliateId })
+        .from('affiliate_payout_requests')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .order('requested_at', { ascending: false });
 
       if (dbError) {
         throw new Error(`Failed to fetch payout history: ${dbError.message}`);
@@ -47,13 +46,10 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
       }));
 
       setPayoutRequests(typedData);
-      setTotalItems(data?.length || 0);
-
     } catch (err: any) {
       console.error("Error in fetchPayoutHistory:", err);
       setError(err.message || "An unexpected error occurred while fetching payout history.");
       setPayoutRequests([]);
-      setTotalItems(0);
     } finally {
       setLoading(false);
     }

@@ -22,18 +22,22 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
 
   const fetchWallet = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
-        body: { type: 'wallet', userId: affiliateId }
-      });
+      const { data, error } = await supabase
+        .from('affiliate_wallets')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching wallet:', error);
         return;
       }
 
-      setWallet(data?.wallet || null);
-      if (data?.wallet?.usdt_wallet_address) {
-        setUsdtAddress(data.wallet.usdt_wallet_address);
+      if (data) {
+        setWallet(data);
+        if (data.usdt_wallet_address) {
+          setUsdtAddress(data.usdt_wallet_address);
+        }
       }
     } catch (err) {
       console.error('Error fetching wallet:', err);
@@ -60,7 +64,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
       return;
     }
 
-    if (!wallet || amount > wallet.balance) {
+    if (!wallet || amount > Number(wallet.balance)) {
       toast.error("Insufficient balance");
       return;
     }
@@ -105,9 +109,9 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
     );
   }
 
-  const balance = wallet?.balance || 0;
-  const totalEarned = wallet?.total_earned || 0;
-  const totalWithdrawn = wallet?.total_withdrawn || 0;
+  const balance = Number(wallet?.balance) || 0;
+  const totalEarned = Number(wallet?.total_earned) || 0;
+  const totalWithdrawn = Number(wallet?.total_withdrawn) || 0;
 
   return (
     <div className="space-y-6">

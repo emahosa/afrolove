@@ -18,17 +18,16 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
 
   const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
-        body: { type: 'links', userId: affiliateId }
-      });
+      const { data, error } = await supabase
+        .rpc('get_affiliate_links', { user_id: affiliateId });
 
       if (error) {
         console.error('Error fetching affiliate links:', error);
         return;
       }
 
-      if (data?.links) {
-        setLinks(data.links);
+      if (data) {
+        setLinks(data);
       }
     } catch (err) {
       console.error('Error fetching links:', err);

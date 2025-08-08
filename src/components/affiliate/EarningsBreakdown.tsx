@@ -22,17 +22,33 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
   const fetchEarnings = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
-        body: { type: 'earnings', userId: affiliateId }
-      });
+      const { data, error } = await supabase
+        .from('affiliate_earnings')
+        .select(`
+          *,
+          profiles:referred_user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('affiliate_user_id', affiliateId)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) {
         console.error('Error fetching earnings:', error);
         return;
       }
 
-      if (data?.earnings) {
-        const earningsData: AffiliateEarning[] = data.earnings;
+      if (data) {
+        const earningsData: AffiliateEarning[] = data.map(item => ({
+          ...item,
+          profile: {
+            full_name: item.profiles?.full_name || null,
+            username: item.profiles?.username || null
+          }
+        }));
+        
         setEarnings(earningsData);
 
         // Calculate summary
@@ -42,11 +58,11 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
         setSummary({
           free_referrals: {
             count: freeReferrals.length,
-            total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
+            total: freeReferrals.reduce((sum, e) => sum + Number(e.amount), 0)
           },
           commissions: {
             count: commissions.length,
-            total: commissions.reduce((sum, e) => sum + e.amount, 0)
+            total: commissions.reduce((sum, e) => sum + Number(e.amount), 0)
           }
         });
       }
@@ -133,7 +149,7 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${earning.amount.toFixed(2)}
+                      ${Number(earning.amount).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>
