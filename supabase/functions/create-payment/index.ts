@@ -60,14 +60,14 @@ serve(async (req) => {
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
-    const { type, packId, amount, credits, description } = await req.json();
+    const { amount, credits, description } = await req.json();
 
     // If Stripe is disabled, process payment automatically
     if (!isStripeEnabled) {
       console.log('💳 Stripe disabled - processing automatic payment');
       
       // Automatically add credits without payment
-      const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
+      const { data: newBalance, error: creditError } = await supabaseService.rpc('update_user_credits', {
         p_user_id: user.id,
         p_amount: credits
       });
