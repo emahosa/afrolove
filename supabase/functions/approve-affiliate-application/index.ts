@@ -110,7 +110,7 @@ serve(async (req) => {
     // Fetch the application
     const { data: application, error: fetchError } = await supabaseAdmin
       .from('affiliate_applications')
-      .select('id, user_id, full_name, status, usdt_wallet_address')
+      .select('id, user_id, full_name, status')
       .eq('id', application_id)
       .single();
 
@@ -163,40 +163,22 @@ serve(async (req) => {
       // For now, log and attempt to add. A more robust solution might stop here.
     }
 
-    // Create affiliate wallet
-    if (application.usdt_wallet_address) {
-      const { error: createWalletError } = await supabaseAdmin
-        .from('affiliate_wallets')
-        .insert({
-          affiliate_user_id: application.user_id,
-          usdt_wallet_address: application.usdt_wallet_address,
-        })
-        .onConflict('affiliate_user_id')
-        .ignore();
-
-      if (createWalletError) {
-        console.error(`Warning: Failed to create affiliate wallet for user ${application.user_id}. This might already exist. Error: ${createWalletError.message}`);
-      } else {
-        console.log(`Successfully created or found affiliate wallet for user ${application.user_id}.`);
-      }
-    } else {
-      console.warn(`User ${application.user_id} approved without a USDT wallet address in their application.`);
-    }
-
     // Create a new link for the affiliate
     const { error: createLinkError } = await supabaseAdmin
       .from('affiliate_links')
       .insert({
         affiliate_user_id: application.user_id,
         link_code: referralCode,
-      })
-      .onConflict('link_code')
-      .ignore();
+        // You can add a default target URL if you have one
+        // target_url: 'https://yourapp.com/pricing'
+      });
 
     if (createLinkError) {
-      console.error(`Warning: Failed to create affiliate link for user ${application.user_id}. This might already exist. Error: ${createLinkError.message}`);
+      console.error(`CRITICAL: Failed to create affiliate link for user ${application.user_id}. Error: ${createLinkError.message}`);
+      // Application is approved, role might be set, but link creation failed.
+      // This is another state requiring potential manual intervention.
     } else {
-      console.log(`Successfully created or found affiliate link for user ${application.user_id} with code ${referralCode}.`);
+      console.log(`Successfully created affiliate link for user ${application.user_id} with code ${referralCode}.`);
     }
 
     if (!existingRole) {
@@ -205,6 +187,8 @@ serve(async (req) => {
         .insert({ user_id: application.user_id, role: 'affiliate' });
 
       if (addRoleError) {
+        // This is problematic as the application is approved but role assignment failed.
+        // Manual intervention might be needed.
         console.error(`CRITICAL: Failed to add 'affiliate' role for user ${application.user_id} after application ${application_id} approval. Error: ${addRoleError.message}`);
         return new Response(JSON.stringify({
           message: 'Application approved, but failed to assign affiliate role. Please check system logs.',
@@ -214,7 +198,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 207, // Multi-Status
         });
       }
-      console.log(`Successfully added 'affiliate' role to user ${application.user_id}.`);
+       console.log(`Successfully added 'affiliate' role to user ${application.user_id}.`);
     } else {
       console.log(`User ${application.user_id} already has 'affiliate' role.`);
     }
