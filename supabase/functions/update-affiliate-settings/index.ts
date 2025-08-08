@@ -78,30 +78,18 @@ serve(async (req) => {
         continue;
       }
       
-      // Convert value to proper format for storage
-      let processedValue;
-      if (typeof value === 'string') {
-        if (value === 'true' || value === 'false') {
-          processedValue = value === 'true';
-        } else if (!isNaN(Number(value)) && value.trim() !== '') {
-          processedValue = Number(value);
-        } else {
-          processedValue = value;
-        }
-      } else {
-        processedValue = value;
-      }
-      
-      console.log(`Upserting setting: ${key} with processed value:`, processedValue);
+      console.log(`Upserting setting: ${key} with value:`, value);
       
       try {
         // Use upsert to handle both insert and update cases
+        // The `value` column in `system_settings` is expected to be text.
+        // The client is responsible for parsing it into the correct type.
         const { data, error } = await supabaseAdmin
           .from('system_settings')
           .upsert(
             {
               key: key,
-              value: processedValue,
+              value: String(value), // Ensure the value is always stored as a string
               category: 'affiliate',
               description: `Affiliate program setting: ${key}`,
               updated_by: user.id,
