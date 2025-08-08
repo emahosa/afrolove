@@ -20,6 +20,7 @@ serve(async (req) => {
   );
 
   try {
+    console.log("--- create-payment function started ---");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
@@ -32,6 +33,7 @@ serve(async (req) => {
     if (!user?.email) {
       throw new Error("User not authenticated");
     }
+    console.log(`Authenticated user: ${user.id}`);
 
     console.log('🔍 Checking Stripe settings...');
 
@@ -61,6 +63,7 @@ serve(async (req) => {
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
     const { type, packId, amount, credits, description } = await req.json();
+    console.log(`Request body: type=${type}, packId=${packId}, amount=${amount}, credits=${credits}`);
 
     // If Stripe is disabled, process payment automatically
     if (!isStripeEnabled) {
@@ -159,7 +162,11 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("!!! TOP-LEVEL CATCH BLOCK !!!");
     console.error("Payment creation error:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
