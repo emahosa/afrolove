@@ -50,7 +50,7 @@ serve(async (req) => {
 
     let isStripeEnabled = true; // Default to enabled for safety
     
-    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object' && stripeSettings.value !== null) {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
       console.log('🔍 Stripe setting found:', settingValue);
