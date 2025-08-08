@@ -46,13 +46,16 @@ export const useAffiliateStats = (affiliateId: string | null) => {
       // Fetch commission data from affiliate_commissions table
       const { data: commissions } = await supabase
         .from('affiliate_commissions')
-        .select('amount, status, commission_type')
-        .eq('affiliate_id', affiliateId);
+        .select('amount_earned')
+        .eq('affiliate_user_id', affiliateId);
 
-      const totalEarnings = commissions?.reduce((sum, commission) => sum + (commission.amount || 0), 0) || 0;
-      const pendingEarnings = commissions?.filter(c => c.status === 'pending').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-      const paidEarnings = commissions?.filter(c => c.status === 'paid').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-      const subscriptionCommissions = commissions?.filter(c => c.commission_type === 'subscription').reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
+      // Calculate total earnings from commissions
+      const totalEarnings = commissions?.reduce((sum, commission) => sum + (commission.amount_earned || 0), 0) || 0;
+      const subscriptionCommissions = totalEarnings; // All commissions are subscription-based for now
+
+      // For now, we'll use mock data for pending/paid earnings since we don't have status tracking yet
+      const pendingEarnings = 0;
+      const paidEarnings = totalEarnings;
 
       // Calculate conversion rate (assume 100 clicks for now, should be tracked properly)
       const conversionRate = totalReferrals ? (totalReferrals / 100) * 100 : 0;
