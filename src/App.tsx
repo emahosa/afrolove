@@ -24,8 +24,7 @@ import Admin from "./pages/Admin";
 import CustomSongManagement from "./pages/CustomSongManagement";
 import UserCustomSongs from "./pages/UserCustomSongs";
 import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
-import AffiliateDashboard from "./pages/AffiliateDashboard";
-import BecomeAffiliate from "./pages/BecomeAffiliate";
+import AffiliatePage from "./pages/Affiliate";
 import SubscribePage from "./pages/SubscribePage";
 
 // Layouts
@@ -72,9 +71,7 @@ const App = () => {
                     <Route path="/support" element={<Support />} />
                     <Route path="/my-custom-songs" element={<UserCustomSongs />} />
                     <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
-                    <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-                    <Route path="/affiliate" element={<Navigate to="/affiliate-dashboard" replace />} />
-                    <Route path="/become-affiliate" element={<BecomeAffiliate />} />
+                    <Route path="/affiliate" element={<AffiliatePage />} />
                     <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
                 </Route>
