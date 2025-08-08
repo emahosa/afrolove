@@ -22,7 +22,8 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
   const fetchEarnings = async () => {
     try {
-      const { data, error } = await supabase
+      // First fetch earnings
+      const { data: earningsData, error: earningsError } = await supabase
         .from('affiliate_earnings')
         .select(`
           id,
@@ -32,42 +33,49 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
           amount,
           status,
           created_at,
-          processed_at,
-          profiles!referred_user_id (
-            full_name,
-            username
-          )
+          processed_at
         `)
         .eq('affiliate_user_id', affiliateId)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (error) {
-        console.error('Error fetching earnings:', error);
+      if (earningsError) {
+        console.error('Error fetching earnings:', earningsError);
         return;
       }
 
-      if (data) {
-        const earningsData: AffiliateEarning[] = data.map(item => ({
-          id: item.id,
-          affiliate_user_id: item.affiliate_user_id,
-          referred_user_id: item.referred_user_id,
-          earning_type: item.earning_type as 'free_referral' | 'subscription_commission',
-          amount: Number(item.amount),
-          status: item.status,
-          created_at: item.created_at,
-          processed_at: item.processed_at,
-          profile: {
-            full_name: Array.isArray(item.profiles) ? item.profiles[0]?.full_name : item.profiles?.full_name,
-            username: Array.isArray(item.profiles) ? item.profiles[0]?.username : item.profiles?.username
-          }
-        }));
+      if (earningsData) {
+        // Fetch profile data separately for each referred user
+        const earningsWithProfiles = await Promise.all(
+          earningsData.map(async (earning) => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, username')
+              .eq('id', earning.referred_user_id)
+              .single();
+
+            return {
+              id: earning.id,
+              affiliate_user_id: earning.affiliate_user_id,
+              referred_user_id: earning.referred_user_id,
+              earning_type: earning.earning_type as 'free_referral' | 'subscription_commission',
+              amount: Number(earning.amount),
+              status: earning.status,
+              created_at: earning.created_at,
+              processed_at: earning.processed_at,
+              profile: {
+                full_name: profile?.full_name || null,
+                username: profile?.username || null
+              }
+            };
+          })
+        );
         
-        setEarnings(earningsData);
+        setEarnings(earningsWithProfiles);
 
         // Calculate summary
-        const freeReferrals = earningsData.filter(e => e.earning_type === 'free_referral');
-        const commissions = earningsData.filter(e => e.earning_type === 'subscription_commission');
+        const freeReferrals = earningsWithProfiles.filter(e => e.earning_type === 'free_referral');
+        const commissions = earningsWithProfiles.filter(e => e.earning_type === 'subscription_commission');
 
         setSummary({
           free_referrals: {
