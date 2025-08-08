@@ -1,267 +1,239 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Star, Users, DollarSign, TrendingUp, ExternalLink, AlertCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import AffiliateLinks from '@/components/affiliate/AffiliateLinks';
-import AffiliateWallet from '@/components/affiliate/AffiliateWallet';
-import EarningsBreakdown from '@/components/affiliate/EarningsBreakdown';
-import ReferralsList from '@/components/affiliate/ReferralsList';
-import PayoutHistory from '@/components/affiliate/PayoutHistory';
-import LockScreen from '@/components/LockScreen';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Label } from "@/components/ui/label";
+import { Users, Star, DollarSign, TrendingUp } from "lucide-react";
+import { toast } from 'sonner';
 
-// Combined Affiliate Page
-
-import PropTypes from 'prop-types';
-
-// BecomeAffiliateTab Component
-const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
-  const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const Affiliate: React.FC = () => {
+  const { user, isSubscriber } = useAuth();
   const [formData, setFormData] = useState({
+    full_name: '',
+    email: user?.email || '',
     phone: '',
     social_media_url: '',
     reason_to_join: '',
     usdt_wallet_address: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      toast.error('Please log in to apply');
-      return;
-    }
-    if (!formData.phone || !formData.reason_to_join || !formData.usdt_wallet_address) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+    if (!user) return;
+
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.functions.invoke('submit-affiliate-application', {
-        body: {
-          full_name: user.user_metadata?.full_name || user.email,
-          email: user.email,
-          phone: formData.phone,
-          social_media_url: formData.social_media_url,
-          reason_to_join: formData.reason_to_join,
-          usdt_wallet_address: formData.usdt_wallet_address
-        }
-      });
+      const { error } = await supabase
+        .from('affiliate_applications')
+        .insert({
+          user_id: user.id,
+          ...formData
+        });
+
       if (error) throw error;
-      onApplicationSubmitted();
-    } catch (error) {
+
+      toast.success('Affiliate application submitted successfully! We will review your application and get back to you soon.');
+      
+      // Reset form
+      setFormData({
+        full_name: '',
+        email: user?.email || '',
+        phone: '',
+        social_media_url: '',
+        reason_to_join: '',
+        usdt_wallet_address: ''
+      });
+    } catch (error: any) {
       console.error('Error submitting application:', error);
-      toast.error('Failed to submit application. Please try again.');
+      toast.error(error.message || 'Failed to submit application. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (applicationStatus === 'pending') {
+  if (!user) {
     return (
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Application Pending</CardTitle>
-          <CardDescription>Your affiliate application is currently under review. We'll notify you once a decision has been made.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Patience is a virtue!</AlertTitle>
-            <AlertDescription>
-              Our team is carefully reviewing your application. This process usually takes 24-48 hours. Thank you for your interest!
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please log in to apply for the affiliate program.</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  if (applicationStatus === 'approved') {
+  if (!isSubscriber()) {
     return (
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>You are an Approved Affiliate!</CardTitle>
-          <CardDescription>Welcome to the affiliate program. You can now access your dashboard.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="success">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Congratulations!</AlertTitle>
-            <AlertDescription>
-              You are an approved affiliate. Head over to the dashboard to get your referral links and start earning.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (applicationStatus === 'rejected') {
-    return (
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Application Status</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Application Rejected</AlertTitle>
-            <AlertDescription>
-              We regret to inform you that your affiliate application was not approved at this time. For more details, please contact our support team.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <div className="container mx-auto px-4 py-8">
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Subscription Required</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>You need to be a subscriber to apply for the affiliate program. Please subscribe first.</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <div className="py-8">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-2">Become an Affiliate</h1>
-        <p className="text-xl text-muted-foreground">Join our program and earn by referring new users.</p>
+        <h1 className="text-4xl font-bold mb-4">Become an Affiliate</h1>
+        <p className="text-lg text-gray-600">
+          Join our affiliate program and earn money by referring new users to our platform
+        </p>
       </div>
-      <div className="grid gap-8 md:grid-cols-3 mb-8">
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-4">
-              <DollarSign className="h-12 w-12 text-violet-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Earn 30% Commission</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Get 30% commission on every subscription from your referrals
-            </p>
+
+      {/* Benefits Section */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <DollarSign className="h-8 w-8 text-green-500 mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">Earn $0.10</h3>
+            <p className="text-sm text-gray-600">For each active free user you refer</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-4">
-              <Users className="h-12 w-12 text-violet-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Growing Community</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Join our rapidly expanding community of music creators
-            </p>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <TrendingUp className="h-8 w-8 text-blue-500 mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">10% Commission</h3>
+            <p className="text-sm text-gray-600">From subscription payments of referred users</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center mb-4">
-              <Star className="h-12 w-12 text-violet-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Premium Support</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Get dedicated support and marketing materials
-            </p>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Users className="h-8 w-8 text-purple-500 mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">Track Referrals</h3>
+            <p className="text-sm text-gray-600">Monitor your referral performance in real-time</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Star className="h-8 w-8 text-yellow-500 mx-auto mb-3" />
+            <h3 className="font-semibold mb-2">Easy Payouts</h3>
+            <p className="text-sm text-gray-600">Withdraw earnings to your USDT wallet</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Application Form */}
       <Card>
         <CardHeader>
           <CardTitle>Affiliate Application</CardTitle>
-          <CardDescription>Fill out this form to apply.</CardDescription>
+          <CardDescription>
+            Fill out the form below to apply for our affiliate program
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="full_name" className="text-white">Full Name</Label>
+                <Label htmlFor="full_name">Full Name *</Label>
                 <Input
                   id="full_name"
-                  value={user?.user_metadata?.full_name || user?.email || ''}
-                  readOnly
-                  className="bg-gray-800 border-gray-700 text-gray-400"
+                  name="full_name"
+                  type="text"
+                  required
+                  value={formData.full_name}
+                  onChange={handleInputChange}
+                  placeholder="Enter your full name"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-white">Email Address</Label>
+                <Label htmlFor="email">Email Address *</Label>
                 <Input
                   id="email"
-                  value={user?.email || ''}
-                  readOnly
-                  className="bg-gray-800 border-gray-700 text-gray-400"
+                  name="email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Enter your email address"
+                  disabled
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-white">
-                  Phone Number <span className="text-red-500">*</span>
-                </Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
+                  name="phone"
                   type="tel"
-                  placeholder="+1 (555) 123-4567"
+                  required
                   value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="bg-gray-800 border-gray-700 text-white"
+                  onChange={handleInputChange}
+                  placeholder="Enter your phone number"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="social_media_url" className="text-white">Social Media Profile URL</Label>
+                <Label htmlFor="social_media_url">Social Media Profile *</Label>
                 <Input
                   id="social_media_url"
+                  name="social_media_url"
                   type="url"
-                  placeholder="https://twitter.com/yourusername"
+                  required
                   value={formData.social_media_url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, social_media_url: e.target.value }))}
-                  className="bg-gray-800 border-gray-700 text-white"
+                  onChange={handleInputChange}
+                  placeholder="https://instagram.com/yourprofile"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="usdt_wallet_address" className="text-white">
-                USDT Wallet Address <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="usdt_wallet_address">USDT Wallet Address (TRC20) *</Label>
               <Input
                 id="usdt_wallet_address"
-                placeholder="Your USDT wallet address for payments"
+                name="usdt_wallet_address"
+                type="text"
+                required
                 value={formData.usdt_wallet_address}
-                onChange={(e) => setFormData(prev => ({ ...prev, usdt_wallet_address: e.target.value }))}
-                className="bg-gray-800 border-gray-700 text-white"
+                onChange={handleInputChange}
+                placeholder="Enter your USDT wallet address"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason_to_join" className="text-white">
-                Why do you want to join our affiliate program? <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="reason_to_join">Why do you want to join our affiliate program? *</Label>
               <Textarea
                 id="reason_to_join"
-                placeholder="Tell us about your motivation, experience, and how you plan to promote our platform..."
+                name="reason_to_join"
+                required
                 value={formData.reason_to_join}
-                onChange={(e) => setFormData(prev => ({ ...prev, reason_to_join: e.target.value }))}
-                className="bg-gray-800 border-gray-700 text-white min-h-[120px]"
+                onChange={handleInputChange}
+                placeholder="Tell us why you'd like to become an affiliate..."
+                rows={4}
               />
             </div>
 
             <Button
               type="submit"
+              className="w-full"
               disabled={isSubmitting}
-              className="w-full bg-violet-600 hover:bg-violet-700 text-white"
-              size="lg"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting Application...
-                </>
-              ) : (
-                'Submit Application'
-              )}
+              {isSubmitting ? 'Submitting Application...' : 'Submit Application'}
             </Button>
           </form>
         </CardContent>
@@ -270,173 +242,4 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
   );
 };
 
-BecomeAffiliateTab.propTypes = {
-  onApplicationSubmitted: PropTypes.func.isRequired,
-  applicationStatus: PropTypes.string,
-};
-
-
-// AffiliateDashboardTab Component
-const AffiliateDashboardTab = () => {
-  const { user, isSubscriber, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState({ totalReferrals: 0, totalEarnings: 0, conversionRate: 0, clicksCount: 0 });
-  const [loading, setLoading] = useState(true);
-
-  const fetchAffiliateStats = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const { data, error } = await supabase.functions.invoke('get-my-affiliate-stats');
-      if (error) throw error;
-      setStats(data);
-    } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
-      toast.error('Failed to fetch affiliate stats.');
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchAffiliateStats().finally(() => setLoading(false));
-  }, [fetchAffiliateStats]);
-
-  if (authLoading || loading) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin" /></div>;
-  }
-  if (!user) {
-    return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent><p>Please log in.</p></CardContent></Card>;
-  }
-  if (!isSubscriber()) {
-    return <LockScreen message="Please subscribe to access the affiliate dashboard." buttonText="Subscribe" />;
-  }
-
-  return (
-    <div className="py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Affiliate Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user?.user_metadata?.full_name || 'Affiliate'}!</p>
-        </div>
-      </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalReferrals}</div>
-            <p className="text-xs text-muted-foreground">People you've referred</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.totalEarnings.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Total commission earned</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.conversionRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">Clicks to referrals</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
-            <ExternalLink className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.clicksCount}</div>
-            <p className="text-xs text-muted-foreground">Link clicks received</p>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="space-y-8">
-        <AffiliateWallet affiliateId={user.id} />
-        <AffiliateLinks affiliateId={user.id} />
-        <EarningsBreakdown affiliateId={user.id} />
-        <ReferralsList affiliateId={user.id} />
-        <PayoutHistory affiliateId={user.id} />
-      </div>
-    </div>
-  );
-};
-
-
-// Main AffiliatePage Component
-const AffiliatePage = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [isApprovedAffiliate, setIsApprovedAffiliate] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('become-affiliate');
-
-  const checkAffiliateStatus = useCallback(async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-application-status');
-      if (error) throw error;
-
-      setApplicationStatus(data.status);
-      if (data.status === 'approved') {
-        setIsApprovedAffiliate(true);
-        setActiveTab('dashboard');
-      } else {
-        setIsApprovedAffiliate(false);
-        setActiveTab('become-affiliate');
-      }
-    } catch (err) {
-      console.error('Error checking affiliate status:', err);
-      toast.error('Failed to check affiliate status.');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!authLoading) {
-      checkAffiliateStatus();
-    }
-  }, [authLoading, checkAffiliateStatus]);
-
-  const handleApplicationSubmitted = () => {
-    checkAffiliateStatus();
-  };
-
-  if (loading || authLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /></div>;
-  }
-
-  return (
-    <div className="container mx-auto py-8 px-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="become-affiliate">Become an Affiliate</TabsTrigger>
-          <TabsTrigger value="dashboard" disabled={!isApprovedAffiliate}>Affiliate Dashboard</TabsTrigger>
-        </TabsList>
-        <TabsContent value="become-affiliate">
-          <BecomeAffiliateTab onApplicationSubmitted={handleApplicationSubmitted} applicationStatus={applicationStatus} />
-        </TabsContent>
-        <TabsContent value="dashboard">
-          {isApprovedAffiliate ? <AffiliateDashboardTab /> : <div className="text-center py-12">...</div>}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-export default AffiliatePage;
+export default Affiliate;

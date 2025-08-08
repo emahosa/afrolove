@@ -1,108 +1,98 @@
-import React, { useEffect } from 'react';
-import { Toaster } from "sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { PaymentVerificationProvider } from "@/components/payment/PaymentVerificationProvider";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { Navbar } from '@/components/Navbar';
+import { MobileNav } from '@/components/MobileNav';
+import { Home } from '@/pages/Home';
+import { Pricing } from '@/pages/Pricing';
+import { Contact } from '@/pages/Contact';
+import { Login } from '@/pages/Login';
+import { Register } from '@/pages/Register';
+import { Profile } from '@/pages/Profile';
+import { Admin } from '@/pages/Admin';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { AdminRoute } from '@/components/AdminRoute';
+import { Toaster } from "@/components/ui/toaster"
+import { Subscribe } from '@/pages/Subscribe';
+import { Terms } from '@/pages/Terms';
+import { Privacy } from '@/pages/Privacy';
+import { Faq } from '@/pages/Faq';
+import { Blog } from '@/pages/Blog';
+import { BlogArticle } from '@/pages/BlogArticle';
+import { Community } from '@/pages/Community';
+import { CommunityArticle } from '@/pages/CommunityArticle';
+import { SubmitArticle } from '@/pages/SubmitArticle';
+import { SubmitCommunityArticle } from '@/pages/SubmitCommunityArticle';
+import { Dashboard } from '@/pages/Dashboard';
+import { Upgrade } from '@/pages/Upgrade';
+import { NotFound } from '@/pages/NotFound';
+import { Unauthorized } from '@/pages/Unauthorized';
+import Affiliate from '@/pages/Affiliate';
+import AffiliateDashboard from '@/pages/AffiliateDashboard';
+import SubscriptionUpgrade from '@/components/SubscriptionUpgrade';
 
-// Pages
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import AdminRegister from "./pages/AdminRegister";
-import AdminLoginPage from "./pages/AdminLogin";
-import Dashboard from "./pages/Dashboard";
-import Create from "./pages/Create";
-import Library from "./pages/Library";
-import Contest from "./pages/Contest";
-import Profile from "./pages/Profile";
-import Credits from "./pages/Credits";
-import Support from "./pages/Support";
-import Admin from "./pages/Admin";
-import CustomSongManagement from "./pages/CustomSongManagement";
-import UserCustomSongs from "./pages/UserCustomSongs";
-import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
-import AffiliatePage from "./pages/Affiliate";
-import SubscribePage from "./pages/SubscribePage";
-
-// Layouts
-import AppLayout from "./layouts/AppLayout";
-import AuthLayout from "./layouts/AuthLayout";
-import AdminLayout from "./layouts/AdminLayout";
-
-// Protected Routes
-import ProtectedRoute from "./components/ProtectedRoute";
-
-import { ensureStorageBuckets } from './utils/storageSetup';
-
-const App = () => {
-  useEffect(() => {
-    ensureStorageBuckets();
-  }, []);
-  
+function App() {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <PaymentVerificationProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                
-                <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/register/admin" element={<AdminRegister />} />
-                </Route>
-                
-                <Route path="/admin/login" element={<AdminLoginPage />} />
-                
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/create" element={<Create />} />
-                    <Route path="/library" element={<Library />} />
-                    <Route path="/contest" element={<Contest />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/credits" element={<Credits />} />
-                    <Route path="/support" element={<Support />} />
-                    <Route path="/my-custom-songs" element={<UserCustomSongs />} />
-                    <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
-                    <Route path="/affiliate" element={<AffiliatePage />} />
-                    <Route path="/subscribe" element={<SubscribePage />} />
-                  </Route>
-                </Route>
-
-                <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
-                  <Route element={<AdminLayout />}>
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin/overview" element={<Admin tab="overview" />} />
-                    <Route path="/admin/users" element={<Admin tab="users" />} />
-                    <Route path="/admin/admins" element={<Admin tab="admins" />} />
-                    <Route path="/admin/genres" element={<Admin tab="genres" />} />
-                    <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
-                    <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
-                    <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
-                    <Route path="/admin/contest" element={<Admin tab="contest" />} />
-                    <Route path="/admin/content" element={<Admin tab="content" />} />
-                    <Route path="/admin/payments" element={<Admin tab="payments" />} />
-                    <Route path="/admin/support" element={<Admin tab="support" />} />
-                    <Route path="/admin/reports" element={<Admin tab="reports" />} />
-                    <Route path="/admin/settings" element={<Admin tab="settings" />} />
-                  </Route>
-                </Route>
-                
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </TooltipProvider>
-          </PaymentVerificationProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <Router>
+      <AuthProvider>
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <main className="pb-16 md:pb-0">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/subscribe" element={<Subscribe />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/faq" element={<Faq />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogArticle />} />
+              <Route path="/community" element={<Community />} />
+              <Route path="/community/:id" element={<CommunityArticle />} />
+              <Route path="/submit-article" element={<ProtectedRoute><SubmitArticle /></ProtectedRoute>} />
+              <Route path="/submit-community-article" element={<ProtectedRoute><SubmitCommunityArticle /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/upgrade" element={<ProtectedRoute><Upgrade /></ProtectedRoute>} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route path="/affiliate" element={<ProtectedRoute><Affiliate /></ProtectedRoute>} />
+              <Route path="/affiliate-dashboard" element={<ProtectedRoute><AffiliateDashboard /></ProtectedRoute>} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <Admin />
+                  </AdminRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+              
+              <Route
+                path="/subscription-upgrade"
+                element={
+                  <ProtectedRoute>
+                    <SubscriptionUpgrade />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </main>
+          <MobileNav />
+        </div>
+        <Toaster />
+      </AuthProvider>
+    </Router>
   );
-};
+}
 
 export default App;
