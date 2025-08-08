@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
 import { useGenres } from "@/hooks/use-genres";
@@ -11,24 +11,35 @@ import { ChevronsUpDown } from "lucide-react";
 
 const Create = () => {
   const [searchParams] = useSearchParams();
+  const { state } = useLocation();
   const { genres } = useGenres();
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
+  const [adminPrompt, setAdminPrompt] = useState<string>("");
+  const [templateName, setTemplateName] = useState<string>("");
   const [isFormOpen, setIsFormOpen] = useState(true);
 
   useEffect(() => {
-    // Check for pre-selected genre from URL params
-    const genreId = searchParams.get('genre');
-    const promptParam = searchParams.get('prompt');
+    // Check for data passed via navigation state first
+    if (state) {
+      setSelectedGenre(state.selectedGenre || "");
+      setInitialPrompt(state.initialPrompt || "");
+      setAdminPrompt(state.adminPrompt || "");
+      setTemplateName(state.templateName || "");
+    } else {
+      // Fallback to URL params
+      const genreId = searchParams.get('genre');
+      const promptParam = searchParams.get('prompt');
 
-    if (genreId) {
-      setSelectedGenre(genreId);
-    }
+      if (genreId) {
+        setSelectedGenre(genreId);
+      }
 
-    if (promptParam) {
-      setInitialPrompt(promptParam);
+      if (promptParam) {
+        setInitialPrompt(promptParam);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, state]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -36,7 +47,7 @@ const Create = () => {
         <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen} className="w-full">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div className="text-left">
-              <h2 className="text-xl font-bold">Create a New Song</h2>
+              <h2 className="text-xl font-bold">{templateName ? `New Song from Template: ${templateName}` : 'Create a New Song'}</h2>
               <p className="text-muted-foreground text-sm">
                 Use AI to generate music in any style
               </p>
@@ -55,6 +66,7 @@ const Create = () => {
                 <MusicGenerationWorkflow
                   preSelectedGenre={selectedGenre}
                   initialPrompt={initialPrompt}
+                  adminPrompt={adminPrompt}
                 />
               </CardContent>
             </Card>

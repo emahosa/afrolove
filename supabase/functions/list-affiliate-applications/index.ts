@@ -70,12 +70,10 @@ serve(async (req) => {
 
 
     // 2. Logic: Fetch affiliate applications with pagination and filtering
-    const url = new URL(req.url)
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const pageSize = parseInt(url.searchParams.get('pageSize') || '10', 10)
-    const statusFilter = url.searchParams.get('status')
+    const { status, page = 1, pageSize = 10 } = await req.json();
+    const statusFilter = status;
 
-    const offset = (page - 1) * pageSize
+    const offset = (page - 1) * pageSize;
 
     let query = supabaseAdmin.from('affiliate_applications').select('*', { count: 'exact' })
 

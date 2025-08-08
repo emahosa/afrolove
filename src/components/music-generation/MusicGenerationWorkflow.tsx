@@ -19,9 +19,10 @@ type CreationMode = 'prompt' | 'lyrics';
 interface MusicGenerationWorkflowProps {
   preSelectedGenre?: string;
   initialPrompt?: string;
+  adminPrompt?: string;
 }
 
-export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: MusicGenerationWorkflowProps) => {
+export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, adminPrompt: templateAdminPrompt }: MusicGenerationWorkflowProps) => {
   const [creationMode, setCreationMode] = useState<CreationMode>("prompt");
   const [prompt, setPrompt] = useState(initialPrompt || "");
   const [title, setTitle] = useState("");
@@ -86,7 +87,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt }: Mus
       return;
     }
 
-    const adminPrompt = selectedGenre.prompt_template || selectedGenre.description || "";
+    const adminPrompt = templateAdminPrompt || selectedGenre.prompt_template || selectedGenre.description || "";
     const apiModelName = getApiModelName(selectedModel) as 'V3_5' | 'V4' | 'V4_5';
     let request: SunoGenerationRequest;
 

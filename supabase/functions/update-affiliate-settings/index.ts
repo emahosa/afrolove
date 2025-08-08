@@ -60,23 +60,13 @@ serve(async (req) => {
       const { key, value } = setting;
       console.log(`Upserting setting: ${key} to ${value}`);
       
-      // Convert value to proper JSON format for storage
-      let jsonValue;
-      if (typeof value === 'string' && (value === 'true' || value === 'false')) {
-        jsonValue = value === 'true';
-      } else if (!isNaN(Number(value))) {
-        jsonValue = Number(value);
-      } else {
-        jsonValue = value;
-      }
-      
       // Use upsert to handle both insert and update cases
       const { data, error } = await supabaseAdmin
         .from('system_settings')
         .upsert(
           {
             key: key,
-            value: jsonValue,
+            value: value,
             category: 'affiliate',
             description: `Affiliate program setting: ${key}`,
             updated_by: user.id
