@@ -25,8 +25,15 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
       const { data, error } = await supabase
         .from('affiliate_earnings')
         .select(`
-          *,
-          profiles:referred_user_id (
+          id,
+          affiliate_user_id,
+          referred_user_id,
+          earning_type,
+          amount,
+          status,
+          created_at,
+          processed_at,
+          profiles!referred_user_id (
             full_name,
             username
           )
@@ -42,10 +49,17 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
       if (data) {
         const earningsData: AffiliateEarning[] = data.map(item => ({
-          ...item,
+          id: item.id,
+          affiliate_user_id: item.affiliate_user_id,
+          referred_user_id: item.referred_user_id,
+          earning_type: item.earning_type as 'free_referral' | 'subscription_commission',
+          amount: Number(item.amount),
+          status: item.status,
+          created_at: item.created_at,
+          processed_at: item.processed_at,
           profile: {
-            full_name: item.profiles?.full_name || null,
-            username: item.profiles?.username || null
+            full_name: Array.isArray(item.profiles) ? item.profiles[0]?.full_name : item.profiles?.full_name,
+            username: Array.isArray(item.profiles) ? item.profiles[0]?.username : item.profiles?.username
           }
         }));
         
@@ -58,11 +72,11 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
         setSummary({
           free_referrals: {
             count: freeReferrals.length,
-            total: freeReferrals.reduce((sum, e) => sum + Number(e.amount), 0)
+            total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
           },
           commissions: {
             count: commissions.length,
-            total: commissions.reduce((sum, e) => sum + Number(e.amount), 0)
+            total: commissions.reduce((sum, e) => sum + e.amount, 0)
           }
         });
       }
@@ -149,7 +163,7 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${Number(earning.amount).toFixed(2)}
+                      ${earning.amount.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>
