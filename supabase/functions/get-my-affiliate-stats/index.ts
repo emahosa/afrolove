@@ -23,8 +23,10 @@ serve(async (req) => {
     }
 
     // Get total referrals
-    const { data: referralsCount, error: referralsError } = await supabaseClient
-      .rpc('get_affiliate_referrals_count', { user_id_param: user.id })
+    const { count: referralsCount, error: referralsError } = await supabaseClient
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('referrer_id', user.id);
 
     if (referralsError) {
       console.error('Error fetching referrals count:', referralsError);
@@ -33,18 +35,22 @@ serve(async (req) => {
     console.log('Referrals count:', referralsCount);
 
     // Get total earnings
-    const { data: totalEarnings, error: earningsError } = await supabaseClient
-      .rpc('get_total_affiliate_earnings', { user_id_param: user.id })
+    const { data: earnings, error: earningsError } = await supabaseClient
+      .from('affiliate_earnings')
+      .select('amount')
+      .eq('affiliate_user_id', user.id);
 
     if (earningsError) {
       console.error('Error fetching earnings:', earningsError);
       throw earningsError;
     }
-    console.log('Earnings:', totalEarnings);
+    console.log('Earnings:', earnings);
 
     // Get click stats
     const { data: links, error: linksError } = await supabaseClient
-      .rpc('get_affiliate_links', { user_id: user.id })
+      .from('affiliate_links')
+      .select('clicks_count')
+      .eq('affiliate_user_id', user.id);
 
     if (linksError) {
       console.error('Error fetching links:', linksError);
@@ -52,6 +58,7 @@ serve(async (req) => {
     }
     console.log('Links:', links);
 
+    const totalEarnings = earnings?.reduce((sum, earning) => sum + Number(earning.amount), 0) || 0;
     const totalClicks = links?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
     const conversionRate = totalClicks > 0 ? ((referralsCount || 0) / totalClicks) * 100 : 0;
 
