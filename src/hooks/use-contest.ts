@@ -477,36 +477,33 @@ export const useContest = () => {
     }
   };
 
-  // Vote for an entry
+  // Vote for an entry - ONLY votes table
   const voteForEntry = async (entryId: string, voterPhone?: string) => {
     try {
-      // First, log the vote
-      const { error: voteError } = await supabase
-        .from('votes')
-        .insert({
-          contest_entry_id: entryId,
-          voter_phone: voterPhone || 'anonymous'
-        });
+      console.log('🔄 use-contest: voteForEntry() - ONLY votes table');
+      console.log('Submitting vote for entry:', entryId);
+      
+      const voteData: any = {
+        contest_entry_id: entryId,
+        voter_phone: voterPhone || 'anonymous'
+      };
 
-      if (voteError) {
-        if (voteError.code === '23505') { // Unique constraint violation
+      console.log('🔍 About to insert into supabase.from("votes")');
+
+      const { error } = await supabase
+        .from('votes')
+        .insert(voteData);
+
+      console.log('✅ Successfully inserted into votes table');
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
           toast.error('You have already voted for this entry');
         } else {
-          throw voteError;
+          console.error('Vote error:', error);
+          throw error;
         }
         return false;
-      }
-
-      // Then, increment the vote count
-      const { error: rpcError } = await supabase.rpc('increment_vote_count', {
-        entry_id: entryId,
-      });
-
-      if (rpcError) {
-        // If the RPC fails, we should ideally roll back the vote insertion.
-        // For now, we'll just log the error and notify the user.
-        console.error('Error incrementing vote count:', rpcError);
-        toast.error('Failed to update vote count.');
       }
 
       toast.success('Vote submitted successfully!');
