@@ -20,6 +20,7 @@ serve(async (req) => {
   );
 
   try {
+    console.log("--- create-payment function started ---");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
@@ -32,6 +33,7 @@ serve(async (req) => {
     if (!user?.email) {
       throw new Error("User not authenticated");
     }
+    console.log(`Authenticated user: ${user.id}`);
 
     console.log('🔍 Checking Stripe settings...');
 
@@ -50,7 +52,7 @@ serve(async (req) => {
 
     let isStripeEnabled = true; // Default to enabled for safety
     
-    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object' && stripeSettings.value !== null) {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
       console.log('🔍 Stripe setting found:', settingValue);
@@ -60,14 +62,15 @@ serve(async (req) => {
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
-    const { amount, credits, description } = await req.json();
+    const { type, packId, amount, credits, description } = await req.json();
+    console.log(`Request body: type=${type}, packId=${packId}, amount=${amount}, credits=${credits}`);
 
     // If Stripe is disabled, process payment automatically
     if (!isStripeEnabled) {
       console.log('💳 Stripe disabled - processing automatic payment');
       
       // Automatically add credits without payment
-      const { data: newBalance, error: creditError } = await supabaseService.rpc('update_user_credits', {
+      const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
         p_user_id: user.id,
         p_amount: credits
       });
@@ -159,7 +162,11 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("!!! TOP-LEVEL CATCH BLOCK !!!");
     console.error("Payment creation error:", error);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
