@@ -32,7 +32,7 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
     try {
       const { data, error: dbError } = await supabase
         .from('affiliate_payout_requests')
-        .select('*')
+        .select('id, requested_amount, status, requested_at, processed_at, admin_notes')
         .eq('affiliate_user_id', affiliateId)
         .order('requested_at', { ascending: false });
 
