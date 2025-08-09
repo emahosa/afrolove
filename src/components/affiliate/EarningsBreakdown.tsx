@@ -1,118 +1,32 @@
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { AffiliateEarning } from '@/types/affiliate';
 
 interface EarningsBreakdownProps {
-  affiliateId: string;
+  earnings: AffiliateEarning[];
 }
 
-const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) => {
-  const [earnings, setEarnings] = useState<AffiliateEarning[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    free_referrals: { count: 0, total: 0 },
-    commissions: { count: 0, total: 0 }
-  });
+const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ earnings = [] }) => {
+  const summary = useMemo(() => {
+    const freeReferrals = earnings.filter(e => e.earning_type === 'free_referral');
+    const commissions = earnings.filter(e => e.earning_type === 'subscription_commission');
 
-  const fetchEarnings = async () => {
-    try {
-      // First fetch earnings
-      const { data: earningsData, error: earningsError } = await supabase
-        .from('affiliate_earnings')
-        .select(`
-          id,
-          affiliate_user_id,
-          referred_user_id,
-          earning_type,
-          amount,
-          status,
-          created_at,
-          processed_at
-        `)
-        .eq('affiliate_user_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (earningsError) {
-        console.error('Error fetching earnings:', earningsError);
-        return;
+    return {
+      free_referrals: {
+        count: freeReferrals.length,
+        total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
+      },
+      commissions: {
+        count: commissions.length,
+        total: commissions.reduce((sum, e) => sum + e.amount, 0)
       }
-
-      if (earningsData) {
-        // Fetch profile data separately for each referred user
-        const earningsWithProfiles = await Promise.all(
-          earningsData.map(async (earning) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, username')
-              .eq('id', earning.referred_user_id)
-              .single();
-
-            return {
-              id: earning.id,
-              affiliate_user_id: earning.affiliate_user_id,
-              referred_user_id: earning.referred_user_id,
-              earning_type: earning.earning_type as 'free_referral' | 'subscription_commission',
-              amount: Number(earning.amount),
-              status: earning.status,
-              created_at: earning.created_at,
-              processed_at: earning.processed_at,
-              profile: {
-                full_name: profile?.full_name || null,
-                username: profile?.username || null
-              }
-            };
-          })
-        );
-        
-        setEarnings(earningsWithProfiles);
-
-        // Calculate summary
-        const freeReferrals = earningsWithProfiles.filter(e => e.earning_type === 'free_referral');
-        const commissions = earningsWithProfiles.filter(e => e.earning_type === 'subscription_commission');
-
-        setSummary({
-          free_referrals: {
-            count: freeReferrals.length,
-            total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
-          },
-          commissions: {
-            count: commissions.length,
-            total: commissions.reduce((sum, e) => sum + e.amount, 0)
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching earnings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (affiliateId) {
-      fetchEarnings();
-    }
-  }, [affiliateId]);
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5" /> Earnings Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
-      </Card>
-    );
-  }
+    };
+  }, [earnings]);
 
   return (
     <Card>
