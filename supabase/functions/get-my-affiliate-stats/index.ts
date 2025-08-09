@@ -30,34 +30,24 @@ serve(async (req) => {
       console.error('Error fetching referrals count:', referralsError);
       throw referralsError;
     }
-    console.log('Referrals count:', referralsCount);
 
-    // Get total earnings
+    // Get total earnings by calling the new, correct RPC
     const { data: totalEarnings, error: earningsError } = await supabaseClient
-      .rpc('get_total_affiliate_earnings', { user_id_param: user.id })
+      .rpc('get_total_affiliate_commissions', { user_id_param: user.id })
 
     if (earningsError) {
-      console.error('Error fetching earnings:', earningsError);
+      console.error('Error fetching total commissions:', earningsError);
       throw earningsError;
     }
-    console.log('Earnings:', totalEarnings);
 
-    // Get click stats
-    const { data: links, error: linksError } = await supabaseClient
-      .rpc('get_affiliate_links', { user_id: user.id })
-
-    if (linksError) {
-      console.error('Error fetching links:', linksError);
-      throw linksError;
-    }
-    console.log('Links:', links);
-
-    const totalClicks = links?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
-    const conversionRate = totalClicks > 0 ? ((referralsCount || 0) / totalClicks) * 100 : 0;
+    // Clicks and conversion rate are currently placeholders.
+    // Click tracking will be implemented in the next step.
+    const totalClicks = 0;
+    const conversionRate = 0;
 
     const stats = {
       totalReferrals: referralsCount || 0,
-      totalEarnings,
+      totalEarnings: totalEarnings || 0,
       conversionRate,
       clicksCount: totalClicks,
     };

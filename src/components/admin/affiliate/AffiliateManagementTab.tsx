@@ -31,21 +31,18 @@ const AffiliateManagementTab: React.FC = () => {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('affiliate_applications')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
 
       if (error) {
         console.error('Error fetching affiliate applications:', error);
-        toast.error('Failed to fetch affiliate applications');
+        toast.error(error.message || 'Failed to fetch affiliate applications');
         return;
       }
 
       setApplications((data as AffiliateApplication[]) || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error in fetchApplications:', err);
-      toast.error('Failed to load affiliate applications');
+      toast.error(err.message || 'Failed to load affiliate applications');
     } finally {
       setLoading(false);
     }

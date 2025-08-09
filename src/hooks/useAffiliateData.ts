@@ -1,15 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { AffiliateLink, AffiliateWallet, AffiliateEarning } from '@/types/affiliate';
+import { AffiliateLink, AffiliateWallet, AffiliateEarning, AffiliateStats } from '@/types/affiliate';
 import { toast } from 'sonner';
-
-interface AffiliateStats {
-  totalReferrals: number;
-  totalEarnings: number;
-  conversionRate: number;
-  clicksCount: number;
-}
 
 export const useAffiliateData = () => {
   const { user } = useAuth();
@@ -35,25 +28,32 @@ export const useAffiliateData = () => {
     setError(null);
 
     try {
-      // Fetch links, wallet, and earnings in parallel
-      const [linksRes, walletRes, earningsRes, statsRes] = await Promise.all([
+      // Fetch stats, links, wallet, and earnings in parallel
+      const [statsRes, linksRes, walletRes, earningsRes] = await Promise.all([
+        supabase.functions.invoke('get-my-affiliate-stats'),
         supabase.functions.invoke('get-affiliate-data', { body: { type: 'links', userId: user.id } }),
         supabase.functions.invoke('get-affiliate-data', { body: { type: 'wallet', userId: user.id } }),
         supabase.functions.invoke('get-affiliate-data', { body: { type: 'earnings', userId: user.id } }),
-        supabase.functions.invoke('get-my-affiliate-stats')
       ]);
 
+      if (statsRes.error) throw new Error('Failed to fetch affiliate stats.');
+      // The stats from get-my-affiliate-stats is the primary source of truth for the top cards
+      const fetchedStats = statsRes.data || { totalReferrals: 0, totalEarnings: 0, conversionRate: 0, clicksCount: 0 };
+      setStats(fetchedStats);
+
       if (linksRes.error) throw new Error('Failed to fetch affiliate links.');
-      setLinks(linksRes.data.links || []);
+      // The link object needs the click count from the stats response
+      const fetchedLinks = linksRes.data.links || [];
+      if (fetchedLinks.length > 0) {
+        fetchedLinks[0].clicks_count = fetchedStats.clicksCount;
+      }
+      setLinks(fetchedLinks);
 
       if (walletRes.error) throw new Error('Failed to fetch affiliate wallet.');
       setWallet(walletRes.data.wallet || null);
 
       if (earningsRes.error) throw new Error('Failed to fetch affiliate earnings.');
       setEarnings(earningsRes.data.earnings || []);
-
-      if (statsRes.error) throw new Error('Failed to fetch affiliate stats.');
-      setStats(statsRes.data || { totalReferrals: 0, totalEarnings: 0, conversionRate: 0, clicksCount: 0 });
 
     } catch (err: any) {
       const errorMessage = err.message || 'An unknown error occurred.';
@@ -66,8 +66,10 @@ export const useAffiliateData = () => {
   }, [user]);
 
   useEffect(() => {
-    fetchAffiliateData();
-  }, [fetchAffiliateData]);
+    if (user?.id) {
+      fetchAffiliateData();
+    }
+  }, [user, fetchAffiliateData]);
 
   return {
     links,

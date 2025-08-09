@@ -44,10 +44,9 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
 
     setIsWithdrawing(true);
     try {
-      const { error } = await supabase.functions.invoke('request-affiliate-withdrawal', {
+      const { error } = await supabase.functions.invoke('request-affiliate-payout', {
         body: {
-          requested_amount: amount,
-          usdt_wallet_address: usdtAddress
+          requested_amount: amount
         }
       });
 
@@ -79,9 +78,9 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
     );
   }
 
-  const balance = Number(wallet?.balance) || 0;
-  const totalEarned = Number(wallet?.total_earned) || 0;
-  const totalWithdrawn = Number(wallet?.total_withdrawn) || 0;
+  const balance = Number(wallet?.pending_balance) || 0;
+  const totalEarned = Number(wallet?.lifetime_earnings) || 0;
+  const totalWithdrawn = Number(wallet?.paid_balance) || 0;
 
   return (
     <div className="space-y-6">
