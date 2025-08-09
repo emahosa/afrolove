@@ -18,6 +18,7 @@ import ReferralsList from '@/components/affiliate/ReferralsList';
 import PayoutHistory from '@/components/affiliate/PayoutHistory';
 import LockScreen from '@/components/LockScreen';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAffiliateData } from '@/hooks/useAffiliateData';
 
 // Combined Affiliate Page
 
@@ -279,47 +280,7 @@ BecomeAffiliateTab.propTypes = {
 // AffiliateDashboardTab Component
 const AffiliateDashboardTab = () => {
   const { user, isSubscriber, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState({ totalReferrals: 0, totalEarnings: 0, conversionRate: 0, clicksCount: 0 });
-  const [loading, setLoading] = useState(true);
-
-  const fetchAffiliateStats = useCallback(async () => {
-    if (!user?.id) return;
-    
-    try {
-      // Fetch referral count
-      const { data: referralsData } = await supabase
-        .rpc('get_affiliate_referrals_count', { user_id_param: user.id });
-      
-      // Fetch total earnings
-      const { data: earningsData } = await supabase
-        .rpc('get_total_affiliate_earnings', { user_id_param: user.id });
-      
-      // Fetch link clicks
-      const { data: linksData } = await supabase
-        .from('affiliate_links')
-        .select('clicks_count')
-        .eq('affiliate_user_id', user.id);
-      
-      const totalClicks = linksData?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
-      const totalReferrals = referralsData || 0;
-      const totalEarnings = Number(earningsData) || 0;
-      const conversionRate = totalClicks > 0 ? (totalReferrals / totalClicks) * 100 : 0;
-
-      setStats({
-        totalReferrals,
-        totalEarnings,
-        conversionRate,
-        clicksCount: totalClicks
-      });
-    } catch (error) {
-      console.error('Error fetching affiliate stats:', error);
-      toast.error('Failed to fetch affiliate stats.');
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchAffiliateStats().finally(() => setLoading(false));
-  }, [fetchAffiliateStats]);
+  const { stats, links, wallet, earnings, loading, refresh } = useAffiliateData();
 
   if (authLoading || loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin" /></div>;
@@ -340,6 +301,7 @@ const AffiliateDashboardTab = () => {
           <h1 className="text-3xl font-bold">Affiliate Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {user?.user_metadata?.full_name || 'Affiliate'}!</p>
         </div>
+        <Button onClick={refresh} variant="outline">Refresh Data</Button>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
         <Card>
@@ -387,10 +349,10 @@ const AffiliateDashboardTab = () => {
         </Card>
       </div>
       <div className="space-y-8">
-        <AffiliateWallet affiliateId={user.id} />
-        <AffiliateLinks affiliateId={user.id} />
-        <EarningsBreakdown affiliateId={user.id} />
-        <ReferralsList affiliateId={user.id} />
+        <AffiliateWallet wallet={wallet} onWithdrawal={refresh} />
+        <AffiliateLinks links={links} />
+        <EarningsBreakdown earnings={earnings} />
+        <ReferralsList earnings={earnings} />
         <PayoutHistory affiliateId={user.id} />
       </div>
     </div>
