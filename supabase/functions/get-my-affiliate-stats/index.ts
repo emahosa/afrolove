@@ -44,7 +44,9 @@ serve(async (req) => {
 
     // Get click stats
     const { data: links, error: linksError } = await supabaseClient
-      .rpc('get_affiliate_links', { user_id: user.id })
+      .from('affiliate_links')
+      .select('clicks_count')
+      .eq('affiliate_user_id', user.id);
 
     if (linksError) {
       console.error('Error fetching links:', linksError);
