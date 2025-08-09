@@ -349,7 +349,7 @@ const AffiliateDashboardTab = () => {
         <AffiliateLinks links={links} />
         <EarningsBreakdown earnings={earnings} />
         <ReferralsList earnings={earnings} />
-        <PayoutHistory />
+        <PayoutHistory affiliateId={user.id} />
       </div>
     </div>
   );

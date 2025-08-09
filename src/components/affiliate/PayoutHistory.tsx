@@ -7,6 +7,10 @@ import { Loader2, AlertCircle, Gift } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 
+interface PayoutHistoryProps {
+  affiliateId: string;
+}
+
 interface PayoutRequest {
   id: string;
   requested_amount: number;
@@ -16,7 +20,7 @@ interface PayoutRequest {
   admin_notes?: string | null;
 }
 
-const PayoutHistory: React.FC = () => {
+const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   const [payoutRequests, setPayoutRequests] = useState<PayoutRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,10 +30,14 @@ const PayoutHistory: React.FC = () => {
     setError(null);
 
     try {
-      const { data, error: funcError } = await supabase.functions.invoke('get-affiliate-payout-history');
+      const { data, error: dbError } = await supabase
+        .from('affiliate_payout_requests')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .order('requested_at', { ascending: false });
 
-      if (funcError) {
-        throw new Error(`Failed to fetch payout history: ${funcError.message}`);
+      if (dbError) {
+        throw new Error(`Failed to fetch payout history: ${dbError.message}`);
       }
 
       const typedData: PayoutRequest[] = (data || []).map(item => ({
@@ -45,7 +53,7 @@ const PayoutHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [affiliateId]);
 
   useEffect(() => {
     if (affiliateId) {
