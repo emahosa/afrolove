@@ -42,7 +42,7 @@ const AffiliateManagementTab: React.FC = () => {
         return;
       }
 
-      setApplications(data || []);
+      setApplications((data as AffiliateApplication[]) || []);
     } catch (err) {
       console.error('Error in fetchApplications:', err);
       toast.error('Failed to load affiliate applications');
