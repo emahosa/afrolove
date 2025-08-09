@@ -279,7 +279,7 @@ BecomeAffiliateTab.propTypes = {
 
 // AffiliateDashboardTab Component
 const AffiliateDashboardTab = () => {
-  const { user, isSubscriber, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { stats, links, wallet, earnings, loading, refresh } = useAffiliateData();
 
   if (authLoading || loading) {
@@ -288,10 +288,6 @@ const AffiliateDashboardTab = () => {
   
   if (!user) {
     return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent><p>Please log in.</p></CardContent></Card>;
-  }
-  
-  if (!isSubscriber()) {
-    return <LockScreen message="Please subscribe to access the affiliate dashboard." buttonText="Subscribe" />;
   }
 
   return (
