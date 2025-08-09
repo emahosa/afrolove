@@ -13,17 +13,17 @@ interface EarningsBreakdownProps {
 
 const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ earnings = [] }) => {
   const summary = useMemo(() => {
-    const freeReferrals = earnings.filter(e => e.earning_type === 'free_referral');
-    const commissions = earnings.filter(e => e.earning_type === 'subscription_commission');
+    const freeReferrals = earnings.filter(e => e.type === 'free_referral');
+    const commissions = earnings.filter(e => e.type === 'subscription');
 
     return {
       free_referrals: {
         count: freeReferrals.length,
-        total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
+        total: freeReferrals.reduce((sum, e) => sum + e.amount_earned, 0)
       },
       commissions: {
         count: commissions.length,
-        total: commissions.reduce((sum, e) => sum + e.amount, 0)
+        total: commissions.reduce((sum, e) => sum + e.amount_earned, 0)
       }
     };
   }, [earnings]);
@@ -77,15 +77,15 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ earnings = [] }) 
                       {format(parseISO(earning.created_at), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
-                      {earning.profile?.full_name || earning.profile?.username || 'Unknown User'}
+                      {earning.profile?.full_name || 'Unknown User'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={earning.earning_type === 'free_referral' ? 'outline' : 'default'}>
-                        {earning.earning_type === 'free_referral' ? 'Free Referral' : 'Commission'}
+                      <Badge variant={earning.type === 'free_referral' ? 'outline' : 'default'}>
+                        {earning.type === 'free_referral' ? 'Free Referral' : 'Commission'}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${earning.amount.toFixed(2)}
+                      ${earning.amount_earned.toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>

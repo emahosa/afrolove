@@ -1,44 +1,39 @@
+// Based on the repaired Supabase functions and actual database schema
 
 export interface AffiliateLink {
   id: string;
-  affiliate_user_id: string;
-  link_code: string;
-  clicks_count: number;
+  url: string;
+  referral_code: string;
+  clicks_count: number; // This will be populated from stats
   created_at: string;
-  updated_at: string;
 }
 
 export interface AffiliateWallet {
   id: string;
   affiliate_user_id: string;
-  balance: number;
-  total_earned: number;
-  total_withdrawn: number;
-  usdt_wallet_address?: string;
-  created_at: string;
-  updated_at: string;
+  usdt_wallet_address: string | null;
+  pending_balance: number;
+  paid_balance: number;
+  lifetime_earnings: number;
 }
 
 export interface AffiliateEarning {
   id: string;
-  affiliate_user_id: string;
   referred_user_id: string;
-  earning_type: 'free_referral' | 'subscription_commission';
-  amount: number;
-  status: string;
+  amount_earned: number;
   created_at: string;
-  processed_at?: string;
+  // Joined data from profiles table
   profile?: {
     full_name?: string;
-    username?: string;
   };
+  // Fields added for frontend compatibility
+  type: 'subscription' | 'free_referral';
+  status: 'cleared' | 'pending' | 'paid';
 }
 
-export interface UserActivity {
-  id: string;
-  user_id: string;
-  activity_type: string;
-  referrer_affiliate_id?: string;
-  created_at: string;
-  metadata?: any;
+export interface AffiliateStats {
+  totalReferrals: number;
+  totalEarnings: number;
+  conversionRate: number;
+  clicksCount: number;
 }

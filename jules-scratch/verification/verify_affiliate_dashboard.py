@@ -15,8 +15,8 @@ async def main():
             await page.goto("http://localhost:8080/login", timeout=60000)
 
             # 2. Log in
-            await page.get_by_label("Email").fill("testuser@example.com")
-            await page.get_by_label("Password").fill("password")
+            await page.get_by_label("Email").fill("adahosabex@gmail.com")
+            await page.get_by_label("Password").fill("11223344")
             # Corrected button name from "Login" to "Sign In"
             await page.get_by_role("button", name="Sign In").click()
 

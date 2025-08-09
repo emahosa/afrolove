@@ -19,7 +19,6 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ earnings = [] }) => {
         usersMap.set(earning.referred_user_id, {
           id: earning.referred_user_id,
           full_name: earning.profile?.full_name,
-          username: earning.profile?.username,
           created_at: earning.created_at, // This is the earning date, not registration date
           status: 'Referred' // Simplified status
         });
@@ -51,7 +50,6 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ earnings = [] }) => {
           <TableHeader>
             <TableRow>
               <TableHead>User Name</TableHead>
-              <TableHead>Username</TableHead>
               <TableHead>Date of First Earning</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -60,7 +58,6 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ earnings = [] }) => {
             {referredUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>{user.full_name || 'N/A'}</TableCell>
-                <TableCell>{user.username || 'N/A'}</TableCell>
                 <TableCell>{format(parseISO(user.created_at), 'MMM d, yyyy')}</TableCell>
                 <TableCell>
                   <Badge variant="outline">
