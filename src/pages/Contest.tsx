@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useContestSubmission } from "@/hooks/useContestSubmission";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { useContest, Contest, ContestEntry } from "@/hooks/use-contest";
+import { useContest, type Contest as ContestType, type ContestEntry } from "@/hooks/use-contest";
 
 interface Song {
   id: string;
@@ -30,18 +31,19 @@ const Contest = () => {
     contestEntries,
     loading: contestsLoading,
     error: contestsError,
-    fetchContestEntries,
     voteForEntry,
     refreshEntries,
+    setCurrentContest,
   } = useContest();
   const [songs, setSongs] = useState<Song[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
   const [voteDialogOpen, setVoteDialogOpen] = useState(false);
   const [selectedEntryForVote, setSelectedEntryForVote] = useState<ContestEntry | null>(null);
+  const [voteCount, setVoteCount] = useState(1);
 
   useEffect(() => {
     if (user) {
@@ -53,8 +55,53 @@ const Contest = () => {
     if (activeContests.length > 0) {
       fetchContestEntries(activeContests[0].id);
     }
-  }, [activeContests, fetchContestEntries]);
+  }, [activeContests]);
 
+  const fetchContestEntries = async (contestId: string) => {
+    if (!contestId) return;
+    
+    setEntriesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contest_entries')
+        .select(`
+          id,
+          contest_id,
+          user_id,
+          video_url,
+          description,
+          approved,
+          vote_count,
+          media_type,
+          created_at,
+          profiles:user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('contest_id', contestId)
+        .eq('approved', true)
+        .order('vote_count', { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform the data to match ContestEntry interface
+      const transformedEntries = data?.map(entry => ({
+        ...entry,
+        profiles: Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles
+      })) || [];
+      
+      // Update contest entries through the hook's method if available
+      if (setCurrentContest && activeContests.length > 0) {
+        setCurrentContest(activeContests.find(c => c.id === contestId) || activeContests[0]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching contest entries:', error);
+      toast.error('Failed to load contest entries');
+    } finally {
+      setEntriesLoading(false);
+    }
+  };
 
   const fetchUserSongs = async () => {
     try {
@@ -94,7 +141,9 @@ const Contest = () => {
       setSelectedSong("");
       setDescription("");
       setSelectedContest(null);
-      refreshEntries();
+      if (activeContests.length > 0) {
+        fetchContestEntries(activeContests[0].id);
+      }
     }
   };
 
@@ -111,25 +160,68 @@ const Contest = () => {
     }
   };
 
-  const openSubmissionDialog = (contest: Contest) => {
+  const openSubmissionDialog = (contest: ContestType) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
   };
 
   const handleVoteClick = (entry: ContestEntry) => {
+    // Check if user is trying to vote for their own entry
+    if (entry.user_id === user?.id) {
+      toast.error("You cannot vote for your own entry");
+      return;
+    }
+    
     setSelectedEntryForVote(entry);
+    setVoteCount(1);
     setVoteDialogOpen(true);
   };
 
   const handleConfirmVote = async () => {
     if (!selectedEntryForVote) return;
 
-    const success = await voteForEntry(selectedEntryForVote.id);
-    if (success) {
-      setVoteDialogOpen(false);
-      setSelectedEntryForVote(null);
-      // The hook should refresh entries, but we can also trigger it manually
-      refreshEntries();
+    // Calculate credits needed (first vote is free, additional votes cost 5 credits each)
+    const creditsNeeded = (voteCount - 1) * 5;
+    
+    if (creditsNeeded > 0) {
+      // Check if user has enough credits
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user?.id)
+        .single();
+        
+      if (!profile || profile.credits < creditsNeeded) {
+        toast.error(`You need ${creditsNeeded} credits for ${voteCount} votes`);
+        return;
+      }
+    }
+
+    // Submit votes
+    for (let i = 0; i < voteCount; i++) {
+      const success = await voteForEntry(selectedEntryForVote.id);
+      if (!success) {
+        toast.error(`Failed to submit vote ${i + 1}`);
+        return;
+      }
+    }
+
+    // Deduct credits if needed
+    if (creditsNeeded > 0) {
+      await supabase
+        .from('profiles')
+        .update({ credits: (await supabase.from('profiles').select('credits').eq('id', user?.id).single()).data?.credits - creditsNeeded })
+        .eq('id', user?.id);
+    }
+
+    toast.success(`Successfully submitted ${voteCount} vote(s)!`);
+    setVoteDialogOpen(false);
+    setSelectedEntryForVote(null);
+    setVoteCount(1);
+    
+    // Refresh entries
+    if (activeContests.length > 0) {
+      fetchContestEntries(activeContests[0].id);
     }
   };
 
@@ -338,20 +430,36 @@ const Contest = () => {
       <Dialog open={voteDialogOpen} onOpenChange={setVoteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Your Vote</DialogTitle>
+            <DialogTitle>Vote for Entry</DialogTitle>
           </DialogHeader>
           {selectedEntryForVote && (
             <div className="py-4">
-              <p>
-                You are about to vote for{' '}
+              <p className="mb-4">
+                You are voting for{' '}
                 <strong>
                   Entry by {selectedEntryForVote.profiles?.username || 'Unknown'}
                 </strong>
-                .
               </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                This action is final and cannot be undone.
-              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="vote-count">Number of votes</Label>
+                  <input
+                    id="vote-count"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={voteCount}
+                    onChange={(e) => setVoteCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    First vote is free. Additional votes cost 5 credits each.
+                    {voteCount > 1 && ` (${(voteCount - 1) * 5} credits needed)`}
+                  </p>
+                </div>
+              </div>
+              
               <div className="flex justify-end gap-2 pt-4">
                 <Button
                   variant="outline"
@@ -366,7 +474,7 @@ const Contest = () => {
                       Voting...
                     </>
                   ) : (
-                    'Confirm Vote'
+                    `Submit ${voteCount} Vote${voteCount > 1 ? 's' : ''}`
                   )}
                 </Button>
               </div>
