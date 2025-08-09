@@ -263,7 +263,10 @@ const Contest = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                      onClick={() => handleVoteClick(entry)}
+                    >
                       <Vote className="h-4 w-4" />
                       <span>{entry.vote_count}</span>
                     </div>
