@@ -48,10 +48,8 @@ const PayoutHistory: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (affiliateId) {
-      fetchPayoutHistory();
-    }
-  }, [affiliateId, fetchPayoutHistory]);
+    fetchPayoutHistory();
+  }, [fetchPayoutHistory]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
