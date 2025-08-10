@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { type, userId } = await req.json();
+    const { type, userId, origin } = await req.json();
     if (!userId) {
       throw new Error('userId is required');
     }
@@ -41,9 +41,10 @@ Deno.serve(async (req) => {
           data = { links: [] };
         } else {
           const referralCode = appForLink?.unique_referral_code;
+          const baseUrl = origin || 'https://afroverse.com'; // Fallback to the old hardcoded value if origin not provided
           const links = referralCode ? [{
             id: '1', // Static ID as there's only one link per affiliate
-            url: `https://afroverse.com/?ref=${referralCode}`,
+            url: `${baseUrl}/?ref=${referralCode}`,
             referral_code: referralCode,
             clicks_count: 0, // Note: click tracking to be implemented
             created_at: new Date().toISOString(),

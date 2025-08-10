@@ -31,7 +31,7 @@ export const useAffiliateData = () => {
       // Fetch stats, links, wallet, and earnings in parallel
       const [statsRes, linksRes, walletRes, earningsRes] = await Promise.all([
         supabase.functions.invoke('get-my-affiliate-stats'),
-        supabase.functions.invoke('get-affiliate-data', { body: { type: 'links', userId: user.id } }),
+        supabase.functions.invoke('get-affiliate-data', { body: { type: 'links', userId: user.id, origin: window.location.origin } }),
         supabase.functions.invoke('get-affiliate-data', { body: { type: 'wallet', userId: user.id } }),
         supabase.functions.invoke('get-affiliate-data', { body: { type: 'earnings', userId: user.id } }),
       ]);
