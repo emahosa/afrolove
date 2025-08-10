@@ -181,6 +181,27 @@ serve(async (req) => {
             }
           }
 
+          // ---- START of new code for affiliate commission ----
+          console.log('📞 Invoking log-subscription-commission function...');
+          const { error: commissionError } = await supabaseClient.functions.invoke(
+            'log-subscription-commission',
+            {
+              body: {
+                record: {
+                  user_id: userId,
+                  amount_total: session.amount_total,
+                },
+              },
+            }
+          );
+
+          if (commissionError) {
+            console.error('❌ Error invoking log-subscription-commission:', commissionError);
+          } else {
+            console.log('✅ log-subscription-commission invoked successfully.');
+          }
+          // ---- END of new code for affiliate commission ----
+
           // Update user roles - remove voter, add subscriber
           console.log('🔄 Updating user roles...')
           const { error: deleteRoleError } = await supabaseClient

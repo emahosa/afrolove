@@ -70,10 +70,8 @@ serve(async (req) => {
             first_click_date: new Date().toISOString(),
           });
 
-        // Increment the total_free_referrals count on the affiliates table
-        await supabaseAdmin.from('affiliates').update({
-          total_free_referrals: supabaseAdmin.sql`total_free_referrals + 1`
-        }).eq('id', affiliate.id);
+        // The total_free_referrals count will be incremented when the user
+        // visits the subscription page, not on registration.
 
         // Log the signup activity for analytics
         await supabaseAdmin
