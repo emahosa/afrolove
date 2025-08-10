@@ -45,36 +45,43 @@ serve(async (req) => {
 
     // If there's a referrer code, set up the referral relationship
     if (referrer_code) {
-      // Find the affiliate with this referral code
-      const { data: affiliateLink } = await supabaseAdmin
-        .from('affiliate_links')
-        .select('affiliate_user_id')
-        .eq('link_code', referrer_code)
+      // Find the affiliate with this referral code from the new 'affiliates' table
+      const { data: affiliate } = await supabaseAdmin
+        .from('affiliates')
+        .select('id, user_id')
+        .eq('affiliate_code', referrer_code)
+        .eq('status', 'approved')
         .single();
 
-      if (affiliateLink) {
-        // Update the user's referrer_id
+      if (affiliate) {
+        // Update the new user's profile with the referrer's user_id
         await supabaseAdmin
           .from('profiles')
-          .update({ referrer_id: affiliateLink.affiliate_user_id })
+          .update({ referrer_id: affiliate.user_id })
           .eq('id', user.id);
 
-        // Increment click count
+        // Create a record in the new affiliate_referrals table
         await supabaseAdmin
-          .from('affiliate_links')
-          .update({ 
-            clicks_count: supabaseAdmin.sql`clicks_count + 1`,
-            updated_at: new Date().toISOString()
-          })
-          .eq('link_code', referrer_code);
+          .from('affiliate_referrals')
+          .insert({
+            affiliate_id: affiliate.id,
+            referred_user_id: user.id,
+            // Assume registration is the first point of contact
+            first_click_date: new Date().toISOString(),
+          });
 
-        // Log the signup activity
+        // Increment the total_free_referrals count on the affiliates table
+        await supabaseAdmin.from('affiliates').update({
+          total_free_referrals: supabaseAdmin.sql`total_free_referrals + 1`
+        }).eq('id', affiliate.id);
+
+        // Log the signup activity for analytics
         await supabaseAdmin
           .from('user_activities')
           .insert({
             user_id: user.id,
             activity_type: 'signup',
-            referrer_affiliate_id: affiliateLink.affiliate_user_id,
+            referrer_affiliate_id: affiliate.user_id,
             metadata: { ip_address, device_id, referrer_code }
           });
       }
