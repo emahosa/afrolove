@@ -21,6 +21,15 @@ const Register = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  const getCookie = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop()?.split(';').shift() || null;
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -42,9 +51,10 @@ const Register = () => {
     setLoading(true);
     
     try {
-      console.log("Register: Attempting to register user with:", { name, email });
+      const referralCode = getCookie('affiliate_ref');
+      console.log("Register: Attempting to register user with:", { name, email, referralCode });
       
-      const success = await register(name, email, password);
+      const success = await register(name, email, password, referralCode);
       
       if (success) {
         toast.success("Registration successful! Welcome to MelodyVerse!");
