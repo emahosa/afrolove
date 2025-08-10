@@ -47,11 +47,8 @@ const App = () => {
       const refCode = params.get('ref');
 
       if (refCode) {
-        // Store the referral code in a cookie for 30 days
-        const d = new Date();
-        d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
-        const expires = "expires=" + d.toUTCString();
-        document.cookie = `affiliate_ref=${refCode};${expires};path=/`;
+        // Store the referral code in localStorage to be used by the tracking hook
+        localStorage.setItem('affiliate_referrer', refCode);
 
         // Track the click event in the backend
         try {

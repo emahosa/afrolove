@@ -13,24 +13,25 @@ serve(async (req) => {
       throw new Error('Referral code is required.')
     }
 
-    // This function uses the public anon key, as it will be called by unauthenticated users.
-    // RLS policies on the affiliate_clicks table allow for insertion.
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     )
 
+    const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Find the affiliate user_id from the referral code
-    const { data: application, error: findError } = await supabaseClient
-      .from('affiliate_applications')
-      .select('user_id')
-      .eq('unique_referral_code', referral_code)
+    const { data: affiliate, error: findError } = await supabaseClient
+      .from('affiliates')
+      .select('user_id, id') // select id for the update
+      .eq('affiliate_code', referral_code)
       .eq('status', 'approved')
       .single()
 
-    if (findError || !application) {
-      // We don't throw an error to avoid letting someone probe for valid codes.
-      // We just fail silently.
+    if (findError || !affiliate) {
       console.warn(`Attempted to track click for invalid or non-approved referral code: ${referral_code}`);
       return new Response(JSON.stringify({ message: 'Ignored.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -38,13 +39,13 @@ serve(async (req) => {
       })
     }
 
-    const affiliateUserId = application.user_id;
+    const affiliateUserId = affiliate.user_id;
 
     // Get IP address and User-Agent from the request headers
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
-    // Insert the click record. The trigger will handle incrementing the total count.
+    // Insert the click record.
     const { error: insertError } = await supabaseClient
       .from('affiliate_clicks')
       .insert({
@@ -55,7 +56,13 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error inserting affiliate click:', insertError);
-      // Again, fail silently to the outside world.
+      // Fail silently to the outside world.
+    } else {
+      // Manually increment total_clicks since the trigger is broken
+      await supabaseAdmin
+        .from('affiliates')
+        .update({ total_clicks: supabaseAdmin.sql`total_clicks + 1` })
+        .eq('id', affiliate.id);
     }
 
     return new Response(JSON.stringify({ message: 'Click tracked successfully.' }), {
