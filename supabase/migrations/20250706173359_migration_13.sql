@@ -1,6 +1,6 @@
 
 -- Create genre_templates table
-CREATE TABLE public.genre_templates (
+CREATE TABLE IF NOT EXISTS public.genre_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   genre_id UUID REFERENCES public.genres(id) ON DELETE CASCADE NOT NULL,
   template_name TEXT NOT NULL,

@@ -8,6 +8,23 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseAdminForDebug = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const [clicks, referrals, earnings] = await Promise.all([
+      supabaseAdminForDebug.from('affiliate_clicks').select('*').order('created_at', { ascending: false }).limit(10),
+      supabaseAdminForDebug.from('affiliate_referrals').select('*').order('created_at', { ascending: false }).limit(10),
+      supabaseAdminForDebug.from('affiliate_earnings').select('*').order('created_at', { ascending: false }).limit(10)
+    ]);
+
+    console.log('--- JULES DEBUG START ---');
+    console.log('CLICKS:', JSON.stringify(clicks.data, null, 2));
+    console.log('REFERRALS:', JSON.stringify(referrals.data, null, 2));
+    console.log('EARNINGS:', JSON.stringify(earnings.data, null, 2));
+    console.log('--- JULES DEBUG END ---');
+
     // Create a Supabase client with the user's auth token to get the user ID
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
