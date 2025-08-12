@@ -32,8 +32,8 @@ FOR SELECT
 USING (is_active = true);
 
 -- Add indexes
-CREATE INDEX idx_genre_templates_genre_id ON public.genre_templates(genre_id);
-CREATE INDEX idx_genre_templates_active ON public.genre_templates(is_active);
+CREATE INDEX IF NOT EXISTS idx_genre_templates_genre_id ON public.genre_templates(genre_id);
+CREATE INDEX IF NOT EXISTS idx_genre_templates_active ON public.genre_templates(is_active);
 
 -- Add trigger for updated_at
 CREATE TRIGGER handle_updated_at_genre_templates
