@@ -31,11 +31,6 @@ enabled = true
 # email_template_path_prefix = "supabase/templates/email"
 # password_min_length = 8
 
-[functions.suno-generate-v3]
-timeout_s = 300
-
-[functions.suno-generate-lyrics]
-timeout_s = 120
 
 [functions.get-suno-credits]
 verify_jwt = false
@@ -48,7 +43,6 @@ verify_jwt = false
 
 [functions.admin-create-user]
 verify_jwt = true # Important: Only authenticated (admin) users should call this
-timeout_s = 30 # Default timeout is 5s, might need more for multiple DB operations
 
 # You can add specific environment variables for functions here if needed
 # [functions.my-function.env]
