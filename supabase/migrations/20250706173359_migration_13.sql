@@ -18,12 +18,14 @@ CREATE TABLE IF NOT EXISTS public.genre_templates (
 ALTER TABLE public.genre_templates ENABLE ROW LEVEL SECURITY;
 
 -- Admins can do everything
+DROP POLICY IF EXISTS "Admins can manage genre templates" ON public.genre_templates;
 CREATE POLICY "Admins can manage genre templates"
 ON public.genre_templates
 FOR ALL
 USING (has_role('admin'::user_role));
 
 -- Anyone can view active templates
+DROP POLICY IF EXISTS "Anyone can view active genre templates" ON public.genre_templates;
 CREATE POLICY "Anyone can view active genre templates"
 ON public.genre_templates
 FOR SELECT
