@@ -36,6 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_genre_templates_genre_id ON public.genre_template
 CREATE INDEX IF NOT EXISTS idx_genre_templates_active ON public.genre_templates(is_active);
 
 -- Add trigger for updated_at
+DROP TRIGGER IF EXISTS handle_updated_at_genre_templates ON public.genre_templates;
 CREATE TRIGGER handle_updated_at_genre_templates
 BEFORE UPDATE ON public.genre_templates
 FOR EACH ROW
