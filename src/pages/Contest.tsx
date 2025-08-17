@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -338,34 +339,45 @@ const Contest = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {contestEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center p-3 rounded-lg bg-muted/40 hover:bg-muted/80 transition-colors">
-                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)}>
-                    {currentTrack?.id === entry.id && isPlaying ? (
-                      <Pause className="h-5 w-5" />
-                    ) : (
-                      <Play className="h-5 w-5" />
-                    )}
-                  </Button>
-                  <div className="flex-grow mx-4">
-                    <p className="font-semibold">{`Entry by ${entry.profiles?.username || 'Unknown'}`}</p>
-                    <p className="text-sm text-muted-foreground">
-                      By {entry.profiles?.full_name || 'Unknown Artist'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Vote className="h-4 w-4" />
-                      <span>{entry.vote_count}</span>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)}>
-                      Vote
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]"></TableHead>
+                    <TableHead>Entry</TableHead>
+                    <TableHead className="text-center">Votes</TableHead>
+                    <TableHead className="text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {contestEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)}>
+                          {currentTrack?.id === entry.id && isPlaying ? (
+                            <Pause className="h-5 w-5" />
+                          ) : (
+                            <Play className="h-5 w-5" />
+                          )}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{`Entry by ${entry.profiles?.username || 'Unknown'}`}</div>
+                        <div className="text-sm text-muted-foreground">
+                          By {entry.profiles?.full_name || 'Unknown Artist'}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">{entry.vote_count}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)}>
+                          Vote
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
