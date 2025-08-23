@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { FaGoogle } from "react-icons/fa";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { checkIfAdminUser } from "@/utils/adminCheck";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -17,38 +17,6 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
-    try {
-      // Use explicit typing to avoid complex type inference
-      const profileResult = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", userEmail.toLowerCase())
-        .limit(1);
-
-      if (profileResult.error || !profileResult.data || profileResult.data.length === 0) {
-        return false;
-      }
-
-      const userId = profileResult.data[0].id;
-
-      const roleResult = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .in('role', ['admin', 'super_admin']);
-
-      if (roleResult.error) {
-        return false;
-      }
-
-      return roleResult.data && roleResult.data.length > 0;
-    } catch (error) {
-      console.error("Error checking admin status:", error);
-      return false;
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
