@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,28 +20,30 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
 
   const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
     try {
-      // Simple query without complex type inference
-      const profileQuery = await supabase
+      // Use explicit typing to avoid complex type inference
+      const profileResult = await supabase
         .from("profiles")
         .select("id")
         .eq("email", userEmail.toLowerCase())
-        .single();
+        .limit(1);
 
-      if (profileQuery.error || !profileQuery.data) {
+      if (profileResult.error || !profileResult.data || profileResult.data.length === 0) {
         return false;
       }
 
-      const roleQuery = await supabase
+      const userId = profileResult.data[0].id;
+
+      const roleResult = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', profileQuery.data.id)
+        .eq('user_id', userId)
         .in('role', ['admin', 'super_admin']);
 
-      if (roleQuery.error) {
+      if (roleResult.error) {
         return false;
       }
 
-      return roleQuery.data && roleQuery.data.length > 0;
+      return roleResult.data && roleResult.data.length > 0;
     } catch (error) {
       console.error("Error checking admin status:", error);
       return false;
