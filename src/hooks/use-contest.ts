@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -11,13 +12,11 @@ export interface Contest {
   end_date: string;
   start_date: string;
   entry_fee: number;
-  status: 'active' | 'completed' | 'draft' | 'voting';
+  status: string;
   rules?: string;
   instrumental_url?: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
-  created_at: string;
-  terms_conditions?: string;
 }
 
 export interface ContestEntry {
@@ -87,19 +86,9 @@ export const useContest = () => {
       const { error } = await supabase
         .from('contests')
         .insert({
-          title: contestData.title || '',
-          description: contestData.description || '',
-          prize: contestData.prize || '',
-          end_date: contestData.end_date || new Date().toISOString(),
-          start_date: contestData.start_date || new Date().toISOString(),
-          rules: contestData.rules || '',
-          status: 'active' as const,
-          created_by: user?.id,
-          terms_conditions: contestData.terms_conditions || '',
-          entry_fee: contestData.entry_fee || 0,
-          instrumental_url: contestData.instrumental_url,
-          voting_enabled: contestData.voting_enabled,
-          max_entries_per_user: contestData.max_entries_per_user
+          ...contestData,
+          status: 'active',
+          created_by: user?.id
         });
 
       if (error) throw error;
