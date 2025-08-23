@@ -21,7 +21,7 @@ interface AffiliateApplication {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  unique_referral_code?: string;
+  affiliate_code?: string;
 }
 
 const AffiliateManagementTab: React.FC = () => {
@@ -71,7 +71,7 @@ const AffiliateManagementTab: React.FC = () => {
     setProcessingId(applicationId);
     try {
       const { error } = await supabase
-        .from('affiliate_applications')
+        .from('affiliates')
         .update({ status: 'approved' })
         .eq('id', applicationId);
 
@@ -94,7 +94,7 @@ const AffiliateManagementTab: React.FC = () => {
     setProcessingId(applicationId);
     try {
       const { error } = await supabase
-        .from('affiliate_applications')
+        .from('affiliates')
         .update({ status: 'rejected' })
         .eq('id', applicationId);
 
@@ -152,8 +152,8 @@ const AffiliateManagementTab: React.FC = () => {
           )}
           <p><strong>Reason to Join:</strong> {application.reason_to_join}</p>
           <p><strong>Applied:</strong> {new Date(application.created_at).toLocaleDateString()}</p>
-          {application.unique_referral_code && (
-            <p><strong>Referral Code:</strong> {application.unique_referral_code}</p>
+          {application.affiliate_code && (
+            <p><strong>Affiliate Code:</strong> {application.affiliate_code}</p>
           )}
         </div>
         
