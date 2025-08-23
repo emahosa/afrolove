@@ -10,6 +10,7 @@ import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { AuthError } from "@supabase/supabase-js";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -83,16 +84,16 @@ const Login = () => {
     try {
       console.log("Login: Attempting regular user login with:", { email });
       
-      const { data, error } = await login(email, password);
+      const result = await login(email, password);
       
-      if (error) {
-        toast.error(error.message || "An unexpected error occurred during login");
+      if (result.error) {
+        toast.error(result.error.message || "An unexpected error occurred during login");
         setLoading(false);
         return;
       }
       
       // Double-check after login to ensure no admin got through
-      if (data.session) {
+      if (result.data.session) {
         // Wait a moment for auth context to update
         setTimeout(() => {
           if (isAdmin() || isSuperAdmin()) {
@@ -114,7 +115,7 @@ const Login = () => {
       }
       
       // MFA handling logic
-      if (data.session === null && data.user !== null) {
+      if (result.data.session === null && result.data.user !== null) {
         // This means MFA is required - check for enrolled factors
         const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         
@@ -146,13 +147,14 @@ const Login = () => {
         }
       }
       
-      if (!data.session && !showMFAVerification) {
+      if (!result.data.session && !showMFAVerification) {
         toast.error("Login failed. Please try again.");
         setLoading(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login: Error in component:", error);
-      toast.error(error.message || "An unexpected error occurred during login");
+      const authError = error as AuthError;
+      toast.error(authError.message || "An unexpected error occurred during login");
       setLoading(false);
     }
   };
@@ -172,8 +174,9 @@ const Login = () => {
         console.error("Google login error:", error);
         toast.error("Failed to login with Google: " + error.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Google login error:", error);
+      const authError = error as AuthError;
       toast.error("An unexpected error occurred during Google login");
     } finally {
       setGoogleLoading(false);
