@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ interface AffiliateApplication {
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  affiliate_code?: string;
+  unique_referral_code?: string;
 }
 
 const AffiliateManagementTab: React.FC = () => {
@@ -71,7 +70,7 @@ const AffiliateManagementTab: React.FC = () => {
     setProcessingId(applicationId);
     try {
       const { error } = await supabase
-        .from('affiliates')
+        .from('affiliate_applications')
         .update({ status: 'approved' })
         .eq('id', applicationId);
 
@@ -94,7 +93,7 @@ const AffiliateManagementTab: React.FC = () => {
     setProcessingId(applicationId);
     try {
       const { error } = await supabase
-        .from('affiliates')
+        .from('affiliate_applications')
         .update({ status: 'rejected' })
         .eq('id', applicationId);
 
@@ -131,12 +130,12 @@ const AffiliateManagementTab: React.FC = () => {
   };
 
   const ApplicationCard = ({ application }: { application: AffiliateApplication }) => (
-    <Card className="mb-4">
+    <Card className="mb-4 bg-gray-900/50 border-gray-800">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg">{application.full_name}</CardTitle>
-            <p className="text-sm text-muted-foreground">{application.email}</p>
+            <CardTitle className="text-lg text-white">{application.full_name}</CardTitle>
+            <p className="text-sm text-gray-400">{application.email}</p>
           </div>
           <Badge variant={getStatusBadgeVariant(application.status)}>
             {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
@@ -144,7 +143,7 @@ const AffiliateManagementTab: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 mb-4">
+        <div className="space-y-2 mb-4 text-gray-300">
           <p><strong>Phone:</strong> {application.phone}</p>
           <p><strong>Social Media:</strong> {application.social_media_url || 'Not provided'}</p>
           {application.usdt_wallet_address && (
@@ -152,8 +151,8 @@ const AffiliateManagementTab: React.FC = () => {
           )}
           <p><strong>Reason to Join:</strong> {application.reason_to_join}</p>
           <p><strong>Applied:</strong> {new Date(application.created_at).toLocaleDateString()}</p>
-          {application.affiliate_code && (
-            <p><strong>Affiliate Code:</strong> {application.affiliate_code}</p>
+          {application.unique_referral_code && (
+            <p><strong>Referral Code:</strong> {application.unique_referral_code}</p>
           )}
         </div>
         
@@ -162,7 +161,7 @@ const AffiliateManagementTab: React.FC = () => {
             <Button
               onClick={() => handleApproveApplication(application.id)}
               disabled={processingId === application.id}
-              className="flex-1"
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
             >
               {processingId === application.id ? (
                 <>
@@ -197,8 +196,8 @@ const AffiliateManagementTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading applications...</span>
+        <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+        <span className="ml-2 text-gray-300">Loading applications...</span>
       </div>
     );
   }
@@ -218,45 +217,45 @@ const AffiliateManagementTab: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Affiliate Management</h2>
-          <p className="text-muted-foreground">Manage affiliate applications and approvals</p>
+          <h2 className="text-2xl font-bold text-white">Affiliate Management</h2>
+          <p className="text-gray-400">Manage affiliate applications and approvals</p>
         </div>
-        <Button onClick={fetchApplications} variant="outline">
+        <Button onClick={fetchApplications} variant="outline" className="border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white">
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card>
+        <Card className="bg-gray-900/50 border-gray-800">
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-600">{pendingApplications.length}</div>
-            <div className="text-sm text-muted-foreground">Pending</div>
+            <div className="text-2xl font-bold text-yellow-400">{pendingApplications.length}</div>
+            <div className="text-sm text-gray-400">Pending</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gray-900/50 border-gray-800">
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-600">{approvedApplications.length}</div>
-            <div className="text-sm text-muted-foreground">Approved</div>
+            <div className="text-2xl font-bold text-green-400">{approvedApplications.length}</div>
+            <div className="text-sm text-gray-400">Approved</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gray-900/50 border-gray-800">
           <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{rejectedApplications.length}</div>
-            <div className="text-sm text-muted-foreground">Rejected</div>
+            <div className="text-2xl font-bold text-red-400">{rejectedApplications.length}</div>
+            <div className="text-sm text-gray-400">Rejected</div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending">
+        <TabsList className="grid w-full grid-cols-3 bg-gray-900/50">
+          <TabsTrigger value="pending" className="data-[state=active]:bg-purple-600">
             Pending ({pendingApplications.length})
           </TabsTrigger>
-          <TabsTrigger value="approved">
+          <TabsTrigger value="approved" className="data-[state=active]:bg-purple-600">
             Approved ({approvedApplications.length})
           </TabsTrigger>
-          <TabsTrigger value="rejected">
+          <TabsTrigger value="rejected" className="data-[state=active]:bg-purple-600">
             Rejected ({rejectedApplications.length})
           </TabsTrigger>
         </TabsList>
@@ -264,9 +263,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="pending" className="mt-6">
           <div className="space-y-4">
             {pendingApplications.length === 0 ? (
-              <Card>
+              <Card className="bg-gray-900/50 border-gray-800">
                 <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No pending applications</p>
+                  <p className="text-gray-400">No pending applications</p>
                 </CardContent>
               </Card>
             ) : (
@@ -280,9 +279,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="approved" className="mt-6">
           <div className="space-y-4">
             {approvedApplications.length === 0 ? (
-              <Card>
+              <Card className="bg-gray-900/50 border-gray-800">
                 <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No approved applications</p>
+                  <p className="text-gray-400">No approved applications</p>
                 </CardContent>
               </Card>
             ) : (
@@ -296,9 +295,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="rejected" className="mt-6">
           <div className="space-y-4">
             {rejectedApplications.length === 0 ? (
-              <Card>
+              <Card className="bg-gray-900/50 border-gray-800">
                 <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground">No rejected applications</p>
+                  <p className="text-gray-400">No rejected applications</p>
                 </CardContent>
               </Card>
             ) : (

@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { LoginMFAWrapper } from "@/components/auth/LoginMFAWrapper";
+import { FloatingNotes } from "@/components/3d/FloatingNotes";
 
 const Login = () => {
   const { user, isAdmin, isSuperAdmin } = useAuth();
@@ -29,7 +30,16 @@ const Login = () => {
     }
   }, [user, navigate, location.state, isAdmin, isSuperAdmin]);
 
-  return <LoginMFAWrapper />;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 relative overflow-hidden">
+      <FloatingNotes />
+      <div className="relative z-10 min-h-screen flex items-center justify-center">
+        <div className="w-full max-w-md p-8 bg-gray-900/80 backdrop-blur-sm rounded-xl border border-gray-800 shadow-2xl animate-scale-in">
+          <LoginMFAWrapper />
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Login;

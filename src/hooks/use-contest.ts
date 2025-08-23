@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +16,8 @@ export interface Contest {
   instrumental_url?: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
+  created_at: string;
+  terms_conditions: string;
 }
 
 export interface ContestEntry {
@@ -88,7 +89,8 @@ export const useContest = () => {
         .insert({
           ...contestData,
           status: 'active',
-          created_by: user?.id
+          created_by: user?.id,
+          terms_conditions: contestData.rules || 'Standard contest terms and conditions apply.',
         });
 
       if (error) throw error;
@@ -107,7 +109,10 @@ export const useContest = () => {
     try {
       const { error } = await supabase
         .from('contests')
-        .update(contestData)
+        .update({
+          ...contestData,
+          terms_conditions: contestData.rules || 'Standard contest terms and conditions apply.',
+        })
         .eq('id', contestId);
 
       if (error) throw error;
