@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,9 +9,9 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Music, Trophy, Users, Sparkles, ArrowRight, Mic, HeadphonesIcon, Star } from 'lucide-react';
 import { useGenres } from '@/hooks/use-genres';
 import { Genre } from '@/hooks/use-genres';
-import GenreTemplateCard from '@/components/dashboard/GenreTemplateCard';
+import { GenreTemplateCard } from '@/components/dashboard/GenreTemplateCard';
 import SampleMusic from '@/components/dashboard/SampleMusic';
-import FloatingNotes from '@/components/3d/FloatingNotes';
+import { FloatingNotes } from '@/components/3d/FloatingNotes';
 
 interface UserProfile {
   id: string;
