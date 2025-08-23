@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface AffiliateApplication {
   id: string;
@@ -31,6 +32,8 @@ const AffiliateManagementTab: React.FC = () => {
   const fetchApplications = async () => {
     try {
       setLoading(true);
+      console.log('Fetching affiliate applications...');
+      
       const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
 
       if (error) {
@@ -39,18 +42,29 @@ const AffiliateManagementTab: React.FC = () => {
         return;
       }
 
-      setApplications((data as AffiliateApplication[]) || []);
+      console.log('Raw data from function:', data);
+      
+      if (Array.isArray(data)) {
+        setApplications(data);
+        console.log(`Successfully loaded ${data.length} applications`);
+      } else {
+        console.warn('Data is not an array:', data);
+        setApplications([]);
+      }
     } catch (err: any) {
       console.error('Error in fetchApplications:', err);
       toast.error(err.message || 'Failed to load affiliate applications');
+      setApplications([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    if (user) {
+      fetchApplications();
+    }
+  }, [user]);
 
   const handleApproveApplication = async (applicationId: string) => {
     setProcessingId(applicationId);
@@ -142,7 +156,14 @@ const AffiliateManagementTab: React.FC = () => {
               disabled={processingId === application.id}
               className="flex-1"
             >
-              {processingId === application.id ? 'Approving...' : 'Approve'}
+              {processingId === application.id ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Approving...
+                </>
+              ) : (
+                'Approve'
+              )}
             </Button>
             <Button
               variant="destructive"
@@ -150,7 +171,14 @@ const AffiliateManagementTab: React.FC = () => {
               disabled={processingId === application.id}
               className="flex-1"
             >
-              {processingId === application.id ? 'Rejecting...' : 'Reject'}
+              {processingId === application.id ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Rejecting...
+                </>
+              ) : (
+                'Reject'
+              )}
             </Button>
           </div>
         )}
@@ -161,7 +189,7 @@ const AffiliateManagementTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading applications...</span>
       </div>
     );
@@ -171,11 +199,45 @@ const AffiliateManagementTab: React.FC = () => {
   const approvedApplications = filterApplications('approved');
   const rejectedApplications = filterApplications('rejected');
 
+  console.log('Application counts:', {
+    total: applications.length,
+    pending: pendingApplications.length,
+    approved: approvedApplications.length,
+    rejected: rejectedApplications.length
+  });
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Affiliate Management</h2>
-        <p className="text-muted-foreground">Manage affiliate applications and approvals</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Affiliate Management</h2>
+          <p className="text-muted-foreground">Manage affiliate applications and approvals</p>
+        </div>
+        <Button onClick={fetchApplications} variant="outline">
+          <Loader2 className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">{pendingApplications.length}</div>
+            <div className="text-sm text-muted-foreground">Pending</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{approvedApplications.length}</div>
+            <div className="text-sm text-muted-foreground">Approved</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-red-600">{rejectedApplications.length}</div>
+            <div className="text-sm text-muted-foreground">Rejected</div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">

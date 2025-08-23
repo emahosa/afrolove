@@ -45,7 +45,9 @@ serve(async (req) => {
       })
     }
 
-    // Fetch all affiliate applications
+    console.log('Admin access verified, fetching applications...')
+
+    // Fetch all affiliate applications with enhanced logging
     const { data: applications, error: applicationsError } = await supabaseAdmin
       .from('affiliate_applications')
       .select('*')
@@ -53,11 +55,23 @@ serve(async (req) => {
 
     if (applicationsError) {
       console.error('Error fetching applications:', applicationsError)
-      return new Response(JSON.stringify({ error: 'Failed to fetch applications' }), {
+      return new Response(JSON.stringify({ error: 'Failed to fetch applications', details: applicationsError.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
+
+    console.log(`Successfully fetched ${applications?.length || 0} applications`)
+    
+    // Log the applications data for debugging
+    applications?.forEach((app, index) => {
+      console.log(`Application ${index + 1}:`, {
+        id: app.id,
+        email: app.email,
+        status: app.status,
+        created_at: app.created_at
+      })
+    })
 
     return new Response(JSON.stringify(applications || []), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -66,7 +80,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in admin-list-affiliate-applications:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
