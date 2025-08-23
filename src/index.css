@@ -115,7 +115,7 @@
   }
 
   .genre-card:hover {
-    @apply scale-105 rotate-1;
+    @apply scale-100 rotate-0;
   }
 
   /* Dashboard enhancements */
