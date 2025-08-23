@@ -1,221 +1,214 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { toast } from 'sonner';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { toast } from "sonner";
 import { Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface AffiliateSettingsData {
-  affiliate_program_active: boolean;
-  free_referral_program_active: boolean;
-  subscription_commission_percentage: number;
-  free_user_earning: number;
+  affiliate_program_enabled: boolean;
+  is_free_tier_active: boolean;
+  affiliate_subscription_commission_percent: number;
+  affiliate_free_referral_compensation: number;
 }
 
 const AffiliateSettings: React.FC = () => {
-  const [settings, setSettings] = useState<AffiliateSettingsData>({
-    affiliate_program_active: true,
-    free_referral_program_active: true,
-    subscription_commission_percentage: 10,
-    free_user_earning: 0.10
+  const [settings, setSettings] = useState<Partial<AffiliateSettingsData>>({
+    affiliate_program_enabled: false,
+    is_free_tier_active: false,
+    affiliate_subscription_commission_percent: 0,
+    affiliate_free_referral_compensation: 0
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data, error } = await supabase.functions.invoke('get-affiliate-settings');
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('key, value')
+        .in('key', [
+          'affiliate_program_enabled',
+          'is_free_tier_active',
+          'affiliate_subscription_commission_percent',
+          'affiliate_free_referral_compensation',
+        ]);
 
       if (error) {
-        console.error('Error fetching affiliate settings:', error);
-        toast.error('Failed to load affiliate settings');
-        return;
-      }
-
-      if (data?.settings) {
+        console.error('Error fetching settings:', error);
+        toast.error('Failed to fetch affiliate settings.');
+      } else {
+        console.log('Fetched settings data:', data);
+        const settingsData = data.reduce((acc, { key, value }) => {
+          try {
+            // Handle the Json type properly
+            let parsedValue;
+            if (typeof value === 'string') {
+              parsedValue = JSON.parse(value);
+            } else {
+              parsedValue = value;
+            }
+            
+            if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
+              acc[key] = parsedValue === true || parsedValue === 'true';
+            } else {
+              acc[key] = Number(parsedValue) || 0;
+            }
+          } catch (e) {
+            // Fallback for non-JSON values
+            if (key === 'affiliate_program_enabled' || key === 'is_free_tier_active') {
+              acc[key] = value === 'true' || value === true;
+            } else {
+              acc[key] = Number(value) || 0;
+            }
+          }
+          return acc;
+        }, {} as Partial<AffiliateSettingsData>);
+        
+        // Merge with defaults to ensure all fields have values
         setSettings({
-          affiliate_program_active: data.settings.affiliate_program_active ?? true,
-          free_referral_program_active: data.settings.free_referral_program_active ?? true,
-          subscription_commission_percentage: data.settings.subscription_commission_percentage ?? 10,
-          free_user_earning: data.settings.free_user_earning ?? 0.10
+          affiliate_program_enabled: false,
+          is_free_tier_active: false,
+          affiliate_subscription_commission_percent: 0,
+          affiliate_free_referral_compensation: 0,
+          ...settingsData
         });
       }
-    } catch (err) {
-      console.error('Error in fetchSettings:', err);
-      toast.error('Failed to load affiliate settings');
+    } catch (error) {
+      console.error('Unexpected error fetching settings:', error);
+      toast.error('An error occurred while fetching settings.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [fetchSettings]);
 
-  const handleSaveSettings = async () => {
+  const handleSave = async () => {
+    setSaving(true);
+    console.log('Saving settings:', settings);
+    
+    const updates = Object.entries(settings).map(([key, value]) => ({
+      key,
+      value: String(value), // Convert to string to match the expected type
+    }));
+    
+    console.log('Sending updates to backend:', updates);
+
     try {
-      setSaving(true);
-      
-      // Prepare settings array for the edge function
-      const settingsArray = [
-        {
-          key: 'affiliate_program_active',
-          value: settings.affiliate_program_active
-        },
-        {
-          key: 'free_referral_program_active',
-          value: settings.free_referral_program_active
-        },
-        {
-          key: 'subscription_commission_percentage',
-          value: settings.subscription_commission_percentage
-        },
-        {
-          key: 'free_user_earning',
-          value: settings.free_user_earning
-        }
-      ];
-
       const { data, error } = await supabase.functions.invoke('update-affiliate-settings', {
-        body: { settings: settingsArray }
+        body: { settings: updates },
       });
 
-      if (error) {
-        console.error('Error updating affiliate settings:', error);
-        toast.error(error.message || 'Failed to update affiliate settings');
-        return;
-      }
+      console.log('Backend response:', { data, error });
 
-      toast.success('Affiliate settings updated successfully');
-    } catch (err: any) {
-      console.error('Error in handleSaveSettings:', err);
-      toast.error('Failed to update affiliate settings');
+      if (error) {
+        console.error('Error from backend:', error);
+        toast.error(`Failed to save settings: ${error.message || 'Unknown error'}`);
+      } else {
+        toast.success('Settings saved successfully.');
+        // Refresh settings to confirm they were saved
+        await fetchSettings();
+      }
+    } catch (error) {
+      console.error('Unexpected error saving settings:', error);
+      toast.error('An error occurred while saving settings.');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleSettingChange = (key: keyof AffiliateSettingsData, value: any) => {
+    console.log(`Setting ${key} to ${value}`);
+    setSettings(prev => ({...prev, [key]: value}));
+  };
+
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Affiliate Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading settings...</span>
-        </CardContent>
-      </Card>
+      <div className="flex items-center space-x-2">
+        <Loader2 className="animate-spin h-5 w-5" />
+        <span>Loading settings...</span>
+      </div>
     );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Affiliate Settings</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Configure affiliate program settings and commission rates
-        </p>
+        <CardTitle>Affiliate Program Settings</CardTitle>
+        <CardDescription>Configure the affiliate program rules and compensation.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="affiliate_program_active">Affiliate Program Active</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable or disable the entire affiliate program
-                </p>
-              </div>
-              <Switch
-                id="affiliate_program_active"
-                checked={settings.affiliate_program_active}
-                onCheckedChange={(checked) =>
-                  setSettings({ ...settings, affiliate_program_active: checked })
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="free_referral_program_active">Free Referral Program</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable earnings from free user referrals
-                </p>
-              </div>
-              <Switch
-                id="free_referral_program_active"
-                checked={settings.free_referral_program_active}
-                onCheckedChange={(checked) =>
-                  setSettings({ ...settings, free_referral_program_active: checked })
-                }
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="subscription_commission_percentage">
-                Subscription Commission (%)
-              </Label>
-              <Input
-                id="subscription_commission_percentage"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                value={settings.subscription_commission_percentage}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    subscription_commission_percentage: parseFloat(e.target.value) || 0
-                  })
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                Percentage of subscription price paid to affiliates
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="free_user_earning">Free User Earning ($)</Label>
-              <Input
-                id="free_user_earning"
-                type="number"
-                min="0"
-                step="0.01"
-                value={settings.free_user_earning}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    free_user_earning: parseFloat(e.target.value) || 0
-                  })
-                }
-              />
-              <p className="text-sm text-muted-foreground">
-                Amount paid to affiliates for each active free user
-              </p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between space-x-2 p-4 border rounded-lg">
+          <Label htmlFor="program-enabled" className="flex flex-col space-y-1">
+            <span>Affiliate Program Enabled</span>
+            <span className="font-normal leading-snug text-muted-foreground">
+              Master switch to enable or disable the entire affiliate program.
+            </span>
+          </Label>
+          <Switch
+            id="program-enabled"
+            checked={settings.affiliate_program_enabled || false}
+            onCheckedChange={(value) => handleSettingChange('affiliate_program_enabled', value)}
+          />
         </div>
-
-        <div className="flex justify-end pt-4">
-          <Button onClick={handleSaveSettings} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Settings'
-            )}
-          </Button>
+        <div className="flex items-center justify-between space-x-2 p-4 border rounded-lg">
+          <Label htmlFor="free-tier-enabled" className="flex flex-col space-y-1">
+            <span>Free Referral Program Enabled</span>
+            <span className="font-normal leading-snug text-muted-foreground">
+              Enable or disable earnings for free user referrals who become active.
+            </span>
+          </Label>
+          <Switch
+            id="free-tier-enabled"
+            checked={settings.is_free_tier_active || false}
+            onCheckedChange={(value) => handleSettingChange('is_free_tier_active', value)}
+          />
         </div>
+        <div className="space-y-2 p-4 border rounded-lg">
+          <Label htmlFor="commission-percent">Subscription Commission (%)</Label>
+          <Input
+            id="commission-percent"
+            type="number"
+            value={settings.affiliate_subscription_commission_percent || 0}
+            onChange={(e) => handleSettingChange('affiliate_subscription_commission_percent', parseFloat(e.target.value) || 0)}
+            placeholder="e.g., 10"
+            min="0"
+            max="100"
+            step="0.1"
+          />
+           <p className="text-sm text-muted-foreground">The percentage of a subscription payment that goes to the affiliate.</p>
+        </div>
+        <div className="space-y-2 p-4 border rounded-lg">
+          <Label htmlFor="free-referral-comp">Free Referral Compensation ($)</Label>
+          <Input
+            id="free-referral-comp"
+            type="number"
+            value={settings.affiliate_free_referral_compensation || 0}
+            onChange={(e) => handleSettingChange('affiliate_free_referral_compensation', parseFloat(e.target.value) || 0)}
+            placeholder="e.g., 0.10"
+            min="0"
+            step="0.01"
+          />
+           <p className="text-sm text-muted-foreground">The flat amount an affiliate earns for a referred free user who becomes active.</p>
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Settings'
+          )}
+        </Button>
       </CardContent>
     </Card>
   );

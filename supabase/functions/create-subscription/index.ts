@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('--- [DEBUG] create-subscription function invoked ---');
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -20,7 +21,6 @@ serve(async (req) => {
   );
 
   try {
-    console.log("--- create-subscription function started ---");
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
@@ -33,7 +33,6 @@ serve(async (req) => {
     if (!user?.email) {
       throw new Error("User not authenticated");
     }
-    console.log(`Authenticated user: ${user.id}`);
 
     console.log('🔍 Checking Stripe settings...');
 
@@ -52,7 +51,7 @@ serve(async (req) => {
 
     let isStripeEnabled = true; // Default to enabled for safety
     
-    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object' && stripeSettings.value !== null) {
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
       const settingValue = stripeSettings.value as { enabled?: boolean };
       isStripeEnabled = settingValue.enabled === true;
       console.log('🔍 Stripe setting found:', settingValue);
@@ -62,8 +61,7 @@ serve(async (req) => {
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
-    const { priceId, planId, planName, amount, credits } = await req.json();
-    console.log(`Request body: priceId=${priceId}, planId=${planId}, planName=${planName}, amount=${amount}, credits=${credits}`);
+    const { priceId, planId, planName, amount } = await req.json();
 
     // If Stripe is disabled, process subscription automatically
     if (!isStripeEnabled) {
@@ -73,10 +71,24 @@ serve(async (req) => {
       const expiresAt = new Date(subscriptionStartDate);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-      // Upsert subscription record to handle existing subscriptions
+      // First, deactivate existing subscriptions
+      const { error: deactivateError } = await supabaseService
+        .from('user_subscriptions')
+        .update({
+          subscription_status: 'inactive',
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .eq('subscription_status', 'active');
+
+      if (deactivateError) {
+        console.error('❌ Error deactivating existing subscriptions:', deactivateError);
+      }
+
+      // Create new subscription record
       const { error: subError } = await supabaseService
         .from('user_subscriptions')
-        .upsert({
+        .insert({
           user_id: user.id,
           subscription_type: planId,
           subscription_status: 'active',
@@ -84,14 +96,13 @@ serve(async (req) => {
           expires_at: expiresAt.toISOString(),
           stripe_subscription_id: `auto-${Date.now()}`,
           stripe_customer_id: `auto-customer-${user.id}`,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
         });
 
       if (subError) {
-        console.error('❌ Error upserting subscription:', subError);
-        throw new Error('Failed to create or update subscription');
+        console.error('❌ Error creating subscription:', subError);
+        throw new Error('Failed to create subscription');
       }
 
       // Update user roles - remove voter, add subscriber
@@ -103,7 +114,6 @@ serve(async (req) => {
 
       if (deleteRoleError) {
         console.error('❌ Error removing voter role:', deleteRoleError);
-        throw new Error('Failed to remove voter role');
       }
 
       const { error: addRoleError } = await supabaseService
@@ -117,22 +127,6 @@ serve(async (req) => {
 
       if (addRoleError) {
         console.error('❌ Error adding subscriber role:', addRoleError);
-        throw new Error('Failed to add subscriber role');
-      }
-
-      // Add credits to user's account
-      if (credits && credits > 0) {
-        const { error: creditError } = await supabaseService.rpc('update_user_credits', {
-          p_user_id: user.id,
-          p_amount: credits
-        });
-
-        if (creditError) {
-          console.error('❌ Error adding credits to user account:', creditError);
-          // Non-fatal, we don't throw here, just log it. The subscription is more important.
-        } else {
-          console.log(`✅ ${credits} credits added to user ${user.id}`);
-        }
       }
 
       // Log the transaction
@@ -145,7 +139,7 @@ serve(async (req) => {
           payment_method: 'automatic',
           status: 'completed',
           payment_id: `auto-${Date.now()}`,
-          credits_purchased: credits || 0
+          credits_purchased: 0
         });
 
       if (transactionError) {
@@ -207,8 +201,7 @@ serve(async (req) => {
         user_id: user.id,
         plan_id: planId,
         plan_name: planName,
-        user_email: user.email,
-        credits: String(credits || 0)
+        user_email: user.email
       }
     });
 
@@ -219,11 +212,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error("!!! TOP-LEVEL CATCH BLOCK !!!");
     console.error("Subscription creation error:", error);
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

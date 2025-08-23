@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,15 +9,72 @@ import { toast } from 'sonner';
 import { AffiliateWallet } from '@/types/affiliate';
 
 interface AffiliateWalletProps {
-  wallet: AffiliateWallet | null;
-  onWithdrawal: () => void;
+  affiliateId: string;
 }
 
-const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWithdrawal }) => {
+const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId }) => {
+  const [wallet, setWallet] = useState<AffiliateWallet | null>(null);
+  const [loading, setLoading] = useState(true);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [usdtAddress, setUsdtAddress] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  const usdtAddress = wallet?.usdt_wallet_address || '';
+  const fetchWallet = async () => {
+    try {
+      // First try to get existing wallet
+      let { data: walletData, error: walletError } = await supabase
+        .from('affiliate_wallets')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .single();
+
+      if (walletError && walletError.code === 'PGRST116') {
+        // No wallet found, get USDT address from affiliate application
+        const { data: applicationData } = await supabase
+          .from('affiliate_applications')
+          .select('usdt_wallet_address')
+          .eq('user_id', affiliateId)
+          .eq('status', 'approved')
+          .single();
+
+        if (applicationData?.usdt_wallet_address) {
+          // Create wallet with the registered USDT address
+          const { data: newWallet, error: createError } = await supabase
+            .from('affiliate_wallets')
+            .insert({
+              affiliate_user_id: affiliateId,
+              usdt_wallet_address: applicationData.usdt_wallet_address,
+              balance: 0,
+              total_earned: 0,
+              total_withdrawn: 0
+            })
+            .select()
+            .single();
+
+          if (!createError && newWallet) {
+            walletData = newWallet;
+          }
+        }
+      }
+
+      if (walletData) {
+        setWallet(walletData);
+        if (walletData.usdt_wallet_address) {
+          setUsdtAddress(walletData.usdt_wallet_address);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching wallet:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (affiliateId) {
+      fetchWallet();
+    }
+  }, [affiliateId]);
 
   const handleWithdrawal = async () => {
     if (!withdrawalAmount || !usdtAddress) {
@@ -37,11 +93,6 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
       return;
     }
 
-    if (amount < 50) {
-      toast.error("Minimum withdrawal amount is $50.00");
-      return;
-    }
-
     setIsWithdrawing(true);
     try {
       const { error } = await supabase.functions.invoke('request-affiliate-withdrawal', {
@@ -56,7 +107,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
       } else {
         toast.success("Withdrawal request submitted successfully");
         setWithdrawalAmount('');
-        onWithdrawal();
+        fetchWallet();
       }
     } catch (err: any) {
       toast.error("An error occurred while requesting withdrawal");
@@ -66,14 +117,17 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
     }
   };
 
-  if (!wallet) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center"><Wallet className="mr-2 h-5 w-5" /> Affiliate Wallet</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>Wallet information not available.</p>
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -122,20 +176,23 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
 
       <Card>
         <CardHeader>
-          <CardTitle>Withdrawal Settings</CardTitle>
+          <CardTitle>Request Withdrawal</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Registered USDT Wallet Address (TRC20)</label>
+            <label className="text-sm font-medium">USDT Wallet Address (TRC20)</label>
             <Input
               type="text"
+              placeholder="Enter your USDT wallet address"
               value={usdtAddress}
-              readOnly
-              className="bg-gray-100 text-gray-700"
+              onChange={(e) => setUsdtAddress(e.target.value)}
+              disabled={!!wallet?.usdt_wallet_address}
             />
-            <p className="text-xs text-muted-foreground">
-              This is your registered wallet address from your affiliate application. Contact support to change it.
-            </p>
+            {wallet?.usdt_wallet_address && (
+              <p className="text-xs text-muted-foreground">
+                Using registered wallet address from your application
+              </p>
+            )}
           </div>
           
           <Dialog>
@@ -164,20 +221,9 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
                   </p>
                 </div>
                 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">USDT Wallet Address</label>
-                  <Input
-                    type="text"
-                    value={usdtAddress}
-                    readOnly
-                    className="bg-gray-100"
-                  />
-                </div>
-                
                 <div className="bg-yellow-50 p-3 rounded-lg">
                   <p className="text-sm text-yellow-800">
                     <strong>Note:</strong> A 10% processing fee will be deducted from your withdrawal.
-                    Funds will be sent to your registered USDT wallet address.
                   </p>
                 </div>
                 
