@@ -33,16 +33,12 @@ const AffiliateManagementTab: React.FC = () => {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      console.log('Fetching affiliate applications...');
+      console.log('Fetching affiliate applications via edge function...');
       
-      // Use direct database query instead of edge function
-      const { data, error } = await supabase
-        .from('affiliate_applications')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
 
       if (error) {
-        console.error('Error fetching affiliate applications:', error);
+        console.error('Error invoking edge function:', error);
         toast.error(error.message || 'Failed to fetch affiliate applications');
         return;
       }
