@@ -18,55 +18,52 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
 
   const fetchLinks = async () => {
     try {
-      // Get affiliate application to get the referral code
-      const { data: application, error: appError } = await supabase
-        .from('affiliate_applications')
-        .select('unique_referral_code, status')
-        .eq('user_id', affiliateId)
-        .eq('status', 'approved')
-        .single();
+      // First try to get existing links
+      let { data, error } = await supabase
+        .rpc('get_affiliate_links', { user_id: affiliateId });
 
-      if (appError || !application) {
-        console.error('No approved affiliate application found:', appError);
-        setLinks([]);
+      if (error) {
+        console.error('Error fetching affiliate links:', error);
         return;
       }
 
-      // Check if link already exists
-      let { data: existingLinks, error: linkError } = await supabase
-        .from('affiliate_links')
-        .select('*')
-        .eq('affiliate_user_id', affiliateId);
-
-      if (linkError) {
-        console.error('Error fetching affiliate links:', linkError);
-        return;
-      }
-
-      // If no links exist, create one
-      if (!existingLinks || existingLinks.length === 0) {
-        const { data: newLink, error: createError } = await supabase
-          .from('affiliate_links')
-          .insert({
-            affiliate_user_id: affiliateId,
-            link_code: application.unique_referral_code,
-            clicks_count: 0
-          })
-          .select()
+      // If no links exist but user is approved, create one
+      if (!data || data.length === 0) {
+        const { data: applicationData } = await supabase
+          .from('affiliate_applications')
+          .select('unique_referral_code, status')
+          .eq('user_id', affiliateId)
+          .eq('status', 'approved')
           .single();
 
-        if (!createError && newLink) {
-          setLinks([newLink]);
-        } else {
-          console.error('Error creating affiliate link:', createError);
-          setLinks([]);
+        if (applicationData?.unique_referral_code) {
+          // Create the affiliate link
+          const { data: newLink, error: createError } = await supabase
+            .from('affiliate_links')
+            .insert({
+              affiliate_user_id: affiliateId,
+              link_code: applicationData.unique_referral_code,
+              clicks_count: 0
+            })
+            .select()
+            .single();
+
+          if (!createError && newLink) {
+            setLinks([{
+              id: newLink.id,
+              affiliate_user_id: newLink.affiliate_user_id,
+              link_code: newLink.link_code,
+              clicks_count: newLink.clicks_count,
+              created_at: newLink.created_at,
+              updated_at: newLink.updated_at
+            }]);
+          }
         }
       } else {
-        setLinks(existingLinks);
+        setLinks(data);
       }
     } catch (err) {
       console.error('Error fetching links:', err);
-      toast.error('Failed to load affiliate links');
     } finally {
       setLoading(false);
     }
@@ -108,14 +105,7 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ affiliateId }) => {
           <CardTitle className="flex items-center"><LinkIcon className="mr-2 h-5 w-5" /> Your Affiliate Links</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground mb-4">
-            No affiliate links found. This may be because your application is still pending or was rejected.
-          </p>
-          <div className="text-center">
-            <Button onClick={fetchLinks} variant="outline">
-              Refresh Links
-            </Button>
-          </div>
+          <p className="text-center text-muted-foreground">No affiliate links found. Links are generated when your application is approved.</p>
         </CardContent>
       </Card>
     );
