@@ -13,6 +13,10 @@ export interface Contest {
   start_date: string;
   entry_fee: number;
   status: string;
+  rules?: string;
+  instrumental_url?: string;
+  voting_enabled?: boolean;
+  max_entries_per_user?: number;
 }
 
 export interface ContestEntry {
@@ -35,6 +39,7 @@ export interface ContestEntry {
 export const useContest = () => {
   const { user } = useAuth();
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
+  const [contests, setContests] = useState<Contest[]>([]);
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +61,89 @@ export const useContest = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAllContests = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('contests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setContests(data || []);
+    } catch (err: any) {
+      console.error('Error fetching all contests:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createContest = async (contestData: Partial<Contest>): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .insert({
+          ...contestData,
+          status: 'active',
+          created_by: user?.id
+        });
+
+      if (error) throw error;
+      
+      toast.success('Contest created successfully');
+      await fetchAllContests();
+      return true;
+    } catch (err: any) {
+      console.error('Error creating contest:', err);
+      toast.error('Failed to create contest: ' + err.message);
+      return false;
+    }
+  };
+
+  const updateContest = async (contestId: string, contestData: Partial<Contest>): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .update(contestData)
+        .eq('id', contestId);
+
+      if (error) throw error;
+      
+      toast.success('Contest updated successfully');
+      await fetchAllContests();
+      return true;
+    } catch (err: any) {
+      console.error('Error updating contest:', err);
+      toast.error('Failed to update contest: ' + err.message);
+      return false;
+    }
+  };
+
+  const deleteContest = async (contestId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('contests')
+        .delete()
+        .eq('id', contestId);
+
+      if (error) throw error;
+      
+      toast.success('Contest deleted successfully');
+      await fetchAllContests();
+      return true;
+    } catch (err: any) {
+      console.error('Error deleting contest:', err);
+      toast.error('Failed to delete contest: ' + err.message);
+      return false;
+    }
+  };
+
+  const refreshContests = async () => {
+    await fetchAllContests();
+    await fetchActiveContests();
   };
 
   const fetchContestEntries = async (contestId?: string) => {
@@ -101,14 +189,12 @@ export const useContest = () => {
     try {
       console.log('Submitting vote for entry:', entryId);
       
-      // Get the entry to find the contest ID
       const entry = contestEntries.find(e => e.id === entryId);
       if (!entry) {
         toast.error('Entry not found');
         return false;
       }
 
-      // Check if user already voted for this entry
       const { data: existingVote, error: checkError } = await supabase
         .from('contest_votes')
         .select('id')
@@ -127,7 +213,6 @@ export const useContest = () => {
         return false;
       }
 
-      // Submit the vote
       const { error: voteError } = await supabase
         .from('contest_votes')
         .insert({
@@ -142,7 +227,6 @@ export const useContest = () => {
         return false;
       }
 
-      // Refresh entries to show updated vote count
       await fetchContestEntries(entry.contest_id);
       toast.success('Vote submitted successfully!');
       return true;
@@ -165,6 +249,7 @@ export const useContest = () => {
 
   useEffect(() => {
     fetchActiveContests();
+    fetchAllContests();
   }, []);
 
   useEffect(() => {
@@ -175,11 +260,16 @@ export const useContest = () => {
 
   return {
     activeContests,
+    contests,
     contestEntries,
     loading,
     error,
     voteForEntry,
     refreshEntries,
     setCurrentContest,
+    createContest,
+    updateContest,
+    deleteContest,
+    refreshContests,
   };
 };

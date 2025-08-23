@@ -1,7 +1,11 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -9,33 +13,46 @@ serve(async (req) => {
   }
 
   try {
-    const userSupabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
-
-    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Verify user authentication
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        'Authorization': authHeader,
+        'apikey': Deno.env.get('SUPABASE_ANON_KEY')!
+      }
+    })
+
+    if (!userResponse.ok) {
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
+    const user = await userResponse.json()
+    console.log('Authenticated user:', user.id)
 
     // Check if user is admin
-    const { data: userRoles } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
+    const rolesResponse = await fetch(`${supabaseUrl}/rest/v1/user_roles?user_id=eq.${user.id}`, {
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'apikey': supabaseServiceKey,
+        'Content-Type': 'application/json'
+      }
+    })
 
-    const isAdmin = userRoles?.some(role => ['admin', 'super_admin'].includes(role.role)) || 
+    const userRoles = await rolesResponse.json()
+    const isAdmin = userRoles?.some((role: any) => ['admin', 'super_admin'].includes(role.role)) || 
                    user.email === 'ellaadahosa@gmail.com'
 
     if (!isAdmin) {
@@ -47,24 +64,28 @@ serve(async (req) => {
 
     console.log('Admin access verified, fetching applications...')
 
-    // Fetch all affiliate applications with enhanced logging
-    const { data: applications, error: applicationsError } = await supabaseAdmin
-      .from('affiliate_applications')
-      .select('*')
-      .order('created_at', { ascending: false })
+    // Fetch all affiliate applications
+    const applicationsResponse = await fetch(`${supabaseUrl}/rest/v1/affiliate_applications?select=*&order=created_at.desc`, {
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'apikey': supabaseServiceKey,
+        'Content-Type': 'application/json'
+      }
+    })
 
-    if (applicationsError) {
-      console.error('Error fetching applications:', applicationsError)
-      return new Response(JSON.stringify({ error: 'Failed to fetch applications', details: applicationsError.message }), {
+    if (!applicationsResponse.ok) {
+      const errorText = await applicationsResponse.text()
+      console.error('Error fetching applications:', errorText)
+      return new Response(JSON.stringify({ error: 'Failed to fetch applications', details: errorText }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       })
     }
 
+    const applications = await applicationsResponse.json()
     console.log(`Successfully fetched ${applications?.length || 0} applications`)
     
-    // Log the applications data for debugging
-    applications?.forEach((app, index) => {
+    applications?.forEach((app: any, index: number) => {
       console.log(`Application ${index + 1}:`, {
         id: app.id,
         email: app.email,

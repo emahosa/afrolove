@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 interface AffiliateApplication {
   id: string;
@@ -17,10 +17,11 @@ interface AffiliateApplication {
   phone: string;
   social_media_url: string;
   reason_to_join: string;
-  usdt_wallet_address: string;
+  usdt_wallet_address?: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
+  unique_referral_code?: string;
 }
 
 const AffiliateManagementTab: React.FC = () => {
@@ -34,7 +35,11 @@ const AffiliateManagementTab: React.FC = () => {
       setLoading(true);
       console.log('Fetching affiliate applications...');
       
-      const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
+      // Use direct database query instead of edge function
+      const { data, error } = await supabase
+        .from('affiliate_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching affiliate applications:', error);
@@ -42,7 +47,7 @@ const AffiliateManagementTab: React.FC = () => {
         return;
       }
 
-      console.log('Raw data from function:', data);
+      console.log('Raw data from database:', data);
       
       if (Array.isArray(data)) {
         setApplications(data);
@@ -69,9 +74,10 @@ const AffiliateManagementTab: React.FC = () => {
   const handleApproveApplication = async (applicationId: string) => {
     setProcessingId(applicationId);
     try {
-      const { error } = await supabase.functions.invoke('approve-affiliate-application', {
-        body: { application_id: applicationId }
-      });
+      const { error } = await supabase
+        .from('affiliate_applications')
+        .update({ status: 'approved' })
+        .eq('id', applicationId);
 
       if (error) {
         toast.error(error.message || 'Failed to approve application');
@@ -79,7 +85,7 @@ const AffiliateManagementTab: React.FC = () => {
       }
 
       toast.success('Application approved successfully');
-      fetchApplications(); // Refresh the list
+      fetchApplications();
     } catch (err: any) {
       console.error('Error approving application:', err);
       toast.error('Failed to approve application');
@@ -91,9 +97,10 @@ const AffiliateManagementTab: React.FC = () => {
   const handleRejectApplication = async (applicationId: string) => {
     setProcessingId(applicationId);
     try {
-      const { error } = await supabase.functions.invoke('reject-affiliate-application', {
-        body: { application_id: applicationId }
-      });
+      const { error } = await supabase
+        .from('affiliate_applications')
+        .update({ status: 'rejected' })
+        .eq('id', applicationId);
 
       if (error) {
         toast.error(error.message || 'Failed to reject application');
@@ -101,7 +108,7 @@ const AffiliateManagementTab: React.FC = () => {
       }
 
       toast.success('Application rejected');
-      fetchApplications(); // Refresh the list
+      fetchApplications();
     } catch (err: any) {
       console.error('Error rejecting application:', err);
       toast.error('Failed to reject application');
@@ -143,10 +150,15 @@ const AffiliateManagementTab: React.FC = () => {
       <CardContent>
         <div className="space-y-2 mb-4">
           <p><strong>Phone:</strong> {application.phone}</p>
-          <p><strong>Social Media:</strong> {application.social_media_url}</p>
-          <p><strong>USDT Wallet:</strong> {application.usdt_wallet_address}</p>
+          <p><strong>Social Media:</strong> {application.social_media_url || 'Not provided'}</p>
+          {application.usdt_wallet_address && (
+            <p><strong>USDT Wallet:</strong> {application.usdt_wallet_address}</p>
+          )}
           <p><strong>Reason to Join:</strong> {application.reason_to_join}</p>
           <p><strong>Applied:</strong> {new Date(application.created_at).toLocaleDateString()}</p>
+          {application.unique_referral_code && (
+            <p><strong>Referral Code:</strong> {application.unique_referral_code}</p>
+          )}
         </div>
         
         {application.status === 'pending' && (
@@ -214,7 +226,7 @@ const AffiliateManagementTab: React.FC = () => {
           <p className="text-muted-foreground">Manage affiliate applications and approvals</p>
         </div>
         <Button onClick={fetchApplications} variant="outline">
-          <Loader2 className="h-4 w-4 mr-2" />
+          <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>

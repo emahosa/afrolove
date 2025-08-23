@@ -1,194 +1,131 @@
 
-import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, DollarSign, Users, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AffiliateApplicationForm from '@/components/affiliate/AffiliateApplicationForm';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
-const BecomeAffiliate: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [appStatusLoading, setAppStatusLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
-  const [canReapply, setCanReapply] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    socialMediaUrl: '',
-    reasonToJoin: '',
-    usdtWalletAddress: ''
-  });
-
-  // Fetch user profile data
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user?.id) return;
-
-      try {
-        console.log('Fetching profile for user:', user.id);
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Error fetching profile:', profileError);
-        } else if (profileData) {
-          console.log('Profile data found:', profileData);
-          setUserProfile(profileData);
-          setFormData(prev => ({
-            ...prev,
-            fullName: profileData.full_name || user.user_metadata?.full_name || user.name || '',
-            email: user.email || profileData.username || ''
-          }));
-        } else {
-          // Fallback to auth user data
-          console.log('No profile found, using auth data');
-          setFormData(prev => ({
-            ...prev,
-            fullName: user.user_metadata?.full_name || user.name || '',
-            email: user.email || ''
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        // Fallback to auth user data
-        setFormData(prev => ({
-          ...prev,
-          fullName: user.user_metadata?.full_name || user.name || '',
-          email: user.email || ''
-        }));
-      }
-    };
-
-    if (user) {
-      fetchUserProfile();
-    }
-  }, [user]);
+const BecomeAffiliate = () => {
+  const { user, isSubscriber, isAffiliate } = useAuth();
+  const [hasApplication, setHasApplication] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkApplicationStatus = async () => {
-      if (!user?.id) {
-        if (!authLoading) setAppStatusLoading(false);
+    const checkApplication = async () => {
+      if (!user) {
+        setLoading(false);
         return;
       }
 
       try {
-        console.log('Checking application status for user:', user.id);
-        const { data: applicationData, error: applicationError } = await supabase.functions.invoke('get-affiliate-application-status');
+        const { data, error } = await supabase
+          .from('affiliate_applications')
+          .select('status')
+          .eq('user_id', user.id)
+          .single();
 
-        if (applicationError) {
-          console.error('Error checking application status:', applicationError);
-        } else if (applicationData) {
-          console.log('Application status:', applicationData.status);
-          setApplicationStatus(applicationData.status as 'pending' | 'approved' | 'rejected');
-          
-          // For rejected applications, check if 60 days have passed since last update
-          if (applicationData.status === 'rejected') {
-            const rejectionDate = new Date(applicationData.updated_at);
-            const currentDate = new Date();
-            const daysDifference = (currentDate.getTime() - rejectionDate.getTime()) / (1000 * 3600 * 24);
-            setCanReapply(daysDifference >= 60);
-          }
-        } else {
-          console.log('No application found');
-          setApplicationStatus('none');
+        if (data) {
+          setHasApplication(true);
+          setApplicationStatus(data.status);
         }
-      } catch (err) {
-        console.error('Error checking application status:', err);
+      } catch (error) {
+        console.error('Error checking application:', error);
       } finally {
-        setAppStatusLoading(false);
+        setLoading(false);
       }
     };
 
-    checkApplicationStatus();
-  }, [user, authLoading]);
+    checkApplication();
+  }, [user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.id) {
-      toast.error('Please log in to submit an application');
-      return;
-    }
-
-    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim() || 
-        !formData.reasonToJoin.trim() || !formData.usdtWalletAddress.trim()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      console.log('Submitting application with data:', {
-        full_name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        social_media_url: formData.socialMediaUrl,
-        reason_to_join: formData.reasonToJoin,
-        usdt_wallet_address: formData.usdtWalletAddress
-      });
-
-      const { data, error } = await supabase.functions.invoke('submit-affiliate-application', {
-        body: {
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          social_media_url: formData.socialMediaUrl,
-          reason_to_join: formData.reasonToJoin,
-          usdt_wallet_address: formData.usdtWalletAddress
-        }
-      });
-
-      if (error) {
-        console.error('Application submission error:', error);
-        throw error;
-      }
-
-      console.log('Application submitted successfully:', data);
-      toast.success('Affiliate application submitted successfully!');
-      setApplicationStatus('pending');
-    } catch (err: any) {
-      console.error('Application submission error:', err);
-      toast.error(err.message || 'Failed to submit application');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  if (authLoading || appStatusLoading) {
+  if (!user) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle>Join Our Affiliate Program</CardTitle>
+            <CardDescription>Sign in to apply as an affiliate partner</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link to="/login">
+              <Button className="w-full">Sign In to Apply</Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  if (!user) {
+  if (isAffiliate) {
     return (
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <CardTitle>You're Already an Affiliate!</CardTitle>
+            <CardDescription>Access your affiliate dashboard to manage your referrals</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p>Please log in to access the affiliate application form.</p>
-            <Link to="/login" className="mt-4 inline-block">
-              <Button>Go to Login</Button>
+          <CardContent className="text-center">
+            <Link to="/affiliate">
+              <Button className="w-full">Go to Affiliate Dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (hasApplication) {
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'approved': return 'bg-green-500';
+        case 'rejected': return 'bg-red-500';
+        default: return 'bg-yellow-500';
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle>Application Status</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <Badge className={getStatusColor(applicationStatus || '')}>
+              {applicationStatus?.charAt(0).toUpperCase() + applicationStatus?.slice(1)}
+            </Badge>
+            <p className="text-muted-foreground">
+              {applicationStatus === 'pending' && 'Your application is being reviewed. We will notify you once it has been processed.'}
+              {applicationStatus === 'approved' && 'Congratulations! Your application has been approved. You can now access the affiliate dashboard.'}
+              {applicationStatus === 'rejected' && 'Your application was not approved at this time. You may reapply in the future.'}
+            </p>
+            {applicationStatus === 'approved' && (
+              <Link to="/affiliate">
+                <Button className="w-full">Access Affiliate Dashboard</Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isSubscriber) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle>Subscription Required</CardTitle>
+            <CardDescription>You need an active subscription to apply for our affiliate program</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link to="/subscription">
+              <Button className="w-full">Subscribe Now</Button>
             </Link>
           </CardContent>
         </Card>
@@ -197,128 +134,54 @@ const BecomeAffiliate: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Become an Affiliate</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {applicationStatus === 'approved' && (
-            <div className="text-center space-y-4">
-              <div className="text-green-600">
-                <h3 className="text-lg font-semibold">Application Approved! 🎉</h3>
-                <p>Your affiliate application has been approved. You can now access your affiliate dashboard.</p>
-              </div>
-              <Link to="/affiliate-dashboard">
-                <Button>Go to Affiliate Dashboard</Button>
-              </Link>
-            </div>
-          )}
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Hero Section */}
+        <div className="text-center mb-12 pt-8">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            Become an <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-purple-400">Affiliate</span>
+          </h1>
+          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            Join our affiliate program and earn money by referring new users to our platform
+          </p>
+        </div>
 
-          {applicationStatus === 'pending' && (
-            <div className="text-center space-y-4">
-              <div className="text-yellow-600">
-                <h3 className="text-lg font-semibold">Application Under Review</h3>
-                <p>Your affiliate application is currently being reviewed. We'll notify you once it's processed.</p>
-              </div>
-            </div>
-          )}
+        {/* Benefits Grid */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <CardHeader className="text-center">
+              <DollarSign className="h-12 w-12 text-green-400 mx-auto mb-4" />
+              <CardTitle className="text-white">High Commissions</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-gray-300">Earn 10% commission on every subscription from your referrals</p>
+            </CardContent>
+          </Card>
 
-          {applicationStatus === 'rejected' && !canReapply && (
-            <div className="text-center space-y-4">
-              <div className="text-red-600">
-                <h3 className="text-lg font-semibold">Application Rejected</h3>
-                <p>Your affiliate application was rejected. You can reapply after 60 days from the rejection date.</p>
-              </div>
-            </div>
-          )}
+          <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <CardHeader className="text-center">
+              <Users className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+              <CardTitle className="text-white">Free Bonuses</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-gray-300">Get $0.10 for every user who visits the subscription page through your link</p>
+            </CardContent>
+          </Card>
 
-          {(applicationStatus === 'none' || (applicationStatus === 'rejected' && canReapply)) && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    required
-                    className="bg-gray-50 dark:bg-gray-800"
-                    placeholder="Your full name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="bg-gray-50 dark:bg-gray-800"
-                    placeholder="Your email address"
-                  />
-                </div>
-              </div>
+          <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+            <CardHeader className="text-center">
+              <TrendingUp className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+              <CardTitle className="text-white">Real-time Tracking</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+              <p className="text-gray-300">Monitor your clicks, referrals, and earnings in real-time</p>
+            </CardContent>
+          </Card>
+        </div>
 
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="+1234567890"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="socialMediaUrl">Social Media URL</Label>
-                <Input
-                  id="socialMediaUrl"
-                  name="socialMediaUrl"
-                  type="url"
-                  value={formData.socialMediaUrl}
-                  onChange={handleInputChange}
-                  placeholder="https://instagram.com/youraccount"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="usdtWalletAddress">USDT Wallet Address</Label>
-                <Input
-                  id="usdtWalletAddress"
-                  name="usdtWalletAddress"
-                  value={formData.usdtWalletAddress}
-                  onChange={handleInputChange}
-                  placeholder="Your USDT wallet address for withdrawals"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="reasonToJoin">Why do you want to become an affiliate?</Label>
-                <Textarea
-                  id="reasonToJoin"
-                  name="reasonToJoin"
-                  value={formData.reasonToJoin}
-                  onChange={handleInputChange}
-                  rows={4}
-                  required
-                  placeholder="Tell us why you want to join our affiliate program..."
-                />
-              </div>
-
-              <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? 'Submitting...' : 'Submit Application'}
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+        {/* Application Form */}
+        <AffiliateApplicationForm />
+      </div>
     </div>
   );
 };
