@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { supabase } from './integrations/supabase/client';
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -41,33 +40,6 @@ import { ensureStorageBuckets } from './utils/storageSetup';
 const App = () => {
   useEffect(() => {
     ensureStorageBuckets();
-
-    const handleAffiliateTracking = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const refCode = params.get('ref');
-
-      if (refCode) {
-        // Store the referral code in a cookie for 30 days
-        const d = new Date();
-        d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
-        const expires = "expires=" + d.toUTCString();
-        document.cookie = `affiliate_ref=${refCode};${expires};path=/`;
-
-        // Track the click event in the backend
-        try {
-          const { error } = await supabase.functions.invoke('track-affiliate-click', {
-            body: { referral_code: refCode }
-          });
-          if (error) {
-            console.error('Error tracking affiliate click:', error.message);
-          }
-        } catch (e) {
-          console.error('Failed to invoke track-affiliate-click function', e);
-        }
-      }
-    };
-
-    handleAffiliateTracking();
   }, []);
   
   return (

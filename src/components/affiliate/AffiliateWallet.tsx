@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,91 @@ import { toast } from 'sonner';
 import { AffiliateWallet } from '@/types/affiliate';
 
 interface AffiliateWalletProps {
-  wallet: AffiliateWallet | null;
-  onWithdrawal: () => void;
+  affiliateId: string;
 }
 
-const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWithdrawal }) => {
+const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId }) => {
+  const [wallet, setWallet] = useState<AffiliateWallet | null>(null);
+  const [loading, setLoading] = useState(true);
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [usdtAddress, setUsdtAddress] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
-  const usdtAddress = wallet?.usdt_wallet_address || '';
+  const fetchWallet = async () => {
+    try {
+      // First get the registered USDT address from affiliate application
+      const { data: applicationData, error: appError } = await supabase
+        .from('affiliate_applications')
+        .select('usdt_wallet_address')
+        .eq('user_id', affiliateId)
+        .eq('status', 'approved')
+        .single();
+
+      if (appError) {
+        console.error('Error fetching affiliate application:', appError);
+        toast.error('Failed to load affiliate application data');
+        return;
+      }
+
+      // Set the USDT address from application
+      if (applicationData?.usdt_wallet_address) {
+        setUsdtAddress(applicationData.usdt_wallet_address);
+      }
+
+      // Try to get existing wallet
+      let { data: walletData, error: walletError } = await supabase
+        .from('affiliate_wallets')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .single();
+
+      if (walletError && walletError.code === 'PGRST116') {
+        // No wallet found, create one with the registered USDT address
+        if (applicationData?.usdt_wallet_address) {
+          const { data: newWallet, error: createError } = await supabase
+            .from('affiliate_wallets')
+            .insert({
+              affiliate_user_id: affiliateId,
+              usdt_wallet_address: applicationData.usdt_wallet_address,
+              balance: 0,
+              total_earned: 0,
+              total_withdrawn: 0
+            })
+            .select()
+            .single();
+
+          if (!createError && newWallet) {
+            walletData = newWallet;
+          } else {
+            console.error('Error creating wallet:', createError);
+          }
+        }
+      } else if (walletError) {
+        console.error('Error fetching wallet:', walletError);
+        toast.error('Failed to load wallet data');
+        return;
+      }
+
+      if (walletData) {
+        setWallet(walletData);
+        // Use the wallet's USDT address if available, otherwise use the application address
+        if (walletData.usdt_wallet_address) {
+          setUsdtAddress(walletData.usdt_wallet_address);
+        }
+      }
+    } catch (err) {
+      console.error('Error in fetchWallet:', err);
+      toast.error('Failed to load affiliate wallet');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (affiliateId) {
+      fetchWallet();
+    }
+  }, [affiliateId]);
 
   const handleWithdrawal = async () => {
     if (!withdrawalAmount || !usdtAddress) {
@@ -44,9 +120,10 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
 
     setIsWithdrawing(true);
     try {
-      const { error } = await supabase.functions.invoke('request-affiliate-payout', {
+      const { error } = await supabase.functions.invoke('request-affiliate-withdrawal', {
         body: {
-          requested_amount: amount
+          requested_amount: amount,
+          usdt_wallet_address: usdtAddress
         }
       });
 
@@ -55,7 +132,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
       } else {
         toast.success("Withdrawal request submitted successfully");
         setWithdrawalAmount('');
-        onWithdrawal();
+        fetchWallet();
       }
     } catch (err: any) {
       toast.error("An error occurred while requesting withdrawal");
@@ -65,22 +142,25 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
     }
   };
 
-  if (!wallet) {
+  if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center"><Wallet className="mr-2 h-5 w-5" /> Affiliate Wallet</CardTitle>
         </CardHeader>
         <CardContent>
-          <p>Wallet information not available.</p>
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
-  const balance = Number(wallet?.pending_balance) || 0;
-  const totalEarned = Number(wallet?.lifetime_earnings) || 0;
-  const totalWithdrawn = Number(wallet?.paid_balance) || 0;
+  const balance = Number(wallet?.balance) || 0;
+  const totalEarned = Number(wallet?.total_earned) || 0;
+  const totalWithdrawn = Number(wallet?.total_withdrawn) || 0;
 
   return (
     <div className="space-y-6">

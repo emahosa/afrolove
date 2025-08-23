@@ -61,7 +61,7 @@ const Login = () => {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('id')
-      .eq('email', email.toLowerCase())
+      .eq('username', email.toLowerCase())
       .single();
 
     if (profileData) {
