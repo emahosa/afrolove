@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,27 +19,28 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
 
   const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
     try {
-      const { data: profileData, error: profileError } = (await supabase
+      // Simple query without complex type inference
+      const profileQuery = await supabase
         .from("profiles")
         .select("id")
         .eq("email", userEmail.toLowerCase())
-        .single()) as { data: { id: string } | null; error: any };
+        .single();
 
-      if (profileError || !profileData) {
+      if (profileQuery.error || !profileQuery.data) {
         return false;
       }
 
-      const { data: roleData, error: roleError } = await supabase
+      const roleQuery = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', profileData.id)
+        .eq('user_id', profileQuery.data.id)
         .in('role', ['admin', 'super_admin']);
 
-      if (roleError) {
+      if (roleQuery.error) {
         return false;
       }
 
-      return roleData && roleData.length > 0;
+      return roleQuery.data && roleQuery.data.length > 0;
     } catch (error) {
       console.error("Error checking admin status:", error);
       return false;
