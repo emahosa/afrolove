@@ -65,7 +65,7 @@ serve(async (req) => {
     console.log('Admin access verified, fetching applications...')
 
     // Fetch all affiliate applications
-    const applicationsResponse = await fetch(`${supabaseUrl}/rest/v1/affiliate_applications?select=*&order=created_at.desc`, {
+    const applicationsResponse = await fetch(`${supabaseUrl}/rest/v1/affiliates?select=*&order=created_at.desc`, {
       headers: {
         'Authorization': `Bearer ${supabaseServiceKey}`,
         'apikey': supabaseServiceKey,
