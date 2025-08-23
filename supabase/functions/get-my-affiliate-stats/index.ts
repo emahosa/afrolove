@@ -29,39 +29,49 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get total clicks
-    const { data: clicksData, error: clicksError } = await supabaseAdmin
-      .from('affiliate_clicks')
-      .select('id')
-      .eq('affiliate_user_id', user.id)
-
-    const clicksCount = clicksData?.length || 0
-
-    // Get total referrals (signups)
-    const { data: referralsData, error: referralsError } = await supabaseAdmin
-      .from('affiliate_referrals')
-      .select('id')
-      .eq('affiliate_id', user.id)
-
-    const totalReferrals = referralsData?.length || 0
-
-    // Get total earnings from affiliate wallet
-    const { data: walletData, error: walletError } = await supabaseAdmin
-      .from('affiliate_wallets')
-      .select('lifetime_earnings')
-      .eq('affiliate_user_id', user.id)
+    // Get affiliate stats from the main affiliates table
+    const { data: affiliateData, error: affiliateError } = await supabaseAdmin
+      .from('affiliates')
+      .select('total_free_referrals, total_subscribers, lifetime_commissions, pending_balance, paid_balance')
+      .eq('user_id', user.id)
       .single()
 
-    const totalEarnings = walletData?.lifetime_earnings || 0
+    if (affiliateError) {
+      console.error('Error fetching affiliate data:', affiliateError)
+      return new Response(JSON.stringify({ error: 'Failed to fetch affiliate stats' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
 
-    // Calculate conversion rate
-    const conversionRate = clicksCount > 0 ? (totalReferrals / clicksCount) * 100 : 0
+    if (!affiliateData) {
+        return new Response(JSON.stringify({ error: 'Affiliate not found' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404,
+        });
+    }
+
+    // Get total clicks separately
+    const { count: clicksCount, error: clicksError } = await supabaseAdmin
+      .from('affiliate_clicks')
+      .select('id', { count: 'exact' })
+      .eq('affiliate_user_id', user.id)
+
+    if (clicksError) {
+        console.error('Error fetching clicks count:', clicksError);
+        // Decide if you want to fail the whole request or return partial data
+    }
+
+    const totalReferrals = (affiliateData.total_free_referrals || 0) + (affiliateData.total_subscribers || 0);
+    const conversionRate = (clicksCount ?? 0) > 0 ? (totalReferrals / (clicksCount ?? 0)) * 100 : 0;
 
     const stats = {
       totalReferrals,
-      totalEarnings: parseFloat(totalEarnings.toString()),
+      totalEarnings: parseFloat(affiliateData.lifetime_commissions.toString()),
+      pendingBalance: parseFloat(affiliateData.pending_balance.toString()),
+      paidBalance: parseFloat(affiliateData.paid_balance.toString()),
       conversionRate: parseFloat(conversionRate.toFixed(2)),
-      clicksCount,
+      clicksCount: clicksCount ?? 0,
     }
 
     return new Response(JSON.stringify(stats), {

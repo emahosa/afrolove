@@ -50,34 +50,33 @@ serve(async (req) => {
       })
     }
 
-    const { count: totalReferred, error: totalReferredError } = await supabaseAdmin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .not('referrer_id', 'is', null);
+    const { data: affiliates, error: affiliatesError } = await supabaseAdmin
+      .from('affiliates')
+      .select('total_free_referrals, total_subscribers, lifetime_commissions, pending_balance, paid_balance');
 
-    const { count: invalidReferrals, error: invalidReferralsError } = await supabaseAdmin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .is('referrer_id', null)
-      .not('ip_address', 'is', null);
+    if (affiliatesError) {
+      console.error('Error fetching affiliate data for stats:', affiliatesError);
+      return new Response(JSON.stringify({ error: 'Failed to calculate affiliate stats' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
+      });
+    }
 
-    // These are simplified queries. A more accurate implementation would require more complex logic.
-    const { count: subscribedReferrals, error: subscribedReferralsError } = await supabaseAdmin
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .not('referrer_id', 'is', null)
-      .in('id', (await supabaseAdmin.from('user_subscriptions').select('user_id').eq('subscription_status', 'active')).data.map(s => s.user_id));
+    const totalStats = affiliates.reduce((acc, affiliate) => {
+      acc.totalReferred += (affiliate.total_free_referrals || 0) + (affiliate.total_subscribers || 0);
+      acc.totalSubscribers += affiliate.total_subscribers || 0;
+      acc.totalLifetimeCommissions += parseFloat(affiliate.lifetime_commissions.toString());
+      acc.totalPendingBalance += parseFloat(affiliate.pending_balance.toString());
+      acc.totalPaidBalance += parseFloat(affiliate.paid_balance.toString());
+      return acc;
+    }, {
+      totalReferred: 0,
+      totalSubscribers: 0,
+      totalLifetimeCommissions: 0,
+      totalPendingBalance: 0,
+      totalPaidBalance: 0,
+    });
 
-
-    const stats = {
-      totalReferred: totalReferred || 0,
-      invalidReferrals: invalidReferrals || 0,
-      nonActiveReferrals: 0, // Placeholder
-      subscribedReferrals: subscribedReferrals || 0,
-      activeFreeReferrals: 0, // Placeholder
-    };
-
-    return new Response(JSON.stringify({ stats }), {
+    return new Response(JSON.stringify({ stats: totalStats }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
