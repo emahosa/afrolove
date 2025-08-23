@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -30,7 +31,7 @@ serve(async (req) => {
       })
     }
 
-    // 1. Find the referral record for this user.
+    // Find the referral record for this user
     const { data: referral, error: referralError } = await supabaseAdmin
       .from('affiliate_referrals')
       .select('*')
@@ -38,14 +39,14 @@ serve(async (req) => {
       .single();
 
     if (referralError || !referral) {
-      // Not a referred user, so we don't do anything.
+      // Not a referred user, so we don't do anything
       return new Response(JSON.stringify({ message: 'Not a referred user.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    // 2. Check if the bonus has already been earned.
+    // Check if the bonus has already been earned
     if (referral.free_referral_earned) {
       return new Response(JSON.stringify({ message: 'Bonus already earned for this referral.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -53,7 +54,19 @@ serve(async (req) => {
       });
     }
 
-    // 3. Award the bonus by calling the RPC function.
+    // Check if signup was within 5 days (5-day cookie duration for free referral)
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const signupDate = new Date(referral.signup_date || referral.first_click_date);
+
+    if (signupDate < fiveDaysAgo) {
+      return new Response(JSON.stringify({ message: 'Free referral period expired (more than 5 days).' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    // Award the bonus by calling the RPC function
     const { error: rpcError } = await supabaseAdmin.rpc('process_free_referral_bonus', {
       p_affiliate_id: referral.affiliate_id,
       p_referred_user_id: user.id,

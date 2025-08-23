@@ -34,22 +34,24 @@ serve(async (req) => {
     const supabaseAdmin = getSupabaseAdmin();
     const { ip_address, device_id, referrer_code } = await req.json();
 
-    // Update user profile with IP address and device ID
-    await supabaseAdmin
-      .from('profiles')
-      .update({
-        ip_address: ip_address,
-        device_id: device_id
-      })
-      .eq('id', user.id);
+    // Update user profile with IP address and device ID if provided
+    if (ip_address || device_id) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({
+          ...(ip_address && { ip_address }),
+          ...(device_id && { device_id })
+        })
+        .eq('id', user.id);
+    }
 
     // If there's a referrer code, set up the referral relationship
     if (referrer_code) {
-      // Find the affiliate with this referral code from the new 'affiliates' table
+      // Find the affiliate with this referral code
       const { data: affiliate } = await supabaseAdmin
-        .from('affiliates')
-        .select('id, user_id')
-        .eq('affiliate_code', referrer_code)
+        .from('affiliate_applications')
+        .select('user_id')
+        .eq('unique_referral_code', referrer_code)
         .eq('status', 'approved')
         .single();
 
@@ -60,18 +62,16 @@ serve(async (req) => {
           .update({ referrer_id: affiliate.user_id })
           .eq('id', user.id);
 
-        // Create a record in the new affiliate_referrals table
+        // Create a record in the affiliate_referrals table
         await supabaseAdmin
           .from('affiliate_referrals')
           .insert({
-            affiliate_id: affiliate.id,
+            affiliate_id: affiliate.user_id,
             referred_user_id: user.id,
-            // Assume registration is the first point of contact
+            referral_code: referrer_code,
             first_click_date: new Date().toISOString(),
+            signup_date: new Date().toISOString(),
           });
-
-        // The total_free_referrals count will be incremented when the user
-        // visits the subscription page, not on registration.
 
         // Log the signup activity for analytics
         await supabaseAdmin

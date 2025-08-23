@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -25,9 +26,9 @@ serve(async (req) => {
 
     // Find the affiliate user_id from the referral code
     const { data: affiliate, error: findError } = await supabaseClient
-      .from('affiliates')
-      .select('user_id, id') // select id for the update
-      .eq('affiliate_code', referral_code)
+      .from('affiliate_applications')
+      .select('user_id, id')
+      .eq('unique_referral_code', referral_code)
       .eq('status', 'approved')
       .single()
 
@@ -45,8 +46,8 @@ serve(async (req) => {
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
-    // Insert the click record.
-    const { error: insertError } = await supabaseClient
+    // Insert the click record using admin client
+    const { error: insertError } = await supabaseAdmin
       .from('affiliate_clicks')
       .insert({
         affiliate_user_id: affiliateUserId,
@@ -57,12 +58,6 @@ serve(async (req) => {
     if (insertError) {
       console.error('Error inserting affiliate click:', insertError);
       // Fail silently to the outside world.
-    } else {
-      // Manually increment total_clicks since the trigger is broken
-      await supabaseAdmin
-        .from('affiliates')
-        .update({ total_clicks: supabaseAdmin.sql`total_clicks + 1` })
-        .eq('id', affiliate.id);
     }
 
     return new Response(JSON.stringify({ message: 'Click tracked successfully.' }), {

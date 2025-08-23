@@ -26,24 +26,15 @@ export const useAffiliateTracking = () => {
     }
   };
 
-  const trackActivity = async (
-    activityType: 'signup' | 'subscription_page_visit' | 'subscription_completed',
-    metadata?: any
-  ) => {
+  // Track subscription page visit (triggers free referral bonus)
+  const trackSubscriptionPageVisit = async () => {
     if (!user) return;
 
     try {
-      const referrerCode = localStorage.getItem('affiliate_referrer');
-      
-      await supabase.functions.invoke('track-affiliate-activity', {
-        body: {
-          activity_type: activityType,
-          referrer_code: referrerCode,
-          metadata
-        }
-      });
+      await supabase.functions.invoke('track-subscription-page-visit');
+      console.log('Subscription page visit tracked successfully');
     } catch (error) {
-      console.error('Error tracking affiliate activity:', error);
+      console.error('Error tracking subscription page visit:', error);
     }
   };
 
@@ -66,6 +57,7 @@ export const useAffiliateTracking = () => {
       });
 
       localStorage.setItem('registration_tracked', 'true');
+      console.log('User registration tracked successfully');
       
       // Don't remove referrer code yet - keep it for subscription tracking
     } catch (error) {
@@ -80,5 +72,8 @@ export const useAffiliateTracking = () => {
     }
   }, [user]);
 
-  return { trackActivity };
+  return { 
+    trackSubscriptionPageVisit,
+    trackRegistration 
+  };
 };

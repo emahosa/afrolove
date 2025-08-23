@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -31,7 +32,7 @@ serve(async (req) => {
     const subscriptionPrice = payload.record.amount_total / 100; // Convert from cents to dollars
     console.log(`[log-subscription-commission] Processing commission for user: ${referredUserId}, price: ${subscriptionPrice}`);
 
-    // 1. Find the referral record for this user.
+    // Find the referral record for this user
     const { data: referral, error: referralError } = await supabaseAdmin
       .from('affiliate_referrals')
       .select('*')
@@ -49,7 +50,7 @@ serve(async (req) => {
     let commissionEnabled = referral.subscription_commission_enabled;
     console.log(`[log-subscription-commission] isFirstPayment: ${isFirstPayment}, commissionEnabled: ${commissionEnabled}`);
 
-    // 2. If this is the first payment, check if it's within the 30-day window.
+    // If this is the first payment, check if it's within the 30-day window
     if (isFirstPayment) {
       console.log('[log-subscription-commission] Checking 30-day window for first payment.');
       const firstClickDate = new Date(referral.first_click_date);
@@ -59,7 +60,7 @@ serve(async (req) => {
 
       if (now <= thirtyDaysAfterClick) {
         console.log('[log-subscription-commission] Payment is within 30-day window. Enabling commissions.');
-        // Payment is within the window, enable commissions permanently for this referral.
+        // Payment is within the window, enable commissions permanently for this referral
         const { error: updateError } = await supabaseAdmin
           .from('affiliate_referrals')
           .update({ subscription_commission_enabled: true, subscribed_within_30_days: true })
@@ -76,7 +77,7 @@ serve(async (req) => {
       }
     }
 
-    // 3. If commissions are enabled for this referral, process the payment.
+    // If commissions are enabled for this referral, process the payment
     if (commissionEnabled) {
       const commissionAmount = subscriptionPrice * COMMISSION_RATE;
       console.log(`[log-subscription-commission] Processing commission of ${commissionAmount} for affiliate ${affiliateId}`);
