@@ -24,12 +24,12 @@ serve(async (req) => {
       })
     }
 
-    const { type, userId, origin } = await req.json();
+    const { type, userId, origin } = await req.json()
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
     if (type === 'links') {
       // Get affiliate application data for links
@@ -38,51 +38,68 @@ serve(async (req) => {
         .select('unique_referral_code, total_clicks')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .single();
+        .single()
 
       if (affiliateError || !affiliateData) {
         return new Response(JSON.stringify({ links: [] }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
-        });
+        })
       }
+
+      // Get actual click count from affiliate_clicks table
+      const { data: clicksData } = await supabaseAdmin
+        .from('affiliate_clicks')
+        .select('id')
+        .eq('affiliate_user_id', userId)
+
+      const actualClicksCount = clicksData?.length || 0
 
       const links = [{
         id: user.id,
         url: `${origin}/?ref=${affiliateData.unique_referral_code}`,
         referral_code: affiliateData.unique_referral_code,
-        clicks_count: affiliateData.total_clicks || 0,
+        clicks_count: actualClicksCount,
         created_at: new Date().toISOString()
-      }];
+      }]
 
       return new Response(JSON.stringify({ links }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      });
+      })
     }
 
     if (type === 'wallet') {
-      // Get wallet data from affiliate_wallets if it exists
+      // Get wallet data from affiliate_wallets
       const { data: walletData } = await supabaseAdmin
         .from('affiliate_wallets')
         .select('*')
         .eq('affiliate_user_id', userId)
-        .single();
+        .single()
 
-      // If no wallet exists, return default wallet structure
-      const wallet = walletData || {
-        id: user.id,
-        affiliate_user_id: userId,
-        pending_balance: 0,
-        paid_balance: 0,
-        lifetime_earnings: 0,
-        usdt_wallet_address: null
-      };
+      // If no wallet exists, create one
+      if (!walletData) {
+        const { data: newWallet } = await supabaseAdmin
+          .from('affiliate_wallets')
+          .insert({
+            affiliate_user_id: userId,
+            pending_balance: 0,
+            paid_balance: 0,
+            lifetime_earnings: 0
+          })
+          .select()
+          .single()
 
-      return new Response(JSON.stringify({ wallet }), {
+        return new Response(JSON.stringify({ wallet: newWallet }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        })
+      }
+
+      return new Response(JSON.stringify({ wallet: walletData }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      });
+      })
     }
 
     if (type === 'earnings') {
@@ -97,7 +114,7 @@ serve(async (req) => {
           subscription_payment_id
         `)
         .eq('affiliate_user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
 
       const earnings = commissionsData?.map(commission => ({
         id: commission.id,
@@ -106,24 +123,24 @@ serve(async (req) => {
         created_at: commission.created_at,
         type: commission.subscription_payment_id.startsWith('free_referral_') ? 'free_referral' : 'subscription',
         status: 'cleared'
-      })) || [];
+      })) || []
 
       return new Response(JSON.stringify({ earnings }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      });
+      })
     }
 
     return new Response(JSON.stringify({ error: 'Invalid type parameter' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
-    });
+    })
 
   } catch (error) {
-    console.error('Error in get-affiliate-data:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Error in get-affiliate-data:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    });
+    })
   }
-});
+})

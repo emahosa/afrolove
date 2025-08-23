@@ -1,26 +1,18 @@
 
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { trackSubscriptionPageVisit, trackSignupWithReferral } from '@/utils/affiliateTracking';
 
 export const useAffiliateTracking = () => {
-  const trackSubscriptionPageVisit = useCallback(async () => {
-    try {
-      await supabase.functions.invoke('track-subscription-page-visit');
-    } catch (error) {
-      console.error('Error tracking subscription page visit:', error);
-    }
+  const trackSubscriptionVisit = useCallback(async () => {
+    await trackSubscriptionPageVisit();
   }, []);
 
   const trackRegistration = useCallback(async () => {
-    try {
-      await supabase.functions.invoke('track-user-registration');
-    } catch (error) {
-      console.error('Error tracking registration:', error);
-    }
+    await trackSignupWithReferral();
   }, []);
 
   return {
-    trackSubscriptionPageVisit,
+    trackSubscriptionPageVisit: trackSubscriptionVisit,
     trackRegistration,
   };
 };

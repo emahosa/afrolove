@@ -27,53 +27,53 @@ serve(async (req) => {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
     // Get total clicks
     const { data: clicksData, error: clicksError } = await supabaseAdmin
       .from('affiliate_clicks')
       .select('id')
-      .eq('affiliate_user_id', user.id);
+      .eq('affiliate_user_id', user.id)
 
-    const clicksCount = clicksData?.length || 0;
+    const clicksCount = clicksData?.length || 0
 
-    // Get total referrals
+    // Get total referrals (signups)
     const { data: referralsData, error: referralsError } = await supabaseAdmin
       .from('affiliate_referrals')
       .select('id')
-      .eq('affiliate_id', user.id);
+      .eq('affiliate_id', user.id)
 
-    const totalReferrals = referralsData?.length || 0;
+    const totalReferrals = referralsData?.length || 0
 
-    // Get total earnings from commissions
-    const { data: commissionsData, error: commissionsError } = await supabaseAdmin
-      .from('affiliate_commissions')
-      .select('amount_earned')
-      .eq('affiliate_user_id', user.id);
+    // Get total earnings from affiliate wallet
+    const { data: walletData, error: walletError } = await supabaseAdmin
+      .from('affiliate_wallets')
+      .select('lifetime_earnings')
+      .eq('affiliate_user_id', user.id)
+      .single()
 
-    const totalEarnings = commissionsData?.reduce((sum, commission) => 
-      sum + parseFloat(commission.amount_earned.toString()), 0) || 0;
+    const totalEarnings = walletData?.lifetime_earnings || 0
 
     // Calculate conversion rate
-    const conversionRate = clicksCount > 0 ? (totalReferrals / clicksCount) * 100 : 0;
+    const conversionRate = clicksCount > 0 ? (totalReferrals / clicksCount) * 100 : 0
 
     const stats = {
       totalReferrals,
-      totalEarnings: parseFloat(totalEarnings.toFixed(2)),
+      totalEarnings: parseFloat(totalEarnings.toString()),
       conversionRate: parseFloat(conversionRate.toFixed(2)),
       clicksCount,
-    };
+    }
 
     return new Response(JSON.stringify(stats), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    });
+    })
 
   } catch (error) {
-    console.error('Error in get-my-affiliate-stats:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Error in get-my-affiliate-stats:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-    });
+    })
   }
-});
+})
