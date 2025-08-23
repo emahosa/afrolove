@@ -27,6 +27,14 @@ const Admin = () => {
     );
   };
 
+  const getButtonContent = (status: string) => {
+    return (
+      <Badge variant={status === 'active' ? 'default' : 'destructive'}>
+        {status}
+      </Badge>
+    );
+  };
+
   const tabs = [
     { id: 'users', label: 'Users', icon: Users, component: () => <UserManagement users={[]} renderStatusLabel={renderStatusLabel} /> },
     { id: 'admin', label: 'Admin Management', icon: Shield, component: AdminManagement },
@@ -37,7 +45,7 @@ const Admin = () => {
     { id: 'support', label: 'Support', icon: HelpCircle, component: SupportManagement },
     { id: 'genres', label: 'Genres', icon: Music, component: GenreManagement },
     { id: 'templates', label: 'Templates', icon: Music, component: GenreTemplateManagement },
-    { id: 'api-keys', label: 'API Keys', icon: Settings, component: ApiKeyManagement },
+    { id: 'api-keys', label: 'API Keys', icon: Settings, component: () => <ApiKeyManagement apiKeys={[]} getButtonContent={getButtonContent} /> },
     { id: 'affiliates', label: 'Affiliates', icon: Users, component: AffiliateManagementTab },
     { id: 'settings', label: 'Settings', icon: Settings, component: SettingsManagement },
   ];
