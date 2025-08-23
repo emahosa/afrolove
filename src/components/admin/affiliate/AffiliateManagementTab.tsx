@@ -12,6 +12,14 @@ interface AffiliateApplication {
   user_id: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  reason_to_join: string;
+  social_media_url: string;
+  total_clicks: number;
+  unique_referral_code: string | null;
+  updated_at: string;
   profiles?: {
     full_name?: string;
     username?: string;
@@ -51,8 +59,10 @@ export const AffiliateManagementTab = () => {
 
       console.log('Raw affiliate applications data:', data);
 
-      const transformedApplications = data?.map(app => ({
+      // Type cast the data to ensure status is properly typed
+      const transformedApplications: AffiliateApplication[] = data?.map(app => ({
         ...app,
+        status: app.status as 'pending' | 'approved' | 'rejected',
         profiles: Array.isArray(app.profiles) ? app.profiles[0] : app.profiles
       })) || [];
 
@@ -185,7 +195,10 @@ export const AffiliateManagementTab = () => {
                 <div key={application.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-1">
                     <p className="font-medium">
-                      {application.profiles?.full_name || application.profiles?.username || 'Unknown User'}
+                      {application.full_name || application.profiles?.full_name || application.profiles?.username || 'Unknown User'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {application.email}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Applied on: {new Date(application.created_at).toLocaleDateString()}
@@ -230,3 +243,5 @@ export const AffiliateManagementTab = () => {
     </div>
   );
 };
+
+export default AffiliateManagementTab;
