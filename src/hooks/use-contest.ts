@@ -12,11 +12,13 @@ export interface Contest {
   end_date: string;
   start_date: string;
   entry_fee: number;
-  status: string;
+  status: 'active' | 'completed' | 'draft' | 'voting';
   rules?: string;
   instrumental_url?: string;
   voting_enabled?: boolean;
   max_entries_per_user?: number;
+  created_at: string;
+  terms_conditions?: string;
 }
 
 export interface ContestEntry {
@@ -87,8 +89,9 @@ export const useContest = () => {
         .from('contests')
         .insert({
           ...contestData,
-          status: 'active',
-          created_by: user?.id
+          status: 'active' as const,
+          created_by: user?.id,
+          terms_conditions: contestData.terms_conditions || ''
         });
 
       if (error) throw error;

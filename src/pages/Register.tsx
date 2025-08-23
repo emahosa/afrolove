@@ -1,191 +1,207 @@
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/contexts/AuthContext";
-import { FaGoogle } from "react-icons/fa";
-import { Music } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { FloatingNotes } from "@/components/3d/FloatingNotes";
+import { Music, ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 const Register = () => {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  
-  const { register } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const getCookie = (name: string): string | null => {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      return parts.pop()?.split(';').shift() || null;
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard", { replace: true });
     }
-    return null;
-  };
+  }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      toast.error("All fields are required");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
-      return;
-    }
+    if (loading) return;
 
     setLoading(true);
-    
+
     try {
-      const referralCode = getCookie('affiliate_ref');
-      console.log("Register: Attempting to register user with:", { name, email, referralCode });
+      const referralCode = searchParams.get('ref');
       
-      const success = await register(name, email, password, referralCode);
-      
-      if (success) {
-        toast.success("Registration successful! Welcome to MelodyVerse!");
-        navigate("/dashboard");
-      } else {
-        toast.error("Registration failed. Please try again.");
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Track referral if present
+        if (referralCode) {
+          try {
+            const { error: trackingError } = await supabase.functions.invoke('track-referred-user-signup', {
+              body: {
+                referred_user_id: data.user.id,
+                referral_code: referralCode
+              }
+            });
+            
+            if (trackingError) {
+              console.error('Error tracking referral:', trackingError);
+            }
+          } catch (trackingError) {
+            console.error('Error in referral tracking:', trackingError);
+          }
+        }
+
+        toast.success("Registration successful! Please check your email to verify your account.");
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(error.message || "An unexpected error occurred");
+      toast.error(error.message || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    try {
-      console.log("Attempting Google signup...");
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-
-      if (error) {
-        console.error("Google signup error:", error);
-        toast.error("Failed to sign up with Google: " + error.message);
-      }
-    } catch (error: any) {
-      console.error("Google signup error:", error);
-      toast.error("An unexpected error occurred during Google signup");
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   return (
-    <div className="w-full max-w-md p-4 md:p-0 mx-auto">
-      <div className="md:hidden flex items-center justify-center mb-6">
-        <Music className="h-10 w-10 text-melody-secondary" />
-        <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
-      </div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* 3D Floating Notes Background */}
+      <FloatingNotes />
       
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2">Create Account</h2>
-        <p className="text-muted-foreground">Join MelodyVerse and start creating music</p>
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Header */}
+        <div className="p-6">
+          <Link to="/">
+            <Button variant="ghost" size="sm" className="group">
+              <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+              Back to Home
+            </Button>
+          </Link>
+        </div>
+
+        {/* Register Section */}
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="w-full max-w-md">
+            {/* Logo and Title */}
+            <div className="text-center mb-8 animate-fade-in">
+              <div className="flex items-center justify-center mb-4">
+                <div className="relative">
+                  <Music className="h-12 w-12 text-primary animate-pulse" />
+                  <div className="absolute inset-0 h-12 w-12 text-primary/30 animate-ping"></div>
+                </div>
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+                Afroverse
+              </h1>
+              <p className="text-muted-foreground">Start your musical journey today</p>
+            </div>
+
+            {/* Register Form */}
+            <Card className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-xl animate-scale-in">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Create Account</CardTitle>
+                <CardDescription>
+                  Join thousands of creators making music with AI
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name</Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                      className="bg-background/50 border-border/50 focus:border-primary transition-all"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="bg-background/50 border-border/50 focus:border-primary transition-all"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a strong password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="bg-background/50 border-border/50 focus:border-primary transition-all pr-10"
+                        minLength={6}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300" 
+                    disabled={loading}
+                  >
+                    {loading ? "Creating Account..." : "Create Account"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Footer Links */}
+            <div className="text-center mt-6 animate-fade-in">
+              <p className="text-muted-foreground">
+                Already have an account?{" "}
+                <Link 
+                  to="/login" 
+                  className="text-primary hover:text-primary/80 font-medium transition-colors hover:underline"
+                >
+                  Sign in here
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Full Name</Label>
-          <Input 
-            id="name" 
-            type="text" 
-            placeholder="John Doe" 
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="you@gmail.com" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="password">Password</Label>
-          <Input 
-            id="password" 
-            type="password" 
-            placeholder="••••••••" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input 
-            id="confirmPassword" 
-            type="password" 
-            placeholder="••••••••" 
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-        </div>
-        <Button 
-          type="submit" 
-          className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-          disabled={loading}
-        >
-          {loading ? "Creating account..." : "Sign Up"}
-        </Button>
-      </form>
-
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-background text-muted-foreground">
-            OR CONTINUE WITH
-          </span>
-        </div>
-      </div>
-
-      <Button 
-        variant="outline" 
-        className="w-full"
-        onClick={handleGoogleLogin}
-        disabled={googleLoading}
-      >
-        <FaGoogle className="mr-2" /> 
-        {googleLoading ? "Signing up..." : "Google"}
-      </Button>
-
-      <p className="text-center mt-8 text-sm">
-        Already have an account?{" "}
-        <Link to="/login" className="text-melody-secondary hover:underline font-medium">
-          Sign in
-        </Link>
-      </p>
     </div>
   );
 };
