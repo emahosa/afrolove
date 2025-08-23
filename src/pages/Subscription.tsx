@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 
-export const Subscription = () => {
+const Subscription = () => {
   const { user } = useAuth();
   const { trackSubscriptionPageVisit } = useAffiliateTracking();
   const [loading, setLoading] = useState(false);
@@ -197,3 +197,5 @@ export const Subscription = () => {
     </div>
   );
 };
+
+export default Subscription;

@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useState } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -25,6 +25,8 @@ import './App.css';
 const queryClient = new QueryClient();
 
 function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     // Initialize affiliate tracking when app loads
     initializeAffiliateTracking();
@@ -35,7 +37,7 @@ function App() {
       <AuthProvider>
         <Router>
           <div className="min-h-screen bg-background">
-            <Navbar />
+            <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
             <div className="flex">
               <Sidebar />
               <main className="flex-1 p-6 ml-64">
@@ -47,16 +49,14 @@ function App() {
                     path="/dashboard"
                     element={
                       <ProtectedRoute>
-                        <VoterLockScreen>
-                          <Dashboard />
-                        </VoterLockScreen>
+                        <Dashboard />
                       </ProtectedRoute>
                     }
                   />
                   <Route
                     path="/admin"
                     element={
-                      <ProtectedRoute requiredRole="admin">
+                      <ProtectedRoute>
                         <Admin />
                       </ProtectedRoute>
                     }
@@ -77,6 +77,8 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/subscribe" element={<Subscription />} />
+                  <Route path="/credits" element={<Subscription />} />
                   <Route
                     path="/profile"
                     element={
@@ -86,12 +88,10 @@ function App() {
                     }
                   />
                   <Route
-                    path="/custom-songs"
+                    path="/my-custom-songs"
                     element={
                       <ProtectedRoute>
-                        <VoterLockScreen>
-                          <UserCustomSongs />
-                        </VoterLockScreen>
+                        <UserCustomSongs />
                       </ProtectedRoute>
                     }
                   />
