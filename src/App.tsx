@@ -29,8 +29,8 @@ function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
+    <Router>
+      <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Routes>
             {/* Admin Routes */}
@@ -90,8 +90,8 @@ function App() {
           </Routes>
           <Toaster />
         </AuthProvider>
-      </Router>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </Router>
   );
 }
 

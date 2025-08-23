@@ -22,26 +22,31 @@ interface AffiliateApplication {
   updated_at: string;
 }
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, AlertCircle } from 'lucide-react';
+
 const AffiliateManagementTab: React.FC = () => {
   const { user } = useAuth();
   const [applications, setApplications] = useState<AffiliateApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
+      setError(null);
       const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
 
+      console.log('Admin List Affiliate Applications Response:', { data, error });
       if (error) {
-        console.error('Error fetching affiliate applications:', error);
-        toast.error(error.message || 'Failed to fetch affiliate applications');
-        return;
+        throw new Error(error.message || 'Failed to fetch affiliate applications');
       }
 
       setApplications((data as AffiliateApplication[]) || []);
     } catch (err: any) {
       console.error('Error in fetchApplications:', err);
+      setError(err.message || 'Failed to load affiliate applications');
       toast.error(err.message || 'Failed to load affiliate applications');
     } finally {
       setLoading(false);
@@ -161,9 +166,19 @@ const AffiliateManagementTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
         <span className="ml-2">Loading applications...</span>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 

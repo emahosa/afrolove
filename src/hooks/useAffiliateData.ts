@@ -28,30 +28,32 @@ export const useAffiliateData = () => {
     setError(null);
 
     try {
-      // Fetch stats, links, wallet, and earnings in parallel
-      const [statsRes, linksRes, walletRes, earningsRes] = await Promise.all([
-        supabase.functions.invoke('get-my-affiliate-stats'),
-        supabase.functions.invoke('get-affiliate-data', { body: { type: 'links', userId: user.id, origin: window.location.origin } }),
-        supabase.functions.invoke('get-affiliate-data', { body: { type: 'wallet', userId: user.id } }),
-        supabase.functions.invoke('get-affiliate-data', { body: { type: 'earnings', userId: user.id } }),
-      ]);
-
+      console.log('Fetching affiliate stats...');
+      const statsRes = await supabase.functions.invoke('get-my-affiliate-stats');
+      console.log('Affiliate Stats Response:', statsRes);
       if (statsRes.error) throw new Error('Failed to fetch affiliate stats.');
-      // The stats from get-my-affiliate-stats is the primary source of truth for the top cards
       const fetchedStats = statsRes.data || { totalReferrals: 0, totalEarnings: 0, conversionRate: 0, clicksCount: 0 };
       setStats(fetchedStats);
 
+      console.log('Fetching affiliate links...');
+      const linksRes = await supabase.functions.invoke('get-affiliate-data', { body: { type: 'links', userId: user.id, origin: window.location.origin } });
+      console.log('Affiliate Links Response:', linksRes);
       if (linksRes.error) throw new Error('Failed to fetch affiliate links.');
-      // The link object needs the click count from the stats response
       const fetchedLinks = linksRes.data.links || [];
       if (fetchedLinks.length > 0) {
         fetchedLinks[0].clicks_count = fetchedStats.clicksCount;
       }
       setLinks(fetchedLinks);
 
+      console.log('Fetching affiliate wallet...');
+      const walletRes = await supabase.functions.invoke('get-affiliate-data', { body: { type: 'wallet', userId: user.id } });
+      console.log('Affiliate Wallet Response:', walletRes);
       if (walletRes.error) throw new Error('Failed to fetch affiliate wallet.');
       setWallet(walletRes.data.wallet || null);
 
+      console.log('Fetching affiliate earnings...');
+      const earningsRes = await supabase.functions.invoke('get-affiliate-data', { body: { type: 'earnings', userId: user.id } });
+      console.log('Affiliate Earnings Response:', earningsRes);
       if (earningsRes.error) throw new Error('Failed to fetch affiliate earnings.');
       setEarnings(earningsRes.data.earnings || []);
 

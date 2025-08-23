@@ -280,12 +280,22 @@ BecomeAffiliateTab.propTypes = {
 // AffiliateDashboardTab Component
 const AffiliateDashboardTab = () => {
   const { user, loading: authLoading } = useAuth();
-  const { stats, links, wallet, earnings, loading, refresh } = useAffiliateData();
+  const { stats, links, wallet, earnings, loading, error, refresh } = useAffiliateData();
 
   if (authLoading || loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin" /></div>;
   }
   
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
   if (!user) {
     return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent><p>Please log in.</p></CardContent></Card>;
   }
@@ -377,6 +387,7 @@ const AffiliatePage = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-affiliate-application-status');
+      console.log('Affiliate Application Status Response:', { data, error });
       if (error) throw error;
 
       setApplicationStatus(data?.status || null);
