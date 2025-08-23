@@ -14,12 +14,21 @@ import { GenreTemplateManagement } from '@/components/admin/GenreTemplateManagem
 import { ApiKeyManagement } from '@/components/admin/ApiKeyManagement';
 import { AffiliateManagementTab } from '@/components/admin/affiliate/AffiliateManagementTab';
 import { Shield, Users, Trophy, FileText, CreditCard, BarChart3, HelpCircle, Settings, Music } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('users');
 
+  const renderStatusLabel = (status: string) => {
+    return (
+      <Badge variant={status === 'active' ? 'default' : 'destructive'}>
+        {status}
+      </Badge>
+    );
+  };
+
   const tabs = [
-    { id: 'users', label: 'Users', icon: Users, component: UserManagement },
+    { id: 'users', label: 'Users', icon: Users, component: () => <UserManagement users={[]} renderStatusLabel={renderStatusLabel} /> },
     { id: 'admin', label: 'Admin Management', icon: Shield, component: AdminManagement },
     { id: 'contests', label: 'Contests', icon: Trophy, component: ContestManagement },
     { id: 'content', label: 'Content', icon: FileText, component: ContentManagement },

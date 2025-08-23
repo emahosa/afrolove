@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { Play, Music, Trophy, Users, Sparkles, ArrowRight, Mic, HeadphonesIcon, Star } from 'lucide-react';
 import { useGenres } from '@/hooks/use-genres';
 import { Genre } from '@/hooks/use-genres';
-import { GenreTemplateCard } from '@/components/dashboard/GenreTemplateCard';
+import { GenreCard } from '@/components/dashboard/GenreCard';
 import SampleMusic from '@/components/dashboard/SampleMusic';
 import { FloatingNotes } from '@/components/3d/FloatingNotes';
 
@@ -259,7 +259,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {genres.slice(0, 8).map((genre: Genre) => (
-                  <GenreTemplateCard key={genre.id} template={genre} />
+                  <GenreCard key={genre.id} genre={genre} />
                 ))}
               </div>
               
