@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // Check if user already has an application
     const { data: existingApp, error: checkError } = await supabaseAdmin
-      .from('affiliate_applications')
+      .from('affiliates')
       .select('id')
       .eq('user_id', user.id)
       .single()
@@ -73,7 +73,7 @@ serve(async (req) => {
 
     // Insert new application
     const { data: application, error: insertError } = await supabaseAdmin
-      .from('affiliate_applications')
+      .from('affiliates')
       .insert({
         user_id: user.id,
         full_name,
@@ -81,8 +81,8 @@ serve(async (req) => {
         phone,
         social_media_url: social_media_url || '',
         reason_to_join,
-        usdt_wallet_address,
-        unique_referral_code: referralCode,
+        wallet_address_trc20: usdt_wallet_address,
+        affiliate_code: referralCode,
         status: 'pending'
       })
       .select()
