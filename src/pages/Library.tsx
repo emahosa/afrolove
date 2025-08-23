@@ -8,6 +8,29 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const Library = () => {
   const [loading, setLoading] = useState(false);
+  
+  // Mock tracks data - in a real app this would come from a hook or API
+  const mockTracks = [
+    {
+      id: '1',
+      title: 'AI Generated Song 1',
+      type: 'song' as const,
+      genre: 'Pop',
+      date: '2025-01-15'
+    },
+    {
+      id: '2',
+      title: 'Instrumental Track',
+      type: 'instrumental' as const,
+      genre: 'Electronic',
+      date: '2025-01-14'
+    }
+  ];
+
+  const handleTrackSelect = (trackId: string) => {
+    console.log('Track selected:', trackId);
+    // In a real app, this would handle track selection/playback
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 py-8 px-4">
@@ -49,7 +72,10 @@ const Library = () => {
             <TabsContent value="songs" className="mt-6">
               <Card className="bg-gray-900/50 backdrop-blur-sm border-gray-800">
                 <CardContent className="p-6">
-                  <TracksList />
+                  <TracksList 
+                    tracks={mockTracks}
+                    onTrackSelect={handleTrackSelect}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
