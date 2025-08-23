@@ -3,21 +3,21 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { Navbar } from '@/components/Navbar';
-import { Sidebar } from '@/components/Sidebar';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { VoterLockScreen } from '@/components/VoterLockScreen';
-import { Home } from '@/pages/Home';
-import { Login } from '@/pages/Login';
-import { Register } from '@/pages/Register';
-import { Dashboard } from '@/pages/Dashboard';
-import { Admin } from '@/pages/Admin';
-import { Contest } from '@/pages/Contest';
-import { Subscription } from '@/pages/Subscription';
-import { Profile } from '@/pages/Profile';
-import { CustomSongs } from '@/pages/CustomSongs';
-import { Support } from '@/pages/Support';
-import { Affiliate } from '@/pages/Affiliate';
+import Navbar from '@/components/Navbar';
+import Sidebar from '@/components/Sidebar';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import VoterLockScreen from '@/components/VoterLockScreen';
+import Index from '@/pages/Index';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Dashboard from '@/pages/Dashboard';
+import Admin from '@/pages/Admin';
+import Contest from '@/pages/Contest';
+import Subscription from '@/pages/Subscription';
+import Profile from '@/pages/Profile';
+import UserCustomSongs from '@/pages/UserCustomSongs';
+import Support from '@/pages/Support';
+import Affiliate from '@/pages/Affiliate';
 import { useEffect } from 'react';
 import { initializeAffiliateTracking } from '@/utils/affiliateTracking';
 import './App.css';
@@ -40,7 +40,7 @@ function App() {
               <Sidebar />
               <main className="flex-1 p-6 ml-64">
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route
@@ -90,7 +90,7 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <VoterLockScreen>
-                          <CustomSongs />
+                          <UserCustomSongs />
                         </VoterLockScreen>
                       </ProtectedRoute>
                     }
