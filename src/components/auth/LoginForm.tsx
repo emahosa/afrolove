@@ -18,6 +18,35 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', userEmail.toLowerCase())
+        .single();
+
+      if (profileError || !profileData) {
+        return false;
+      }
+
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', profileData.id)
+        .in('role', ['admin', 'super_admin']);
+
+      if (roleError) {
+        return false;
+      }
+
+      return roleData && roleData.length > 0;
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -32,24 +61,10 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
     }
 
     // Check if this is an admin email before attempting login
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (profileData) {
-      // Check if this user has admin roles
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', profileData.id)
-        .in('role', ['admin', 'super_admin']);
-
-      if (roleData && roleData.length > 0) {
-        toast.error("Admin users must use the dedicated admin login page");
-        return;
-      }
+    const isAdminUser = await checkIfAdminUser(email);
+    if (isAdminUser) {
+      toast.error("Admin users must use the dedicated admin login page");
+      return;
     }
     
     setLoading(true);
