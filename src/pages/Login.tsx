@@ -10,7 +10,6 @@ import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import type { AuthError } from "@supabase/supabase-js";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -151,10 +150,10 @@ const Login = () => {
         toast.error("Login failed. Please try again.");
         setLoading(false);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Login: Error in component:", error);
-      const authError = error as AuthError;
-      toast.error(authError.message || "An unexpected error occurred during login");
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred during login";
+      toast.error(errorMessage);
       setLoading(false);
     }
   };
@@ -174,9 +173,8 @@ const Login = () => {
         console.error("Google login error:", error);
         toast.error("Failed to login with Google: " + error.message);
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("Google login error:", error);
-      const authError = error as AuthError;
       toast.error("An unexpected error occurred during Google login");
     } finally {
       setGoogleLoading(false);
