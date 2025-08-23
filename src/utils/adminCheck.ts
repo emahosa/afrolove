@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
   try {
-    // Simple profile lookup
+    // Simple profile lookup - note that profiles table uses 'username' not 'email'
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", userEmail.toLowerCase())
+      .eq("username", userEmail.toLowerCase())
       .limit(1);
 
     if (profileError || !profiles || profiles.length === 0) {
