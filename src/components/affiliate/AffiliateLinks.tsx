@@ -63,7 +63,7 @@ const AffiliateLinks: React.FC<AffiliateLinksProps> = ({ links }) => {
               <Input
                 value={link.url}
                 readOnly
-                className="flex-1 bg-gray-800 border-gray-700 text-gray-300 text-sm"
+                className="flex-1 bg-gray-50 text-sm"
               />
             </div>
           </div>

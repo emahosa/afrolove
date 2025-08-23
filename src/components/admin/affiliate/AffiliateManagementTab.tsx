@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, RefreshCw } from 'lucide-react';
 
 interface AffiliateApplication {
   id: string;
@@ -16,11 +16,10 @@ interface AffiliateApplication {
   phone: string;
   social_media_url: string;
   reason_to_join: string;
-  usdt_wallet_address?: string;
+  usdt_wallet_address: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
-  unique_referral_code?: string;
 }
 
 const AffiliateManagementTab: React.FC = () => {
@@ -32,47 +31,33 @@ const AffiliateManagementTab: React.FC = () => {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      console.log('Fetching affiliate applications via edge function...');
-      
       const { data, error } = await supabase.functions.invoke('admin-list-affiliate-applications');
 
       if (error) {
-        console.error('Error invoking edge function:', error);
+        console.error('Error fetching affiliate applications:', error);
         toast.error(error.message || 'Failed to fetch affiliate applications');
         return;
       }
 
-      console.log('Raw data from database:', data);
-      
-      if (Array.isArray(data)) {
-        setApplications(data);
-        console.log(`Successfully loaded ${data.length} applications`);
-      } else {
-        console.warn('Data is not an array:', data);
-        setApplications([]);
-      }
+      setApplications((data as AffiliateApplication[]) || []);
     } catch (err: any) {
       console.error('Error in fetchApplications:', err);
       toast.error(err.message || 'Failed to load affiliate applications');
-      setApplications([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchApplications();
-    }
-  }, [user]);
+    fetchApplications();
+  }, []);
 
   const handleApproveApplication = async (applicationId: string) => {
     setProcessingId(applicationId);
     try {
-      const { error } = await supabase
-        .from('affiliate_applications')
-        .update({ status: 'approved' })
-        .eq('id', applicationId);
+      const { error } = await supabase.functions.invoke('approve-affiliate-application', {
+        body: { application_id: applicationId }
+      });
 
       if (error) {
         toast.error(error.message || 'Failed to approve application');
@@ -80,7 +65,7 @@ const AffiliateManagementTab: React.FC = () => {
       }
 
       toast.success('Application approved successfully');
-      fetchApplications();
+      fetchApplications(); // Refresh the list
     } catch (err: any) {
       console.error('Error approving application:', err);
       toast.error('Failed to approve application');
@@ -92,10 +77,9 @@ const AffiliateManagementTab: React.FC = () => {
   const handleRejectApplication = async (applicationId: string) => {
     setProcessingId(applicationId);
     try {
-      const { error } = await supabase
-        .from('affiliate_applications')
-        .update({ status: 'rejected' })
-        .eq('id', applicationId);
+      const { error } = await supabase.functions.invoke('reject-affiliate-application', {
+        body: { application_id: applicationId }
+      });
 
       if (error) {
         toast.error(error.message || 'Failed to reject application');
@@ -103,7 +87,7 @@ const AffiliateManagementTab: React.FC = () => {
       }
 
       toast.success('Application rejected');
-      fetchApplications();
+      fetchApplications(); // Refresh the list
     } catch (err: any) {
       console.error('Error rejecting application:', err);
       toast.error('Failed to reject application');
@@ -130,12 +114,12 @@ const AffiliateManagementTab: React.FC = () => {
   };
 
   const ApplicationCard = ({ application }: { application: AffiliateApplication }) => (
-    <Card className="mb-4 bg-gray-900/50 border-gray-800">
+    <Card className="mb-4">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-lg text-white">{application.full_name}</CardTitle>
-            <p className="text-sm text-gray-400">{application.email}</p>
+            <CardTitle className="text-lg">{application.full_name}</CardTitle>
+            <p className="text-sm text-muted-foreground">{application.email}</p>
           </div>
           <Badge variant={getStatusBadgeVariant(application.status)}>
             {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
@@ -143,17 +127,12 @@ const AffiliateManagementTab: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2 mb-4 text-gray-300">
+        <div className="space-y-2 mb-4">
           <p><strong>Phone:</strong> {application.phone}</p>
-          <p><strong>Social Media:</strong> {application.social_media_url || 'Not provided'}</p>
-          {application.usdt_wallet_address && (
-            <p><strong>USDT Wallet:</strong> {application.usdt_wallet_address}</p>
-          )}
+          <p><strong>Social Media:</strong> {application.social_media_url}</p>
+          <p><strong>USDT Wallet:</strong> {application.usdt_wallet_address}</p>
           <p><strong>Reason to Join:</strong> {application.reason_to_join}</p>
           <p><strong>Applied:</strong> {new Date(application.created_at).toLocaleDateString()}</p>
-          {application.unique_referral_code && (
-            <p><strong>Referral Code:</strong> {application.unique_referral_code}</p>
-          )}
         </div>
         
         {application.status === 'pending' && (
@@ -161,16 +140,9 @@ const AffiliateManagementTab: React.FC = () => {
             <Button
               onClick={() => handleApproveApplication(application.id)}
               disabled={processingId === application.id}
-              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              className="flex-1"
             >
-              {processingId === application.id ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Approving...
-                </>
-              ) : (
-                'Approve'
-              )}
+              {processingId === application.id ? 'Approving...' : 'Approve'}
             </Button>
             <Button
               variant="destructive"
@@ -178,14 +150,7 @@ const AffiliateManagementTab: React.FC = () => {
               disabled={processingId === application.id}
               className="flex-1"
             >
-              {processingId === application.id ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Rejecting...
-                </>
-              ) : (
-                'Reject'
-              )}
+              {processingId === application.id ? 'Rejecting...' : 'Reject'}
             </Button>
           </div>
         )}
@@ -196,8 +161,8 @@ const AffiliateManagementTab: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
-        <span className="ml-2 text-gray-300">Loading applications...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading applications...</span>
       </div>
     );
   }
@@ -206,56 +171,22 @@ const AffiliateManagementTab: React.FC = () => {
   const approvedApplications = filterApplications('approved');
   const rejectedApplications = filterApplications('rejected');
 
-  console.log('Application counts:', {
-    total: applications.length,
-    pending: pendingApplications.length,
-    approved: approvedApplications.length,
-    rejected: rejectedApplications.length
-  });
-
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Affiliate Management</h2>
-          <p className="text-gray-400">Manage affiliate applications and approvals</p>
-        </div>
-        <Button onClick={fetchApplications} variant="outline" className="border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <Card className="bg-gray-900/50 border-gray-800">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-yellow-400">{pendingApplications.length}</div>
-            <div className="text-sm text-gray-400">Pending</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900/50 border-gray-800">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-400">{approvedApplications.length}</div>
-            <div className="text-sm text-gray-400">Approved</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900/50 border-gray-800">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-red-400">{rejectedApplications.length}</div>
-            <div className="text-sm text-gray-400">Rejected</div>
-          </CardContent>
-        </Card>
+      <div>
+        <h2 className="text-2xl font-bold">Affiliate Management</h2>
+        <p className="text-muted-foreground">Manage affiliate applications and approvals</p>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gray-900/50">
-          <TabsTrigger value="pending" className="data-[state=active]:bg-purple-600">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending">
             Pending ({pendingApplications.length})
           </TabsTrigger>
-          <TabsTrigger value="approved" className="data-[state=active]:bg-purple-600">
+          <TabsTrigger value="approved">
             Approved ({approvedApplications.length})
           </TabsTrigger>
-          <TabsTrigger value="rejected" className="data-[state=active]:bg-purple-600">
+          <TabsTrigger value="rejected">
             Rejected ({rejectedApplications.length})
           </TabsTrigger>
         </TabsList>
@@ -263,9 +194,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="pending" className="mt-6">
           <div className="space-y-4">
             {pendingApplications.length === 0 ? (
-              <Card className="bg-gray-900/50 border-gray-800">
+              <Card>
                 <CardContent className="text-center py-8">
-                  <p className="text-gray-400">No pending applications</p>
+                  <p className="text-muted-foreground">No pending applications</p>
                 </CardContent>
               </Card>
             ) : (
@@ -279,9 +210,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="approved" className="mt-6">
           <div className="space-y-4">
             {approvedApplications.length === 0 ? (
-              <Card className="bg-gray-900/50 border-gray-800">
+              <Card>
                 <CardContent className="text-center py-8">
-                  <p className="text-gray-400">No approved applications</p>
+                  <p className="text-muted-foreground">No approved applications</p>
                 </CardContent>
               </Card>
             ) : (
@@ -295,9 +226,9 @@ const AffiliateManagementTab: React.FC = () => {
         <TabsContent value="rejected" className="mt-6">
           <div className="space-y-4">
             {rejectedApplications.length === 0 ? (
-              <Card className="bg-gray-900/50 border-gray-800">
+              <Card>
                 <CardContent className="text-center py-8">
-                  <p className="text-gray-400">No rejected applications</p>
+                  <p className="text-muted-foreground">No rejected applications</p>
                 </CardContent>
               </Card>
             ) : (

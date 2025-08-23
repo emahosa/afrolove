@@ -104,7 +104,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const sidebarContent = (isMobile: boolean = false) => (
     <>
       <div className="mb-4 flex items-center h-16 px-4 border-b border-border">
-        <img src="/logo.svg" alt="MelodyVerse Logo" className="h-8 w-auto mr-2" />
+        <img src="/favicon.ico" alt="MelodyVerse Logo" className="h-8 w-auto mr-2" />
         <p className="font-semibold text-foreground text-lg">MelodyVerse</p>
       </div>
       <ScrollArea className="flex-1 px-2 py-2">

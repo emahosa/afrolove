@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -96,9 +96,9 @@ export type Database = {
           reason_to_join: string
           social_media_url: string
           status: string
-          total_clicks: number
           unique_referral_code: string | null
           updated_at: string
+          usdt_wallet_address: string
           user_id: string
         }
         Insert: {
@@ -110,9 +110,9 @@ export type Database = {
           reason_to_join: string
           social_media_url: string
           status?: string
-          total_clicks?: number
           unique_referral_code?: string | null
           updated_at?: string
+          usdt_wallet_address: string
           user_id: string
         }
         Update: {
@@ -124,9 +124,9 @@ export type Database = {
           reason_to_join?: string
           social_media_url?: string
           status?: string
-          total_clicks?: number
           unique_referral_code?: string | null
           updated_at?: string
+          usdt_wallet_address?: string
           user_id?: string
         }
         Relationships: [
@@ -134,41 +134,6 @@ export type Database = {
             foreignKeyName: "affiliate_applications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      affiliate_clicks: {
-        Row: {
-          affiliate_user_id: string
-          clicked_at: string
-          created_at: string
-          id: string
-          ip_address: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          affiliate_user_id: string
-          clicked_at?: string
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          affiliate_user_id?: string
-          clicked_at?: string
-          created_at?: string
-          id?: string
-          ip_address?: string | null
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "affiliate_clicks_affiliate_user_id_fkey"
-            columns: ["affiliate_user_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -318,63 +283,6 @@ export type Database = {
             foreignKeyName: "affiliate_payout_requests_affiliate_user_id_fkey"
             columns: ["affiliate_user_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      affiliate_referrals: {
-        Row: {
-          affiliate_id: string
-          created_at: string
-          first_click_date: string
-          free_referral_earned: boolean
-          id: string
-          referral_code: string
-          referred_user_id: string
-          signup_date: string | null
-          subscribed_within_30_days: boolean
-          subscription_commission_enabled: boolean
-          updated_at: string
-        }
-        Insert: {
-          affiliate_id: string
-          created_at?: string
-          first_click_date?: string
-          free_referral_earned?: boolean
-          id?: string
-          referral_code: string
-          referred_user_id: string
-          signup_date?: string | null
-          subscribed_within_30_days?: boolean
-          subscription_commission_enabled?: boolean
-          updated_at?: string
-        }
-        Update: {
-          affiliate_id?: string
-          created_at?: string
-          first_click_date?: string
-          free_referral_earned?: boolean
-          id?: string
-          referral_code?: string
-          referred_user_id?: string
-          signup_date?: string | null
-          subscribed_within_30_days?: boolean
-          subscription_commission_enabled?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "affiliate_referrals_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliate_referrals_referred_user_id_fkey"
-            columns: ["referred_user_id"]
-            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1593,23 +1501,23 @@ export type Database = {
       get_affiliate_links: {
         Args: { user_id: string }
         Returns: {
+          id: string
           affiliate_user_id: string
+          link_code: string
           clicks_count: number
           created_at: string
-          id: string
-          link_code: string
           updated_at: string
         }[]
       }
       get_affiliate_payout_history: {
         Args: { user_id_param: string }
         Returns: {
-          admin_notes: string
           id: string
-          processed_at: string
           requested_amount: number
-          requested_at: string
           status: string
+          requested_at: string
+          processed_at: string
+          admin_notes: string
         }[]
       }
       get_affiliate_referrals_count: {
@@ -1631,15 +1539,15 @@ export type Database = {
         }[]
       }
       has_admin_permission: {
-        Args: { _permission: string; _user_id: string }
+        Args: { _user_id: string; _permission: string }
         Returns: boolean
       }
       has_role: {
         Args:
           | { _role: Database["public"]["Enums"]["user_role"] }
           | {
-              _role: Database["public"]["Enums"]["user_role"]
               _user_id: string
+              _role: Database["public"]["Enums"]["user_role"]
             }
         Returns: boolean
       }
@@ -1659,24 +1567,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      process_free_referral_bonus: {
-        Args: {
-          p_affiliate_id: string
-          p_bonus_amount: number
-          p_referred_user_id: string
-        }
-        Returns: undefined
-      }
-      process_subscription_commission: {
-        Args: {
-          p_affiliate_id: string
-          p_commission_amount: number
-          p_is_first_payment: boolean
-        }
-        Returns: undefined
-      }
       update_user_credits: {
-        Args: { p_amount: number; p_user_id: string }
+        Args: { p_user_id: string; p_amount: number }
         Returns: number
       }
     }

@@ -139,7 +139,7 @@ CREATE INDEX idx_affiliate_applications_status ON public.affiliate_applications(
 CREATE INDEX idx_affiliate_commissions_affiliate_user_id ON public.affiliate_commissions(affiliate_user_id);
 CREATE INDEX idx_affiliate_commissions_referred_user_id ON public.affiliate_commissions(referred_user_id);
 CREATE INDEX idx_affiliate_payout_requests_affiliate_user_id ON public.affiliate_payout_requests(affiliate_user_id);
-CREATE INDEX IF NOT EXISTS idx_profiles_referrer_id ON public.profiles(referrer_id);
+CREATE INDEX idx_profiles_referrer_id ON public.profiles(referrer_id);
 
 -- Add updated_at triggers
 CREATE TRIGGER handle_updated_at_affiliate_applications

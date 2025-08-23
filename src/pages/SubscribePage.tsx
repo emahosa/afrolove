@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,21 +72,6 @@ const SubscribePage: React.FC = () => {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    const trackVisit = async () => {
-      if (user) {
-        try {
-          await supabase.functions.invoke('track-subscription-page-visit');
-        } catch (error) {
-          // It's okay if this fails, we don't need to bother the user.
-          console.error('Error tracking subscription page visit:', error);
-        }
-      }
-    };
-
-    trackVisit();
-  }, [user]);
 
   if (isVerifying) {
     return <PaymentLoadingScreen title="Activating Subscription..." description="Please wait while we activate your subscription." />;

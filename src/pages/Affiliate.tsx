@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,7 +19,6 @@ import PayoutHistory from '@/components/affiliate/PayoutHistory';
 import LockScreen from '@/components/LockScreen';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useAffiliateData } from '@/hooks/useAffiliateData';
-import { AffiliateWalletExtended } from '@/types/affiliate-local';
 
 // Combined Affiliate Page
 
@@ -290,12 +290,6 @@ const AffiliateDashboardTab = () => {
     return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader><CardContent><p>Please log in.</p></CardContent></Card>;
   }
 
-  // Create extended wallet with balance property
-  const extendedWallet: AffiliateWalletExtended | null = wallet ? {
-    ...wallet,
-    balance: wallet.pending_balance || 0
-  } : null;
-
   return (
     <div className="py-8">
       <div className="flex justify-between items-center mb-8">
@@ -351,11 +345,11 @@ const AffiliateDashboardTab = () => {
         </Card>
       </div>
       <div className="space-y-8">
-        <div className="w-full"><AffiliateWallet wallet={extendedWallet} onWithdrawal={refresh} /></div>
-        <div className="w-full"><AffiliateLinks links={links} /></div>
-        <div className="w-full"><EarningsBreakdown earnings={earnings} /></div>
-        <div className="w-full"><ReferralsList earnings={earnings} /></div>
-        <div className="w-full"><PayoutHistory affiliateId={user.id} /></div>
+        <AffiliateWallet wallet={wallet} onWithdrawal={refresh} />
+        <AffiliateLinks links={links} />
+        <EarningsBreakdown earnings={earnings} />
+        <ReferralsList earnings={earnings} />
+        <PayoutHistory affiliateId={user.id} />
       </div>
     </div>
   );

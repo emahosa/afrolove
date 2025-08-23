@@ -30,7 +30,7 @@ serve(async (req) => {
     )
 
     const { data: applicationData, error: applicationError } = await supabaseAdmin
-      .from('affiliates')
+      .from('affiliate_applications')
       .select('status, updated_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })

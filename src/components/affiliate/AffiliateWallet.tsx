@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Wallet, DollarSign, TrendingUp, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
-import { AffiliateWalletExtended } from '@/types/affiliate-local';
+import { AffiliateWallet } from '@/types/affiliate';
 
 interface AffiliateWalletProps {
-  wallet: AffiliateWalletExtended | null;
+  wallet: AffiliateWallet | null;
   onWithdrawal: () => void;
 }
 
@@ -32,7 +32,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
       return;
     }
 
-    if (!wallet || amount > (wallet.balance || wallet.pending_balance)) {
+    if (!wallet || amount > Number(wallet.balance)) {
       toast.error("Insufficient balance");
       return;
     }
@@ -78,7 +78,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ wallet, onWi
     );
   }
 
-  const balance = wallet.balance || wallet.pending_balance || 0;
+  const balance = Number(wallet?.pending_balance) || 0;
   const totalEarned = Number(wallet?.lifetime_earnings) || 0;
   const totalWithdrawn = Number(wallet?.paid_balance) || 0;
 

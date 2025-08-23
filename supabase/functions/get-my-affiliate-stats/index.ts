@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -9,79 +8,70 @@ serve(async (req) => {
   }
 
   try {
-    const userSupabaseClient = createClient(
+    // Create a Supabase client with the user's auth token to get the user ID
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { data: { user }, error: userError } = await userSupabaseClient.auth.getUser()
-
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
     }
 
+    // Create an admin client to bypass RLS for stats calculation
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get affiliate stats from the main affiliates table
-    const { data: affiliateData, error: affiliateError } = await supabaseAdmin
-      .from('affiliates')
-      .select('total_free_referrals, total_subscribers, lifetime_commissions, pending_balance, paid_balance')
-      .eq('user_id', user.id)
-      .single()
+    // 1. Get total referrals count
+    const { count: referralsCount, error: referralsError } = await supabaseAdmin
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', user.id)
+    if (referralsError) throw new Error(`Failed to fetch referrals count: ${referralsError.message}`);
 
-    if (affiliateError) {
-      console.error('Error fetching affiliate data:', affiliateError)
-      return new Response(JSON.stringify({ error: 'Failed to fetch affiliate stats' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
-    }
-
-    if (!affiliateData) {
-        return new Response(JSON.stringify({ error: 'Affiliate not found' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 404,
-        });
-    }
-
-    // Get total clicks separately
-    const { count: clicksCount, error: clicksError } = await supabaseAdmin
-      .from('affiliate_clicks')
-      .select('id', { count: 'exact' })
+    // 2. Get total earnings
+    const { data: commissions, error: earningsError } = await supabaseAdmin
+      .from('affiliate_commissions')
+      .select('amount_earned')
       .eq('affiliate_user_id', user.id)
+    if (earningsError) throw new Error(`Failed to fetch total earnings: ${earningsError.message}`);
+    const totalEarnings = commissions?.reduce((sum, record) => sum + Number(record.amount_earned), 0) || 0;
 
-    if (clicksError) {
-        console.error('Error fetching clicks count:', clicksError);
-        // Decide if you want to fail the whole request or return partial data
-    }
+    // 3. Get total clicks
+    const { data: clicksData, error: clicksError } = await supabaseAdmin
+      .from('affiliate_applications')
+      .select('total_clicks')
+      .eq('user_id', user.id)
+      .single();
+    // Do not throw error if no application found, just default to 0 clicks
+    const totalClicks = clicksData?.total_clicks || 0;
 
-    const totalReferrals = (affiliateData.total_free_referrals || 0) + (affiliateData.total_subscribers || 0);
-    const conversionRate = (clicksCount ?? 0) > 0 ? (totalReferrals / (clicksCount ?? 0)) * 100 : 0;
+    // 4. Calculate conversion rate
+    const conversionRate = totalClicks > 0 && (referralsCount || 0) > 0
+      ? ((referralsCount || 0) / totalClicks) * 100
+      : 0;
 
     const stats = {
-      totalReferrals,
-      totalEarnings: parseFloat(affiliateData.lifetime_commissions.toString()),
-      pendingBalance: parseFloat(affiliateData.pending_balance.toString()),
-      paidBalance: parseFloat(affiliateData.paid_balance.toString()),
-      conversionRate: parseFloat(conversionRate.toFixed(2)),
-      clicksCount: clicksCount ?? 0,
-    }
+      totalReferrals: referralsCount || 0,
+      totalEarnings: totalEarnings || 0,
+      conversionRate: conversionRate,
+      clicksCount: totalClicks,
+    };
 
     return new Response(JSON.stringify(stats), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
-
   } catch (error) {
-    console.error('Error in get-my-affiliate-stats:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    console.error('Error in get-my-affiliate-stats:', error.message)
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

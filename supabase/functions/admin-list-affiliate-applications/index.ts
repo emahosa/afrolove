@@ -1,109 +1,70 @@
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { corsHeaders } from '../_shared/cors.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-}
+// This function can only be called by authenticated users who are admins.
+// It uses the SERVICE_ROLE_KEY to bypass RLS and return all affiliate applications.
 
 serve(async (req) => {
+  // This is needed if you're planning to invoke your function from a browser.
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+    // Create a Supabase client with the user's auth token
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    // Get the user and check if they are an admin
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
-      })
+      });
     }
 
-    // Verify user authentication
-    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        'Authorization': authHeader,
-        'apikey': Deno.env.get('SUPABASE_ANON_KEY')!
-      }
-    })
+    const { data: userRole, error: roleError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['admin', 'super_admin'])
+      .single();
 
-    if (!userResponse.ok) {
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
-
-    const user = await userResponse.json()
-    console.log('Authenticated user:', user.id)
-
-    // Check if user is admin
-    const rolesResponse = await fetch(`${supabaseUrl}/rest/v1/user_roles?user_id=eq.${user.id}`, {
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'apikey': supabaseServiceKey,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    const userRoles = await rolesResponse.json()
-    const isAdmin = userRoles?.some((role: any) => ['admin', 'super_admin'].includes(role.role)) || 
-                   user.email === 'ellaadahosa@gmail.com'
-
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: Admin access required' }), {
+    if (roleError || !userRole) {
+      return new Response(JSON.stringify({ error: 'Forbidden: Not an admin' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403,
-      })
+      });
     }
 
-    console.log('Admin access verified, fetching applications...')
+    // If the user is an admin, create a client with the service role to bypass RLS
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Fetch all affiliate applications
-    const applicationsResponse = await fetch(`${supabaseUrl}/rest/v1/affiliates?select=*&order=created_at.desc`, {
-      headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'apikey': supabaseServiceKey,
-        'Content-Type': 'application/json'
-      }
-    })
+    const { data, error } = await supabaseAdmin
+      .from('affiliate_applications')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (!applicationsResponse.ok) {
-      const errorText = await applicationsResponse.text()
-      console.error('Error fetching applications:', errorText)
-      return new Response(JSON.stringify({ error: 'Failed to fetch applications', details: errorText }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      })
+    if (error) {
+      throw error
     }
 
-    const applications = await applicationsResponse.json()
-    console.log(`Successfully fetched ${applications?.length || 0} applications`)
-    
-    applications?.forEach((app: any, index: number) => {
-      console.log(`Application ${index + 1}:`, {
-        id: app.id,
-        email: app.email,
-        status: app.status,
-        created_at: app.created_at
-      })
-    })
-
-    return new Response(JSON.stringify(applications || []), {
+    return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
-
   } catch (error) {
-    console.error('Error in admin-list-affiliate-applications:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), {
+    return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: 400,
     })
   }
 })

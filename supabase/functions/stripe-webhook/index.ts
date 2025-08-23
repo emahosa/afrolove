@@ -89,6 +89,7 @@ serve(async (req) => {
         console.log(`💳 Processing credit purchase: ${creditsAmount} credits for user ${userId}`)
         
         try {
+          // Update user credits using the RPC function
           const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
             p_user_id: userId,
             p_amount: creditsAmount
@@ -180,10 +181,6 @@ serve(async (req) => {
             }
           }
 
-          // Process affiliate commission for subscription
-          console.log('💰 Processing affiliate commission for subscription...')
-          await processAffiliateCommission(supabaseClient, userId, (session.amount_total || 0) / 100)
-
           // Update user roles - remove voter, add subscriber
           console.log('🔄 Updating user roles...')
           const { error: deleteRoleError } = await supabaseClient
@@ -234,79 +231,3 @@ serve(async (req) => {
     })
   }
 })
-
-async function processAffiliateCommission(supabaseClient: any, userId: string, subscriptionAmount: number) {
-  try {
-    // Check if user was referred
-    const { data: referral, error: referralError } = await supabaseClient
-      .from('affiliate_referrals')
-      .select('*')
-      .eq('referred_user_id', userId)
-      .single()
-
-    if (referralError || !referral) {
-      console.log('User was not referred, no commission to process')
-      return
-    }
-
-    // Check if subscription is within 30-day window
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const signupDate = new Date(referral.signup_date || referral.first_click_date)
-
-    if (signupDate < thirtyDaysAgo) {
-      console.log('Subscription is outside 30-day window, no commission')
-      return
-    }
-
-    // Get commission percentage from settings
-    const { data: settings } = await supabaseClient
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'affiliate_subscription_commission_percent')
-      .single()
-
-    const commissionPercent = settings ? parseFloat(settings.value) : 10
-    const commissionAmount = (subscriptionAmount * commissionPercent) / 100
-
-    console.log(`Processing ${commissionPercent}% commission (${commissionAmount}) for affiliate ${referral.affiliate_id}`)
-
-    // Process the commission
-    const { error: commissionError } = await supabaseClient.rpc('process_subscription_commission', {
-      p_affiliate_id: referral.affiliate_id,
-      p_referred_user_id: userId,
-      p_commission_amount: commissionAmount
-    })
-
-    if (commissionError) {
-      console.error('Error processing subscription commission:', commissionError)
-    } else {
-      console.log('✅ Subscription commission processed successfully')
-    }
-
-    // Log activity
-    await supabaseClient
-      .from('user_activities')
-      .insert({
-        user_id: userId,
-        activity_type: 'subscription_completed',
-        referrer_affiliate_id: referral.affiliate_id,
-        metadata: { 
-          commission_amount: commissionAmount,
-          subscription_amount: subscriptionAmount 
-        }
-      })
-
-    // Mark click as converted to subscription
-    await supabaseClient
-      .from('affiliate_clicks')
-      .update({ converted_to_subscription: true })
-      .eq('affiliate_user_id', referral.affiliate_id)
-      .eq('referral_code', referral.referral_code)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-  } catch (error) {
-    console.error('Error processing affiliate commission:', error)
-  }
-}

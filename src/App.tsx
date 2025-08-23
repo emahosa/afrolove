@@ -1,98 +1,136 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'sonner';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
-import { initializeAffiliateTracking } from '@/utils/affiliateTracking';
-import AdminLayout from './layouts/AdminLayout';
-import AppLayout from './layouts/AppLayout';
-import ProtectedRoute from './components/ProtectedRoute';
-import Index from './pages/Index';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Admin from './pages/Admin';
-import Contest from './pages/Contest';
-import Subscription from './pages/Subscription';
-import Profile from './pages/Profile';
-import UserCustomSongs from './pages/UserCustomSongs';
-import Support from './pages/Support';
-import Affiliate from './pages/Affiliate';
-import './App.css';
+import React, { useEffect } from 'react';
+import { supabase } from './integrations/supabase/client';
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { PaymentVerificationProvider } from "@/components/payment/PaymentVerificationProvider";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+// Pages
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AdminRegister from "./pages/AdminRegister";
+import AdminLoginPage from "./pages/AdminLogin";
+import Dashboard from "./pages/Dashboard";
+import Create from "./pages/Create";
+import Library from "./pages/Library";
+import Contest from "./pages/Contest";
+import Profile from "./pages/Profile";
+import Credits from "./pages/Credits";
+import Support from "./pages/Support";
+import Admin from "./pages/Admin";
+import CustomSongManagement from "./pages/CustomSongManagement";
+import UserCustomSongs from "./pages/UserCustomSongs";
+import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
+import AffiliatePage from "./pages/Affiliate";
+import SubscribePage from "./pages/SubscribePage";
 
-function App() {
+// Layouts
+import AppLayout from "./layouts/AppLayout";
+import AuthLayout from "./layouts/AuthLayout";
+import AdminLayout from "./layouts/AdminLayout";
+
+// Protected Routes
+import ProtectedRoute from "./components/ProtectedRoute";
+
+import { ensureStorageBuckets } from './utils/storageSetup';
+
+const App = () => {
   useEffect(() => {
-    // Initialize affiliate tracking when app loads
-    initializeAffiliateTracking();
+    ensureStorageBuckets();
+
+    const handleAffiliateTracking = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const refCode = params.get('ref');
+
+      if (refCode) {
+        // Store the referral code in a cookie for 30 days
+        const d = new Date();
+        d.setTime(d.getTime() + (30 * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + d.toUTCString();
+        document.cookie = `affiliate_ref=${refCode};${expires};path=/`;
+
+        // Track the click event in the backend
+        try {
+          const { error } = await supabase.functions.invoke('track-affiliate-click', {
+            body: { referral_code: refCode }
+          });
+          if (error) {
+            console.error('Error tracking affiliate click:', error.message);
+          }
+        } catch (e) {
+          console.error('Failed to invoke track-affiliate-click function', e);
+        }
+      }
+    };
+
+    handleAffiliateTracking();
   }, []);
-
+  
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
+    <ErrorBoundary>
+      <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            {/* Admin Routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Admin />} />
-              {/* Add other admin-specific routes here */}
-            </Route>
+          <PaymentVerificationProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                
+                <Route element={<AuthLayout />}>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/register/admin" element={<AdminRegister />} />
+                </Route>
+                
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/create" element={<Create />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/contest" element={<Contest />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/credits" element={<Credits />} />
+                    <Route path="/support" element={<Support />} />
+                    <Route path="/my-custom-songs" element={<UserCustomSongs />} />
+                    <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
+                    <Route path="/affiliate" element={<AffiliatePage />} />
+                    <Route path="/subscribe" element={<SubscribePage />} />
+                  </Route>
+                </Route>
 
-            {/* User-facing Routes */}
-            <Route
-              path="/"
-              element={
-                <AppLayout />
-              }
-            >
-              <Route index element={<Index />} />
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
-              <Route
-                path="dashboard"
-                element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
-              />
-              <Route
-                path="contest"
-                element={<ProtectedRoute><Contest /></ProtectedRoute>}
-              />
-              <Route
-                path="subscription"
-                element={<ProtectedRoute><Subscription /></ProtectedRoute>}
-              />
-              <Route path="subscribe" element={<Subscription />} />
-              <Route path="credits" element={<Subscription />} />
-              <Route
-                path="profile"
-                element={<ProtectedRoute><Profile /></ProtectedRoute>}
-              />
-              <Route
-                path="my-custom-songs"
-                element={<ProtectedRoute><UserCustomSongs /></ProtectedRoute>}
-              />
-              <Route
-                path="support"
-                element={<ProtectedRoute><Support /></ProtectedRoute>}
-              />
-              <Route
-                path="affiliate"
-                element={<ProtectedRoute><Affiliate /></ProtectedRoute>}
-              />
-            </Route>
-          </Routes>
-          <Toaster />
+                <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
+                  <Route element={<AdminLayout />}>
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/overview" element={<Admin tab="overview" />} />
+                    <Route path="/admin/users" element={<Admin tab="users" />} />
+                    <Route path="/admin/admins" element={<Admin tab="admins" />} />
+                    <Route path="/admin/genres" element={<Admin tab="genres" />} />
+                    <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
+                    <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/contest" element={<Admin tab="contest" />} />
+                    <Route path="/admin/content" element={<Admin tab="content" />} />
+                    <Route path="/admin/payments" element={<Admin tab="payments" />} />
+                    <Route path="/admin/support" element={<Admin tab="support" />} />
+                    <Route path="/admin/reports" element={<Admin tab="reports" />} />
+                    <Route path="/admin/settings" element={<Admin tab="settings" />} />
+                  </Route>
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </TooltipProvider>
+          </PaymentVerificationProvider>
         </AuthProvider>
-      </Router>
-    </QueryClientProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
-}
+};
 
 export default App;

@@ -14,7 +14,7 @@ const AppLayoutContent = () => {
       <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ paddingBottom: '120px' }}>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8" style={{ paddingBottom: '120px' }}>
           <Outlet />
         </main>
       </div>

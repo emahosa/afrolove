@@ -1,179 +1,487 @@
-import React, { useState, useEffect } from 'react';
-import { useContest } from '@/hooks/use-contest';
-import { ContestEntryCard } from '@/components/contest/ContestEntryCard';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Trophy, Calendar, Users, Music } from 'lucide-react';
-import { toast } from 'sonner';
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useContestSubmission } from "@/hooks/useContestSubmission";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { useContest, type Contest as ContestType, type ContestEntry } from "@/hooks/use-contest";
+
+interface Song {
+  id: string;
+  title: string;
+  status: string;
+}
 
 const Contest = () => {
-  const { 
-    activeContests, 
-    contestEntries, 
-    loading, 
-    error, 
-    voteForEntry, 
-    setCurrentContest 
+  const { user, isVoter, isSubscriber, userRoles } = useAuth();
+  const { submitEntry: submitContestEntry, isSubmitting } = useContestSubmission();
+  const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
+  const {
+    activeContests,
+    contestEntries,
+    loading: contestsLoading,
+    error: contestsError,
+    voteForEntry,
+    refreshEntries,
+    setCurrentContest,
   } = useContest();
-  
-  const [selectedContestIndex, setSelectedContestIndex] = useState(0);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
+  const [selectedSong, setSelectedSong] = useState<string>("");
+  const [description, setDescription] = useState("");
+  const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+  const [voteDialogOpen, setVoteDialogOpen] = useState(false);
+  const [selectedEntryForVote, setSelectedEntryForVote] = useState<ContestEntry | null>(null);
+  const [voteCount, setVoteCount] = useState(1);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserSongs();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (activeContests.length > 0) {
-      setCurrentContest(activeContests[selectedContestIndex]);
+      fetchContestEntries(activeContests[0].id);
     }
-  }, [activeContests, selectedContestIndex, setCurrentContest]);
+  }, [activeContests]);
 
-  const handleVote = async (entryId: string, voterPhone?: string): Promise<boolean> => {
-    const success = await voteForEntry(entryId);
-    if (success) {
-      toast.success('Vote submitted successfully!');
+  const fetchContestEntries = async (contestId: string) => {
+    if (!contestId) return;
+    
+    setEntriesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contest_entries')
+        .select(`
+          id,
+          contest_id,
+          user_id,
+          video_url,
+          description,
+          approved,
+          vote_count,
+          media_type,
+          created_at,
+          profiles:user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('contest_id', contestId)
+        .eq('approved', true)
+        .order('vote_count', { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform the data to match ContestEntry interface
+      const transformedEntries = data?.map(entry => ({
+        ...entry,
+        profiles: Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles
+      })) || [];
+      
+      // Update contest entries through the hook's method if available
+      if (setCurrentContest && activeContests.length > 0) {
+        setCurrentContest(activeContests.find(c => c.id === contestId) || activeContests[0]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching contest entries:', error);
+      toast.error('Failed to load contest entries');
+    } finally {
+      setEntriesLoading(false);
     }
-    return success;
   };
 
-  if (loading) {
+  const fetchUserSongs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('songs')
+        .select('id, title, status')
+        .eq('user_id', user?.id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSongs(data || []);
+    } catch (error: any) {
+      console.error('Error fetching songs:', error);
+    }
+  };
+
+  const handleSubmitEntry = async () => {
+    if (!selectedContest) return;
+    if (!selectedSong) {
+      toast.error('Please select a song');
+      return;
+    }
+    if (!description.trim()) {
+      toast.error('Please provide a description');
+      return;
+    }
+
+    const success = await submitContestEntry({
+      contestId: selectedContest.id,
+      songId: selectedSong || undefined,
+      description: description.trim()
+    });
+
+    if (success) {
+      setSubmissionDialogOpen(false);
+      setSelectedSong("");
+      setDescription("");
+      setSelectedContest(null);
+      if (activeContests.length > 0) {
+        fetchContestEntries(activeContests[0].id);
+      }
+    }
+  };
+
+  const handlePlay = (entry: ContestEntry) => {
+    if (!entry.video_url) return;
+    if (currentTrack?.id === entry.id && isPlaying) {
+      togglePlayPause();
+    } else {
+      playTrack({
+        id: entry.id,
+        title: `Entry by ${entry.profiles?.username || 'Unknown'}`,
+        audio_url: entry.video_url
+      });
+    }
+  };
+
+  const openSubmissionDialog = (contest: ContestType) => {
+    setSelectedContest(contest);
+    setSubmissionDialogOpen(true);
+  };
+
+  const handleVoteClick = (entry: ContestEntry) => {
+    // Check if user is trying to vote for their own entry
+    if (entry.user_id === user?.id) {
+      toast.error("You cannot vote for your own entry");
+      return;
+    }
+    
+    setSelectedEntryForVote(entry);
+    setVoteCount(1);
+    setVoteDialogOpen(true);
+  };
+
+  const handleConfirmVote = async () => {
+    if (!selectedEntryForVote) return;
+
+    // Calculate credits needed (first vote is free, additional votes cost 5 credits each)
+    const creditsNeeded = (voteCount - 1) * 5;
+    
+    if (creditsNeeded > 0) {
+      // Check if user has enough credits
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user?.id)
+        .single();
+        
+      if (!profile || profile.credits < creditsNeeded) {
+        toast.error(`You need ${creditsNeeded} credits for ${voteCount} votes`);
+        return;
+      }
+    }
+
+    // Submit votes
+    for (let i = 0; i < voteCount; i++) {
+      const success = await voteForEntry(selectedEntryForVote.id);
+      if (!success) {
+        toast.error(`Failed to submit vote ${i + 1}`);
+        return;
+      }
+    }
+
+    // Deduct credits if needed
+    if (creditsNeeded > 0) {
+      await supabase
+        .from('profiles')
+        .update({ credits: (await supabase.from('profiles').select('credits').eq('id', user?.id).single()).data?.credits - creditsNeeded })
+        .eq('id', user?.id);
+    }
+
+    toast.success(`Successfully submitted ${voteCount} vote(s)!`);
+    setVoteDialogOpen(false);
+    setSelectedEntryForVote(null);
+    setVoteCount(1);
+    
+    // Refresh entries
+    if (activeContests.length > 0) {
+      fetchContestEntries(activeContests[0].id);
+    }
+  };
+
+  const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+  const canViewContests = !isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+
+  if (contestsLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-purple-400" />
-          <p className="text-xl text-gray-300">Loading contests...</p>
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading contests...</span>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 flex items-center justify-center">
-        <Card className="w-full max-w-md bg-gray-900/80 backdrop-blur-sm border-gray-800">
-          <CardContent className="p-8 text-center">
-            <Trophy className="h-16 w-16 mx-auto mb-4 text-red-400" />
-            <h3 className="text-xl font-semibold mb-2 text-white">Failed to Load Contests</h3>
-            <p className="text-gray-400 mb-4">{error}</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (activeContests.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 flex items-center justify-center">
-        <Card className="w-full max-w-md bg-gray-900/80 backdrop-blur-sm border-gray-800">
-          <CardContent className="p-8 text-center">
-            <Trophy className="h-16 w-16 mx-auto mb-4 text-purple-400" />
-            <h3 className="text-xl font-semibold mb-2 text-white">No Active Contests</h3>
-            <p className="text-gray-400">Check back later for new contests!</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const currentContest = activeContests[selectedContestIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-purple-900/20 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Contest Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4 flex items-center gap-3">
-            <Trophy className="h-8 w-8 text-purple-400" />
-            Music Contests
-          </h1>
-          
-          {activeContests.length > 1 && (
-            <div className="flex gap-2 mb-6">
-              {activeContests.map((contest, index) => (
-                <Button
-                  key={contest.id}
-                  variant={index === selectedContestIndex ? "default" : "outline"}
-                  onClick={() => setSelectedContestIndex(index)}
-                  className={index === selectedContestIndex ? 
-                    "bg-purple-600 hover:bg-purple-700" : 
-                    "border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white"
-                  }
-                >
-                  {contest.title}
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold mb-2">Music Contests</h1>
+        <p className="text-muted-foreground">
+          Showcase your talent and win amazing prizes!
+        </p>
+      </div>
+
+      <Tabs defaultValue="contests" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="contests">Active Contests</TabsTrigger>
+          <TabsTrigger value="entries">Entries</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contests" className="space-y-4">
+          {!canViewContests ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
+                <p className="text-muted-foreground mb-4">
+                  Subscribe to view and participate in contests.
+                </p>
+                <Button onClick={() => window.location.href = '/credits'}>
+                  View Plans
                 </Button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Current Contest Info */}
-        <Card className="mb-8 bg-gray-900/80 backdrop-blur-sm border-gray-800">
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="text-2xl text-white">{currentContest.title}</CardTitle>
-                <p className="text-gray-400 mt-2">{currentContest.description}</p>
-              </div>
-              <Badge className="bg-purple-600 text-white">
-                Active
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2 text-gray-300">
-                <Trophy className="h-5 w-5 text-purple-400" />
-                <span>Prize: {currentContest.prize}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <Calendar className="h-5 w-5 text-purple-400" />
-                <span>Ends: {new Date(currentContest.end_date).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-300">
-                <Users className="h-5 w-5 text-purple-400" />
-                <span>{contestEntries.length} Entries</span>
-              </div>
-            </div>
-            {currentContest.rules && (
-              <div className="mt-4 p-4 bg-gray-800/50 rounded-lg">
-                <h4 className="font-semibold text-white mb-2">Rules:</h4>
-                <p className="text-gray-400 text-sm">{currentContest.rules}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Contest Entries */}
-        <div>
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            <Music className="h-6 w-6 text-purple-400" />
-            Contest Entries ({contestEntries.length})
-          </h2>
-          
-          {contestEntries.length === 0 ? (
-            <Card className="bg-gray-900/80 backdrop-blur-sm border-gray-800">
-              <CardContent className="p-8 text-center">
-                <Music className="h-16 w-16 mx-auto mb-4 text-gray-600" />
-                <h3 className="text-xl font-semibold mb-2 text-white">No Entries Yet</h3>
-                <p className="text-gray-400">Be the first to submit an entry to this contest!</p>
+              </CardContent>
+            </Card>
+          ) : activeContests.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Active Contests</h3>
+                <p className="text-muted-foreground">
+                  Check back later for new contests.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {contestEntries.map((entry) => (
-                <ContestEntryCard
-                  key={entry.id}
-                  entry={entry}
-                  onVote={handleVote}
-                />
+            <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
+              {activeContests.map((contest) => (
+                <div key={contest.id} className="break-inside-avoid">
+                  <Card className="w-full overflow-hidden">
+                    <CardHeader className="p-4 bg-muted/40">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-primary" />
+                          {contest.title}
+                        </CardTitle>
+                        <Badge variant="secondary" className="text-sm">
+                          Prize: {contest.prize}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <p className="text-muted-foreground text-sm mb-4">{contest.description}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            Ends {new Date(contest.end_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {contest.entry_fee > 0 && (
+                          <Badge>
+                            Entry: {contest.entry_fee} credits
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-2 bg-muted/40">
+                      {canParticipate ? (
+                        <Button size="sm" className="w-full" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Your Entry
+                        </Button>
+                      ) : (
+                        <Button size="sm" disabled className="w-full">
+                          Subscription Required to Enter
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="entries" className="space-y-2">
+          {contestEntries.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Entries Yet</h3>
+                <p className="text-muted-foreground">
+                  Be the first to submit an entry!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {contestEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center p-3 rounded-lg bg-muted/40 hover:bg-muted/80 transition-colors">
+                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)}>
+                    {currentTrack?.id === entry.id && isPlaying ? (
+                      <Pause className="h-5 w-5" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <div className="flex-grow mx-4">
+                    <p className="font-semibold">{`Entry by ${entry.profiles?.username || 'Unknown'}`}</p>
+                    <p className="text-sm text-muted-foreground">
+                      By {entry.profiles?.full_name || 'Unknown Artist'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Vote className="h-4 w-4" />
+                      <span>{entry.vote_count}</span>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)}>
+                      Vote
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Submit to "{selectedContest?.title}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="song-select">Select Your Song</Label>
+              <Select value={selectedSong} onValueChange={setSelectedSong}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a completed song" />
+                </SelectTrigger>
+                <SelectContent>
+                  {songs.map((song) => (
+                    <SelectItem key={song.id} value={song.id}>
+                      {song.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Entry Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Tell everyone about your track..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setSubmissionDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitEntry} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Submit Entry
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voteDialogOpen} onOpenChange={setVoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vote for Entry</DialogTitle>
+          </DialogHeader>
+          {selectedEntryForVote && (
+            <div className="py-4">
+              <p className="mb-4">
+                You are voting for{' '}
+                <strong>
+                  Entry by {selectedEntryForVote.profiles?.username || 'Unknown'}
+                </strong>
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="vote-count">Number of votes</Label>
+                  <input
+                    id="vote-count"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={voteCount}
+                    onChange={(e) => setVoteCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    First vote is free. Additional votes cost 5 credits each.
+                    {voteCount > 1 && ` (${(voteCount - 1) * 5} credits needed)`}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setVoteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmVote} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+                      Voting...
+                    </>
+                  ) : (
+                    `Submit ${voteCount} Vote${voteCount > 1 ? 's' : ''}`
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
