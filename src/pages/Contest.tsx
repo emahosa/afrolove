@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useContest } from '@/hooks/use-contest';
 import { ContestEntryCard } from '@/components/contest/ContestEntryCard';
@@ -26,11 +25,12 @@ const Contest = () => {
     }
   }, [activeContests, selectedContestIndex, setCurrentContest]);
 
-  const handleVote = async (entryId: string) => {
+  const handleVote = async (entryId: string, voterPhone?: string): Promise<boolean> => {
     const success = await voteForEntry(entryId);
     if (success) {
       toast.success('Vote submitted successfully!');
     }
+    return success;
   };
 
   if (loading) {

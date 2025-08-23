@@ -11,7 +11,7 @@ export interface Contest {
   end_date: string;
   start_date: string;
   entry_fee: number;
-  status: string;
+  status: 'active' | 'completed' | 'draft' | 'voting';
   rules?: string;
   instrumental_url?: string;
   voting_enabled?: boolean;
@@ -84,13 +84,28 @@ export const useContest = () => {
 
   const createContest = async (contestData: Partial<Contest>): Promise<boolean> => {
     try {
+      // Ensure required fields are present
+      if (!contestData.title || !contestData.description || !contestData.prize || !contestData.end_date) {
+        toast.error('Missing required contest information');
+        return false;
+      }
+
       const { error } = await supabase
         .from('contests')
         .insert({
-          ...contestData,
-          status: 'active',
-          created_by: user?.id,
+          title: contestData.title,
+          description: contestData.description,
+          prize: contestData.prize,
+          end_date: contestData.end_date,
+          start_date: contestData.start_date || new Date().toISOString(),
+          entry_fee: contestData.entry_fee || 0,
+          status: 'active' as const,
+          rules: contestData.rules,
+          instrumental_url: contestData.instrumental_url,
+          voting_enabled: contestData.voting_enabled || true,
+          max_entries_per_user: contestData.max_entries_per_user || 1,
           terms_conditions: contestData.rules || 'Standard contest terms and conditions apply.',
+          created_by: user?.id,
         });
 
       if (error) throw error;
@@ -107,12 +122,21 @@ export const useContest = () => {
 
   const updateContest = async (contestId: string, contestData: Partial<Contest>): Promise<boolean> => {
     try {
+      const updateData: any = {
+        ...contestData,
+        terms_conditions: contestData.rules || 'Standard contest terms and conditions apply.',
+      };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
       const { error } = await supabase
         .from('contests')
-        .update({
-          ...contestData,
-          terms_conditions: contestData.rules || 'Standard contest terms and conditions apply.',
-        })
+        .update(updateData)
         .eq('id', contestId);
 
       if (error) throw error;
