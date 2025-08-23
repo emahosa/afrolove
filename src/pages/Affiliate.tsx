@@ -351,11 +351,11 @@ const AffiliateDashboardTab = () => {
         </Card>
       </div>
       <div className="space-y-8">
-        <AffiliateWallet wallet={extendedWallet} onWithdrawal={refresh} />
-        <AffiliateLinks links={links} />
-        <EarningsBreakdown earnings={earnings} />
-        <ReferralsList earnings={earnings} />
-        <PayoutHistory affiliateId={user.id} />
+        <div className="w-full"><AffiliateWallet wallet={extendedWallet} onWithdrawal={refresh} /></div>
+        <div className="w-full"><AffiliateLinks links={links} /></div>
+        <div className="w-full"><EarningsBreakdown earnings={earnings} /></div>
+        <div className="w-full"><ReferralsList earnings={earnings} /></div>
+        <div className="w-full"><PayoutHistory affiliateId={user.id} /></div>
       </div>
     </div>
   );
