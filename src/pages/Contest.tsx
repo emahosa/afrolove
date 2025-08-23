@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,37 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useContestSubmission } from "@/hooks/useContestSubmission";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-
-interface Contest {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  prize: string;
-  entry_fee: number;
-  status: string;
-}
-
-interface ContestEntry {
-  id: string;
-  contest_id: string;
-  user_id: string;
-  description: string;
-  vote_count: number;
-  song_id: string | null;
-  video_url: string | null;
-  approved: boolean;
-  created_at: string;
-  profiles: {
-    full_name: string;
-  } | null;
-  songs?: {
-    id: string;
-    title: string;
-    audio_url: string;
-  } | null;
-}
+import { useContest, type Contest as ContestType, type ContestEntry } from "@/hooks/use-contest";
 
 interface Song {
   id: string;
@@ -53,92 +24,77 @@ interface Song {
 
 const Contest = () => {
   const { user, isVoter, isSubscriber, userRoles } = useAuth();
-  const { submitEntry, isSubmitting } = useContestSubmission();
+  const { submitEntry: submitContestEntry, isSubmitting } = useContestSubmission();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
-  const [contests, setContests] = useState<Contest[]>([]);
-  const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
+  const {
+    activeContests,
+    contestEntries,
+    loading: contestsLoading,
+    error: contestsError,
+    voteForEntry,
+    refreshEntries,
+    setCurrentContest,
+  } = useContest();
   const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+  const [voteDialogOpen, setVoteDialogOpen] = useState(false);
+  const [selectedEntryForVote, setSelectedEntryForVote] = useState<ContestEntry | null>(null);
+  const [voteCount, setVoteCount] = useState(1);
 
   useEffect(() => {
-    fetchContests();
-    fetchContestEntries();
     if (user) {
       fetchUserSongs();
     }
   }, [user]);
 
-  const fetchContests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('contests')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setContests(data || []);
-    } catch (error: any) {
-      console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (activeContests.length > 0) {
+      fetchContestEntries(activeContests[0].id);
     }
-  };
+  }, [activeContests]);
 
-  const fetchContestEntries = async () => {
+  const fetchContestEntries = async (contestId: string) => {
+    if (!contestId) return;
+    
     setEntriesLoading(true);
     try {
-      const { data: entriesData, error: entriesError } = await supabase
+      const { data, error } = await supabase
         .from('contest_entries')
-        .select('*')
+        .select(`
+          id,
+          contest_id,
+          user_id,
+          video_url,
+          description,
+          approved,
+          vote_count,
+          media_type,
+          created_at,
+          profiles:user_id (
+            full_name,
+            username
+          )
+        `)
+        .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (entriesError) throw entriesError;
-
-      const entriesWithDetails: ContestEntry[] = await Promise.all(
-        (entriesData || []).map(async (entry) => {
-          let profileData = null;
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', entry.user_id)
-              .maybeSingle();
-            if (!error && data) profileData = data;
-          } catch (error) {
-            console.warn('Failed to fetch profile for user:', entry.user_id, error);
-          }
-
-          let songData = null;
-          if (entry.song_id) {
-            try {
-              const { data, error } = await supabase
-                .from('songs')
-                .select('id, title, audio_url')
-                .eq('id', entry.song_id)
-                .maybeSingle();
-              if (!error && data) songData = data;
-            } catch (error) {
-              console.warn('Failed to fetch song for entry:', entry.song_id, error);
-            }
-          }
-
-          return {
-            ...entry,
-            profiles: profileData ? { full_name: profileData.full_name || 'Unknown Artist' } : null,
-            songs: songData,
-          };
-        })
-      );
-
-      setContestEntries(entriesWithDetails);
+      if (error) throw error;
+      
+      // Transform the data to match ContestEntry interface
+      const transformedEntries = data?.map(entry => ({
+        ...entry,
+        profiles: Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles
+      })) || [];
+      
+      // Update contest entries through the hook's method if available
+      if (setCurrentContest && activeContests.length > 0) {
+        setCurrentContest(activeContests.find(c => c.id === contestId) || activeContests[0]);
+      }
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       toast.error('Failed to load contest entries');
@@ -174,7 +130,7 @@ const Contest = () => {
       return;
     }
 
-    const success = await submitEntry({
+    const success = await submitContestEntry({
       contestId: selectedContest.id,
       songId: selectedSong || undefined,
       description: description.trim()
@@ -185,32 +141,94 @@ const Contest = () => {
       setSelectedSong("");
       setDescription("");
       setSelectedContest(null);
-      fetchContestEntries();
+      if (activeContests.length > 0) {
+        fetchContestEntries(activeContests[0].id);
+      }
     }
   };
 
-  const handlePlay = (song: ContestEntry['songs']) => {
-    if (!song) return;
-    if (currentTrack?.id === song.id && isPlaying) {
+  const handlePlay = (entry: ContestEntry) => {
+    if (!entry.video_url) return;
+    if (currentTrack?.id === entry.id && isPlaying) {
       togglePlayPause();
-    } else if (song.audio_url) {
+    } else {
       playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url
+        id: entry.id,
+        title: `Entry by ${entry.profiles?.username || 'Unknown'}`,
+        audio_url: entry.video_url
       });
     }
   };
 
-  const openSubmissionDialog = (contest: Contest) => {
+  const openSubmissionDialog = (contest: ContestType) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
+  };
+
+  const handleVoteClick = (entry: ContestEntry) => {
+    // Check if user is trying to vote for their own entry
+    if (entry.user_id === user?.id) {
+      toast.error("You cannot vote for your own entry");
+      return;
+    }
+    
+    setSelectedEntryForVote(entry);
+    setVoteCount(1);
+    setVoteDialogOpen(true);
+  };
+
+  const handleConfirmVote = async () => {
+    if (!selectedEntryForVote) return;
+
+    // Calculate credits needed (first vote is free, additional votes cost 5 credits each)
+    const creditsNeeded = (voteCount - 1) * 5;
+    
+    if (creditsNeeded > 0) {
+      // Check if user has enough credits
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user?.id)
+        .single();
+        
+      if (!profile || profile.credits < creditsNeeded) {
+        toast.error(`You need ${creditsNeeded} credits for ${voteCount} votes`);
+        return;
+      }
+    }
+
+    // Submit votes
+    for (let i = 0; i < voteCount; i++) {
+      const success = await voteForEntry(selectedEntryForVote.id);
+      if (!success) {
+        toast.error(`Failed to submit vote ${i + 1}`);
+        return;
+      }
+    }
+
+    // Deduct credits if needed
+    if (creditsNeeded > 0) {
+      await supabase
+        .from('profiles')
+        .update({ credits: (await supabase.from('profiles').select('credits').eq('id', user?.id).single()).data?.credits - creditsNeeded })
+        .eq('id', user?.id);
+    }
+
+    toast.success(`Successfully submitted ${voteCount} vote(s)!`);
+    setVoteDialogOpen(false);
+    setSelectedEntryForVote(null);
+    setVoteCount(1);
+    
+    // Refresh entries
+    if (activeContests.length > 0) {
+      fetchContestEntries(activeContests[0].id);
+    }
   };
 
   const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
   const canViewContests = !isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
 
-  if (loading) {
+  if (contestsLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
@@ -248,7 +266,7 @@ const Contest = () => {
                 </Button>
               </CardContent>
             </Card>
-          ) : contests.length === 0 ? (
+          ) : activeContests.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
                 <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -260,7 +278,7 @@ const Contest = () => {
             </Card>
           ) : (
             <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
-              {contests.map((contest) => (
+              {activeContests.map((contest) => (
                 <div key={contest.id} className="break-inside-avoid">
                   <Card className="w-full overflow-hidden">
                     <CardHeader className="p-4 bg-muted/40">
@@ -309,12 +327,7 @@ const Contest = () => {
         </TabsContent>
 
         <TabsContent value="entries" className="space-y-2">
-          {entriesLoading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              <span className="ml-2">Loading entries...</span>
-            </div>
-          ) : contestEntries.length === 0 ? (
+          {contestEntries.length === 0 ? (
             <Card className="text-center py-12">
               <CardContent>
                 <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -328,15 +341,15 @@ const Contest = () => {
             <div className="space-y-3">
               {contestEntries.map((entry) => (
                 <div key={entry.id} className="flex items-center p-3 rounded-lg bg-muted/40 hover:bg-muted/80 transition-colors">
-                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)}>
-                    {currentTrack?.id === entry.songs?.id && isPlaying ? (
+                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)}>
+                    {currentTrack?.id === entry.id && isPlaying ? (
                       <Pause className="h-5 w-5" />
                     ) : (
                       <Play className="h-5 w-5" />
                     )}
                   </Button>
                   <div className="flex-grow mx-4">
-                    <p className="font-semibold">{entry.songs?.title || 'Contest Entry'}</p>
+                    <p className="font-semibold">{`Entry by ${entry.profiles?.username || 'Unknown'}`}</p>
                     <p className="text-sm text-muted-foreground">
                       By {entry.profiles?.full_name || 'Unknown Artist'}
                     </p>
@@ -346,7 +359,7 @@ const Contest = () => {
                       <Vote className="h-4 w-4" />
                       <span>{entry.vote_count}</span>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)}>
                       Vote
                     </Button>
                   </div>
@@ -411,6 +424,62 @@ const Contest = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voteDialogOpen} onOpenChange={setVoteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vote for Entry</DialogTitle>
+          </DialogHeader>
+          {selectedEntryForVote && (
+            <div className="py-4">
+              <p className="mb-4">
+                You are voting for{' '}
+                <strong>
+                  Entry by {selectedEntryForVote.profiles?.username || 'Unknown'}
+                </strong>
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="vote-count">Number of votes</Label>
+                  <input
+                    id="vote-count"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={voteCount}
+                    onChange={(e) => setVoteCount(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    First vote is free. Additional votes cost 5 credits each.
+                    {voteCount > 1 && ` (${(voteCount - 1) * 5} credits needed)`}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setVoteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmVote} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+                      Voting...
+                    </>
+                  ) : (
+                    `Submit ${voteCount} Vote${voteCount > 1 ? 's' : ''}`
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

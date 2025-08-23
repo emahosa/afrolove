@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useAffiliateTracking } from './hooks/useAffiliateTracking';
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -39,8 +38,6 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { ensureStorageBuckets } from './utils/storageSetup';
 
 const App = () => {
-  useAffiliateTracking();
-
   useEffect(() => {
     ensureStorageBuckets();
   }, []);
