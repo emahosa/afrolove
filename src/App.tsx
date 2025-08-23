@@ -35,8 +35,8 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
+      <Router>
+        <AuthProvider>
           <div className="min-h-screen bg-background">
             <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
             <div className="flex">
@@ -117,8 +117,8 @@ function App() {
             </div>
             <Toaster />
           </div>
-        </Router>
-      </AuthProvider>
+        </AuthProvider>
+      </Router>
     </QueryClientProvider>
   );
 }
