@@ -20,11 +20,11 @@ export const LoginForm = ({ onLoginSuccess, onMFARequired }: LoginFormProps) => 
 
   const checkIfAdminUser = async (userEmail: string): Promise<boolean> => {
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', userEmail.toLowerCase())
-        .single();
+      const { data: profileData, error: profileError } = (await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", userEmail.toLowerCase())
+        .single()) as { data: { id: string } | null; error: any };
 
       if (profileError || !profileData) {
         return false;
