@@ -29,7 +29,6 @@ interface AuthContextType {
   isSuperAdmin: () => boolean;
   isSubscriber: () => boolean;
   isVoter: () => boolean;
-  isAffiliate: () => boolean;
   hasRole: (role: string) => boolean;
   hasAdminPermission: (permission: string) => boolean;
   updateUserCredits: (amount: number) => Promise<void>;
@@ -419,10 +418,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return userRoles.includes('voter') && !isSubscriber();
   };
 
-  const isAffiliate = () => {
-    return userRoles.includes('affiliate');
-  };
-
   const hasRole = (role: string) => {
     return userRoles.includes(role);
   };
@@ -443,7 +438,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSuperAdmin,
     isSubscriber,
     isVoter,
-    isAffiliate,
     hasRole,
     hasAdminPermission,
     updateUserCredits,

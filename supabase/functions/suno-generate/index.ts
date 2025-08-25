@@ -101,10 +101,10 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Failed to verify user permissions (subscription).' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const hasSufficientRole = userRoles?.some(r => (r as {role: string}).role === 'subscriber' || (r as {role: string}).role === 'affiliate');
+      const hasSufficientRole = userRoles?.some(r => (r as {role: string}).role === 'subscriber');
       const isActiveSubscription = subscription?.subscription_status === 'active' && (!subscription.expires_at || new Date(subscription.expires_at) > new Date());
 
-      // User must have a qualifying role (subscriber or affiliate) AND an active subscription to use generation.
+      // User must have a qualifying role (subscriber) AND an active subscription to use generation.
       // Admins bypass this check if isAdminTest=true.
       if (!hasSufficientRole || !isActiveSubscription) {
         console.log(`User ${userId} lacks role or active subscription for song generation. HasRole: ${hasSufficientRole}, ActiveSub: ${isActiveSubscription}. Access denied.`);

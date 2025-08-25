@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles, isAffiliate } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -45,7 +45,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   }
 
   // Determine user's effective role status - STRICT CHECK
-  const isOnlyVoter = isVoter() && !isSubscriber() && !isAffiliate() && !isAdmin() && !isSuperAdmin();
+  const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
   const hasActiveSubscription = isSubscriber() && userRoles.includes('subscriber');
 
   console.log('🔐 ProtectedRoute access check:', {
@@ -123,19 +123,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
     />;
   }
 
-  // For routes with specific role requirements (like affiliate dashboard)
+  // For routes with specific role requirements
   if (allowedRoles && allowedRoles.length > 0) {
     const hasRequiredRole = userRoles.some(role => allowedRoles.includes(role));
     if (!hasRequiredRole) {
-      if (allowedRoles.includes('affiliate') && !isAffiliate() && isSubscriber()) {
-        toast.error("This section is for approved affiliates only.");
-      } else {
-        toast.error("You do not have the necessary permissions to access this page.");
-      }
+      toast.error("You do not have the necessary permissions to access this page.");
       return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
     
-    // Ensure affiliates still have active subscription
+    // Ensure users with special roles still have an active subscription if they aren't admins
     if (!hasActiveSubscription && !allowedRoles.includes('admin') && !allowedRoles.includes('super_admin')) {
       return <VoterLockScreen message="Your subscription is inactive. Please subscribe to access this feature." />;
     }
