@@ -16,7 +16,7 @@ interface UserUpdateData {
 // This list should ideally be sourced from a shared constants file or configuration.
 // Duplicating from UserManagement.tsx for now.
 const ADMIN_PERMISSION_IDS = [
-  'users', 'content', 'genres',
+  'users', 'content', 'genres', 'custom-songs', 
   'suno-api', 'contest', 'payments', 'support', 
   'reports', 'settings'
 ];

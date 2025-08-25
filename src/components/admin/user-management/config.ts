@@ -9,6 +9,7 @@ export const ADMIN_PERMISSIONS = [
   { id: 'users', label: 'User Management' },
   { id: 'content', label: 'Content Management' },
   { id: 'genres', label: 'Genre Management' },
+  { id: 'custom-songs', label: 'Custom Songs' },
   { id: 'suno-api', label: 'Suno API' },
   { id: 'contest', label: 'Contest Management' },
   { id: 'payments', label: 'Payment Management' },
