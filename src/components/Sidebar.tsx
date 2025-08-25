@@ -29,7 +29,6 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
-  affiliateOnly?: boolean;
   isProtected?: boolean;
   tag?: string;
   paths?: string[];
@@ -44,28 +43,25 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
   { href: "/credits", label: "Credits & Plans", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
-  { href: "/affiliate", label: "Affiliate", icon: Folder },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, isAffiliate, isSubscriber } = useAuth();
+  const { user, isAdmin, isSubscriber } = useAuth();
 
   const isUserSubscribed = isSubscriber();
   const isUserAdmin = isAdmin();
-  const isUserAffiliate = isAffiliate();
 
   // Filter items - completely hide admin items for non-admins
   const roleFilteredNavItems = navItems.filter(item => {
     if (item.adminOnly && !isUserAdmin) return false;
-    if (item.affiliateOnly && !isUserAffiliate) return false;
     return true;
   });
 
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
-    const needsSubscription = item.isProtected && !isUserAdmin && !isUserAffiliate && !isUserSubscribed;
+    const needsSubscription = item.isProtected && !isUserAdmin && !isUserSubscribed;
     const effectiveLabel = item.label === "Credits & Plans" && isUserSubscribed ? "Manage Plan" : item.label;
     const isActive = item.href === location.pathname || (item.paths && item.paths.includes(location.pathname));
 

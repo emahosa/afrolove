@@ -238,7 +238,6 @@ export const UserManagement = ({ users: initialUsers = [], renderStatusLabel }: 
       { value: "subscriber", label: "Subscriber" },
       { value: "user", label: "User" },
       { value: "moderator", label: "Moderator" },
-      { value: "affiliate", label: "Affiliate" },
     ];
     if (isSuperAdmin()) {
       return [
