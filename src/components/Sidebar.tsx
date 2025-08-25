@@ -39,7 +39,6 @@ const navItems: NavItem[] = [
   { href: "/create", label: "Create", icon: Music, isProtected: true },
   { href: "/library", label: "Library", icon: Library, isProtected: true },
   { href: "/contest", label: "Contest", icon: Trophy },
-  { href: "/my-custom-songs", label: "My Custom Songs", icon: Music, isProtected: true, tag: "New" },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/credits", label: "Credits & Plans", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
