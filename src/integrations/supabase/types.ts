@@ -359,129 +359,6 @@ export type Database = {
         }
         Relationships: []
       }
-      custom_song_audio: {
-        Row: {
-          audio_url: string
-          created_at: string
-          created_by: string | null
-          id: string
-          is_selected: boolean | null
-          request_id: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          audio_url: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_selected?: boolean | null
-          request_id: string
-          updated_at?: string
-          version: number
-        }
-        Update: {
-          audio_url?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_selected?: boolean | null
-          request_id?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_song_audio_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "custom_song_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_song_lyrics: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          is_selected: boolean | null
-          lyrics: string
-          request_id: string
-          updated_at: string
-          version: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_selected?: boolean | null
-          lyrics: string
-          request_id: string
-          updated_at?: string
-          version: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          is_selected?: boolean | null
-          lyrics?: string
-          request_id?: string
-          updated_at?: string
-          version?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_song_lyrics_request_id_fkey"
-            columns: ["request_id"]
-            isOneToOne: false
-            referencedRelation: "custom_song_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      custom_song_requests: {
-        Row: {
-          created_at: string
-          description: string
-          genre_id: string | null
-          id: string
-          status: Database["public"]["Enums"]["custom_song_status"] | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description: string
-          genre_id?: string | null
-          id?: string
-          status?: Database["public"]["Enums"]["custom_song_status"] | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string
-          genre_id?: string | null
-          id?: string
-          status?: Database["public"]["Enums"]["custom_song_status"] | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "custom_song_requests_genre_id_fkey"
-            columns: ["genre_id"]
-            isOneToOne: false
-            referencedRelation: "genres"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       error_logs: {
         Row: {
           context: string | null
@@ -1182,12 +1059,6 @@ export type Database = {
     }
     Enums: {
       contest_status: "draft" | "active" | "voting" | "completed"
-      custom_song_status:
-        | "pending"
-        | "lyrics_proposed"
-        | "lyrics_selected"
-        | "audio_uploaded"
-        | "completed"
       flag_status: "pending" | "reviewed" | "dismissed"
       song_status: "pending" | "approved" | "rejected" | "completed"
       song_type: "song" | "instrumental"
@@ -1328,13 +1199,6 @@ export const Constants = {
   public: {
     Enums: {
       contest_status: ["draft", "active", "voting", "completed"],
-      custom_song_status: [
-        "pending",
-        "lyrics_proposed",
-        "lyrics_selected",
-        "audio_uploaded",
-        "completed",
-      ],
       flag_status: ["pending", "reviewed", "dismissed"],
       song_status: ["pending", "approved", "rejected", "completed"],
       song_type: ["song", "instrumental"],
