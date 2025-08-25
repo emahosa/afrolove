@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Coins, DollarSign, Zap, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentDialog from '@/components/payment/PaymentDialog';
+import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
 
@@ -83,6 +84,7 @@ const Credits: React.FC = () => {
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
+  const { trackActivity } = useAffiliateTracking();
 
   // State for subscriptions
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);

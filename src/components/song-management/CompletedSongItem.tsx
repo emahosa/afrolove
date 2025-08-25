@@ -1,0 +1,295 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Trash2, Download, Eye, EyeOff, Music, Play, Pause } from "lucide-react";
+import { CustomSongRequest } from "@/hooks/use-admin-song-requests";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface CompletedSongItemProps {
+  request: CustomSongRequest;
+  onDownload: (request: CustomSongRequest) => void;
+  onDelete: (requestId: string) => void;
+  downloadingAudio: boolean;
+}
+
+export const CompletedSongItem = ({ 
+  request, 
+  onDownload, 
+  onDelete,
+  downloadingAudio 
+}: CompletedSongItemProps) => {
+  const { user } = useAuth();
+  const { playTrack, togglePlayPause, currentTrack, isPlaying } = useAudioPlayer();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [selectedLyrics, setSelectedLyrics] = useState<string | null>(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+
+  const isCurrentlyPlayingThisTrack = isPlaying && currentTrack?.id === request.id;
+
+  const fetchSelectedLyrics = async () => {
+    if (selectedLyrics) return; // Already loaded
+    
+    try {
+      setLoadingLyrics(true);
+      const { data: lyricsData, error } = await supabase
+        .from('custom_song_lyrics')
+        .select('lyrics')
+        .eq('request_id', request.id)
+        .eq('is_selected', true)
+        .single();
+
+      if (error) {
+        console.error('Error fetching lyrics:', error);
+        toast.error('Failed to load lyrics');
+        return;
+      }
+
+      setSelectedLyrics(lyricsData?.lyrics || 'No lyrics available');
+    } catch (error) {
+      console.error('Error fetching lyrics:', error);
+      toast.error('Failed to load lyrics');
+    } finally {
+      setLoadingLyrics(false);
+    }
+  };
+
+  const handleToggleLyrics = () => {
+    if (!showLyrics) {
+      fetchSelectedLyrics();
+    }
+    setShowLyrics(!showLyrics);
+  };
+
+  const handlePlay = async () => {
+    if (isCurrentlyPlayingThisTrack) {
+      togglePlayPause();
+      return;
+    }
+
+    try {
+      setIsFetchingAudio(true);
+      const { data: audioData, error: audioError } = await supabase
+        .from('custom_song_audio')
+        .select('audio_url, is_selected')
+        .eq('request_id', request.id)
+        .order('created_at', { ascending: false });
+
+      if (audioError) throw audioError;
+
+      if (!audioData || audioData.length === 0) {
+        toast.error('No audio files found for this request.');
+        return;
+      }
+
+      let audioRecord = audioData.find(record => record.is_selected === true) || audioData[0];
+    
+      if (!audioRecord?.audio_url) {
+        toast.error('Audio file URL is missing');
+        return;
+      }
+
+      playTrack({
+        id: request.id,
+        title: request.title,
+        audio_url: audioRecord.audio_url,
+        artist: 'Custom Request'
+      });
+      
+    } catch (error: any) {
+      toast.error('Failed to load audio for playback.');
+      console.error('Playback error:', error);
+    } finally {
+      setIsFetchingAudio(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user?.id) {
+      toast.error('You must be logged in to delete songs');
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      console.log('CompletedSongItem: Starting deletion for request:', request.id);
+
+      // Delete the custom song request
+      const { error: deleteError } = await supabase
+        .from('custom_song_requests')
+        .delete()
+        .eq('id', request.id)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        console.error('CompletedSongItem: Error deleting request:', deleteError);
+        toast.error('Failed to delete song: ' + deleteError.message);
+        return;
+      }
+
+      console.log('CompletedSongItem: Successfully deleted request:', request.id);
+      toast.success('Song deleted successfully');
+      
+      // Call the onDelete callback immediately to update the parent component
+      onDelete(request.id);
+      
+    } catch (error: any) {
+      console.error('CompletedSongItem: Unexpected error during deletion:', error);
+      toast.error('Failed to delete song: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDownloadClick = () => {
+    onDownload(request);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <Card className="overflow-hidden bg-gray-900 border-gray-700 hover:shadow-md transition-shadow">
+      <CardContent className="p-0">
+        <div className={`flex ${showLyrics ? 'gap-4' : ''}`}>
+          {/* Main content section */}
+          <div className={`${showLyrics ? 'flex-1' : 'w-full'}`}>
+            {/* Header with song info and actions */}
+            <div className="p-4 pb-2 flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-white truncate mb-1">{request.title}</h3>
+                <p className="text-sm text-gray-400 line-clamp-2">{request.description}</p>
+                <p className="text-xs text-gray-500 mt-1">Created: {formatDate(request.created_at)}</p>
+              </div>
+              
+              <div className="flex items-center gap-2 ml-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleLyrics}
+                  className="h-8 w-8 rounded-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400"
+                >
+                  {showLyrics ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadClick}
+                  disabled={downloadingAudio}
+                  className="h-8 w-8 rounded-full bg-green-600/20 hover:bg-green-600/30 text-green-400"
+                >
+                  {downloadingAudio ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isDeleting}
+                      className="h-8 w-8 rounded-full hover:bg-red-600/20 text-gray-400 hover:text-red-400"
+                    >
+                      {isDeleting ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-gray-900 border-gray-700">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="text-white">Delete Song</AlertDialogTitle>
+                      <AlertDialogDescription className="text-gray-400">
+                        Are you sure you want to delete "{request.title}"? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="bg-gray-800 text-gray-300 border-gray-600 hover:bg-gray-700">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+
+            {/* Mini preview section */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    onClick={handlePlay}
+                    disabled={isFetchingAudio}
+                    className="w-12 h-12 rounded bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white p-0"
+                  >
+                    {isFetchingAudio ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                    ) : isCurrentlyPlayingThisTrack ? (
+                      <Pause className="h-6 w-6" />
+                    ) : (
+                      <Play className="h-6 w-6" />
+                    )}
+                  </Button>
+                  <div>
+                    <p className="text-sm font-medium text-white">{request.title}</p>
+                    <p className="text-xs text-gray-400">AI Generated</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lyrics side panel */}
+          {showLyrics && (
+            <div className="w-80 border-l border-gray-700 bg-gray-800">
+              <div className="p-4 h-full">
+                <h4 className="font-medium text-white mb-3 border-b border-gray-700 pb-2">Lyrics</h4>
+                {loadingLyrics ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-400 border-t-transparent" />
+                  </div>
+                ) : (
+                  <div className="max-h-96 overflow-y-auto">
+                    <pre className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                      {selectedLyrics || 'No lyrics available'}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
