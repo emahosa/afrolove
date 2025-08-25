@@ -40,7 +40,6 @@ const NewNavbar = () => {
     { href: "/create", label: "Create", icon: Palette },
     { href: "/library", label: "Library", icon: Music },
     { href: "/contest", label: "Contests", icon: Trophy },
-    { href: "/affiliate", label: "Affiliate", icon: Folder },
     { href: "/support", label: "Support", icon: LifeBuoy },
   ];
 
