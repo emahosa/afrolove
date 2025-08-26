@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Play, Pause, Music, Clock, Zap, FileText } from "lucide-react";
+import { Download, Play, Pause, Music, Clock, Zap, FileText, Mic, Split } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { toast } from "sonner";
+import { VocalSeparationButton } from "@/components/VocalSeparationButton";
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,6 +23,11 @@ interface GeneratedSongCardProps {
     genre?: string;
     duration?: number;
     lyrics?: string;
+    task_id?: string;
+    audio_id?: string;
+    instrumental_url?: string;
+    vocal_url?: string;
+    vocal_separation_status?: string;
   };
 }
 
@@ -165,34 +171,48 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         </div>
 
         {song.status === 'completed' && song.audio_url && (
-          <div className="flex gap-2">
-            <Button
-              onClick={handlePlay}
-              variant="outline"
-              size="sm"
-              className="flex-1"
-            >
-              {isCurrentlyPlaying ? (
-                <Pause className="h-4 w-4 mr-2" />
-              ) : (
-                <Play className="h-4 w-4 mr-2" />
-              )}
-              {isCurrentlyPlaying ? 'Pause' : 'Play'}
-            </Button>
-            
-            <Button
-              onClick={handleDownload}
-              variant="outline"
-              size="sm"
-              disabled={isDownloading}
-            >
-              {isDownloading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
-              {isDownloading ? 'Downloading...' : 'Download'}
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button
+                onClick={handlePlay}
+                variant="outline"
+                size="sm"
+                className="flex-1"
+              >
+                {isCurrentlyPlaying ? (
+                  <Pause className="h-4 w-4 mr-2" />
+                ) : (
+                  <Play className="h-4 w-4 mr-2" />
+                )}
+                {isCurrentlyPlaying ? 'Pause' : 'Play'}
+              </Button>
+
+              <Button
+                onClick={handleDownload}
+                variant="outline"
+                size="sm"
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isDownloading ? 'Downloading...' : 'Download'}
+              </Button>
+            </div>
+            {song.task_id && song.audio_id && (
+              <VocalSeparationButton
+                songId={song.id}
+                taskId={song.task_id}
+                audioId={song.audio_id}
+                songTitle={song.title}
+                instrumentalUrl={song.instrumental_url}
+                vocalUrl={song.vocal_url}
+                originalUrl={song.audio_url}
+                vocalSeparationStatus={song.vocal_separation_status}
+              />
+            )}
           </div>
         )}
 
