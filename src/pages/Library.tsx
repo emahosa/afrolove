@@ -19,6 +19,11 @@ export interface Song {
   credits_used: number;
   duration?: number;
   lyrics?: string;
+  task_id?: string;
+  audio_id?: string;
+  instrumental_url?: string;
+  vocal_url?: string;
+  vocal_separation_status?: string;
 }
 
 const Library = () => {
