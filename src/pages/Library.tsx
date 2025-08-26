@@ -62,7 +62,7 @@ const Library = () => {
       
       const { data, error } = await supabase
         .from('songs')
-        .select('*')
+        .select('*, task_id, audio_id, instrumental_url, vocal_url, vocal_separation_status')
         .eq('user_id', user.id)
         .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false });
