@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ArrowLeft, Disc, Download, MoreHorizontal, Music, Pause, Play, Share2 } from "lucide-react";
-import { VocalSeparationButton } from "@/components/VocalSeparationButton";
+import SplitAudioControl from "@/components/SplitAudioControl";
 import VoiceCloning from "@/components/VoiceCloning";
 import VoiceChanger from "@/components/VoiceChanger";
 import { toast } from "sonner";
@@ -14,12 +14,7 @@ interface Track {
   type: "song" | "instrumental";
   genre: string;
   date: string;
-  audioUrl?: string;
-  task_id?: string;
-  audio_id?: string;
-  instrumental_url?: string;
-  vocal_url?: string;
-  vocal_separation_status?: string;
+  audioUrl?: string; // Added audioUrl field
 }
 
 interface SingleTrackViewProps {
@@ -137,18 +132,7 @@ const SingleTrackView = ({
           </div>
 
           <div className="space-y-4">
-            {track.task_id && track.audio_id && (
-              <VocalSeparationButton
-                songId={track.id}
-                taskId={track.task_id}
-                audioId={track.audio_id}
-                songTitle={track.title}
-                instrumentalUrl={track.instrumental_url}
-                vocalUrl={track.vocal_url}
-                originalUrl={track.audioUrl}
-                vocalSeparationStatus={track.vocal_separation_status}
-              />
-            )}
+            <SplitAudioControl songName={track.title} songUrl="mock-url" />
             <div className="flex items-center gap-2">
               <VoiceCloning onVoiceCloned={onVoiceCloned} />
               {selectedVoiceId && (
