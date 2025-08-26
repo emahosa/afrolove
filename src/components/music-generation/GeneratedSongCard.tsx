@@ -2,9 +2,14 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Play, Pause, Music, Clock, Zap } from "lucide-react";
+import { Download, Play, Pause, Music, Clock, Zap, FileText } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { toast } from "sonner";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface GeneratedSongCardProps {
   song: {
@@ -16,11 +21,13 @@ interface GeneratedSongCardProps {
     credits_used: number;
     genre?: string;
     duration?: number;
+    lyrics?: string;
   };
 }
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
 
   const handlePlay = () => {
@@ -187,6 +194,24 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               {isDownloading ? 'Downloading...' : 'Download'}
             </Button>
           </div>
+        )}
+
+        {song.lyrics && (
+          <Collapsible open={showLyrics} onOpenChange={setShowLyrics}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full mt-2">
+                <FileText className="h-4 w-4 mr-2" />
+                {showLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <div className="p-4 bg-muted/50 rounded-md">
+                <pre className="whitespace-pre-wrap text-sm font-mono">
+                  {song.lyrics}
+                </pre>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         {song.status === 'processing' && (
