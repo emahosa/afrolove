@@ -351,7 +351,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true,
-      task_id: taskId,
+      taskId: taskId, // Changed from task_id to match client expectation
       song_id: newSong.id,
       message: 'Song generation started successfully'
     }), {
