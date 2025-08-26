@@ -18,6 +18,7 @@ export interface Song {
   prompt?: string;
   credits_used: number;
   duration?: number;
+  lyrics?: string;
 }
 
 const Library = () => {
