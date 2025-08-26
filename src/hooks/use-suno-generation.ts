@@ -53,6 +53,7 @@ export const useSunoGeneration = () => {
       const { data, error } = await supabase.functions.invoke('suno-generate', {
         body: {
           ...request,
+          userId: user.id, // Pass the user ID to the function
           // Ensure instrumental flag is properly passed
           instrumental: request.instrumental === true,
           // Ensure custom mode is properly set for lyrics
