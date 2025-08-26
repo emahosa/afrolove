@@ -21,9 +21,6 @@ import Profile from "./pages/Profile";
 import Credits from "./pages/Credits";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
-import CustomSongManagement from "./pages/CustomSongManagement";
-import UserCustomSongs from "./pages/UserCustomSongs";
-import UserCustomSongsManagement from "./pages/UserCustomSongsManagement";
 import AffiliatePage from "./pages/Affiliate";
 import SubscribePage from "./pages/SubscribePage";
 
@@ -69,8 +66,6 @@ const App = () => {
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/credits" element={<Credits />} />
                     <Route path="/support" element={<Support />} />
-                    <Route path="/my-custom-songs" element={<UserCustomSongs />} />
-                    <Route path="/custom-songs-management" element={<UserCustomSongsManagement />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
                     <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
@@ -83,7 +78,6 @@ const App = () => {
                     <Route path="/admin/users" element={<Admin tab="users" />} />
                     <Route path="/admin/admins" element={<Admin tab="admins" />} />
                     <Route path="/admin/genres" element={<Admin tab="genres" />} />
-                    <Route path="/admin/custom-songs" element={<CustomSongManagement />} />
                     <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
                     <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
                     <Route path="/admin/contest" element={<Admin tab="contest" />} />
