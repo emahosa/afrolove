@@ -134,7 +134,7 @@ export const SunoGenerationForm = ({ onSuccess }: SunoGenerationFormProps) => {
             ) : (
               <>
                 <Music className="mr-2 h-4 w-4" />
-                Generate Song (40 Credits)
+                Generate Song (20 Credits)
               </>
             )}
           </Button>

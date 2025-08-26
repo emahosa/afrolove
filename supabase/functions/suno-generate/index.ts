@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
       }
       // --- END ROLE CHECK ---
 
-      // Check user credits - now requiring 40 credits
+      // Check user credits - now requiring 20 credits
       const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('credits')
@@ -131,10 +131,10 @@ Deno.serve(async (req) => {
       }
 
       // Ensure user has enough credits
-      if (userProfile.credits < 40) {
+      if (userProfile.credits < 20) {
         console.log('❌ Insufficient credits for user:', userId, 'Credits:', userProfile.credits)
         return new Response(JSON.stringify({ 
-          error: 'Insufficient credits. You need at least 40 credits to generate a song.',
+          error: 'Insufficient credits. You need at least 20 credits to generate a song.',
           success: false 
         }), {
           status: 400,
@@ -303,16 +303,16 @@ Deno.serve(async (req) => {
     console.log('✅ Task ID received:', taskId)
 
     if (!isAdminTest) {
-      // Deduct 40 credits
+      // Deduct 20 credits
       const { error: creditError } = await supabase.rpc('update_user_credits', {
         p_user_id: userId,
-        p_amount: -40
+        p_amount: -20
       })
 
       if (creditError) {
         console.error('❌ Failed to deduct credits:', creditError)
       } else {
-        console.log('✅ 40 credits deducted for user:', userId)
+        console.log('✅ 20 credits deducted for user:', userId)
       }
     }
 
@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
       type: instrumental ? 'instrumental' : 'song',
       prompt,
       status: 'pending',
-      credits_used: isAdminTest ? 0 : 40,
+      credits_used: isAdminTest ? 0 : 20,
       task_id: taskId
     }
 

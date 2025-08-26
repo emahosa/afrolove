@@ -41,8 +41,8 @@ export const useSunoGeneration = () => {
       return null;
     }
 
-    if ((user.credits || 0) < 40) {
-      toast.error('Insufficient credits. You need 40 credits to generate a song.');
+    if ((user.credits || 0) < 20) {
+      toast.error('Insufficient credits. You need 20 credits to generate a song.');
       return null;
     }
 
