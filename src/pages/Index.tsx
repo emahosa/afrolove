@@ -14,7 +14,7 @@ const FloatingIcon = ({
   style?: React.CSSProperties;
 }) => (
   <div
-    className={`absolute text-neon-purple/30 motion-safe:animate-float ${className}`}
+    className={`absolute text-dark-purple/30 motion-safe:animate-float ${className}`}
     style={style}
   >
     {children}
@@ -25,7 +25,6 @@ export default function Index() {
   const [showModal, setShowModal] = useState(false);
   const [email, setEmail] = useState("");
   const [joining, setJoining] = useState(false);
-  // Using the state from the original user-provided code
   const [spotsLeft, setSpotsLeft] = useState(250);
   const [timeLeft, setTimeLeft] = useState<string | null>(null);
 
@@ -68,9 +67,7 @@ export default function Index() {
     setJoining(true);
 
     try {
-      // TODO: hook into Supabase or /api/early-access
       await new Promise((r) => setTimeout(r, 1000));
-
       alert("You're in. Check your email shortly for access instructions.");
       setShowModal(false);
       setEmail("");
@@ -86,7 +83,7 @@ export default function Index() {
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-midnight to-black text-white font-poppins">
       {/* Background Floating Icons */}
       <div className="absolute inset-0 z-0 opacity-50">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(138,60,255,0.3),rgba(255,255,255,0))]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(74,0,109,0.2),rgba(255,255,255,0))]"></div>
         {icons.map((icon, i) => (
           <FloatingIcon
             key={i}
@@ -98,64 +95,66 @@ export default function Index() {
         ))}
       </div>
 
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 text-center">
-        {/* Hero Section */}
-        <section className="w-full max-w-4xl">
-          <h1 className="text-7xl font-extrabold bg-gradient-to-r from-neon-purple-start to-neon-purple-end bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(138,60,255,0.5)]">
-            Afroverse
-          </h1>
-          <p className="mt-4 text-2xl font-bold text-gray-100">
-            Create Afrobeats with AI. Earn while you play.
-          </p>
-          <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
-            Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
-          </p>
+      <main className="relative z-10 flex flex-col items-center min-h-screen px-4 text-center py-16">
+        <div className="flex-grow flex flex-col items-center justify-center">
+            {/* Hero Section */}
+            <section className="w-full max-w-4xl">
+              <h1 className="text-6xl font-extrabold text-dark-purple">
+                Afroverse
+              </h1>
+              <p className="mt-4 text-2xl font-bold text-gray-100">
+                Create Afrobeats with AI. Earn while you play.
+              </p>
+              <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
+                Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
+              </p>
 
-          <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-            <button
-              onClick={() => setShowModal(true)}
-              className="px-8 py-4 bg-neon-purple rounded-lg font-bold text-white shadow-[0_0_20px_theme(colors.neon-purple.start)] hover:shadow-[0_0_30px_theme(colors.neon-purple.start)] transition-shadow duration-300"
-            >
-              Claim Early Access
-            </button>
-            <a
-              href="#features"
-              className="px-8 py-4 border border-white/30 rounded-lg font-semibold text-white/80 hover:bg-white/10 transition-colors"
-            >
-              See How It Works
-            </a>
-          </div>
+              <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
+                >
+                  Claim Early Access
+                </button>
+                <a
+                  href="#features"
+                  className="px-8 py-4 border border-white/30 rounded-lg font-semibold text-white/80 hover:bg-white/10 transition-colors"
+                >
+                  See How It Works
+                </a>
+              </div>
 
-          <div className="mt-6 text-sm text-gray-500">
-            30 days early access only. Limited creator slots available.
-          </div>
-        </section>
+              <div className="mt-6 text-sm text-gray-500">
+                30 days early access only. Limited creator slots available.
+              </div>
+            </section>
 
-        {/* Secondary Section */}
-        <section id="features" className="w-full max-w-4xl mt-32 grid md:grid-cols-2 gap-8 text-left">
-          <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
-            <div className="text-3xl mb-4 text-neon-purple" style={{ textShadow: '0 0 15px #8A3CFF' }}>
-              <Music size={40} />
-            </div>
-            <h3 className="text-xl font-bold text-white">Create</h3>
-            <p className="text-gray-400 mt-2 font-light">
-              Turn simple prompts into hit Afrobeats tracks — ready to share, remix, or take to the studio.
-            </p>
-          </div>
+            {/* Secondary Section */}
+            <section id="features" className="w-full max-w-4xl mt-20 grid md:grid-cols-2 gap-8 text-left">
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
+                <div className="text-3xl mb-4 text-dark-purple">
+                  <Music size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-white">Create</h3>
+                <p className="text-gray-400 mt-2 font-light">
+                  Turn simple prompts into hit Afrobeats tracks — ready to share, remix, or take to the studio.
+                </p>
+              </div>
 
-          <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
-            <div className="text-3xl mb-4 text-neon-purple" style={{ textShadow: '0 0 15px #8A3CFF' }}>
-              <Coins size={40} />
-            </div>
-            <h3 className="text-xl font-bold text-white">Earn</h3>
-            <p className="text-gray-400 mt-2 font-light">
-              Join contests to win cash prizes, studio deals, and real record opportunities. Afroverse rewards creativity.
-            </p>
-          </div>
-        </section>
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
+                <div className="text-3xl mb-4 text-dark-purple">
+                  <Coins size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-white">Earn</h3>
+                <p className="text-gray-400 mt-2 font-light">
+                  Join contests to win cash prizes, studio deals, and real record opportunities. Afroverse rewards creativity.
+                </p>
+              </div>
+            </section>
+        </div>
 
         {/* Footer */}
-        <footer className="py-8 mt-32 text-center text-gray-500 text-sm">
+        <footer className="w-full py-8 text-center text-gray-500 text-sm">
           © {new Date().getFullYear()} Afroverse · Early Access
         </footer>
       </main>
@@ -163,7 +162,7 @@ export default function Index() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
-          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-neon-purple/50 rounded-xl p-8 max-w-md w-full shadow-2xl shadow-neon-purple/20">
+          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full">
             <h3 className="text-xl font-bold text-white">Claim 30-Day Early Access</h3>
             <p className="text-gray-400 text-sm mt-2">
               Enter your email to unlock early access. Invitations sent within 24h.
@@ -177,12 +176,12 @@ export default function Index() {
                 placeholder="you@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-800/50 border border-gray-700 text-white focus:ring-2 focus:ring-neon-purple focus:border-neon-purple outline-none transition"
+                className="flex-1 px-4 py-3 rounded-lg bg-gray-800/50 border border-gray-700 text-white focus:ring-2 focus:ring-dark-purple focus:border-dark-purple outline-none transition"
               />
               <button
                 type="submit"
                 disabled={joining}
-                className="px-6 py-3 bg-neon-purple rounded-lg hover:bg-neon-purple-end font-semibold text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition"
+                className="px-6 py-3 bg-dark-purple rounded-lg hover:bg-opacity-90 font-semibold text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition"
               >
                 {joining ? "Joining…" : "Join"}
               </button>
