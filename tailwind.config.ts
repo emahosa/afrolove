@@ -74,11 +74,7 @@ export default {
 				"melody-bright-violet": "#bb86fc",
         // New colors for Afroverse landing page
         midnight: '#0c0a24',
-        'neon-purple': {
-          DEFAULT: '#8A3CFF',
-          start: '#8A3CFF',
-          end: '#6B25D6',
-        },
+        'dark-purple': '#4A006D',
 			},
 			fontFamily: {
 				montserrat: ['Montserrat', 'sans-serif'],
