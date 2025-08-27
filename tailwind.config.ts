@@ -72,10 +72,18 @@ export default {
 					dark: '#1A1A1A',
 				},
 				"melody-bright-violet": "#bb86fc",
+        // New colors for Afroverse landing page
+        midnight: '#0c0a24',
+        'neon-purple': {
+          DEFAULT: '#8A3CFF',
+          start: '#8A3CFF',
+          end: '#6B25D6',
+        },
 			},
 			fontFamily: {
 				montserrat: ['Montserrat', 'sans-serif'],
 				inter: ['Inter', 'sans-serif'],
+        poppins: ['Poppins', 'sans-serif'],
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -104,6 +112,11 @@ export default {
 					'50%': { transform: 'scaleY(1)' },
 					'100%': { transform: 'scaleY(0.3)' },
 				},
+        // Floating animation for background icons
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -114,6 +127,7 @@ export default {
 				'wave2': 'wave 1.2s linear 0.3s infinite',
 				'wave3': 'wave 1.2s linear 0.6s infinite',
 				'wave4': 'wave 1.2s linear 0.9s infinite',
+        'float': 'float 6s ease-in-out infinite',
 			}
 		}
 	},
