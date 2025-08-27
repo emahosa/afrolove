@@ -9,7 +9,7 @@ def run(playwright):
 
     try:
         # 1. Log in
-        page.goto("http://127.0.0.1:8081/login")
+        page.goto("http://127.0.0.1:8082/login")
         page.get_by_label("Email").fill("loxserviceng@gmail.com")
         page.get_by_label("Password").fill("11223344")
         page.get_by_role("button", name="Sign In").click()
@@ -18,7 +18,7 @@ def run(playwright):
         expect(page).to_have_url(re.compile(".*dashboard.*"))
 
         # 2. Navigate to the contest page
-        page.goto("http://127.0.0.1:8081/contest")
+        page.goto("http://127.0.0.1:8082/contest")
 
         # Wait for the page to load
         expect(page.get_by_role("heading", name="Music Contests")).to_be_visible()
@@ -29,15 +29,25 @@ def run(playwright):
         entries_tab.click()
 
         # 4. Click the "Vote" button on the first entry
-        vote_button = page.get_by_role("button", name="Vote").first
-        # It may be that there are no entries. If so, we can't test voting.
-        if not vote_button.is_visible():
+        vote_buttons = page.get_by_role("button", name="Vote")
+        if vote_buttons.count() == 0:
             print("No entries found to vote on. Skipping voting test.")
             return
 
-        vote_button.click()
+        vote_buttons.first.click()
 
-        # 4. The vote dialog should appear. Take a screenshot.
+        # Check if a self-voting error toast appears
+        try:
+            expect(page.get_by_text("You cannot vote on your own entry.")).to_be_visible(timeout=1000)
+            print("Self-voting error detected. Trying second entry.")
+            if vote_buttons.count() < 2:
+                print("No second entry to vote on. Skipping voting test.")
+                return
+            vote_buttons.nth(1).click()
+        except AssertionError:
+            print("No self-voting error. Proceeding with vote.")
+
+        # 5. The vote dialog should appear. Take a screenshot.
         dialog = page.get_by_role("dialog")
         expect(dialog).to_be_visible()
         expect(dialog).to_contain_text("Vote for")

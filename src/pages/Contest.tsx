@@ -81,11 +81,14 @@ const Contest = () => {
   }, [user, selectedEntry, checkHasFreeVote]);
 
   useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
+
+  useEffect(() => {
     if (user) {
       fetchUserSongs();
-      refreshProfile();
     }
-  }, [user, refreshProfile]);
+  }, [user]);
 
   const fetchUserSongs = async () => {
     try {
