@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Music, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +26,7 @@ const FloatingIcon = ({
 export default function Index() {
   const navigate = useNavigate();
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
@@ -52,14 +53,10 @@ export default function Index() {
     { symbol: "🎸", size: "text-5xl", top: "85%", left: "50%", animationDuration: "14s" },
   ];
 
-  const handleClaimAccess = () => {
-    const proceed = window.confirm("This service costs $5 do you want to proceed?");
-    if (proceed) {
-      navigate("/login");
-    } else {
-      alert("sorry not Available try again in 30 days");
-    }
-  };
+  const handleNoConfirm = () => {
+    setShowConfirmModal(false);
+    alert("sorry not Available try again in 30 days");
+  }
 
   // Show loading state while checking authentication
   if (loading) {
@@ -107,7 +104,7 @@ export default function Index() {
 
               <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
                 <button
-                  onClick={handleClaimAccess}
+                  onClick={() => setShowConfirmModal(true)}
                   className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
                 >
                   Claim Early Access
@@ -150,6 +147,32 @@ export default function Index() {
             </footer>
         </div>
       </main>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
+          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full text-center">
+            <h3 className="text-xl font-bold text-white">This service costs $5</h3>
+            <p className="text-gray-400 text-sm mt-2">
+              Do you want to proceed?
+            </p>
+            <div className="mt-6 flex justify-center gap-4">
+              <button
+                onClick={() => navigate('/login')}
+                className="px-6 py-2 bg-dark-purple rounded-lg hover:bg-opacity-90 font-semibold text-white transition"
+              >
+                Yes
+              </button>
+              <button
+                onClick={handleNoConfirm}
+                className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 font-semibold text-white transition"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
