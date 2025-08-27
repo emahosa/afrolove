@@ -11,8 +11,9 @@ import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useContestSubmission } from "@/hooks/useContestSubmission";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { useContest } from "@/hooks/use-contest";
+import { VoteDialog } from "@/components/contest/VoteDialog";
 
 interface Contest {
   id: string;
@@ -53,99 +54,37 @@ interface Song {
 
 const Contest = () => {
   const { user, isVoter, isSubscriber, userRoles } = useAuth();
-  const { submitEntry, isSubmitting } = useContestSubmission();
+  const {
+    activeContests: contests,
+    contestEntries,
+    loading,
+    isVoting,
+    castVote,
+    checkHasFreeVote,
+    refreshEntries,
+  } = useContest();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
-  const [contests, setContests] = useState<Contest[]>([]);
-  const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+  const [voteDialogOpen, setVoteDialogOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
+  const [userHasFreeVote, setUserHasFreeVote] = useState(true);
 
   useEffect(() => {
-    fetchContests();
-    fetchContestEntries();
+    if (user && selectedEntry) {
+      checkHasFreeVote(selectedEntry.contest_id).then(setUserHasFreeVote);
+    }
+  }, [user, selectedEntry, checkHasFreeVote]);
+
+  useEffect(() => {
     if (user) {
       fetchUserSongs();
     }
   }, [user]);
-
-  const fetchContests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('contests')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setContests(data || []);
-    } catch (error: any) {
-      console.error('Error fetching contests:', error);
-      toast.error('Failed to load contests');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchContestEntries = async () => {
-    setEntriesLoading(true);
-    try {
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('contest_entries')
-        .select('*')
-        .eq('approved', true)
-        .order('vote_count', { ascending: false });
-
-      if (entriesError) throw entriesError;
-
-      const entriesWithDetails: ContestEntry[] = await Promise.all(
-        (entriesData || []).map(async (entry) => {
-          let profileData = null;
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', entry.user_id)
-              .maybeSingle();
-            if (!error && data) profileData = data;
-          } catch (error) {
-            console.warn('Failed to fetch profile for user:', entry.user_id, error);
-          }
-
-          let songData = null;
-          if (entry.song_id) {
-            try {
-              const { data, error } = await supabase
-                .from('songs')
-                .select('id, title, audio_url')
-                .eq('id', entry.song_id)
-                .maybeSingle();
-              if (!error && data) songData = data;
-            } catch (error) {
-              console.warn('Failed to fetch song for entry:', entry.song_id, error);
-            }
-          }
-
-          return {
-            ...entry,
-            profiles: profileData ? { full_name: profileData.full_name || 'Unknown Artist' } : null,
-            songs: songData,
-          };
-        })
-      );
-
-      setContestEntries(entriesWithDetails);
-    } catch (error: any) {
-      console.error('Error fetching contest entries:', error);
-      toast.error('Failed to load contest entries');
-    } finally {
-      setEntriesLoading(false);
-    }
-  };
 
   const fetchUserSongs = async () => {
     try {
@@ -160,32 +99,6 @@ const Contest = () => {
       setSongs(data || []);
     } catch (error: any) {
       console.error('Error fetching songs:', error);
-    }
-  };
-
-  const handleSubmitEntry = async () => {
-    if (!selectedContest) return;
-    if (!selectedSong) {
-      toast.error('Please select a song');
-      return;
-    }
-    if (!description.trim()) {
-      toast.error('Please provide a description');
-      return;
-    }
-
-    const success = await submitEntry({
-      contestId: selectedContest.id,
-      songId: selectedSong || undefined,
-      description: description.trim()
-    });
-
-    if (success) {
-      setSubmissionDialogOpen(false);
-      setSelectedSong("");
-      setDescription("");
-      setSelectedContest(null);
-      fetchContestEntries();
     }
   };
 
@@ -205,6 +118,27 @@ const Contest = () => {
   const openSubmissionDialog = (contest: Contest) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
+  };
+
+  const handleVoteClick = (entry: ContestEntry) => {
+    if (!user) {
+      toast.info('Please log in or register to vote.');
+      return;
+    }
+    if (entry.user_id === user.id) {
+      toast.error('You cannot vote on your own entry.');
+      return;
+    }
+    setSelectedEntry(entry);
+    setVoteDialogOpen(true);
+  };
+
+  const handleVoteSubmit = async (votes: number) => {
+    if (!selectedEntry) return;
+
+    await castVote(selectedEntry.id, selectedEntry.contest_id, votes);
+    setVoteDialogOpen(false);
+    setSelectedEntry(null);
   };
 
   const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
@@ -346,7 +280,12 @@ const Contest = () => {
                       <Vote className="h-4 w-4" />
                       <span>{entry.vote_count}</span>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleVoteClick(entry)}
+                      disabled={isVoting}
+                    >
                       Vote
                     </Button>
                   </div>
@@ -357,62 +296,17 @@ const Contest = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Submit to "{selectedContest?.title}"</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="song-select">Select Your Song</Label>
-              <Select value={selectedSong} onValueChange={setSelectedSong}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a completed song" />
-                </SelectTrigger>
-                <SelectContent>
-                  {songs.map((song) => (
-                    <SelectItem key={song.id} value={song.id}>
-                      {song.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Entry Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Tell everyone about your track..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setSubmissionDialogOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleSubmitEntry} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Submit Entry
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {selectedEntry && (
+        <VoteDialog
+          open={voteDialogOpen}
+          onOpenChange={setVoteDialogOpen}
+          onVoteSubmit={handleVoteSubmit}
+          entryTitle={selectedEntry.songs?.title || 'this entry'}
+          userHasFreeVote={userHasFreeVote}
+          userCredits={user?.profile?.credits ?? 0}
+          isVoting={isVoting}
+        />
+      )}
     </div>
   );
 };

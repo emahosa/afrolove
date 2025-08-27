@@ -50,7 +50,27 @@ export const useContest = () => {
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const checkHasFreeVote = useCallback(async (contestId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    const { data, error } = await supabase
+      .from('contest_votes')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('contest_id', contestId)
+      .eq('credits_spent', 0)
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking for free vote:', error);
+      return false;
+    }
+
+    return data.length === 0;
+  }, [user]);
 
   // Fetch active contests - ONLY contests table
   const fetchContests = useCallback(async () => {
@@ -477,45 +497,38 @@ export const useContest = () => {
     }
   };
 
-  // Vote for an entry - ONLY votes table
-  const voteForEntry = async (entryId: string, voterPhone?: string) => {
+  const castVote = async (entryId: string, contestId: string, numVotes: number) => {
+    if (!user) {
+      toast.error('Please log in to vote.');
+      return;
+    }
+
+    setIsVoting(true);
     try {
-      console.log('🔄 use-contest: voteForEntry() - ONLY votes table');
-      console.log('Submitting vote for entry:', entryId);
-      
-      const voteData: any = {
-        contest_entry_id: entryId,
-        voter_phone: voterPhone || 'anonymous'
-      };
+      const { data, error } = await supabase.rpc('cast_vote', {
+        entry_id: entryId,
+        p_contest_id: contestId,
+        p_num_votes: numVotes,
+      });
 
-      console.log('🔍 About to insert into supabase.from("votes")');
+      if (error) throw error;
 
-      const { error } = await supabase
-        .from('votes')
-        .insert(voteData);
-
-      console.log('✅ Successfully inserted into votes table');
-
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          toast.error('You have already voted for this entry');
-        } else {
-          console.error('Vote error:', error);
-          throw error;
+      if (data.success) {
+        toast.success(data.message);
+        // Refresh user credits from auth context
+        await user.refreshProfile();
+        // Refresh contest entries to show new vote count
+        if (currentContest) {
+          fetchContestEntries(currentContest.id);
         }
-        return false;
+      } else {
+        toast.error(data.message);
       }
-
-      toast.success('Vote submitted successfully!');
-      // Refresh entries to get updated vote counts
-      if (currentContest) {
-        fetchContestEntries(currentContest.id);
-      }
-      return true;
     } catch (error: any) {
-      console.error('Error voting:', error);
-      toast.error(error.message || 'Failed to submit vote');
-      return false;
+      console.error('Error casting vote:', error);
+      toast.error(error.message || 'An unexpected error occurred while voting.');
+    } finally {
+      setIsVoting(false);
     }
   };
 
@@ -577,12 +590,14 @@ export const useContest = () => {
     contestEntries,
     loading,
     submitting,
+    isVoting,
     error,
     createContest,
     updateContest,
     deleteContest,
     submitEntry,
-    voteForEntry,
+    castVote,
+    checkHasFreeVote,
     downloadInstrumental,
     unlockContest,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
