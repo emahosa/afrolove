@@ -81,6 +81,10 @@ const Contest = () => {
   }, [user, selectedEntry, checkHasFreeVote]);
 
   useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
+
+  useEffect(() => {
     if (user) {
       fetchUserSongs();
     }

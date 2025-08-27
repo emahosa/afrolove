@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -32,6 +32,7 @@ interface AuthContextType {
   hasRole: (role: string) => boolean;
   hasAdminPermission: (permission: string) => boolean;
   updateUserCredits: (amount: number) => Promise<void>;
+  refreshProfile: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -426,6 +427,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isAdmin() || isSuperAdmin();
   };
 
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      const userData = await fetchUserData(user.id);
+      if (userData) {
+        setUser(userData);
+      }
+    }
+  }, [user?.id]);
+
   const value = {
     user,
     session,
@@ -441,6 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasRole,
     hasAdminPermission,
     updateUserCredits,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
