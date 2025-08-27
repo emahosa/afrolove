@@ -9,7 +9,7 @@ def run(playwright):
 
     try:
         # 1. Log in
-        page.goto("http://127.0.0.1:8080/login")
+        page.goto("http://127.0.0.1:8081/login")
         page.get_by_label("Email").fill("loxserviceng@gmail.com")
         page.get_by_label("Password").fill("11223344")
         page.get_by_role("button", name="Sign In").click()
@@ -18,7 +18,7 @@ def run(playwright):
         expect(page).to_have_url(re.compile(".*dashboard.*"))
 
         # 2. Navigate to the contest page
-        page.goto("http://127.0.0.1:8080/contest")
+        page.goto("http://127.0.0.1:8081/contest")
 
         # Wait for the page to load
         expect(page.get_by_role("heading", name="Music Contests")).to_be_visible()
