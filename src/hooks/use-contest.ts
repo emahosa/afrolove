@@ -42,7 +42,7 @@ export interface ContestEntry {
 }
 
 export const useContest = () => {
-  const { user, updateUserCredits, isSubscriber, refreshProfile } = useAuth();
+  const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
@@ -240,6 +240,10 @@ export const useContest = () => {
 
       if (entries && entries.length > 0) {
         const entryIds = entries.map(e => e.id);
+
+        console.log('🗑️ Deleting votes for entries:', entryIds);
+        const { error: votesError } = await supabase.from('votes').delete().in('contest_entry_id', entryIds);
+        if (votesError) throw votesError;
 
         console.log('🗑️ Deleting contest_votes for contest:', contestId);
         const { error: contestVotesError } = await supabase.from('contest_votes').delete().eq('contest_id', contestId);
@@ -512,7 +516,7 @@ export const useContest = () => {
       if (data.success) {
         toast.success(data.message);
         // Refresh user credits from auth context
-        await refreshProfile();
+        await user.refreshProfile();
         // Refresh contest entries to show new vote count
         if (currentContest) {
           fetchContestEntries(currentContest.id);
