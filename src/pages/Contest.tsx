@@ -53,7 +53,7 @@ interface Song {
 }
 
 const Contest = () => {
-  const { user, isVoter, isSubscriber, userRoles } = useAuth();
+  const { user, isVoter, isSubscriber, userRoles, refreshProfile } = useAuth();
   const {
     activeContests: contests,
     contestEntries,
@@ -83,8 +83,9 @@ const Contest = () => {
   useEffect(() => {
     if (user) {
       fetchUserSongs();
+      refreshProfile();
     }
-  }, [user]);
+  }, [user, refreshProfile]);
 
   const fetchUserSongs = async () => {
     try {
