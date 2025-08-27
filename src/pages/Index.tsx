@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Music, Coins } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Helper component for the floating icons
 const FloatingIcon = ({
@@ -22,13 +24,21 @@ const FloatingIcon = ({
 );
 
 export default function Index() {
-  const [showModal, setShowModal] = useState(false);
-  const [email, setEmail] = useState("");
-  const [joining, setJoining] = useState(false);
-  const [spotsLeft, setSpotsLeft] = useState(250);
-  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { user, loading, isAdmin, isSuperAdmin } = useAuth();
 
-  // Background icons data
+  // Redirect authenticated users to appropriate dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      if (isAdmin() || isSuperAdmin()) {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [user, loading, navigate, isAdmin, isSuperAdmin]);
+
+  // More background icons
   const icons = [
     { symbol: "♪", size: "text-4xl", top: "20%", left: "10%", animationDuration: "8s" },
     { symbol: "♫", size: "text-6xl", top: "50%", left: "90%", animationDuration: "12s" },
@@ -36,49 +46,32 @@ export default function Index() {
     { symbol: "𝄞", size: "text-7xl", top: "10%", left: "85%", animationDuration: "9s" },
     { symbol: "🥁", size: "text-5xl", top: "70%", left: "30%", animationDuration: "11s" },
     { symbol: "🌊", size: "text-4xl", top: "30%", left: "70%", animationDuration: "7s" },
+    { symbol: "♭", size: "text-4xl", top: "5%", left: "40%", animationDuration: "13s" },
+    { symbol: "🎶", size: "text-6xl", top: "90%", left: "75%", animationDuration: "9s" },
+    { symbol: "🎤", size: "text-5xl", top: "40%", left: "5%", animationDuration: "10s" },
+    { symbol: "🎸", size: "text-5xl", top: "85%", left: "50%", animationDuration: "14s" },
   ];
 
-  useEffect(() => {
-    const cohortStart = new Date();
-    const end = new Date(cohortStart.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-    const tick = () => {
-      const diff = end.getTime() - new Date().getTime();
-      if (diff <= 0) {
-        setTimeLeft("0d 0h");
-        return;
-      }
-      const d = Math.floor(diff / (24 * 3600 * 1000));
-      const h = Math.floor((diff % (24 * 3600 * 1000)) / (3600 * 1000));
-      setTimeLeft(`${d}d ${h}h`);
-    };
-
-    tick();
-    const timer = setInterval(tick, 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !/\S+@\S+\.\S+/.test(email)) {
-      alert("Enter a valid email");
-      return;
-    }
-    setJoining(true);
-
-    try {
-      await new Promise((r) => setTimeout(r, 1000));
-      alert("You're in. Check your email shortly for access instructions.");
-      setShowModal(false);
-      setEmail("");
-      setSpotsLeft((s) => Math.max(0, s - 1));
-    } catch (err) {
-      alert("There was an error. Try again later.");
-    } finally {
-      setJoining(false);
+  const handleClaimAccess = () => {
+    const proceed = window.confirm("This service costs $5 do you want to proceed?");
+    if (proceed) {
+      navigate("/login");
+    } else {
+      alert("sorry not Available try again in 30 days");
     }
   };
 
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-black">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-dark-purple"></div>
+        <div className="ml-4 text-white">Loading...</div>
+      </div>
+    );
+  }
+
+  // Render landing page for non-authenticated users
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-midnight to-black text-white font-poppins">
       {/* Background Floating Icons */}
@@ -95,13 +88,16 @@ export default function Index() {
         ))}
       </div>
 
-      <main className="relative z-10 flex flex-col items-center min-h-screen px-4 text-center py-16">
-        <div className="flex-grow flex flex-col items-center justify-center">
+      <main className="relative z-10 grid place-items-center min-h-screen w-full text-center p-4">
+        <div>
             {/* Hero Section */}
             <section className="w-full max-w-4xl">
-              <h1 className="text-6xl font-extrabold text-dark-purple">
-                Afroverse
-              </h1>
+              <div className="relative inline-block">
+                <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
+                <h1 className="relative text-6xl font-extrabold text-dark-purple">
+                  Afroverse
+                </h1>
+              </div>
               <p className="mt-4 text-2xl font-bold text-gray-100">
                 Create Afrobeats with AI. Earn while you play.
               </p>
@@ -111,7 +107,7 @@ export default function Index() {
 
               <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={handleClaimAccess}
                   className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
                 >
                   Claim Early Access
@@ -122,10 +118,6 @@ export default function Index() {
                 >
                   See How It Works
                 </a>
-              </div>
-
-              <div className="mt-6 text-sm text-gray-500">
-                30 days early access only. Limited creator slots available.
               </div>
             </section>
 
@@ -151,50 +143,13 @@ export default function Index() {
                 </p>
               </div>
             </section>
-        </div>
 
-        {/* Footer */}
-        <footer className="w-full py-8 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} Afroverse · Early Access
-        </footer>
+            {/* Footer */}
+            <footer className="w-full py-8 mt-16 text-center text-gray-500 text-sm">
+              © {new Date().getFullYear()} Afroverse · Early Access
+            </footer>
+        </div>
       </main>
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
-          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white">Claim 30-Day Early Access</h3>
-            <p className="text-gray-400 text-sm mt-2">
-              Enter your email to unlock early access. Invitations sent within 24h.
-              <br />
-              {timeLeft && <span>Time left: {timeLeft}</span>} • <span>{spotsLeft} spots left</span>
-            </p>
-            <form onSubmit={handleJoin} className="mt-6 flex flex-col sm:flex-row gap-2">
-              <input
-                type="email"
-                required
-                placeholder="you@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-lg bg-gray-800/50 border border-gray-700 text-white focus:ring-2 focus:ring-dark-purple focus:border-dark-purple outline-none transition"
-              />
-              <button
-                type="submit"
-                disabled={joining}
-                className="px-6 py-3 bg-dark-purple rounded-lg hover:bg-opacity-90 font-semibold text-white disabled:bg-gray-600 disabled:cursor-not-allowed transition"
-              >
-                {joining ? "Joining…" : "Join"}
-              </button>
-            </form>
-            <button
-              onClick={() => setShowModal(false)}
-              className="mt-4 text-sm text-gray-500 hover:text-gray-300 w-full text-center"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
