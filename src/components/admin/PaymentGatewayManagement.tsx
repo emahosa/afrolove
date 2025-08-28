@@ -74,24 +74,44 @@ export const PaymentGatewayManagement = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             toast.error('User not authenticated');
+            setSaving(false);
             return;
         }
 
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          key: 'payment_gateway_settings',
-          value: settings,
-          category: 'payment',
-          description: 'Configuration for payment gateways (Stripe, Paystack)',
-          updated_by: user.id
-        }, { onConflict: 'category,key' });
+        // Try to update first
+        const { data: updateData, error: updateError } = await supabase
+            .from('system_settings')
+            .update({
+                value: settings,
+                updated_by: user.id,
+            })
+            .eq('key', 'payment_gateway_settings')
+            .select();
 
-      if (error) {
-        throw error;
-      }
+        if (updateError) {
+          // If the error is not a "not found" error, throw it
+          if (updateError.code !== 'PGRST116') {
+            throw updateError;
+          }
+        }
 
-      toast.success('Payment gateway settings saved successfully');
+        // If no rows were updated, it means the record doesn't exist yet.
+        if (!updateData || updateData.length === 0) {
+            console.log("No existing settings found, inserting new record.");
+            const { error: insertError } = await supabase
+                .from('system_settings')
+                .insert({
+                    key: 'payment_gateway_settings',
+                    value: settings,
+                    category: 'payment',
+                    description: 'Configuration for payment gateways (Stripe, Paystack)',
+                    updated_by: user.id
+                });
+
+            if (insertError) throw insertError;
+        }
+
+        toast.success('Payment gateway settings saved successfully');
     } catch (error) {
       console.error('Error saving payment gateway settings:', error);
       toast.error('Failed to save settings');
