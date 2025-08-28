@@ -135,4 +135,8 @@
     caret-color: var(--foreground) !important;
     transition: background-color 5000s ease-in-out 0s;
   }
+
+  .login-form-input {
+    color: white !important;
+  }
 }
