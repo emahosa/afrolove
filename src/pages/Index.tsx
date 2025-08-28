@@ -102,46 +102,13 @@ export default function Index() {
                 Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
               </p>
 
-              <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
+              <div className="mt-10 flex justify-center">
                 <button
                   onClick={() => setShowConfirmModal(true)}
                   className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
                 >
                   Claim Early Access
                 </button>
-                <a
-                  href="#features"
-                  className="px-8 py-4 border border-white/30 rounded-lg font-semibold text-white/80 hover:bg-white/10 transition-colors"
-                >
-                  See How It Works
-                </a>
-              </div>
-
-              <div className="mt-6 text-sm text-gray-500">
-                30 days early access only. Limited creator slots available.
-              </div>
-            </section>
-
-            {/* Secondary Section */}
-            <section id="features" className="w-full max-w-4xl mt-20 grid md:grid-cols-2 gap-8 text-left">
-              <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
-                <div className="text-3xl mb-4 text-dark-purple">
-                  <Music size={40} />
-                </div>
-                <h3 className="text-xl font-bold text-white">Create</h3>
-                <p className="text-gray-400 mt-2 font-light">
-                  Turn simple prompts into hit Afrobeats tracks — ready to share, remix, or take to the studio.
-                </p>
-              </div>
-
-              <div className="bg-white/5 p-6 rounded-xl border border-white/10 backdrop-blur-sm">
-                <div className="text-3xl mb-4 text-dark-purple">
-                  <Coins size={40} />
-                </div>
-                <h3 className="text-xl font-bold text-white">Earn</h3>
-                <p className="text-gray-400 mt-2 font-light">
-                  Join contests to win cash prizes, studio deals, and real record opportunities. Afroverse rewards creativity.
-                </p>
               </div>
             </section>
         </div>
