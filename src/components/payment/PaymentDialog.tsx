@@ -11,7 +11,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useStripeSettings } from '@/hooks/useStripeSettings';
+import { usePaystackSettings } from '@/hooks/usePaystackSettings';
 import { Loader2 } from 'lucide-react';
+import { Button } from '../ui/button';
 
 interface PaymentDialogProps {
   open: boolean;
@@ -20,7 +22,8 @@ interface PaymentDialogProps {
   description: string;
   amount: number;
   credits?: number;
-  onConfirm: () => void;
+  onConfirm: (method: 'stripe' | 'automatic') => void;
+  onConfirmPaystack: () => void;
   processing: boolean;
   type: 'credits' | 'subscription';
 }
@@ -33,34 +36,27 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   amount,
   credits,
   onConfirm,
+  onConfirmPaystack,
   processing,
   type
 }) => {
-  const { data: stripeSettings, isLoading: isLoadingSettings } = useStripeSettings();
+  const { data: stripeSettings, isLoading: isLoadingStripe } = useStripeSettings();
+  const { data: paystackSettings, isLoading: isLoadingPaystack } = usePaystackSettings();
+
   const isStripeEnabled = stripeSettings?.enabled ?? true;
+  const isPaystackEnabled = paystackSettings?.enabled ?? false;
+  const isLoadingSettings = isLoadingStripe || isLoadingPaystack;
 
   const getPaymentMethodText = () => {
     if (isLoadingSettings) return 'Loading payment information...';
     
-    if (isStripeEnabled) {
-      return 'Secure payment processing via Stripe';
-    } else {
-      return type === 'subscription' 
-        ? 'Subscription will be activated automatically'
-        : 'Credits will be added automatically';
-    }
-  };
+    if (isStripeEnabled && isPaystackEnabled) return 'Secure payment processing via Stripe or Paystack';
+    if (isStripeEnabled) return 'Secure payment processing via Stripe';
+    if (isPaystackEnabled) return 'Secure payment processing via Paystack';
 
-  const getButtonText = () => {
-    if (processing) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>;
-    
-    if (isLoadingSettings) return 'Loading...';
-    
-    if (isStripeEnabled) {
-      return `Pay $${amount.toFixed(2)}`;
-    } else {
-      return type === 'subscription' ? 'Activate Subscription' : 'Add Credits';
-    }
+    return type === 'subscription'
+      ? 'Subscription will be activated automatically'
+      : 'Credits will be added automatically';
   };
 
   return (
@@ -73,7 +69,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <div className="text-sm text-gray-500">
               {getPaymentMethodText()}
             </div>
-            {!isStripeEnabled && (
+            {!isStripeEnabled && !isPaystackEnabled && (
               <div className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded">
                 Note: Payment processing is currently in test mode
               </div>
@@ -82,13 +78,26 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm} 
-            disabled={processing || isLoadingSettings}
-            className="bg-dark-purple hover:bg-opacity-90 font-bold"
-          >
-            {getButtonText()}
-          </AlertDialogAction>
+
+          {isLoadingSettings && <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</Button>}
+
+          {!isLoadingSettings && !isStripeEnabled && !isPaystackEnabled && (
+            <Button onClick={() => onConfirm('automatic')} disabled={processing}>
+              {processing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : (type === 'subscription' ? 'Activate Subscription' : 'Add Credits')}
+            </Button>
+          )}
+
+          {!isLoadingSettings && isStripeEnabled && (
+             <Button onClick={() => onConfirm('stripe')} disabled={processing} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+               {processing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : `Pay $${amount.toFixed(2)} with Stripe`}
+             </Button>
+          )}
+
+          {!isLoadingSettings && isPaystackEnabled && (
+            <Button onClick={onConfirmPaystack} disabled={processing} className="bg-green-600 hover:bg-green-700 font-bold">
+              {processing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : `Pay $${amount.toFixed(2)} with Paystack`}
+            </Button>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
