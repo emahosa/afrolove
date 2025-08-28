@@ -49,17 +49,15 @@ serve(async (req) => {
       .eq('key', 'stripe_enabled')
       .maybeSingle();
 
-    let isStripeEnabled = true; // Default to enabled for safety
-    
-    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
-      const settingValue = stripeSettings.value as { enabled?: boolean };
-      isStripeEnabled = settingValue.enabled === true;
-      console.log('🔍 Stripe setting found:', settingValue);
-    } else {
-      console.log('🔍 No Stripe setting found or error:', settingsError);
+    if (settingsError) {
+      // Log the error but don't throw, as we can default to Stripe being disabled.
+      console.error('⚠️ Error fetching stripe settings:', settingsError.message);
     }
 
-    console.log('🔍 Stripe enabled status:', isStripeEnabled);
+    // Safely check for the 'enabled' property. Defaults to false if settings are missing or malformed.
+    const isStripeEnabled = (stripeSettings?.value as { enabled?: boolean })?.enabled === true;
+
+    console.log(`🔍 Stripe enabled status: ${isStripeEnabled}`);
 
     const { priceId, planId, planName, amount } = await req.json();
 
@@ -83,6 +81,7 @@ serve(async (req) => {
 
       if (deactivateError) {
         console.error('❌ Error deactivating existing subscriptions:', deactivateError);
+        throw new Error('Failed to deactivate existing subscriptions.');
       }
 
       // Create new subscription record
@@ -114,6 +113,7 @@ serve(async (req) => {
 
       if (deleteRoleError) {
         console.error('❌ Error removing voter role:', deleteRoleError);
+        // Not throwing here as it's not critical if the voter role was already gone
       }
 
       const { error: addRoleError } = await supabaseService
@@ -127,6 +127,7 @@ serve(async (req) => {
 
       if (addRoleError) {
         console.error('❌ Error adding subscriber role:', addRoleError);
+        throw new Error('Failed to update user role to subscriber.');
       }
 
       // Log the transaction
@@ -144,6 +145,8 @@ serve(async (req) => {
 
       if (transactionError) {
         console.error('❌ Error logging transaction:', transactionError);
+        // Log as a warning but don't fail the whole subscription, as this is for record-keeping.
+        console.warn('⚠️ Transaction log failed, but subscription was created.');
       }
 
       console.log('✅ Subscription activated automatically');
@@ -160,7 +163,13 @@ serve(async (req) => {
     // Stripe is enabled - proceed with normal Stripe checkout
     console.log('🔄 Stripe enabled - creating subscription session');
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      console.error("❌ Stripe is enabled but the STRIPE_SECRET_KEY environment variable is not set.");
+      throw new Error("Server configuration error: Payment provider key is not set.");
+    }
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
     });
 
