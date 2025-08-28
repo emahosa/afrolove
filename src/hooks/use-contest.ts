@@ -82,8 +82,7 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .or('status.eq.active,status.eq.upcoming')
-        .order('start_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching contests:', error);
@@ -107,15 +106,17 @@ export const useContest = () => {
       }
       setUnlockedContestIds(newUnlockedIds);
       
-      const visibleContests = data?.map(contest => ({
-        ...contest,
-        is_unlocked: newUnlockedIds.has(contest.id)
-      })) || [];
+      const activeContestsData = data
+        ?.filter(contest => contest.status === 'active')
+        .map(contest => ({
+          ...contest,
+          is_unlocked: newUnlockedIds.has(contest.id)
+        })) || [];
       
-      setActiveContests(visibleContests);
+      setActiveContests(activeContestsData);
       
-      if (visibleContests.length > 0) {
-        const firstContest = visibleContests.find(c => c.status === 'active') || visibleContests[0];
+      if (activeContestsData.length > 0) {
+        const firstContest = activeContestsData[0];
         setCurrentContest(firstContest);
         console.log('Set current contest:', firstContest);
       } else {
@@ -154,7 +155,7 @@ export const useContest = () => {
         .from('contests')
         .insert({
           ...contestData,
-          status: 'upcoming',
+          status: 'active',
           terms_conditions: 'By submitting an entry, you acknowledge that you have read and agreed to these rules.',
           created_by: user.id
         });

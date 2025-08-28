@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,59 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy, Calendar, Upload, Vote, Play, Pause, Lock } from "lucide-react";
+import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { useContest, Contest as ContestType } from "@/hooks/use-contest";
+import { useContest } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 
-const ContestCountdown = ({ startDate }: { startDate: string }) => {
-  const calculateTimeLeft = () => {
-    const difference = +new Date(startDate) - +new Date();
-    let timeLeft = {};
-
-    if (difference > 0) {
-      timeLeft = {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-      };
-    }
-
-    return timeLeft;
-  };
-
-  const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  });
-
-  const timerComponents = Object.entries(timeLeft).map(([interval, value]) => {
-    if (value) {
-      return (
-        <span key={interval} className="text-sm font-semibold">
-          {value} {interval}{" "}
-        </span>
-      );
-    }
-    return null;
-  });
-
-  return (
-    <div className="flex items-center gap-2 text-xs text-yellow-400">
-      <Calendar className="h-4 w-4" />
-      <span>Starts in: {timerComponents.length ? timerComponents : "Time's up!"}</span>
-    </div>
-  );
-};
+interface Contest {
+  id: string;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  prize: string;
+  entry_fee: number;
+  status: string;
+}
 
 interface ContestEntry {
   id: string;
@@ -85,7 +50,6 @@ interface Song {
   id: string;
   title: string;
   status: string;
-  audio_url: string;
 }
 
 const Contest = () => {
@@ -94,17 +58,15 @@ const Contest = () => {
     activeContests: contests,
     contestEntries,
     loading,
-    submitting,
     isVoting,
     castVote,
     checkHasFreeVote,
-    unlockContest,
-    submitEntry,
+    refreshEntries,
   } = useContest();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
@@ -128,7 +90,7 @@ const Contest = () => {
     try {
       const { data, error } = await supabase
         .from('songs')
-        .select('id, title, status, audio_url')
+        .select('id, title, status')
         .eq('user_id', user?.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false });
@@ -153,7 +115,7 @@ const Contest = () => {
     }
   };
 
-  const openSubmissionDialog = (contest: ContestType) => {
+  const openSubmissionDialog = (contest: Contest) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
   };
@@ -179,45 +141,8 @@ const Contest = () => {
     setSelectedEntry(null);
   };
 
-  const handleUnlockContest = async (contest: ContestType) => {
-    if (!user) {
-      toast.info("Please log in to unlock contests.");
-      return;
-    }
-    await unlockContest(contest.id, contest.entry_fee);
-  };
-
-  const handleSubmitEntry = async () => {
-    if (!selectedContest || !selectedSong || !description) {
-      toast.error("Please select a song and provide a description.");
-      return;
-    }
-
-    const song = songs.find(s => s.id === selectedSong);
-    if (!song || !song.audio_url) {
-      toast.error("Selected song is not available for submission.");
-      return;
-    }
-
-    try {
-      const response = await fetch(song.audio_url);
-      const blob = await response.blob();
-      const file = new File([blob], `${song.title}.mp3`, { type: "audio/mpeg" });
-
-      await submitEntry(selectedContest.id, file, description, song.title);
-      setSubmissionDialogOpen(false);
-    } catch (error) {
-      toast.error("Failed to prepare song for submission.");
-      console.error(error);
-    }
-  };
-
   const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
   const canViewContests = !isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
-
-  const visibleContests = useMemo(() => {
-    return contests.filter(c => c.status === 'active' || new Date(c.start_date) > new Date());
-  }, [contests]);
 
   if (loading) {
     return (
@@ -239,7 +164,7 @@ const Contest = () => {
 
       <Tabs defaultValue="contests" className="w-full flex flex-col flex-grow mt-6">
         <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10 flex-shrink-0">
-          <TabsTrigger value="contests" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Contests</TabsTrigger>
+          <TabsTrigger value="contests" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active Contests</TabsTrigger>
           <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
@@ -258,7 +183,7 @@ const Contest = () => {
                   </Button>
                 </CardContent>
               </Card>
-            ) : visibleContests.length === 0 ? (
+            ) : contests.length === 0 ? (
               <Card className="text-center py-12 bg-white/5 border-white/10">
                 <CardContent>
                   <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
@@ -270,7 +195,7 @@ const Contest = () => {
               </Card>
             ) : (
             <div className="space-y-3">
-                {visibleContests.map((contest) => (
+                {contests.map((contest) => (
                 <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                   <div className="flex-grow mx-4 min-w-0">
                     <p className="font-semibold truncate text-white">{contest.title}</p>
@@ -282,37 +207,22 @@ const Contest = () => {
                             <Trophy className="h-4 w-4 text-dark-purple" />
                             <span>Prize: {contest.prize}</span>
                         </div>
-                        {contest.status === 'upcoming' ? (
-                          <ContestCountdown startDate={contest.start_date} />
-                        ) : (
-                          <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              <span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span>
                           </div>
-                        )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     {canParticipate ? (
-                      contest.status === 'active' ? (
-                        contest.entry_fee > 0 && !contest.is_unlocked ? (
-                          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 font-bold" onClick={() => handleUnlockContest(contest)} disabled={submitting}>
-                            <Lock className="w-4 h-4 mr-2" />
-                            Unlock ({contest.entry_fee} credits)
+                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Entry
                           </Button>
                         ) : (
-                          <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                            Submit Entry
+                        <Button size="sm" disabled>
+                          Subscribe to Enter
                           </Button>
-                        )
-                      ) : (
-                        <Button size="sm" disabled>Upcoming</Button>
-                      )
-                    ) : (
-                      <Button size="sm" disabled>
-                        Subscribe to Enter
-                      </Button>
-                    )}
+                        )}
                   </div>
                   </div>
                 ))}
@@ -375,41 +285,6 @@ const Contest = () => {
           </TabsContent>
         </div>
       </Tabs>
-
-      <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Submit to {selectedContest?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="song">Select your song</Label>
-              <Select value={selectedSong} onValueChange={setSelectedSong}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a completed song" />
-                </SelectTrigger>
-                <SelectContent>
-                  {songs.map((song) => (
-                    <SelectItem key={song.id} value={song.id}>{song.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Tell us about your entry"
-              />
-            </div>
-          </div>
-          <Button onClick={handleSubmitEntry} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Entry"}
-          </Button>
-        </DialogContent>
-      </Dialog>
 
       {selectedEntry && (
         <VoteDialog
