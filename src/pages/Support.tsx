@@ -5,16 +5,16 @@ import { UserSupportTickets } from '@/components/support/UserSupportTickets';
 
 const Support = () => {
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 text-white">
       <div>
-        <h1 className="text-3xl font-bold">Customer Support</h1>
-        <p className="text-muted-foreground">Get help with any issues or questions you have</p>
+        <h1 className="text-3xl font-bold text-white">Customer Support</h1>
+        <p className="text-gray-400">Get help with any issues or questions you have</p>
       </div>
       
-      <Tabs defaultValue="new-request">
-        <TabsList>
-          <TabsTrigger value="new-request">New Request</TabsTrigger>
-          <TabsTrigger value="my-tickets">My Tickets</TabsTrigger>
+      <Tabs defaultValue="new-request" className="text-white">
+        <TabsList className="bg-black/30 border border-white/10">
+          <TabsTrigger value="new-request" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">New Request</TabsTrigger>
+          <TabsTrigger value="my-tickets" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">My Tickets</TabsTrigger>
         </TabsList>
         
         <TabsContent value="new-request" className="mt-6">

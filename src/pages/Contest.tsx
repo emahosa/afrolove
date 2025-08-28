@@ -154,40 +154,40 @@ const Contest = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-white">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Music Contests</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-bold mb-2 text-white">Music Contests</h1>
+        <p className="text-gray-400">
           Showcase your talent and win amazing prizes!
         </p>
       </div>
 
       <Tabs defaultValue="contests" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="contests">Active Contests</TabsTrigger>
-          <TabsTrigger value="entries">Entries</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10">
+          <TabsTrigger value="contests" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active Contests</TabsTrigger>
+          <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="contests" className="space-y-4">
+        <TabsContent value="contests" className="space-y-4 mt-6">
           {!canViewContests ? (
-            <Card className="text-center py-12">
+            <Card className="text-center py-12 bg-white/5 border-white/10">
               <CardContent>
-                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Subscription Required</h3>
-                <p className="text-muted-foreground mb-4">
+                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">Subscription Required</h3>
+                <p className="text-gray-400 mb-4">
                   Subscribe to view and participate in contests.
                 </p>
-                <Button onClick={() => window.location.href = '/credits'}>
+                <Button onClick={() => window.location.href = '/credits'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
                   View Plans
                 </Button>
               </CardContent>
             </Card>
           ) : contests.length === 0 ? (
-            <Card className="text-center py-12">
+            <Card className="text-center py-12 bg-white/5 border-white/10">
               <CardContent>
-                <Trophy className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Active Contests</h3>
-                <p className="text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
+                <p className="text-gray-400">
                   Check back later for new contests.
                 </p>
               </CardContent>
@@ -196,37 +196,37 @@ const Contest = () => {
             <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
               {contests.map((contest) => (
                 <div key={contest.id} className="break-inside-avoid">
-                  <Card className="w-full overflow-hidden">
-                    <CardHeader className="p-4 bg-muted/40">
+                  <Card className="w-full overflow-hidden bg-white/5 border-white/10">
+                    <CardHeader className="p-4 bg-black/20">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Trophy className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg flex items-center gap-2 text-white">
+                          <Trophy className="h-5 w-5 text-dark-purple" />
                           {contest.title}
                         </CardTitle>
-                        <Badge variant="secondary" className="text-sm">
+                        <Badge className="text-sm bg-dark-purple text-white">
                           Prize: {contest.prize}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4">
-                      <p className="text-muted-foreground text-sm mb-4">{contest.description}</p>
+                      <p className="text-gray-400 text-sm mb-4">{contest.description}</p>
                       <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2 text-muted-foreground">
+                        <div className="flex items-center gap-2 text-gray-400">
                           <Calendar className="h-4 w-4" />
                           <span>
                             Ends {new Date(contest.end_date).toLocaleDateString()}
                           </span>
                         </div>
                         {contest.entry_fee > 0 && (
-                          <Badge>
+                          <Badge className="bg-dark-purple/50 text-purple-300 border border-dark-purple">
                             Entry: {contest.entry_fee} credits
                           </Badge>
                         )}
                       </div>
                     </CardContent>
-                    <CardFooter className="p-2 bg-muted/40">
+                    <CardFooter className="p-2 bg-black/20">
                       {canParticipate ? (
-                        <Button size="sm" className="w-full" onClick={() => openSubmissionDialog(contest)}>
+                        <Button size="sm" className="w-full bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
                           Submit Your Entry
                         </Button>
                       ) : (
@@ -242,18 +242,18 @@ const Contest = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="entries" className="space-y-2">
+        <TabsContent value="entries" className="space-y-2 mt-6">
           {entriesLoading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
               <span className="ml-2">Loading entries...</span>
             </div>
           ) : contestEntries.length === 0 ? (
-            <Card className="text-center py-12">
+            <Card className="text-center py-12 bg-white/5 border-white/10">
               <CardContent>
-                <Vote className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Entries Yet</h3>
-                <p className="text-muted-foreground">
+                <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">No Entries Yet</h3>
+                <p className="text-gray-400">
                   Be the first to submit an entry!
                 </p>
               </CardContent>
@@ -261,23 +261,23 @@ const Contest = () => {
           ) : (
             <div className="space-y-3">
               {contestEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center p-3 rounded-lg bg-muted/40 hover:bg-muted/80 transition-colors">
-                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)}>
+                <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
                     {currentTrack?.id === entry.songs?.id && isPlaying ? (
-                      <Pause className="h-5 w-5" />
+                      <Pause className="h-5 w-5 text-dark-purple" />
                     ) : (
                       <Play className="h-5 w-5" />
                     )}
                   </Button>
-                  <div className="flex-grow mx-4">
-                    <p className="font-semibold">{entry.songs?.title || 'Contest Entry'}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex-grow mx-4 min-w-0">
+                    <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                    <p className="text-sm text-gray-400">
                       By {entry.profiles?.full_name || 'Unknown Artist'}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Vote className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-sm text-white">
+                      <Vote className="h-4 w-4 text-dark-purple" />
                       <span>{entry.vote_count}</span>
                     </div>
                     <Button
@@ -285,6 +285,7 @@ const Contest = () => {
                       size="sm"
                       onClick={() => handleVoteClick(entry)}
                       disabled={isVoting}
+                      className="bg-transparent border-white/30 hover:bg-white/10 text-white"
                     >
                       Vote
                     </Button>

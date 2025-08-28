@@ -56,19 +56,12 @@ export const AudioPlayer = () => {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md text-white p-3 border-t border-gray-700 shadow-lg z-50 animate-slide-in-up"
-      style={{ animation: 'slide-in-up 0.5s ease-out' }}
+      className="fixed bottom-0 left-0 right-0 bg-black/50 backdrop-blur-md text-white p-3 border-t border-white/10 shadow-lg z-40"
     >
-      <style>{`
-        @keyframes slide-in-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-      `}</style>
       <div className="flex items-center gap-4 max-w-screen-2xl mx-auto">
         
         <div className="flex items-center gap-3 w-64 flex-shrink-0">
-          <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center rounded-md flex-shrink-0">
+          <div className="w-14 h-14 bg-dark-purple flex items-center justify-center rounded-md flex-shrink-0">
             {currentTrack.artwork_url ? (
               <img src={currentTrack.artwork_url} alt={currentTrack.title} className="w-full h-full object-cover rounded-md" />
             ) : (
@@ -107,7 +100,7 @@ export const AudioPlayer = () => {
             >
               <Progress 
                 value={duration > 0 ? (progress / duration) * 100 : 0} 
-                className="h-1.5 bg-gray-600 group-hover:[&>div]:bg-pink-500 [&>div]:bg-white transition-all duration-200"
+                className="h-1.5 bg-white/20 group-hover:[&>div]:bg-dark-purple [&>div]:bg-white transition-all duration-200"
               />
             </div>
             <span className="text-xs w-10 text-gray-300">{formatTime(duration)}</span>

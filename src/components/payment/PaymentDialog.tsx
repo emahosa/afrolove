@@ -65,26 +65,27 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="bg-gray-900 border-white/10 text-white">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
+          <AlertDialogDescription className="space-y-2 text-gray-400">
             <div>{description}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-gray-500">
               {getPaymentMethodText()}
             </div>
             {!isStripeEnabled && (
-              <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
+              <div className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded">
                 Note: Payment processing is currently in test mode
               </div>
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={processing}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm} 
             disabled={processing || isLoadingSettings}
+            className="bg-dark-purple hover:bg-opacity-90 font-bold"
           >
             {getButtonText()}
           </AlertDialogAction>

@@ -9,6 +9,7 @@ import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import AuthPageLayout from "@/layouts/AuthPageLayout";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -84,99 +85,105 @@ const Register = () => {
   };
 
   return (
-    <div className="w-full max-w-md p-4 md:p-0 mx-auto">
-      <div className="md:hidden flex items-center justify-center mb-6">
-        <Music className="h-10 w-10 text-melody-secondary" />
-        <h1 className="text-2xl font-bold ml-2">MelodyVerse</h1>
-      </div>
-      
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold mb-2">Create Account</h2>
-        <p className="text-muted-foreground">Join MelodyVerse and start creating music</p>
-      </div>
+    <AuthPageLayout>
+      <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
+        <div className="flex items-center justify-center mb-6">
+            <Music className="h-8 w-8 text-dark-purple" />
+            <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
+        </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Full Name</Label>
-          <Input 
-            id="name" 
-            type="text" 
-            placeholder="John Doe" 
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
+        <div className="text-center mb-6">
+          <h2 className="text-3xl font-bold mb-2 text-white">Create Account</h2>
+          <p className="text-gray-400">Join Afroverse and start creating music</p>
         </div>
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            placeholder="you@gmail.com" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="name" className="text-gray-300 text-left block mb-1">Full Name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+            />
+          </div>
+          <div>
+            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+            />
+          </div>
+          <div>
+            <Label htmlFor="password" className="text-gray-300 text-left block mb-1">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+            />
+          </div>
+          <div>
+            <Label htmlFor="confirmPassword" className="text-gray-300 text-left block mb-1">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+            />
+          </div>
+          <Button
+            type="submit"
+            className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
+            disabled={loading}
+          >
+            {loading ? "Creating account..." : "Sign Up"}
+          </Button>
+        </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/20"></div>
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
+              OR CONTINUE WITH
+            </span>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="password">Password</Label>
-          <Input 
-            id="password" 
-            type="password" 
-            placeholder="••••••••" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input 
-            id="confirmPassword" 
-            type="password" 
-            placeholder="••••••••" 
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-        </div>
+
         <Button 
-          type="submit" 
-          className="w-full bg-melody-secondary hover:bg-melody-secondary/90"
-          disabled={loading}
+          variant="outline"
+          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
+          onClick={handleGoogleLogin}
+          disabled={googleLoading}
         >
-          {loading ? "Creating account..." : "Sign Up"}
+          <FaGoogle className="mr-2" />
+          {googleLoading ? "Signing up..." : "Google"}
         </Button>
-      </form>
 
-      <div className="relative my-8">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="px-2 bg-background text-muted-foreground">
-            OR CONTINUE WITH
-          </span>
-        </div>
+        <p className="text-center mt-6 text-sm text-gray-400">
+          Already have an account?{" "}
+          <Link to="/login" className="text-dark-purple hover:underline font-medium">
+            Sign in
+          </Link>
+        </p>
       </div>
-
-      <Button 
-        variant="outline" 
-        className="w-full"
-        onClick={handleGoogleLogin}
-        disabled={googleLoading}
-      >
-        <FaGoogle className="mr-2" /> 
-        {googleLoading ? "Signing up..." : "Google"}
-      </Button>
-
-      <p className="text-center mt-8 text-sm">
-        Already have an account?{" "}
-        <Link to="/login" className="text-melody-secondary hover:underline font-medium">
-          Sign in
-        </Link>
-      </p>
-    </div>
+    </AuthPageLayout>
   );
 };
 

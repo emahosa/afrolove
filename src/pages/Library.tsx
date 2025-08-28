@@ -191,10 +191,10 @@ const Library = () => {
     <div className="space-y-8 pb-24"> {/* Padding bottom to avoid overlap with player */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">My Library</h1>
-          <p className="text-muted-foreground">All your completed songs</p>
+          <h1 className="text-3xl font-bold text-white">My Library</h1>
+          <p className="text-gray-400">All your completed songs</p>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -202,8 +202,8 @@ const Library = () => {
 
       {completedSongs.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Completed Songs</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {completedSongs.map((song) => (
               <GeneratedSongCard key={song.id} song={song} />
             ))}
@@ -212,10 +212,10 @@ const Library = () => {
       )}
 
       {songs.length === 0 && !isLoading && (
-         <div className="text-center py-16 border-2 border-dashed rounded-lg">
-            <Music className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">No songs yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Create your first song to see it here.</p>
+         <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+            <Music className="mx-auto h-12 w-12" />
+            <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
+            <p className="mt-1 text-sm">Create your first song to see it here.</p>
          </div>
       )}
     </div>

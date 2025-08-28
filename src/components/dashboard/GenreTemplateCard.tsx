@@ -82,12 +82,12 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   };
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+    <Card className="group hover:shadow-lg transition-all duration-300 bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-white text-lg">{template.template_name}</CardTitle>
-            <CardDescription className="text-gray-300 text-sm">
+            <CardTitle className="text-white text-lg font-bold">{template.template_name}</CardTitle>
+            <CardDescription className="text-gray-400 text-sm">
               {template.genres?.name} Template
             </CardDescription>
           </div>
@@ -95,7 +95,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
             <img 
               src={template.cover_image_url} 
               alt={template.template_name}
-              className="w-12 h-12 rounded-lg object-cover"
+              className="w-12 h-12 rounded-lg object-cover border-2 border-white/10"
             />
           )}
         </div>
@@ -103,19 +103,19 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
       
       <CardContent className="space-y-4">
         {template.user_prompt_guide && (
-          <p className="text-sm text-gray-400 leading-relaxed">
+          <p className="text-sm text-gray-400 leading-relaxed h-20 overflow-hidden">
             {template.user_prompt_guide}
           </p>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 pt-2">
           {template.audio_url && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleAudioPlay}
               disabled={isLoading}
-              className="flex-1 border-violet-600 text-violet-400 hover:bg-violet-600 hover:text-white"
+              className="flex-1 bg-transparent border-white/30 hover:bg-white/10 text-white"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -131,7 +131,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
           <Button 
             onClick={handleCreateMusic}
             size="sm"
-            className="flex-1 bg-violet-600 hover:bg-violet-700 text-white"
+            className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold text-white"
           >
             <Music className="h-4 w-4 mr-2" />
             Create Music
