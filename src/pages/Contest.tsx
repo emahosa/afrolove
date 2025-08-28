@@ -194,49 +194,36 @@ const Contest = () => {
                 </CardContent>
               </Card>
             ) : (
-              <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
+            <div className="space-y-3">
                 {contests.map((contest) => (
-                  <div key={contest.id} className="break-inside-avoid">
-                    <Card className="w-full overflow-hidden bg-white/5 border-white/10">
-                      <CardHeader className="p-4 bg-black/20">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2 text-white">
-                            <Trophy className="h-5 w-5 text-dark-purple" />
-                            {contest.title}
-                          </CardTitle>
-                          <Badge className="text-sm bg-dark-purple text-white">
-                            Prize: {contest.prize}
-                          </Badge>
+                <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="flex-grow mx-4 min-w-0">
+                    <p className="font-semibold truncate text-white">{contest.title}</p>
+                    <p className="text-sm text-gray-400 line-clamp-1">
+                      {contest.description}
+                    </p>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                            <Trophy className="h-4 w-4 text-dark-purple" />
+                            <span>Prize: {contest.prize}</span>
                         </div>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <p className="text-gray-400 text-sm mb-4">{contest.description}</p>
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 text-gray-400">
+                        <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            <span>
-                              Ends {new Date(contest.end_date).toLocaleDateString()}
-                            </span>
+                            <span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span>
                           </div>
-                          {contest.entry_fee > 0 && (
-                            <Badge className="bg-dark-purple/50 text-purple-300 border border-dark-purple">
-                              Entry: {contest.entry_fee} credits
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="p-2 bg-black/20">
-                        {canParticipate ? (
-                          <Button size="sm" className="w-full bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                            Submit Your Entry
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {canParticipate ? (
+                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Entry
                           </Button>
                         ) : (
-                          <Button size="sm" disabled className="w-full">
-                            Subscription Required to Enter
+                        <Button size="sm" disabled>
+                          Subscribe to Enter
                           </Button>
                         )}
-                      </CardFooter>
-                    </Card>
+                  </div>
                   </div>
                 ))}
               </div>
