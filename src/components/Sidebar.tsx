@@ -1,11 +1,9 @@
 
-import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
   Home, 
   Music, 
@@ -45,7 +43,6 @@ const navItems: NavItem[] = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
-  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, isSubscriber } = useAuth();
@@ -59,11 +56,11 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     return true;
   });
 
-  const sidebarContent = (isMobile: boolean = false) => (
-    <>
-      <div className="flex items-center h-16 px-4 border-b border-white/10">
+  return (
+    <aside className={cn("h-full w-60 flex flex-col", className)}>
+      <div className="flex items-center h-16 px-4 border-b border-white/10 flex-shrink-0">
         <Music className="h-6 w-6 text-dark-purple mr-2" />
-        <p className="font-poppins font-bold text-xl text-white">Afroverse</p>
+        <p className="font-sans font-bold text-xl text-white">Afroverse</p>
       </div>
       <ScrollArea className="flex-1 px-2 py-4">
         <div className="flex flex-col space-y-1">
@@ -86,7 +83,6 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                   } else {
                     navigate(item.href);
                   }
-                  if (isMobile) setOpen(false);
                 }}
                 title={needsSubscription ? `${item.label} (Subscription required)` : item.label}
               >
@@ -106,25 +102,14 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         </div>
       </ScrollArea>
       {user && (
-        <div className="mt-auto p-2 border-t border-white/10">
+        <div className="mt-auto p-2 border-t border-white/10 flex-shrink-0">
            <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white" onClick={() => navigate('/profile')}>
              <User className="mr-3 h-5 w-5 flex-shrink-0" />
              <span className="truncate">{user.email?.split('@')[0] || user.id}</span>
            </Button>
         </div>
       )}
-    </>
-  );
-
-  return (
-    <>
-      {/* Desktop Sidebar */}
-      <aside className={cn("hidden border-r border-white/10 bg-black/30 backdrop-blur-sm h-screen w-60 md:flex md:flex-col", className)}>
-        {sidebarContent()}
-      </aside>
-
-      {/* Mobile Sheet (Hamburger Menu) is handled by the Navbar now */}
-    </>
+    </aside>
   );
 };
 

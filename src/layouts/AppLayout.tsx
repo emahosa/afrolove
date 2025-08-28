@@ -5,15 +5,27 @@ import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-midnight to-black text-white font-sans">
-      <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <Navbar onMenuClick={() => setSidebarOpen(true)} />
+
+      {/* Mobile Sidebar */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-60 p-0 flex flex-col bg-black/80 backdrop-blur-sm border-r border-white/10">
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
+
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block">
+          <Sidebar className="bg-black/30 border-r border-white/10" />
+        </div>
         <main className="flex-1 overflow-y-auto p-4 md:p-8" style={{ paddingBottom: '120px' }}>
           <Outlet />
         </main>
