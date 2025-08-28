@@ -168,7 +168,7 @@ const Contest = () => {
           <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
-        <div className="flex-grow overflow-y-auto mt-6">
+        <div className="flex-grow overflow-y-auto mt-6 pr-4 pb-24">
           <TabsContent value="contests" className="space-y-4">
             {!canViewContests ? (
               <Card className="text-center py-12 bg-white/5 border-white/10">

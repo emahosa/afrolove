@@ -212,7 +212,7 @@ const Library = () => {
         </Button>
       </div>
 
-      <div className="flex-grow overflow-y-auto mt-6">
+      <div className="flex-grow overflow-y-auto mt-6 pr-4 pb-24">
         {currentSongs.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-white">Completed Songs</h2>

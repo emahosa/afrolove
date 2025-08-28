@@ -16,7 +16,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto mt-6">
+      <div className="flex-grow overflow-y-auto mt-6 pr-4 pb-24">
         <div className="space-y-4">
           <div>
             <h2 className="text-2xl font-semibold text-white">Available Genres</h2>

@@ -145,7 +145,7 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto">
+      <div className="flex-grow overflow-y-auto pr-4 pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Profile Information */}
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">

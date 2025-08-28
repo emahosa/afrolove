@@ -17,7 +17,7 @@ const Support = () => {
           <TabsTrigger value="my-tickets" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">My Tickets</TabsTrigger>
         </TabsList>
         
-        <div className="flex-grow mt-6 overflow-y-auto">
+        <div className="flex-grow mt-6 overflow-y-auto pr-4 pb-24">
           <TabsContent value="new-request">
             <SupportRequestForm />
           </TabsContent>
