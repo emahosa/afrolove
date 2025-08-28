@@ -1,26 +1,31 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trophy, Vote, Play, Pause, Lock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { useContest, Contest as ContestType } from "@/hooks/use-contest";
-import { useContestSubmission } from "@/hooks/useContestSubmission";
+import { useContest } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
-import { ContestCard } from "@/components/contest/ContestCard";
 
-interface Song {
+interface Contest {
   id: string;
   title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  prize: string;
+  entry_fee: number;
   status: string;
 }
+
 interface ContestEntry {
   id: string;
   contest_id: string;
@@ -41,29 +46,33 @@ interface ContestEntry {
   } | null;
 }
 
+interface Song {
+  id: string;
+  title: string;
+  status: string;
+}
+
 const Contest = () => {
-  const { user, isSubscriber, userRoles } = useAuth();
+  const { user, isVoter, isSubscriber, userRoles } = useAuth();
   const {
-    upcomingContests,
-    activeContests,
+    activeContests: contests,
     contestEntries,
     loading,
     isVoting,
     castVote,
     checkHasFreeVote,
-    unlockContest,
-    submitting: isUnlocking,
+    refreshEntries,
   } = useContest();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [entriesLoading, setEntriesLoading] = useState(false);
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [selectedSong, setSelectedSong] = useState<string>("");
+  const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
   const [voteDialogOpen, setVoteDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
   const [userHasFreeVote, setUserHasFreeVote] = useState(true);
-  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
-  const { submitEntry, isSubmitting } = useContestSubmission();
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [selectedSong, setSelectedSong] = useState<string>("");
-  const [submissionDescription, setSubmissionDescription] = useState("");
 
   useEffect(() => {
     if (user && selectedEntry) {
@@ -78,38 +87,18 @@ const Contest = () => {
   }, [user]);
 
   const fetchUserSongs = async () => {
-    if (!user) return;
     try {
       const { data, error } = await supabase
-        .from("songs")
-        .select("id, title, status")
-        .eq("user_id", user.id)
-        .eq("status", "completed")
-        .order("created_at", { ascending: false });
+        .from('songs')
+        .select('id, title, status')
+        .eq('user_id', user?.id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSongs(data || []);
     } catch (error: any) {
-      console.error("Error fetching songs:", error);
-    }
-  };
-
-  const handleSubmission = async () => {
-    if (!selectedContest || !selectedSong) {
-      toast.error("Please select a song to submit.");
-      return;
-    }
-    try {
-      await submitEntry({
-        contestId: selectedContest.id,
-        songId: selectedSong,
-        description: submissionDescription,
-      });
-      setSubmissionDialogOpen(false);
-      setSelectedSong("");
-      setSubmissionDescription("");
-    } catch (error) {
-      // Error is already toasted in the hook
+      console.error('Error fetching songs:', error);
     }
   };
 
@@ -126,19 +115,7 @@ const Contest = () => {
     }
   };
 
-  const handleUnlockContest = async (contestId: string, fee: number) => {
-    if (!user) {
-      toast.error("Please log in to unlock contests.");
-      return;
-    }
-    if (!isSubscriber()) {
-      toast.error("You must be a subscriber to unlock contests.");
-      return;
-    }
-    await unlockContest(contestId, fee);
-  };
-
-  const handleEnterContest = (contest: ContestType) => {
+  const openSubmissionDialog = (contest: Contest) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
   };
@@ -164,6 +141,9 @@ const Contest = () => {
     setSelectedEntry(null);
   };
 
+  const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+  const canViewContests = !isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -182,42 +162,28 @@ const Contest = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="active" className="w-full flex flex-col flex-grow mt-6">
-        <TabsList className="grid w-full grid-cols-3 bg-black/30 border border-white/10 flex-shrink-0">
-          <TabsTrigger value="upcoming" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Upcoming</TabsTrigger>
-          <TabsTrigger value="active" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active</TabsTrigger>
+      <Tabs defaultValue="contests" className="w-full flex flex-col flex-grow mt-6">
+        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10 flex-shrink-0">
+          <TabsTrigger value="contests" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active Contests</TabsTrigger>
           <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
         <div className="flex-grow overflow-y-auto mt-6">
-          <TabsContent value="upcoming" className="space-y-4">
-            {upcomingContests.length === 0 ? (
+          <TabsContent value="contests" className="space-y-4">
+            {!canViewContests ? (
               <Card className="text-center py-12 bg-white/5 border-white/10">
                 <CardContent>
                   <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Upcoming Contests</h3>
-                  <p className="text-gray-400">
-                    Check back later for new contests.
+                  <h3 className="text-lg font-semibold mb-2 text-white">Subscription Required</h3>
+                  <p className="text-gray-400 mb-4">
+                    Subscribe to view and participate in contests.
                   </p>
+                  <Button onClick={() => window.location.href = '/credits'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+                    View Plans
+                  </Button>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="space-y-3">
-                {upcomingContests.map((contest) => (
-                  <ContestCard
-                    key={contest.id}
-                    contest={contest}
-                    onUnlock={handleUnlockContest}
-                    onEnter={handleEnterContest}
-                    isUnlocking={isUnlocking}
-                    status="upcoming"
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="active" className="space-y-4">
-            {activeContests.length === 0 ? (
+            ) : contests.length === 0 ? (
               <Card className="text-center py-12 bg-white/5 border-white/10">
                 <CardContent>
                   <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
@@ -228,23 +194,49 @@ const Contest = () => {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {activeContests.map((contest) => (
-                  <ContestCard
-                    key={contest.id}
-                    contest={contest}
-                    onUnlock={handleUnlockContest}
-                    onEnter={handleEnterContest}
-                    isUnlocking={isUnlocking}
-                    status="active"
-                  />
+            <div className="space-y-3">
+                {contests.map((contest) => (
+                <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <div className="flex-grow mx-4 min-w-0">
+                    <p className="font-semibold truncate text-white">{contest.title}</p>
+                    <p className="text-sm text-gray-400 line-clamp-1">
+                      {contest.description}
+                    </p>
+                    <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                            <Trophy className="h-4 w-4 text-dark-purple" />
+                            <span>Prize: {contest.prize}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span>
+                          </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {canParticipate ? (
+                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Entry
+                          </Button>
+                        ) : (
+                        <Button size="sm" disabled>
+                          Subscribe to Enter
+                          </Button>
+                        )}
+                  </div>
+                  </div>
                 ))}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="entries" className="space-y-2">
-            {contestEntries.length === 0 ? (
+            {entriesLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
+                <span className="ml-2">Loading entries...</span>
+              </div>
+            ) : contestEntries.length === 0 ? (
               <Card className="text-center py-12 bg-white/5 border-white/10">
                 <CardContent>
                   <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
@@ -304,45 +296,6 @@ const Contest = () => {
           userCredits={user?.profile?.credits ?? 0}
           isVoting={isVoting}
         />
-      )}
-
-      {submissionDialogOpen && selectedContest && (
-        <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Submit to {selectedContest.title}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="song">Select a song</Label>
-                <Select value={selectedSong} onValueChange={setSelectedSong}>
-                  <SelectTrigger id="song">
-                    <SelectValue placeholder="Select a song to submit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {songs.map((song) => (
-                      <SelectItem key={song.id} value={song.id}>
-                        {song.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={submissionDescription}
-                  onChange={(e) => setSubmissionDescription(e.target.value)}
-                  placeholder="Tell us a bit about your entry."
-                />
-              </div>
-              <Button onClick={handleSubmission} disabled={isSubmitting} className="w-full bg-dark-purple hover:bg-opacity-90 font-bold">
-                {isSubmitting ? "Submitting..." : "Submit Entry"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );
