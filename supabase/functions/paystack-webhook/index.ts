@@ -1,11 +1,17 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { HmacSha512 } from "https://deno.land/std@0.160.0/hash/sha512.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paystack-signature",
 };
+
+// Helper to convert ArrayBuffer to hex string
+function bufferToHex(buffer: ArrayBuffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,6 +19,15 @@ serve(async (req) => {
   }
 
   try {
+    // Clone the request so we can read the body text for signature verification
+    const reqClone = req.clone();
+    const bodyText = await reqClone.text();
+    const signature = req.headers.get('x-paystack-signature');
+
+    if (!signature) {
+      throw new Error("Missing x-paystack-signature header");
+    }
+
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -29,11 +44,20 @@ serve(async (req) => {
       throw new Error("Paystack settings not found or secret key is missing.");
     }
 
-    const bodyText = await req.clone().text();
-    const signature = req.headers.get('x-paystack-signature');
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(paystackGateway.secret_key);
+    const bodyData = encoder.encode(bodyText);
 
-    const hmac = new HmacSha512(paystackGateway.secret_key);
-    const expectedSignature = hmac.update(bodyText).toString();
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-512" },
+      false,
+      ["sign"]
+    );
+
+    const signed = await crypto.subtle.sign("HMAC", cryptoKey, bodyData);
+    const expectedSignature = bufferToHex(signed);
 
     if (expectedSignature !== signature) {
       console.error("Webhook signature verification failed.");
@@ -82,7 +106,7 @@ serve(async (req) => {
       await supabaseService.from('payment_transactions').insert({
         user_id: user_id,
         amount: amount / 100, // Convert from kobo/cents
-        currency: 'NGN', // Or get from payload
+        currency: payload.data.currency,
         payment_method: 'paystack',
         status: 'completed',
         payment_id: reference,
