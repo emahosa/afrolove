@@ -85,7 +85,7 @@ export const PaymentGatewayManagement = () => {
           category: 'payment',
           description: 'Configuration for payment gateways (Stripe, Paystack)',
           updated_by: user.id
-        }, { onConflict: 'key' });
+        });
 
       if (error) {
         throw error;
