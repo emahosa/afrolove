@@ -33,7 +33,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { StripeToggleSettings } from './StripeToggleSettings';
 import { PaystackToggleSettings } from './PaystackToggleSettings';
 
 interface CreditPackage {
@@ -286,10 +285,7 @@ export const PaymentManagement = () => {
   return (
     <div className="space-y-8">
       {/* Payment Gateway Settings */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <StripeToggleSettings />
-        <PaystackToggleSettings />
-      </div>
+      <PaystackToggleSettings />
 
       {/* Credit Packages Section */}
       <div>

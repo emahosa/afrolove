@@ -82,7 +82,7 @@ const SubscribePage: React.FC = () => {
     if (subscriptionStatus === 'success' && provider === 'paystack' && trxref) {
       const verifySubscription = async () => {
         try {
-          const { data, error } = await supabase.functions.invoke('verify-paystack-transaction', {
+          const { data, error } = await supabase.functions.invoke('verify-payment-transaction', {
             body: { reference: trxref }
           });
 
@@ -111,7 +111,7 @@ const SubscribePage: React.FC = () => {
     return <PaymentLoadingScreen title="Activating Subscription..." description="Please wait while we activate your subscription." />;
   }
 
-  const handleSubscribe = async (planId: string, method: 'stripe' | 'automatic') => {
+  const handleSubscribe = async (planId: string) => {
     if (!user) {
       toast.error("Please log in to subscribe.");
       return;
@@ -124,30 +124,22 @@ const SubscribePage: React.FC = () => {
         throw new Error("Selected plan not found.");
       }
 
-      if (method === 'stripe' || method === 'automatic') {
-        const { data, error } = await supabase.functions.invoke('create-subscription', {
-          body: {
-            priceId: plan.priceId,
-            planId: plan.id,
-            planName: plan.name,
-            amount: Math.round(plan.price * 100),
-          }
-        });
-
-        if (error) {
-          throw new Error(error.message || 'Failed to create subscription session.');
+      const { data, error } = await supabase.functions.invoke('create-subscription', {
+        body: {
+          planId: plan.id,
+          planName: plan.name,
+          amount: plan.price,
         }
+      });
 
-        if (data?.success) {
-          toast.success("Subscription Activated!", {
-            description: `Your ${plan.name} subscription has been activated successfully.`
-          });
-          window.location.href = '/dashboard';
-        } else if (data?.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error('No response received from subscription processor.');
-        }
+      if (error) {
+        throw new Error(error.message || 'Failed to create subscription session.');
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No response received from subscription processor.');
       }
 
       setDialogOpen(false);
@@ -161,7 +153,7 @@ const SubscribePage: React.FC = () => {
     }
   };
 
-  const handlePaystackSubscribe = async (planId: string) => {
+  const handleAutomaticSubscribe = async (planId: string) => {
     if (!user) {
       toast.error("Please log in to subscribe.");
       return;
@@ -174,7 +166,7 @@ const SubscribePage: React.FC = () => {
         throw new Error("Selected plan not found.");
       }
 
-      const { data, error } = await supabase.functions.invoke('create-paystack-subscription', {
+      const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
           planId: plan.id,
           planName: plan.name,
@@ -183,20 +175,21 @@ const SubscribePage: React.FC = () => {
       });
 
       if (error) {
-        throw new Error(error.message || 'Failed to create Paystack subscription session.');
+        throw new Error(error.message || 'Failed to create subscription session.');
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No response received from Paystack subscription processor.');
+      if (data?.success) {
+        toast.success("Subscription Activated!", {
+          description: `Your ${plan.name} subscription has been activated successfully.`
+        });
+        window.location.href = '/dashboard';
       }
       
       setDialogOpen(false);
     } catch (error: any) {
-      console.error("Error subscribing with Paystack:", error);
+      console.error("Error subscribing:", error);
       toast.error("Subscription failed", {
-        description: error.message || "There was an error processing your subscription with Paystack. Please try again.",
+        description: error.message || "There was an error processing your subscription. Please try again.",
       });
     } finally {
       setPaymentProcessing(false);
@@ -280,8 +273,8 @@ const SubscribePage: React.FC = () => {
           title={`Subscribe to ${selectedPlanDetails.name}`}
           description={`You are about to subscribe to the ${selectedPlanDetails.name} plan for ${selectedPlanDetails.description}.`}
           amount={selectedPlanDetails.price}
-          onConfirm={(method) => selectedPlanId && handleSubscribe(selectedPlanId, method)}
-          onConfirmPaystack={() => selectedPlanId && handlePaystackSubscribe(selectedPlanId)}
+          onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
+          onConfirmAutomatic={() => selectedPlanId && handleAutomaticSubscribe(selectedPlanId)}
           processing={paymentProcessing}
           type="subscription"
         />
