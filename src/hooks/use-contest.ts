@@ -82,7 +82,7 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .in('status', ['active', 'upcoming'])
+        .or('status.eq.active,status.eq.upcoming')
         .order('start_date', { ascending: true });
 
       if (error) {
