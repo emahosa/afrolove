@@ -21,35 +21,24 @@ export const useContestSubmission = () => {
         throw new Error('User not authenticated');
       }
 
-      // Create contest entry with proper user_id
-      const entryData = {
-        contest_id: data.contestId,
-        user_id: user.id,
-        song_id: data.songId || null,
-        video_url: null,
-        description: data.description || null,
-        status: 'pending' as const,
-        approved: false,
-        media_type: 'audio' as const
-      };
+      const { data: rpcData, error: rpcError } = await supabase.rpc('submit_contest_entry', {
+        p_contest_id: data.contestId,
+        p_song_id: data.songId,
+        p_description: data.description,
+      });
 
-      console.log('Creating contest entry:', entryData);
-
-      const { data: entry, error: entryError } = await supabase
-        .from('contest_entries')
-        .insert(entryData)
-        .select()
-        .single();
-
-      if (entryError) {
-        console.error('Contest entry creation error:', entryError);
-        throw new Error(`Failed to create contest entry: ${entryError.message}`);
+      if (rpcError) {
+        console.error('Contest entry submission RPC error:', rpcError);
+        throw new Error(`Failed to submit entry: ${rpcError.message}`);
       }
 
-      console.log('Contest entry created successfully:', entry);
-      toast.success('Entry submitted successfully! Awaiting approval.');
+      if (!rpcData.success) {
+        throw new Error(rpcData.message);
+      }
+
+      toast.success(rpcData.message);
       
-      return entry;
+      return rpcData;
 
     } catch (error: any) {
       console.error('Contest submission error:', error);

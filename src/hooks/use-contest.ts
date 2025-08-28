@@ -44,7 +44,9 @@ export interface ContestEntry {
 export const useContest = () => {
   const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
+  const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
+  const [endedContests, setEndedContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -72,7 +74,6 @@ export const useContest = () => {
     return data.length === 0;
   }, [user]);
 
-  // Fetch active contests - ONLY contests table
   const fetchContests = useCallback(async () => {
     try {
       console.log('🔄 use-contest: fetchContests()');
@@ -82,7 +83,7 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('start_date', { ascending: true });
 
       if (error) {
         console.error('Error fetching contests:', error);
@@ -106,22 +107,40 @@ export const useContest = () => {
       }
       setUnlockedContestIds(newUnlockedIds);
       
-      const activeContestsData = data
-        ?.filter(contest => contest.status === 'active')
-        .map(contest => ({
+      const now = new Date();
+      const upcoming: Contest[] = [];
+      const active: Contest[] = [];
+      const ended: Contest[] = [];
+
+      data?.forEach(contest => {
+        const startDate = new Date(contest.start_date);
+        const endDate = new Date(contest.end_date);
+        const contestWithUnlock = {
           ...contest,
           is_unlocked: newUnlockedIds.has(contest.id)
-        })) || [];
+        };
+
+        if (endDate < now || contest.status === 'completed') {
+          ended.push(contestWithUnlock);
+        } else if (startDate > now) {
+          upcoming.push(contestWithUnlock);
+        } else {
+          active.push(contestWithUnlock);
+        }
+      });
+
+      setUpcomingContests(upcoming);
+      setActiveContests(active);
+      setEndedContests(ended);
       
-      setActiveContests(activeContestsData);
-      
-      if (activeContestsData.length > 0) {
-        const firstContest = activeContestsData[0];
-        setCurrentContest(firstContest);
-        console.log('Set current contest:', firstContest);
+      if (active.length > 0) {
+        setCurrentContest(active[0]);
+      } else if (upcoming.length > 0) {
+        setCurrentContest(upcoming[0]);
       } else {
         setCurrentContest(null);
       }
+
     } catch (error: any) {
       console.error('Error in fetchContests:', error);
       const errorMessage = error.message || 'Unknown error occurred';
@@ -408,6 +427,17 @@ export const useContest = () => {
       return false;
     }
 
+    const contest = contests.find(c => c.id === contestId);
+    if (!contest) {
+      toast.error("Contest not found.");
+      return false;
+    }
+
+    if (contest.entry_fee > 0 && !unlockedContestIds.has(contestId)) {
+      toast.error("You must unlock this contest before submitting an entry.");
+      return false;
+    }
+
     setSubmitting(true);
     try {
       console.log('🔄 use-contest: submitEntry() - Starting submission process');
@@ -577,15 +607,19 @@ export const useContest = () => {
   }, [fetchContests]);
 
   useEffect(() => {
-    if (currentContest) {
+    if (currentContest && (activeContests.some(c => c.id === currentContest.id))) {
       console.log('🎯 use-contest: Current contest changed, fetching entries - PROFILES ONLY:', currentContest.id);
       fetchContestEntries(currentContest.id);
+    } else {
+      setContestEntries([]);
     }
-  }, [currentContest]);
+  }, [currentContest, activeContests]);
 
   return {
     contests,
+    upcomingContests,
     activeContests,
+    endedContests,
     currentContest,
     contestEntries,
     loading,
