@@ -69,12 +69,9 @@ const subscriptionPlansData = [
   },
 ];
 
-import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
-
 const SubscribePage: React.FC = () => {
   const { user } = useAuth();
   const { isVerifying } = usePaymentVerification();
-  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,7 +93,6 @@ const SubscribePage: React.FC = () => {
         throw new Error("Selected plan not found.");
       }
 
-      // The backend will determine which payment gateway to use.
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
           priceId: plan.priceId,
@@ -109,31 +105,30 @@ const SubscribePage: React.FC = () => {
       });
 
       if (error) {
-        // The function itself might throw an error (e.g., payments disabled)
         throw new Error(error.message || 'Failed to create subscription session.');
       }
 
-      // A successful response should always contain a URL to redirect the user to.
-      if (data?.url) {
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
+      if (data?.success) {
+        toast.success("Subscription Activated!", { 
+          description: `Your ${plan.name} subscription has been activated successfully.` 
+        });
+        // Redirect to dashboard or refresh page
+        window.location.href = '/dashboard';
+      } else if (data?.url) {
         window.location.href = data.url;
       } else {
-        // If there's no URL, something is wrong with the configuration or response.
-        console.error("No redirect URL received from server:", data);
-        throw new Error('Could not initialize payment. Please contact support.');
+        throw new Error('No response received from subscription processor.');
       }
       
-    } catch (error) {
-      console.error("Error during subscription initiation:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      toast.error("Subscription Failed", {
-        description: errorMessage || "There was an error processing your subscription. Please try again.",
-      });
-      // Close the dialog on failure so the user can try again.
       setDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error subscribing:", error);
+      toast.error("Subscription failed", {
+        description: error.message || "There was an error processing your subscription. Please try again.",
+      });
     } finally {
-      // Don't set processing to false here, as the user is being redirected.
-      // If there's an error, it will be set to false in the catch block.
-      // setPaymentProcessing(false);
+      setPaymentProcessing(false);
     }
   };
 
@@ -180,7 +175,7 @@ const SubscribePage: React.FC = () => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
                       }}
-                      disabled={isLoadingSettings || !paymentSettings?.enabled || paymentProcessing || !user || user?.subscription?.planId === plan.id}
+                      disabled={paymentProcessing || !user || user?.subscription?.planId === plan.id}
                     >
                       {user?.subscription?.planId === plan.id
                         ? 'Current Plan'
@@ -208,15 +203,12 @@ const SubscribePage: React.FC = () => {
         <PaymentDialog
           open={dialogOpen && selectedPlanId !== null}
           onOpenChange={(open) => {
-            if (!open) {
-              setSelectedPlanId(null);
-              setPaymentProcessing(false); // Reset processing state if dialog is closed
-            }
+            if (!open) setSelectedPlanId(null);
             setDialogOpen(open);
           }}
           title={`Subscribe to ${selectedPlanDetails.name}`}
           description={`You are about to subscribe to the ${selectedPlanDetails.name} plan for ${selectedPlanDetails.description}.`}
-          amount={Math.round(selectedPlanDetails.price * 100)}
+          amount={selectedPlanDetails.price}
           onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
           processing={paymentProcessing}
           type="subscription"
