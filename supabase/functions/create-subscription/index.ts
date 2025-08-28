@@ -85,10 +85,10 @@ serve(async (req) => {
         console.error('❌ Error deactivating existing subscriptions:', deactivateError);
       }
 
-      // Create new subscription record
+      // Upsert subscription record
       const { error: subError } = await supabaseService
         .from('user_subscriptions')
-        .insert({
+        .upsert({
           user_id: user.id,
           subscription_type: planId,
           subscription_status: 'active',
@@ -96,13 +96,12 @@ serve(async (req) => {
           expires_at: expiresAt.toISOString(),
           stripe_subscription_id: `auto-${Date.now()}`,
           stripe_customer_id: `auto-customer-${user.id}`,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
 
       if (subError) {
-        console.error('❌ Error creating subscription:', subError);
-        throw new Error('Failed to create subscription');
+        console.error('❌ Error upserting subscription:', subError);
+        throw new Error('Failed to upsert subscription');
       }
 
       // Update user roles - remove voter, add subscriber
