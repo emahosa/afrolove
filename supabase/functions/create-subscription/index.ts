@@ -42,20 +42,41 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // 1. Check the new payment_gateways table first
     const { data: gateways, error: gatewayError } = await supabaseService
       .from('payment_gateways')
-      .select('*');
+      .select('*')
+      .eq('enabled', true);
 
     if (gatewayError) {
-      throw new Error('Could not fetch payment gateway settings.');
+      console.error('Could not fetch payment gateway settings. Falling back.', gatewayError);
     }
 
-    const activeGateway = gateways.find(g => g.enabled);
+    let activeGateway = gateways?.[0]; // Use the first enabled gateway
+
+    // 2. If no active gateway in the new table, check the old system_settings
+    if (!activeGateway) {
+      console.log('🤔 No active gateway in new table, checking legacy settings...');
+      const { data: stripeSettings, error: settingsError } = await supabaseService
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'stripe_enabled')
+        .maybeSingle();
+
+      if (!settingsError && stripeSettings?.value && (stripeSettings.value as any).enabled === true) {
+        console.log('✅ Legacy Stripe setting is enabled.');
+        activeGateway = {
+          name: 'stripe',
+          secret_key: Deno.env.get("STRIPE_SECRET_KEY") || "",
+        };
+      }
+    }
 
     const { priceId, planId, planName, amount, credits } = await req.json();
 
+    // If no active gateway is found in either new or old system, process automatically
     if (!activeGateway) {
-      console.log('🔄 No active payment gateway - processing automatic subscription');
+      console.log('🔄 No active payment gateway found - processing automatic subscription');
       
       const subscriptionStartDate = new Date();
       const expiresAt = new Date(subscriptionStartDate);
@@ -161,6 +182,7 @@ serve(async (req) => {
       });
     }
 
+    // A gateway is active, process payment
     switch (activeGateway.name) {
       case 'stripe': {
         console.log('🔄 Stripe enabled - creating subscription session');
@@ -185,10 +207,7 @@ serve(async (req) => {
                 product_data: {
                   name: `${planName} Subscription`,
                   description: `Monthly subscription to ${planName} plan`,
-                  metadata: {
-                    type: 'subscription',
-                    plan: planId
-                  }
+                  metadata: { type: 'subscription', plan: planId }
                 },
                 unit_amount: amount,
                 recurring: { interval: "month" },
@@ -217,6 +236,10 @@ serve(async (req) => {
       }
       case 'paystack': {
         console.log('🔄 Paystack enabled - creating transaction');
+
+        if (!activeGateway.secret_key) {
+          throw new Error("Paystack secret key is not configured.");
+        }
 
         const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
           method: 'POST',
@@ -250,8 +273,9 @@ serve(async (req) => {
           status: 200,
         });
       }
-      default:
-        throw new Error('Unsupported payment gateway');
+      default: {
+        throw new Error(`Unsupported payment gateway: ${activeGateway.name}`);
+      }
     }
   } catch (error) {
     console.error("Subscription creation error:", error);
