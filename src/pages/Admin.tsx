@@ -18,6 +18,7 @@ import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
+import { PaymentGatewayManagement } from "@/components/admin/PaymentGatewayManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
 
 interface AdminProps {
@@ -135,6 +136,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="payment-gateways">Payment Gateways</TabsTrigger>
               <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             </TabsList>
           </div>
@@ -386,6 +388,18 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent>
                 <AffiliateManagementTab />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payment-gateways" className="space-y-4">
+            <Card className="bg-card">
+              <CardHeader>
+                <CardTitle>Payment Gateway Management</CardTitle>
+                <CardDescription>Manage payment gateways and API configurations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PaymentGatewayManagement />
               </CardContent>
             </Card>
           </TabsContent>
