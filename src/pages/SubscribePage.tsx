@@ -16,7 +16,8 @@ const subscriptionPlansData = [
     id: "basic_monthly",
     name: "Basic",
     price: 9.99,
-    priceId: "price_basic_monthly", 
+    priceId: "price_basic_monthly", // Replace with your Stripe Price ID
+    paystackPlanCode: "PLN_xxxxxxxxxxxx", // Replace with your Paystack Plan Code
     currency: "USD",
     interval: "month",
     description: "$9.99/month",
@@ -32,7 +33,8 @@ const subscriptionPlansData = [
     id: "premium_monthly",
     name: "Premium",
     price: 19.99,
-    priceId: "price_premium_monthly", 
+    priceId: "price_premium_monthly", // Replace with your Stripe Price ID
+    paystackPlanCode: "PLN_yyyyyyyyyyyy", // Replace with your Paystack Plan Code
     currency: "USD",
     interval: "month",
     description: "$19.99/month",
@@ -49,7 +51,8 @@ const subscriptionPlansData = [
     id: "professional_monthly",
     name: "Professional",
     price: 39.99,
-    priceId: "price_professional_monthly",
+    priceId: "price_professional_monthly", // Replace with your Stripe Price ID
+    paystackPlanCode: "PLN_zzzzzzzzzzzz", // Replace with your Paystack Plan Code
     currency: "USD",
     interval: "month",
     description: "$39.99/month",
@@ -93,9 +96,11 @@ const SubscribePage: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
           priceId: plan.priceId,
+          paystackPlanCode: plan.paystackPlanCode,
           planId: plan.id,
           planName: plan.name,
           amount: Math.round(plan.price * 100),
+          credits: plan.creditsPerMonth,
         }
       });
 

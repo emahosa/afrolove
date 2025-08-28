@@ -182,6 +182,7 @@ serve(async (req) => {
         currency: 'NGN', // Or get from request if supporting multiple currencies
         callback_url: `${req.headers.get("origin")}/credits?payment=success`,
         metadata: {
+          type: 'credits',
           user_id: user.id,
           credits: credits,
           pack_id: packId,

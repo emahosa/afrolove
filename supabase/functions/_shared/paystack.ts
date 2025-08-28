@@ -1,9 +1,10 @@
 export interface InitTransactionParams {
   email: string;
-  amount: number; // in kobo (e.g., ₦1000 => 100000)
+  amount?: number; // in kobo (e.g., ₦1000 => 100000)
   currency?: string;
   callback_url?: string;
   metadata?: Record<string, any>;
+  plan?: string;
 }
 
 export interface InitTransactionResponse {
@@ -59,15 +60,24 @@ export class PaystackClient {
   }
 
   async initTransaction(params: InitTransactionParams): Promise<InitTransactionResponse> {
+    const body: any = {
+      email: params.email,
+      currency: params.currency ?? "NGN",
+      callback_url: params.callback_url,
+      metadata: params.metadata,
+    };
+
+    if (params.plan) {
+      body.plan = params.plan;
+    } else if (params.amount) {
+      body.amount = params.amount;
+    } else {
+      throw new Error("Either amount or plan must be provided to initialize a transaction.");
+    }
+
     return this.request<InitTransactionResponse>("/transaction/initialize", {
       method: "POST",
-      body: JSON.stringify({
-        email: params.email,
-        amount: params.amount,
-        currency: params.currency ?? "NGN",
-        callback_url: params.callback_url,
-        metadata: params.metadata,
-      }),
+      body: JSON.stringify(body),
     });
   }
 
