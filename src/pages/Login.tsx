@@ -10,6 +10,7 @@ import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import AuthPageLayout from "@/layouts/AuthPageLayout";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -202,6 +203,7 @@ const Login = () => {
   // Show MFA verification screen if needed
   if (showMFAVerification && factorId && challengeId) {
     return (
+      <AuthPageLayout>
         <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm text-center">
             <div className="flex items-center justify-center mb-6">
                 <Music className="h-8 w-8 text-dark-purple" />
@@ -220,6 +222,7 @@ const Login = () => {
   }
 
   return (
+    <AuthPageLayout>
       <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center justify-center mb-6">
             <Music className="h-8 w-8 text-dark-purple" />
@@ -305,6 +308,7 @@ const Login = () => {
           </Link>
         </p>
       </div>
+    </AuthPageLayout>
   );
 };
 

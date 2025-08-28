@@ -9,6 +9,7 @@ import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import AuthPageLayout from "@/layouts/AuthPageLayout";
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -84,6 +85,7 @@ const Register = () => {
   };
 
   return (
+    <AuthPageLayout>
       <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center justify-center mb-6">
             <Music className="h-8 w-8 text-dark-purple" />
@@ -181,6 +183,7 @@ const Register = () => {
           </Link>
         </p>
       </div>
+    </AuthPageLayout>
   );
 };
 
