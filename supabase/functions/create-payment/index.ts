@@ -71,44 +71,10 @@ serve(async (req) => {
 
     const { amount, credits, description, packId } = await req.json();
 
-    // If payment gateways are disabled, process payment automatically
+    // If payment gateways are disabled, throw an error
     if (!settings?.enabled) {
-      console.log('💳 Payment gateways disabled - processing automatic payment');
-      
-      const { data: newBalance, error: creditError } = await supabaseService.rpc('update_user_credits', {
-        p_user_id: user.id,
-        p_amount: credits
-      });
-
-      if (creditError) {
-        console.error('❌ Error updating credits:', creditError);
-        throw new Error('Failed to add credits');
-      }
-
-      const { error: transactionError } = await supabaseService
-        .from('payment_transactions')
-        .insert({
-          user_id: user.id,
-          amount: amount / 100,
-          currency: 'USD',
-          payment_method: 'automatic',
-          status: 'completed',
-          payment_id: `auto-${Date.now()}`,
-          credits_purchased: credits
-        });
-
-      if (transactionError) console.error('❌ Error logging transaction:', transactionError);
-
-      console.log(`✅ Credits added automatically. New balance: ${newBalance}`);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Credits added successfully',
-        newBalance: newBalance 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      console.error('❌ Payment gateways are disabled. Cannot process payment.');
+      throw new Error("The payment system is currently disabled. Please contact support.");
     }
 
     // --- Stripe Payment Flow ---
