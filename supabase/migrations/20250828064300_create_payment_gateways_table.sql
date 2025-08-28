@@ -24,8 +24,6 @@ FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
 
 -- Insert initial data for Stripe and Paystack
-INSERT INTO payment_gateways (name, enabled) VALUES ('stripe', true);
+-- We'll leave them disabled by default to be configured in the new admin UI.
+INSERT INTO payment_gateways (name, enabled) VALUES ('stripe', false);
 INSERT INTO payment_gateways (name, enabled) VALUES ('paystack', false);
-
--- Remove old stripe_enabled setting if it exists
-DELETE FROM system_settings WHERE key = 'stripe_enabled';

@@ -69,7 +69,7 @@ serve(async (req) => {
 
     if (payload.event === 'charge.success') {
       console.log("Processing successful charge event...");
-      const { metadata, customer, reference, amount } = payload.data;
+      const { metadata, customer, reference, amount, currency } = payload.data;
       const { user_id, plan_id, plan_name, credits } = metadata;
 
       if (!user_id || !plan_id) {
@@ -106,7 +106,7 @@ serve(async (req) => {
       await supabaseService.from('payment_transactions').insert({
         user_id: user_id,
         amount: amount / 100, // Convert from kobo/cents
-        currency: payload.data.currency,
+        currency: currency,
         payment_method: 'paystack',
         status: 'completed',
         payment_id: reference,
