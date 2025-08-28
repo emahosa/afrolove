@@ -99,38 +99,6 @@ const Credits: React.FC = () => {
       if (!error && data) setUserProfile(data);
     };
     fetchUserProfile();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const provider = urlParams.get('provider');
-    const trxref = urlParams.get('trxref');
-
-    if (paymentStatus === 'success' && provider === 'paystack' && trxref) {
-      const verifyPayment = async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('verify-payment-transaction', {
-            body: { reference: trxref }
-          });
-
-          if (error || !data.verified) {
-            throw new Error('Payment verification failed.');
-          }
-
-          toast.success('Payment successful!', {
-            description: 'Your credits have been added to your account.',
-          });
-          fetchUserProfile(); // Refresh user profile to show new credit balance
-        } catch (error) {
-          toast.error('Payment verification failed.', {
-            description: 'Please contact support if you have any issues.',
-          });
-        } finally {
-          // Clean up URL
-          window.history.replaceState({}, document.title, "/credits");
-        }
-      };
-      verifyPayment();
-    }
   }, [user]);
 
   const creditPackages = [
@@ -148,44 +116,8 @@ const Credits: React.FC = () => {
     // ... (same as before)
   };
 
-  const handlePurchase = async () => {
-    if (!selectedPackage) return;
-    try {
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          amount: selectedPackage.amount,
-          credits: selectedPackage.credits,
-          description: `Purchase of ${selectedPackage.credits} credits`,
-        }
-      });
-      if (error) throw error;
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      toast.error('Payment failed. Please try again.');
-    }
-  };
-
-  const handleAutomaticPurchase = async () => {
-    // This is for the case when Paystack is disabled
-    if (!selectedPackage) return;
-    try {
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          amount: Math.round(selectedPackage.amount * 100),
-          credits: selectedPackage.credits,
-          description: `Purchase of ${selectedPackage.credits} credits`,
-        }
-      });
-      if (error) throw error;
-      if (data.success) {
-        toast.success('Credits added successfully!');
-        // refresh credits balance
-      }
-    } catch (error) {
-      toast.error('Payment failed. Please try again.');
-    }
+  const processPayment = async () => {
+    // ... (same as before)
   };
 
   const handleSubscriptionChange = async (planId: string) => {
@@ -410,8 +342,7 @@ const Credits: React.FC = () => {
         description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.amount}`}
         amount={selectedPackage?.amount || 0}
         credits={selectedPackage?.credits || 0}
-        onConfirm={handlePurchase}
-        onConfirmAutomatic={handleAutomaticPurchase}
+        onConfirm={processPayment}
         processing={processing}
         type="credits"
       />

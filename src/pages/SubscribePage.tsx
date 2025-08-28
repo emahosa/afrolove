@@ -73,40 +73,6 @@ const SubscribePage: React.FC = () => {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subscriptionStatus = urlParams.get('subscription');
-    const provider = urlParams.get('provider');
-    const trxref = urlParams.get('trxref');
-
-    if (subscriptionStatus === 'success' && provider === 'paystack' && trxref) {
-      const verifySubscription = async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('verify-payment-transaction', {
-            body: { reference: trxref }
-          });
-
-          if (error || !data.verified) {
-            throw new Error('Subscription verification failed.');
-          }
-
-          toast.success('Subscription successful!', {
-            description: 'Your subscription has been activated.',
-          });
-          // You might want to redirect to the dashboard or refresh user data here
-        } catch (error) {
-          toast.error('Subscription verification failed.', {
-            description: 'Please contact support if you have any issues.',
-          });
-        } finally {
-          // Clean up URL
-          window.history.replaceState({}, document.title, "/subscribe");
-        }
-      };
-      verifySubscription();
-    }
-  }, []);
-
   if (isVerifying) {
     return <PaymentLoadingScreen title="Activating Subscription..." description="Please wait while we activate your subscription." />;
   }
@@ -126,9 +92,10 @@ const SubscribePage: React.FC = () => {
 
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
+          priceId: plan.priceId,
           planId: plan.id,
           planName: plan.name,
-          amount: plan.price,
+          amount: Math.round(plan.price * 100),
         }
       });
 
@@ -136,53 +103,17 @@ const SubscribePage: React.FC = () => {
         throw new Error(error.message || 'Failed to create subscription session.');
       }
 
-      if (data?.url) {
+      // Check if response contains success (automatic processing) or url (Stripe redirect)
+      if (data?.success) {
+        toast.success("Subscription Activated!", { 
+          description: `Your ${plan.name} subscription has been activated successfully.` 
+        });
+        // Redirect to dashboard or refresh page
+        window.location.href = '/dashboard';
+      } else if (data?.url) {
         window.location.href = data.url;
       } else {
         throw new Error('No response received from subscription processor.');
-      }
-
-      setDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error subscribing:", error);
-      toast.error("Subscription failed", {
-        description: error.message || "There was an error processing your subscription. Please try again.",
-      });
-    } finally {
-      setPaymentProcessing(false);
-    }
-  };
-
-  const handleAutomaticSubscribe = async (planId: string) => {
-    if (!user) {
-      toast.error("Please log in to subscribe.");
-      return;
-    }
-
-    setPaymentProcessing(true);
-    try {
-      const plan = subscriptionPlansData.find(p => p.id === planId);
-      if (!plan) {
-        throw new Error("Selected plan not found.");
-      }
-
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: {
-          planId: plan.id,
-          planName: plan.name,
-          amount: plan.price,
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to create subscription session.');
-      }
-
-      if (data?.success) {
-        toast.success("Subscription Activated!", {
-          description: `Your ${plan.name} subscription has been activated successfully.`
-        });
-        window.location.href = '/dashboard';
       }
       
       setDialogOpen(false);
@@ -274,7 +205,6 @@ const SubscribePage: React.FC = () => {
           description={`You are about to subscribe to the ${selectedPlanDetails.name} plan for ${selectedPlanDetails.description}.`}
           amount={selectedPlanDetails.price}
           onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
-          onConfirmAutomatic={() => selectedPlanId && handleAutomaticSubscribe(selectedPlanId)}
           processing={paymentProcessing}
           type="subscription"
         />
