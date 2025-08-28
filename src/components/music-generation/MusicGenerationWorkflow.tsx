@@ -168,12 +168,12 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
     (selectedGenreId ? genres.find(g => g.id === selectedGenreId)?.name : "");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-white">
       {templateData && (
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className="border-dark-purple bg-white/5">
           <CardHeader>
-            <CardTitle className="text-lg">Using Template: {templateData.template_name}</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-lg text-white">Using Template: {templateData.template_name}</CardTitle>
+            <CardDescription className="text-gray-400">
               Genre: {templateData.genres?.name}
             </CardDescription>
           </CardHeader>
@@ -182,20 +182,20 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
       {!templateData && (
         <div className="space-y-2">
-          <Label htmlFor="genre">Genre <span className="text-destructive">*</span></Label>
+          <Label htmlFor="genre" className="text-gray-300">Genre <span className="text-red-500">*</span></Label>
           {genresLoading ? (
-            <div className="flex items-center text-sm text-muted-foreground">
+            <div className="flex items-center text-sm text-gray-400">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
               Loading genres...
             </div>
           ) : (
             <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-              <SelectTrigger id="genre">
+              <SelectTrigger id="genre" className="bg-black/20 border-white/20">
                 <SelectValue placeholder="Select a genre" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-900 border-white/20 text-white">
                 {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id}>
+                  <SelectItem key={genre.id} value={genre.id} className="focus:bg-dark-purple">
                     {genre.name}
                   </SelectItem>
                 ))}
@@ -206,14 +206,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="model">AI Model</Label>
+        <Label htmlFor="model" className="text-gray-300">AI Model</Label>
         <Select value={selectedModel} onValueChange={setSelectedModel}>
-          <SelectTrigger id="model">
+          <SelectTrigger id="model" className="bg-black/20 border-white/20">
             <SelectValue placeholder="Select an AI model" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-gray-900 border-white/20 text-white">
             {availableModels.map(model => (
-              <SelectItem key={model.value} value={model.value}>
+              <SelectItem key={model.value} value={model.value} className="focus:bg-dark-purple">
                 {model.label}
               </SelectItem>
             ))}
@@ -224,32 +224,32 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
         <div>
           <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
-          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
             Prompt Mode
-            <span className="text-xs font-normal text-muted-foreground">Simple description</span>
+            <span className="text-xs font-normal text-gray-400">Simple description</span>
           </Label>
         </div>
         <div>
           <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
-          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer">
+          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
             Lyrics Mode
-            <span className="text-xs font-normal text-muted-foreground">Use your own lyrics</span>
+            <span className="text-xs font-normal text-gray-400">Use your own lyrics</span>
           </Label>
         </div>
       </RadioGroup>
 
       {creationMode === 'lyrics' && (
         <div className="space-y-2">
-          <Label htmlFor="title">Song Title <span className="text-destructive">*</span></Label>
-          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Label htmlFor="title" className="text-gray-300">Song Title <span className="text-red-500">*</span></Label>
+          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-black/20 border-white/20 text-white placeholder-gray-500" />
         </div>
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="prompt-input">
+        <Label htmlFor="prompt-input" className="text-gray-300">
           {creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}
           {templateData && creationMode === 'prompt' && (
-            <span className="text-sm text-muted-foreground ml-2">
+            <span className="text-sm text-gray-400 ml-2">
               (Template suggestion provided)
             </span>
           )}
@@ -259,23 +259,23 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="min-h-[120px]"
+          className="min-h-[120px] bg-black/20 border-white/20 text-white placeholder-gray-500"
           maxLength={creationMode === 'prompt' ? 99 : undefined}
         />
         {creationMode === 'prompt' && (
-          <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
+          <p className="text-xs text-gray-400 text-right">{prompt.length}/99</p>
         )}
       </div>
 
       <div className="flex items-center space-x-2">
-        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} />
-        <Label htmlFor="instrumental">Generate instrumental only</Label>
+        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} className="data-[state=checked]:bg-dark-purple" />
+        <Label htmlFor="instrumental" className="text-gray-300">Generate instrumental only</Label>
       </div>
 
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-        className="w-full"
+        className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
         size="lg"
       >
         {isGenerating ? (
@@ -286,7 +286,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         Generate Song (20 Credits)
       </Button>
 
-      <p className="text-xs text-muted-foreground text-center">
+      <p className="text-xs text-gray-400 text-center">
         Generation takes 1-2 minutes. Your song will appear in the Library.
       </p>
     </div>

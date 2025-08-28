@@ -131,33 +131,33 @@ const SubscribePage: React.FC = () => {
 
   return (
     <>
-      <div className="container mx-auto py-12 px-4 md:px-6 max-w-4xl">
-        <Card className="shadow-lg border-none">
-          <CardHeader className="text-center px-6 py-8 bg-gradient-to-br from-primary to-primary/80 rounded-t-lg">
-            <CardTitle className="text-4xl font-extrabold tracking-tight text-primary-foreground">Unlock Your Full Potential</CardTitle>
-            <CardDescription className="text-xl text-primary-foreground/90 mt-2">
+      <div className="container mx-auto py-12 px-4 md:px-6 max-w-5xl text-white">
+        <Card className="shadow-lg border-white/10 bg-white/5 backdrop-blur-sm">
+          <CardHeader className="text-center px-6 py-8 bg-dark-purple/20 rounded-t-lg">
+            <CardTitle className="text-4xl font-extrabold tracking-tight text-white">Unlock Your Full Potential</CardTitle>
+            <CardDescription className="text-xl text-gray-300 mt-2">
               Choose a plan that fits your creative needs and access all premium features.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 md:p-10 space-y-10">
             <div className="text-center">
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-gray-400">
                 Our subscription plans give you unlimited access to music generation, your full song library, credit purchases, and much more!
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {subscriptionPlansData.map((plan) => (
-                <Card key={plan.id} className="flex flex-col shadow-md hover:shadow-xl transition-shadow duration-300">
+                <Card key={plan.id} className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-2xl font-semibold">{plan.name}</CardTitle>
-                    <CardDescription className="text-lg font-medium text-primary">{plan.description}</CardDescription>
+                    <CardTitle className="text-2xl font-semibold text-white">{plan.name}</CardTitle>
+                    <CardDescription className="text-lg font-medium text-dark-purple">{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-4">
-                    <ul className="space-y-2 text-sm text-muted-foreground">
+                    <ul className="space-y-2 text-sm text-gray-300">
                       {plan.features.map((feature, index) => (
                         <li key={index} className="flex items-start">
-                          <CheckCircle className="h-5 w-5 mr-2 text-green-500 flex-shrink-0 mt-0.5" />
+                          <CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -165,7 +165,7 @@ const SubscribePage: React.FC = () => {
                   </CardContent>
                   <CardFooter className="mt-auto pt-6">
                     <Button
-                      className="w-full text-lg py-3"
+                      className="w-full text-lg py-3 bg-dark-purple hover:bg-opacity-90 font-bold"
                       onClick={() => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
@@ -183,12 +183,12 @@ const SubscribePage: React.FC = () => {
               ))}
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col items-center text-center p-6 bg-muted/50 rounded-b-lg">
-            <p className="text-sm text-muted-foreground mb-4">
-              By subscribing, you agree to our <Link to="/terms" className="underline hover:text-primary">Terms of Service</Link> and <Link to="/privacy" className="underline hover:text-primary">Privacy Policy</Link>.
+          <CardFooter className="flex flex-col items-center text-center p-6 bg-black/20 rounded-b-lg">
+            <p className="text-sm text-gray-500 mb-4">
+              By subscribing, you agree to our <Link to="/terms" className="underline hover:text-dark-purple">Terms of Service</Link> and <Link to="/privacy" className="underline hover:text-dark-purple">Privacy Policy</Link>.
             </p>
             <Link to="/dashboard">
-              <Button variant="ghost" className="text-muted-foreground hover:text-primary">Maybe Later</Button>
+              <Button variant="ghost" className="text-gray-400 hover:text-white">Maybe Later</Button>
             </Link>
           </CardFooter>
         </Card>

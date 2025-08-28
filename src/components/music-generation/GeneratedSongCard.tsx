@@ -103,18 +103,20 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'bg-green-500';
+      case 'approved':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'processing':
-        return 'bg-yellow-500';
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
       case 'failed':
-        return 'bg-red-500';
+      case 'rejected':
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
       default:
-        return 'bg-gray-500';
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return 'Unknown';
+    if (!seconds) return 'N/A';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -123,22 +125,22 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const isCurrentlyPlaying = currentTrack?.id === song.id && isPlaying;
 
   return (
-    <Card className="group hover:shadow-lg transition-shadow duration-200">
+    <Card className="group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg font-semibold truncate">
+            <CardTitle className="text-lg font-bold truncate text-white">
               {song.title}
             </CardTitle>
             <div className="flex items-center gap-2 mt-2">
               <Badge 
-                variant="secondary" 
-                className={`${getStatusColor(song.status)} text-white`}
+                variant="outline"
+                className={`text-xs ${getStatusColor(song.status)}`}
               >
                 {song.status}
               </Badge>
               {song.genre && (
-                <Badge variant="outline">
+                <Badge variant="outline" className="border-white/20 text-gray-300">
                   <Music className="h-3 w-3 mr-1" />
                   {song.genre}
                 </Badge>
@@ -148,29 +150,48 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            <span>{formatDuration(song.duration)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Zap className="h-4 w-4" />
-            <span>{song.credits_used} credits</span>
-          </div>
+      <CardContent className="space-y-4 flex-grow flex flex-col">
+        <div className="flex-grow space-y-2">
+            <div className="flex items-center justify-between text-sm text-gray-400">
+                <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    <span>{formatDuration(song.duration)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Zap className="h-4 w-4" />
+                    <span>{song.credits_used} credits</span>
+                </div>
+            </div>
+
+            <div className="text-xs text-gray-500">
+                Created: {new Date(song.created_at).toLocaleDateString()}
+            </div>
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          Created: {new Date(song.created_at).toLocaleDateString()}
-        </div>
+        {song.lyrics && (
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/30 hover:bg-white/10 text-white">
+                <FileText className="h-4 w-4 mr-2" />
+                Show Lyrics
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="p-3 bg-black/30 rounded-md max-h-32 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
+                  {song.lyrics}
+                </pre>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
-        {song.status === 'completed' && song.audio_url && (
-          <div className="flex gap-2">
+        {song.status === 'completed' || song.status === 'approved' && song.audio_url ? (
+          <div className="flex gap-2 pt-4">
             <Button
               onClick={handlePlay}
-              variant="outline"
               size="sm"
-              className="flex-1"
+              className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold"
             >
               {isCurrentlyPlaying ? (
                 <Pause className="h-4 w-4 mr-2" />
@@ -185,48 +206,19 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               variant="outline"
               size="sm"
               disabled={isDownloading}
+              className="bg-transparent border-white/30 hover:bg-white/10"
             >
               {isDownloading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-current mr-2" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4" />
               )}
-              {isDownloading ? 'Downloading...' : 'Download'}
             </Button>
           </div>
-        )}
-
-        {song.lyrics && (
-          <Collapsible open={showLyrics} onOpenChange={setShowLyrics}>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full mt-2">
-                <FileText className="h-4 w-4 mr-2" />
-                {showLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <div className="p-4 bg-muted/50 rounded-md">
-                <pre className="whitespace-pre-wrap text-sm font-mono">
-                  {song.lyrics}
-                </pre>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {song.status === 'processing' && (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-melody-primary mx-auto mb-2"></div>
-            <p className="text-sm text-muted-foreground">Generating your song...</p>
-          </div>
-        )}
-
-        {song.status === 'failed' && (
-          <div className="text-center py-4">
-            <p className="text-sm text-red-600">
-              Song generation failed. Please try again.
-            </p>
-          </div>
+        ) : (
+            <div className="text-center py-4 text-sm text-gray-400">
+                {song.status === 'processing' ? 'Generating song...' : 'Audio not available'}
+            </div>
         )}
       </CardContent>
     </Card>
