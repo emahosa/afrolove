@@ -126,22 +126,21 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
 
   return (
     <Card className="group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full">
-      <CardHeader className="pb-3">
+      <CardHeader className="p-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg font-bold truncate text-white">
+            <CardTitle className="text-base font-semibold truncate text-white">
               {song.title}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-1">
               <Badge 
                 variant="outline"
-                className={`text-xs ${getStatusColor(song.status)}`}
+                className={`text-xs ${getStatusColor(song.status)} px-1.5 py-0.5`}
               >
                 {song.status}
               </Badge>
               {song.genre && (
-                <Badge variant="outline" className="border-white/20 text-gray-300">
-                  <Music className="h-3 w-3 mr-1" />
+                <Badge variant="outline" className="border-white/20 text-gray-300 text-xs px-1.5 py-0.5">
                   {song.genre}
                 </Badge>
               )}
@@ -150,15 +149,15 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 flex-grow flex flex-col">
-        <div className="flex-grow space-y-2">
-            <div className="flex items-center justify-between text-sm text-gray-400">
-                <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4" />
+      <CardContent className="p-3 space-y-2 flex-grow flex flex-col">
+        <div className="flex-grow space-y-1">
+            <div className="flex items-center justify-between text-xs text-gray-400">
+                <div className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
                     <span>{formatDuration(song.duration)}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <Zap className="h-4 w-4" />
+                <div className="flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
                     <span>{song.credits_used} credits</span>
                 </div>
             </div>
@@ -171,13 +170,13 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         {song.lyrics && (
           <Collapsible>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/30 hover:bg-white/10 text-white">
-                <FileText className="h-4 w-4 mr-2" />
-                Show Lyrics
+              <Button variant="outline" size="xs" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
+                <FileText className="h-3 w-3 mr-1" />
+                Lyrics
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
-              <div className="p-3 bg-black/30 rounded-md max-h-32 overflow-y-auto">
+              <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
                 <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
                   {song.lyrics}
                 </pre>
@@ -187,16 +186,16 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         )}
 
         {song.status === 'completed' || song.status === 'approved' && song.audio_url ? (
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button
               onClick={handlePlay}
               size="sm"
-              className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold"
+              className="flex-1 bg-dark-purple hover:bg-opacity-90 font-semibold text-xs h-8"
             >
               {isCurrentlyPlaying ? (
-                <Pause className="h-4 w-4 mr-2" />
+                <Pause className="h-4 w-4 mr-1" />
               ) : (
-                <Play className="h-4 w-4 mr-2" />
+                <Play className="h-4 w-4 mr-1" />
               )}
               {isCurrentlyPlaying ? 'Pause' : 'Play'}
             </Button>
@@ -204,9 +203,9 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             <Button
               onClick={handleDownload}
               variant="outline"
-              size="sm"
+              size="icon"
               disabled={isDownloading}
-              className="bg-transparent border-white/30 hover:bg-white/10"
+              className="bg-transparent border-white/20 hover:bg-white/10 h-8 w-8"
             >
               {isDownloading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
