@@ -140,7 +140,7 @@ const Profile = () => {
           </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-bold text-white">{formData.full_name || 'User Profile'}</h1>
+          <h1 className="text-3xl font-semibold text-white">{formData.full_name || 'User Profile'}</h1>
           <p className="text-gray-400">Manage your account settings</p>
         </div>
       </div>
