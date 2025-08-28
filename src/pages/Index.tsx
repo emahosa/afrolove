@@ -116,6 +116,10 @@ export default function Index() {
                   See How It Works
                 </a>
               </div>
+
+              <div className="mt-6 text-sm text-gray-500">
+                30 days early access only. Limited creator slots available.
+              </div>
             </section>
 
             {/* Secondary Section */}
@@ -140,11 +144,6 @@ export default function Index() {
                 </p>
               </div>
             </section>
-
-            {/* Footer */}
-            <footer className="w-full py-8 mt-16 text-center text-gray-500 text-sm">
-              © {new Date().getFullYear()} Afroverse · Early Access
-            </footer>
         </div>
       </main>
 
