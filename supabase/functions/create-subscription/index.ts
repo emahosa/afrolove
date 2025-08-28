@@ -178,15 +178,24 @@ serve(async (req) => {
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           customer_email: customerId ? undefined : user.email,
-          line_items: [{
-            price_data: {
-              currency: "usd",
-              product_data: { name: `${planName} Subscription` },
-              unit_amount: amount,
-              recurring: { interval: "month" },
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                product_data: {
+                  name: `${planName} Subscription`,
+                  description: `Monthly subscription to ${planName} plan`,
+                  metadata: {
+                    type: 'subscription',
+                    plan: planId
+                  }
+                },
+                unit_amount: amount,
+                recurring: { interval: "month" },
+              },
+              quantity: 1,
             },
-            quantity: 1,
-          }],
+          ],
           mode: "subscription",
           success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
@@ -194,6 +203,9 @@ serve(async (req) => {
             type: 'subscription',
             user_id: user.id,
             plan_id: planId,
+            plan_name: planName,
+            user_email: user.email,
+            credits: credits || 0
           }
         });
 
