@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Music, RefreshCw, Clock, Search } from "lucide-react";
+import { Loader2, Music, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
 import VoterLockScreen from "@/components/VoterLockScreen";
@@ -28,7 +27,6 @@ const Library = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const songsPerPage = 12; // Adjusted for better grid layout
 
@@ -185,23 +183,11 @@ const Library = () => {
     return <p className="text-gray-400">Please log in to view your songs.</p>
   }
 
-  const filteredSongs = songs.filter(song => {
-    const query = searchQuery.toLowerCase();
-    const titleMatch = song.title.toLowerCase().includes(query);
-    const promptMatch = song.prompt?.toLowerCase().includes(query) || false;
-    return titleMatch || promptMatch;
-  });
-
-  const totalPages = Math.ceil(filteredSongs.length / songsPerPage);
+  const completedSongs = songs;
+  const totalPages = Math.ceil(completedSongs.length / songsPerPage);
   const indexOfLastSong = currentPage * songsPerPage;
   const indexOfFirstSong = indexOfLastSong - songsPerPage;
-  const currentSongs = filteredSongs.slice(indexOfFirstSong, indexOfLastSong);
-
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery]);
+  const currentSongs = completedSongs.slice(indexOfFirstSong, indexOfLastSong);
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -215,7 +201,7 @@ const Library = () => {
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8">
-      <div className="flex items-center justify-between flex-shrink-0 mb-4">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-3xl font-semibold text-white">My Library</h1>
           <p className="text-gray-400">All your completed songs</p>
@@ -224,17 +210,6 @@ const Library = () => {
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
-      </div>
-
-      <div className="relative w-full max-w-sm mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-        <Input
-          type="text"
-          placeholder="Search by title or prompt..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-black/20 border-white/20 pl-10 text-white placeholder-gray-500"
-        />
       </div>
 
       <div className="mt-6">
@@ -246,14 +221,6 @@ const Library = () => {
                 <GeneratedSongCard key={song.id} song={song} />
               ))}
             </div>
-          </div>
-        )}
-
-        {songs.length > 0 && filteredSongs.length === 0 && (
-          <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-            <Search className="mx-auto h-12 w-12" />
-            <h3 className="mt-4 text-lg font-medium text-white">No results found</h3>
-            <p className="mt-1 text-sm">Try a different search term.</p>
           </div>
         )}
 
