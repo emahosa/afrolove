@@ -72,25 +72,10 @@ serve(async (req) => {
 
     const { priceId, planId, planName, amount, credits, paystackPlanCode } = await req.json();
 
-    // If payment gateways are disabled, process subscription automatically
+    // If payment gateways are disabled, throw an error
     if (!settings?.enabled) {
-      console.log('💳 Payment gateways disabled - processing automatic subscription');
-      
-      const subscriptionStartDate = new Date();
-      const expiresAt = new Date(subscriptionStartDate);
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-      await supabaseService.from('user_subscriptions').update({ subscription_status: 'inactive', updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('subscription_status', 'active');
-      await supabaseService.from('user_subscriptions').upsert({ user_id: user.id, subscription_type: planId, subscription_status: 'active', started_at: subscriptionStartDate.toISOString(), expires_at: expiresAt.toISOString(), stripe_subscription_id: `auto-${Date.now()}`, stripe_customer_id: `auto-customer-${user.id}`, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-      await supabaseService.from('user_roles').delete().eq('user_id', user.id).eq('role', 'voter');
-      await supabaseService.from('user_roles').upsert({ user_id: user.id, role: 'subscriber' }, { onConflict: 'user_id,role' });
-      await supabaseService.from('payment_transactions').insert({ user_id: user.id, amount: amount / 100, currency: 'USD', payment_method: 'automatic', status: 'completed', payment_id: `auto-${Date.now()}`, credits_purchased: credits || 0 });
-      if (credits && credits > 0) {
-        await supabaseService.rpc('update_user_credits', { p_user_id: user.id, p_amount: credits });
-      }
-
-      console.log('✅ Subscription activated automatically');
-      return new Response(JSON.stringify({ success: true, message: 'Subscription activated successfully' }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      console.error('❌ Payment gateways are disabled. Cannot process subscription.');
+      throw new Error("The payment system is currently disabled. Please contact support.");
     }
 
     // --- Stripe Subscription Flow ---
