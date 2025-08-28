@@ -69,9 +69,12 @@ const subscriptionPlansData = [
   },
 ];
 
+import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
+
 const SubscribePage: React.FC = () => {
   const { user } = useAuth();
   const { isVerifying } = usePaymentVerification();
+  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -177,7 +180,7 @@ const SubscribePage: React.FC = () => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
                       }}
-                      disabled={paymentProcessing || !user || user?.subscription?.planId === plan.id}
+                      disabled={isLoadingSettings || !paymentSettings?.enabled || paymentProcessing || !user || user?.subscription?.planId === plan.id}
                     >
                       {user?.subscription?.planId === plan.id
                         ? 'Current Plan'
