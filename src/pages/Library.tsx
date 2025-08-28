@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
 import VoterLockScreen from "@/components/VoterLockScreen";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 export interface Song {
   id: string;
@@ -26,6 +27,8 @@ const Library = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const songsPerPage = 12; // Adjusted for better grid layout
 
   // Check if user is only a voter (no subscriber/admin roles)
   const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
@@ -177,10 +180,19 @@ const Library = () => {
 
   if (!user) {
     console.log('👤 Library: No user, showing login message');
-    return <p className="text-muted-foreground">Please log in to view your songs.</p>
+    return <p className="text-gray-400">Please log in to view your songs.</p>
   }
 
   const completedSongs = songs;
+  const totalPages = Math.ceil(completedSongs.length / songsPerPage);
+  const indexOfLastSong = currentPage * songsPerPage;
+  const indexOfFirstSong = indexOfLastSong - songsPerPage;
+  const currentSongs = completedSongs.slice(indexOfFirstSong, indexOfLastSong);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   console.log('📊 Library: Song counts:', {
     total: songs.length,
@@ -188,10 +200,10 @@ const Library = () => {
   });
 
   return (
-    <div className="space-y-8 pb-24"> {/* Padding bottom to avoid overlap with player */}
-      <div className="flex items-center justify-between">
+    <div className="h-full flex flex-col p-4 md:p-8">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold text-white">My Library</h1>
+          <h1 className="text-3xl font-semibold text-white">My Library</h1>
           <p className="text-gray-400">All your completed songs</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
@@ -200,23 +212,67 @@ const Library = () => {
         </Button>
       </div>
 
-      {completedSongs.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {completedSongs.map((song) => (
-              <GeneratedSongCard key={song.id} song={song} />
-            ))}
+      <div className="flex-grow overflow-y-auto mt-6">
+        {currentSongs.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {currentSongs.map((song) => (
+                <GeneratedSongCard key={song.id} song={song} />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {songs.length === 0 && !isLoading && (
-         <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-            <Music className="mx-auto h-12 w-12" />
-            <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
-            <p className="mt-1 text-sm">Create your first song to see it here.</p>
-         </div>
+        {songs.length === 0 && !isLoading && (
+           <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+              <Music className="mx-auto h-12 w-12" />
+              <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
+              <p className="mt-1 text-sm">Create your first song to see it here.</p>
+           </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <Pagination className="mt-8 flex-shrink-0">
+          <PaginationContent className="text-gray-300">
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handlePageChange(currentPage - 1);
+                }}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, i) => (
+              <PaginationItem key={i}>
+                <PaginationLink
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePageChange(i + 1);
+                  }}
+                  isActive={currentPage === i + 1}
+                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handlePageChange(currentPage + 1);
+                }}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
     </div>
   );
