@@ -156,7 +156,7 @@ const Contest = () => {
   return (
     <div className="space-y-6 text-white">
       <div className="text-center">
-        <h1 className="text-3xl font-semibold mb-2 text-white">Music Contests</h1>
+        <h1 className="text-3xl font-bold mb-2 text-white">Music Contests</h1>
         <p className="text-gray-400">
           Showcase your talent and win amazing prizes!
         </p>
@@ -171,131 +171,130 @@ const Contest = () => {
         <TabsContent value="contests" className="space-y-4 mt-6">
           {!canViewContests ? (
             <Card className="text-center py-12 bg-white/5 border-white/10">
-                <CardContent>
-                  <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-white">Subscription Required</h3>
-                  <p className="text-gray-400 mb-4">
-                    Subscribe to view and participate in contests.
-                  </p>
-                  <Button onClick={() => window.location.href = '/credits'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
-                    View Plans
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : contests.length === 0 ? (
-              <Card className="text-center py-12 bg-white/5 border-white/10">
-                <CardContent>
-                  <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
-                  <p className="text-gray-400">
-                    Check back later for new contests.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
-                {contests.map((contest) => (
-                  <div key={contest.id} className="break-inside-avoid">
-                    <Card className="w-full overflow-hidden bg-white/5 border-white/10">
-                      <CardHeader className="p-4 bg-black/20">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2 text-white">
-                            <Trophy className="h-5 w-5 text-dark-purple" />
-                            {contest.title}
-                          </CardTitle>
-                          <Badge className="text-sm bg-dark-purple text-white">
-                            Prize: {contest.prize}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <p className="text-gray-400 text-sm mb-4">{contest.description}</p>
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                              Ends {new Date(contest.end_date).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {contest.entry_fee > 0 && (
-                            <Badge className="bg-dark-purple/50 text-purple-300 border border-dark-purple">
-                              Entry: {contest.entry_fee} credits
-                            </Badge>
-                          )}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="p-2 bg-black/20">
-                        {canParticipate ? (
-                          <Button size="sm" className="w-full bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                            Submit Your Entry
-                          </Button>
-                        ) : (
-                          <Button size="sm" disabled className="w-full">
-                            Subscription Required to Enter
-                          </Button>
-                        )}
-                      </CardFooter>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="entries" className="space-y-2 mt-6">
-            {entriesLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
-                <span className="ml-2">Loading entries...</span>
-              </div>
-            ) : contestEntries.length === 0 ? (
-              <Card className="text-center py-12 bg-white/5 border-white/10">
-                <CardContent>
-                  <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Entries Yet</h3>
-                  <p className="text-gray-400">
-                    Be the first to submit an entry!
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {contestEntries.map((entry) => (
-                  <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                    <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
-                      {currentTrack?.id === entry.songs?.id && isPlaying ? (
-                        <Pause className="h-5 w-5 text-dark-purple" />
-                      ) : (
-                        <Play className="h-5 w-5" />
-                      )}
-                    </Button>
-                    <div className="flex-grow mx-4 min-w-0">
-                      <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
-                      <p className="text-sm text-gray-400">
-                        By {entry.profiles?.full_name || 'Unknown Artist'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 text-sm text-white">
-                        <Vote className="h-4 w-4 text-dark-purple" />
-                        <span>{entry.vote_count}</span>
+              <CardContent>
+                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">Subscription Required</h3>
+                <p className="text-gray-400 mb-4">
+                  Subscribe to view and participate in contests.
+                </p>
+                <Button onClick={() => window.location.href = '/credits'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+                  View Plans
+                </Button>
+              </CardContent>
+            </Card>
+          ) : contests.length === 0 ? (
+            <Card className="text-center py-12 bg-white/5 border-white/10">
+              <CardContent>
+                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
+                <p className="text-gray-400">
+                  Check back later for new contests.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="[column-count:1] md:[column-count:2] lg:[column-count:3] gap-4 space-y-4">
+              {contests.map((contest) => (
+                <div key={contest.id} className="break-inside-avoid">
+                  <Card className="w-full overflow-hidden bg-white/5 border-white/10">
+                    <CardHeader className="p-4 bg-black/20">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2 text-white">
+                          <Trophy className="h-5 w-5 text-dark-purple" />
+                          {contest.title}
+                        </CardTitle>
+                        <Badge className="text-sm bg-dark-purple text-white">
+                          Prize: {contest.prize}
+                        </Badge>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleVoteClick(entry)}
-                        disabled={isVoting}
-                        className="bg-transparent border-white/30 hover:bg-white/10 text-white"
-                      >
-                        Vote
-                      </Button>
-                    </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <p className="text-gray-400 text-sm mb-4">{contest.description}</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            Ends {new Date(contest.end_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {contest.entry_fee > 0 && (
+                          <Badge className="bg-dark-purple/50 text-purple-300 border border-dark-purple">
+                            Entry: {contest.entry_fee} credits
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-2 bg-black/20">
+                      {canParticipate ? (
+                        <Button size="sm" className="w-full bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                          Submit Your Entry
+                        </Button>
+                      ) : (
+                        <Button size="sm" disabled className="w-full">
+                          Subscription Required to Enter
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="entries" className="space-y-2 mt-6">
+          {entriesLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
+              <span className="ml-2">Loading entries...</span>
+            </div>
+          ) : contestEntries.length === 0 ? (
+            <Card className="text-center py-12 bg-white/5 border-white/10">
+              <CardContent>
+                <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">No Entries Yet</h3>
+                <p className="text-gray-400">
+                  Be the first to submit an entry!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {contestEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
+                    {currentTrack?.id === entry.songs?.id && isPlaying ? (
+                      <Pause className="h-5 w-5 text-dark-purple" />
+                    ) : (
+                      <Play className="h-5 w-5" />
+                    )}
+                  </Button>
+                  <div className="flex-grow mx-4 min-w-0">
+                    <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                    <p className="text-sm text-gray-400">
+                      By {entry.profiles?.full_name || 'Unknown Artist'}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 text-sm text-white">
+                      <Vote className="h-4 w-4 text-dark-purple" />
+                      <span>{entry.vote_count}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleVoteClick(entry)}
+                      disabled={isVoting}
+                      className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                    >
+                      Vote
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {selectedEntry && (

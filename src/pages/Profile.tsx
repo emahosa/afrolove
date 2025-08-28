@@ -131,8 +131,8 @@ const Profile = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="container mx-auto p-4 space-y-6 text-white">
+      <div className="flex items-center gap-4 mb-6">
         <Avatar className="h-20 w-20 border-2 border-dark-purple">
           <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
           <AvatarFallback className="bg-black/20">
@@ -148,164 +148,163 @@ const Profile = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Profile Information */}
         <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <User className="h-5 w-5 text-dark-purple" />
-                Profile Information
-              </CardTitle>
-              <CardDescription className="text-gray-400">
-                Update your personal information and profile picture
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="avatar" className="text-gray-300">Profile Picture</Label>
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-dark-purple/50">
-                      <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
-                      <AvatarFallback className="bg-black/20">
-                        <User className="h-8 w-8 text-dark-purple" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <input
-                        type="file"
-                        id="avatar-upload"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => document.getElementById('avatar-upload')?.click()}
-                        disabled={uploading}
-                        className="bg-transparent border-white/30 hover:bg-white/10 text-white"
-                      >
-                        {uploading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Camera className="h-4 w-4 mr-2" />
-                            Change Picture
-                          </>
-                        )}
-                      </Button>
-                    </div>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <User className="h-5 w-5 text-dark-purple" />
+              Profile Information
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Update your personal information and profile picture
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="avatar" className="text-gray-300">Profile Picture</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-dark-purple/50">
+                    <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
+                    <AvatarFallback className="bg-black/20">
+                      <User className="h-8 w-8 text-dark-purple" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('avatar-upload')?.click()}
+                      disabled={uploading}
+                      className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-4 w-4 mr-2" />
+                          Change Picture
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="full_name" className="text-gray-300">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    placeholder="Enter your full name"
-                    className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-                  />
+              <div className="space-y-2">
+                <Label htmlFor="full_name" className="text-gray-300">Full Name</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleInputChange}
+                  placeholder="Enter your full name"
+                  className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-gray-300">Email</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  disabled
+                  className="bg-black/30 border-white/10 text-gray-400"
+                />
+                <p className="text-sm text-gray-500">
+                  Email cannot be changed
+                </p>
+              </div>
+
+              <Button type="submit" disabled={loading} className="w-full bg-dark-purple hover:bg-opacity-90 font-bold">
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Profile'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Account Status */}
+        <div className="space-y-6">
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Mail className="h-5 w-5 text-dark-purple" />
+                Account Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-gray-300">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Role:</span>
+                <Badge className="bg-dark-purple text-white">{getUserRoleDisplay()}</Badge>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Credits:</span>
+                <Badge variant="outline" className="border-white/20 text-gray-300">{user.credits || 0}</Badge>
+              </div>
+
+              <Separator className="bg-white/10" />
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium">User Roles:</span>
+                <div className="flex flex-wrap gap-2">
+                  {userRoles.map((role) => (
+                    <Badge key={role} variant="outline" className="text-xs border-white/20 text-gray-300">
+                      {role}
+                    </Badge>
+                  ))}
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="text-gray-300">Email</Label>
-                  <Input
-                    id="username"
-                    name="username"
-                    value={formData.username}
-                    disabled
-                    className="bg-black/30 border-white/10 text-gray-400"
-                  />
-                  <p className="text-sm text-gray-500">
-                    Email cannot be changed
-                  </p>
-                </div>
-
-                <Button type="submit" disabled={loading} className="w-full bg-dark-purple hover:bg-opacity-90 font-bold">
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    'Update Profile'
-                  )}
-                </Button>
-              </form>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Account Status */}
-          <div className="space-y-6">
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Mail className="h-5 w-5 text-dark-purple" />
-                  Account Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-gray-300">
+          {/* Subscription Status */}
+          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <CreditCard className="h-5 w-5 text-dark-purple" />
+                Subscription Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-gray-300">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Role:</span>
-                  <Badge className="bg-dark-purple text-white">{getUserRoleDisplay()}</Badge>
+                  <span className="text-sm font-medium">Status:</span>
+                  <Badge 
+                    className={user.subscription?.status === 'active' ? 'bg-green-500/80 text-white' : 'bg-gray-500/80 text-white'}
+                  >
+                    {getSubscriptionStatus()}
+                  </Badge>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Credits:</span>
-                  <Badge variant="outline" className="border-white/20 text-gray-300">{user.credits || 0}</Badge>
-                </div>
-
-                <Separator className="bg-white/10" />
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium">User Roles:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {userRoles.map((role) => (
-                      <Badge key={role} variant="outline" className="text-xs border-white/20 text-gray-300">
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Subscription Status */}
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <CreditCard className="h-5 w-5 text-dark-purple" />
-                  Subscription Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-gray-300">
-                <div className="space-y-4">
+                {user.subscription?.expiresAt && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Status:</span>
-                    <Badge
-                      className={user.subscription?.status === 'active' ? 'bg-green-500/80 text-white' : 'bg-gray-500/80 text-white'}
-                    >
-                      {getSubscriptionStatus()}
-                    </Badge>
+                    <span className="text-sm font-medium">Expires:</span>
+                    <span className="text-sm text-gray-400">
+                      {new Date(user.subscription.expiresAt).toLocaleDateString()}
+                    </span>
                   </div>
-
-                  {user.subscription?.expiresAt && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Expires:</span>
-                      <span className="text-sm text-gray-400">
-                        {new Date(user.subscription.expiresAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

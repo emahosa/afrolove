@@ -5,7 +5,7 @@ import { UserSupportTickets } from '@/components/support/UserSupportTickets';
 
 const Support = () => {
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6 text-white">
       <div>
         <h1 className="text-3xl font-bold text-white">Customer Support</h1>
         <p className="text-gray-400">Get help with any issues or questions you have</p>
@@ -20,7 +20,7 @@ const Support = () => {
         <TabsContent value="new-request" className="mt-6">
           <SupportRequestForm />
         </TabsContent>
-
+        
         <TabsContent value="my-tickets" className="mt-6">
           <UserSupportTickets />
         </TabsContent>

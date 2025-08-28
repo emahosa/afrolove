@@ -8,8 +8,8 @@ const Dashboard = () => {
   const { templates, loading: templatesLoading } = useGenreTemplates();
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-white">Welcome back, {user?.user_metadata?.full_name || 'User'}!</h1>
           <p className="text-gray-400">Here's what's happening with your music journey</p>
