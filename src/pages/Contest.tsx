@@ -154,24 +154,23 @@ const Contest = () => {
   }
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 text-white">
-      <div className="text-center flex-shrink-0">
+    <div className="space-y-6 text-white">
+      <div className="text-center">
         <h1 className="text-3xl font-semibold mb-2 text-white">Music Contests</h1>
         <p className="text-gray-400">
           Showcase your talent and win amazing prizes!
         </p>
       </div>
 
-      <Tabs defaultValue="contests" className="w-full flex flex-col flex-grow mt-6">
-        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10 flex-shrink-0">
+      <Tabs defaultValue="contests" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10">
           <TabsTrigger value="contests" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active Contests</TabsTrigger>
           <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
-        <div className="flex-grow overflow-y-auto mt-6 pr-4 pb-24">
-          <TabsContent value="contests" className="space-y-4">
-            {!canViewContests ? (
-              <Card className="text-center py-12 bg-white/5 border-white/10">
+        <TabsContent value="contests" className="space-y-4 mt-6">
+          {!canViewContests ? (
+            <Card className="text-center py-12 bg-white/5 border-white/10">
                 <CardContent>
                   <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
                   <h3 className="text-lg font-semibold mb-2 text-white">Subscription Required</h3>
@@ -243,7 +242,7 @@ const Contest = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="entries" className="space-y-2">
+          <TabsContent value="entries" className="space-y-2 mt-6">
             {entriesLoading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
