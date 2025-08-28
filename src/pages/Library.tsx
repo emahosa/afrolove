@@ -1,11 +1,10 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Music, RefreshCw, Clock } from "lucide-react";
+import { Loader2, Music, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import LibraryFilters from "@/components/library/LibraryFilters";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
 import VoterLockScreen from "@/components/VoterLockScreen";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
@@ -28,25 +27,14 @@ const Library = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const songsPerPage = 12; // Adjusted for better grid layout
 
   // Check if user is only a voter (no subscriber/admin roles)
   const isOnlyVoter = isVoter() && !isSubscriber() && !isAdmin() && !isSuperAdmin();
-  
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading...</span>
-      </div>
-    );
-  }
 
-  if (isOnlyVoter) {
-    return <VoterLockScreen feature="your music library" />;
-  }
-  
-  const fetchSongs = async (showRefreshingIndicator = false) => {
+  const fetchSongs = useCallback(async (showRefreshingIndicator = false) => {
     if (!user?.id) {
       setIsLoading(false);
       return;
@@ -102,7 +90,7 @@ const Library = () => {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -112,7 +100,7 @@ const Library = () => {
       console.log('👤 Library: No user found');
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, fetchSongs]);
 
   // Realtime subscription for song updates
   useEffect(() => {
@@ -161,7 +149,20 @@ const Library = () => {
       console.log('🔄 Library: Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading...</span>
+      </div>
+    );
+  }
+
+  if (isOnlyVoter) {
+    return <VoterLockScreen feature="your music library" />;
+  }
   
   const handleRefresh = () => {
     console.log('🔄 Library: Manual refresh triggered');
@@ -183,11 +184,26 @@ const Library = () => {
     return <p className="text-gray-400">Please log in to view your songs.</p>
   }
 
-  const completedSongs = songs;
-  const totalPages = Math.ceil(completedSongs.length / songsPerPage);
+  const filteredSongs = songs.filter(song => {
+    // Tab filtering
+    if (activeTab === 'songs') {
+      if (!song.lyrics || song.lyrics.trim() === '[Instrumental]') return false;
+    } else if (activeTab === 'instrumentals') {
+      if (song.lyrics && song.lyrics.trim() !== '[Instrumental]') return false;
+    }
+
+    // Search query filtering
+    if (searchQuery.trim() === '') return true;
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const titleMatch = song.title.toLowerCase().includes(lowerCaseQuery);
+    const promptMatch = song.prompt?.toLowerCase().includes(lowerCaseQuery);
+    return titleMatch || promptMatch;
+  });
+
+  const totalPages = Math.ceil(filteredSongs.length / songsPerPage);
   const indexOfLastSong = currentPage * songsPerPage;
   const indexOfFirstSong = indexOfLastSong - songsPerPage;
-  const currentSongs = completedSongs.slice(indexOfFirstSong, indexOfLastSong);
+  const currentSongs = filteredSongs.slice(indexOfFirstSong, indexOfLastSong);
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -196,7 +212,7 @@ const Library = () => {
 
   console.log('📊 Library: Song counts:', {
     total: songs.length,
-    completed: completedSongs.length
+    filtered: filteredSongs.length
   });
 
   return (
@@ -212,24 +228,41 @@ const Library = () => {
         </Button>
       </div>
 
-      <div className="mt-6">
-        {currentSongs.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {currentSongs.map((song) => (
-                <GeneratedSongCard key={song.id} song={song} />
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="mt-8 mb-6">
+        <LibraryFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+      </div>
 
-        {songs.length === 0 && !isLoading && (
-           <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+      <div className="mt-6">
+        {songs.length > 0 ? (
+          filteredSongs.length > 0 ? (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {currentSongs.map((song) => (
+                  <GeneratedSongCard key={song.id} song={song} />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+              <Music className="mx-auto h-12 w-12" />
+              <h3 className="mt-4 text-lg font-medium text-white">No matching songs</h3>
+              <p className="mt-1 text-sm">Try a different search or filter.</p>
+            </div>
+          )
+        ) : (
+          !isLoading && (
+            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
               <Music className="mx-auto h-12 w-12" />
               <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
               <p className="mt-1 text-sm">Create your first song to see it here.</p>
-           </div>
+            </div>
+          )
         )}
       </div>
 
