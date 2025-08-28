@@ -15,7 +15,6 @@ import { SunoApiManagement } from "@/components/admin/SunoApiManagement";
 import { ContestManagement } from "@/components/admin/ContestManagement";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { PaymentManagement } from "@/components/admin/PaymentManagement";
-import { PaymentGatewayManagement } from "@/components/admin/PaymentGatewayManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
@@ -132,8 +131,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="suno-api">API</TabsTrigger>
               <TabsTrigger value="contest">Contest</TabsTrigger>
               <TabsTrigger value="content">Content</TabsTrigger>
-              <TabsTrigger value="payments">Plans & Packages</TabsTrigger>
-              <TabsTrigger value="gateways">Gateways</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -335,23 +333,11 @@ const Admin = ({ tab }: AdminProps) => {
           <TabsContent value="payments" className="space-y-4">
             <Card className="bg-card">
               <CardHeader>
-                <CardTitle>Plans & Packages</CardTitle>
-                <CardDescription>Manage subscription plans and credit packages</CardDescription>
+                <CardTitle>Payment Management</CardTitle>
+                <CardDescription>Manage payments, transactions, and billing</CardDescription>
               </CardHeader>
               <CardContent>
                 <PaymentManagement />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="gateways" className="space-y-4">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Payment Gateway Management</CardTitle>
-                <CardDescription>Configure and manage payment gateways like Stripe and Paystack</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PaymentGatewayManagement />
               </CardContent>
             </Card>
           </TabsContent>

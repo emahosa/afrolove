@@ -34,49 +34,38 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    console.log('🔍 Checking payment gateway settings...');
+    console.log('🔍 Checking Stripe settings...');
 
+    // Check if Stripe is enabled - using service role key for reliable access
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
 
-    // 1. Check the new payment_gateways table first
-    const { data: gateways, error: gatewayError } = await supabaseService
-      .from('payment_gateways')
-      .select('*')
-      .eq('enabled', true);
+    const { data: stripeSettings, error: settingsError } = await supabaseService
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'stripe_enabled')
+      .maybeSingle();
 
-    if (gatewayError) {
-      console.error('Could not fetch payment gateway settings. Falling back.', gatewayError);
+    let isStripeEnabled = true; // Default to enabled for safety
+    
+    if (!settingsError && stripeSettings?.value && typeof stripeSettings.value === 'object') {
+      const settingValue = stripeSettings.value as { enabled?: boolean };
+      isStripeEnabled = settingValue.enabled === true;
+      console.log('🔍 Stripe setting found:', settingValue);
+    } else {
+      console.log('🔍 No Stripe setting found or error:', settingsError);
     }
 
-    let activeGateway = gateways?.[0]; // Use the first enabled gateway
-
-    // 2. If no active gateway in the new table, check the old system_settings
-    if (!activeGateway) {
-      console.log('🤔 No active gateway in new table, checking legacy settings...');
-      const { data: stripeSettings, error: settingsError } = await supabaseService
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'stripe_enabled')
-        .maybeSingle();
-
-      if (!settingsError && stripeSettings?.value && (stripeSettings.value as any).enabled === true) {
-        console.log('✅ Legacy Stripe setting is enabled.');
-        activeGateway = {
-          name: 'stripe',
-          secret_key: Deno.env.get("STRIPE_SECRET_KEY") || "",
-        };
-      }
-    }
+    console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
     const { priceId, planId, planName, amount, credits } = await req.json();
 
-    // If no active gateway is found in either new or old system, process automatically
-    if (!activeGateway) {
-      console.log('🔄 No active payment gateway found - processing automatic subscription');
+    // If Stripe is disabled, process subscription automatically
+    if (!isStripeEnabled) {
+      console.log('🔄 Stripe disabled - processing automatic subscription');
       
       const subscriptionStartDate = new Date();
       const expiresAt = new Date(subscriptionStartDate);
@@ -182,101 +171,61 @@ serve(async (req) => {
       });
     }
 
-    // A gateway is active, process payment
-    switch (activeGateway.name) {
-      case 'stripe': {
-        console.log('🔄 Stripe enabled - creating subscription session');
+    // Stripe is enabled - proceed with normal Stripe checkout
+    console.log('🔄 Stripe enabled - creating subscription session');
 
-        const stripe = new Stripe(activeGateway.secret_key || "", {
-          apiVersion: "2023-10-16",
-        });
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2023-10-16",
+    });
 
-        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-        let customerId;
-        if (customers.data.length > 0) {
-          customerId = customers.data[0].id;
-        }
-
-        const session = await stripe.checkout.sessions.create({
-          customer: customerId,
-          customer_email: customerId ? undefined : user.email,
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `${planName} Subscription`,
-                  description: `Monthly subscription to ${planName} plan`,
-                  metadata: { type: 'subscription', plan: planId }
-                },
-                unit_amount: amount,
-                recurring: { interval: "month" },
-              },
-              quantity: 1,
-            },
-          ],
-          mode: "subscription",
-          success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
-          metadata: {
-            type: 'subscription',
-            user_id: user.id,
-            plan_id: planId,
-            plan_name: planName,
-            user_email: user.email,
-            credits: credits || 0
-          }
-        });
-
-        console.log("Stripe session created successfully:", session.id);
-        return new Response(JSON.stringify({ url: session.url }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-      case 'paystack': {
-        console.log('🔄 Paystack enabled - creating transaction');
-
-        if (!activeGateway.secret_key) {
-          throw new Error("Paystack secret key is not configured.");
-        }
-
-        const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${activeGateway.secret_key}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: user.email,
-            amount: amount, // Amount is already in cents/kobo
-            callback_url: `${req.headers.get("origin")}/subscribe?subscription=success`,
-            metadata: {
-              user_id: user.id,
-              plan_id: planId,
-              plan_name: planName,
-              credits: credits || 0,
-              cancel_action: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
-            }
-          }),
-        });
-
-        const paystackData = await paystackResponse.json();
-
-        if (!paystackResponse.ok) {
-          throw new Error(paystackData.message || 'Paystack API error');
-        }
-
-        console.log("Paystack transaction initialized successfully");
-        return new Response(JSON.stringify({ url: paystackData.data.authorization_url }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-      default: {
-        throw new Error(`Unsupported payment gateway: ${activeGateway.name}`);
-      }
+    // Check if customer exists
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    let customerId;
+    if (customers.data.length > 0) {
+      customerId = customers.data[0].id;
     }
+
+    // Create subscription checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      customer_email: customerId ? undefined : user.email,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { 
+              name: `${planName} Subscription`,
+              description: `Monthly subscription to ${planName} plan`,
+              metadata: {
+                type: 'subscription',
+                plan: planId
+              }
+            },
+            unit_amount: amount,
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "subscription",
+      success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
+      metadata: {
+        type: 'subscription',
+        user_id: user.id,
+        plan_id: planId,
+        plan_name: planName,
+        user_email: user.email,
+        credits: credits || 0
+      }
+    });
+
+    console.log("Subscription session created successfully:", session.id);
+
+    return new Response(JSON.stringify({ url: session.url }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
   } catch (error) {
     console.error("Subscription creation error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
