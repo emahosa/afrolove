@@ -93,7 +93,7 @@ const Register = () => {
         </div>
 
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold mb-2 text-white">Create Account</h2>
+          <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
           <p className="text-gray-400">Join Afroverse and start creating music</p>
         </div>
 
