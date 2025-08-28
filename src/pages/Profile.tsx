@@ -131,8 +131,8 @@ const Profile = () => {
   }
 
   return (
-    <div className="h-full flex flex-col p-4 md:p-8 text-white">
-      <div className="flex items-center gap-4 mb-6 flex-shrink-0">
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
         <Avatar className="h-20 w-20 border-2 border-dark-purple">
           <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
           <AvatarFallback className="bg-black/20">
@@ -145,10 +145,9 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Profile Information */}
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Profile Information */}
+        <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-white">
                 <User className="h-5 w-5 text-dark-purple" />
