@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useStripeSettings } from '@/hooks/useStripeSettings';
+import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { Loader2 } from 'lucide-react';
 
 interface PaymentDialogProps {
@@ -31,37 +31,30 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   title,
   description,
   amount,
-  credits,
   onConfirm,
   processing,
-  type
 }) => {
-  const { data: stripeSettings, isLoading: isLoadingSettings } = useStripeSettings();
-  const isStripeEnabled = stripeSettings?.enabled ?? true;
+  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
 
   const getPaymentMethodText = () => {
     if (isLoadingSettings) return 'Loading payment information...';
-    
-    if (isStripeEnabled) {
-      return 'Secure payment processing via Stripe';
-    } else {
-      return type === 'subscription' 
-        ? 'Subscription will be activated automatically'
-        : 'Credits will be added automatically';
+    if (!paymentSettings?.enabled) {
+      return 'The payment system is currently disabled. Please contact support.';
     }
+    const gatewayName = paymentSettings.activeGateway === 'stripe' ? 'Stripe' : 'Paystack';
+    return `Secure payment processing via ${gatewayName}`;
   };
 
   const getButtonText = () => {
     if (processing) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>;
-    
     if (isLoadingSettings) return 'Loading...';
-    
-    if (isStripeEnabled) {
-      return `Pay $${amount.toFixed(2)}`;
-    } else {
-      return type === 'subscription' ? 'Activate Subscription' : 'Add Credits';
+    if (!paymentSettings?.enabled) {
+      return 'Unavailable';
     }
+    return `Pay $${(amount / 100).toFixed(2)}`; // Assuming amount is in cents
   };
+
+  const isPaymentDisabled = processing || isLoadingSettings || !paymentSettings?.enabled;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -73,9 +66,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <div className="text-sm text-gray-500">
               {getPaymentMethodText()}
             </div>
-            {!isStripeEnabled && (
-              <div className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded">
-                Note: Payment processing is currently in test mode
+            {paymentSettings?.enabled === false && (
+              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-2 rounded">
+                Payments are currently disabled by the administrator.
               </div>
             )}
           </AlertDialogDescription>
@@ -84,8 +77,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
           <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm} 
-            disabled={processing || isLoadingSettings}
-            className="bg-dark-purple hover:bg-opacity-90 font-bold"
+            disabled={isPaymentDisabled}
+            className="bg-dark-purple hover:bg-opacity-90 font-bold disabled:bg-gray-500 disabled:cursor-not-allowed"
           >
             {getButtonText()}
           </AlertDialogAction>
