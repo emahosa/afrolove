@@ -61,7 +61,7 @@ serve(async (req) => {
 
     console.log('🔍 Stripe enabled status:', isStripeEnabled);
 
-    const { priceId, planId, planName, amount } = await req.json();
+    const { priceId, planId, planName, amount, credits } = await req.json();
 
     // If Stripe is disabled, process subscription automatically
     if (!isStripeEnabled) {
@@ -138,11 +138,26 @@ serve(async (req) => {
           payment_method: 'automatic',
           status: 'completed',
           payment_id: `auto-${Date.now()}`,
-          credits_purchased: 0
+          credits_purchased: credits || 0
         });
 
       if (transactionError) {
         console.error('❌ Error logging transaction:', transactionError);
+      }
+
+      // Add credits to user's profile
+      if (credits && credits > 0) {
+        console.log(`💰 Awarding ${credits} credits to user ${user.id}`);
+        const { error: creditError } = await supabaseService.rpc('update_user_credits', {
+          p_user_id: user.id,
+          p_amount: credits
+        });
+
+        if (creditError) {
+          console.error('❌ Error adding credits to user profile:', creditError);
+        } else {
+          console.log('✅ Credits awarded successfully');
+        }
       }
 
       console.log('✅ Subscription activated automatically');
@@ -200,7 +215,8 @@ serve(async (req) => {
         user_id: user.id,
         plan_id: planId,
         plan_name: planName,
-        user_email: user.email
+        user_email: user.email,
+        credits: credits || 0
       }
     });
 
