@@ -142,7 +142,7 @@ serve(async (req) => {
             console.log('✅ Existing subscriptions deactivated')
           }
 
-          // Create new subscription record
+          // Upsert subscription record
           const subscriptionData = {
             user_id: userId,
             subscription_type: planId,
@@ -151,21 +151,36 @@ serve(async (req) => {
             expires_at: expiresAt.toISOString(),
             stripe_subscription_id: stripeSubscriptionId,
             stripe_customer_id: stripeCustomerId,
-            created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
 
-          console.log('💾 Creating subscription record:', subscriptionData)
+          console.log('💾 Upserting subscription record:', subscriptionData)
           const { error: subError } = await supabaseClient
             .from('user_subscriptions')
-            .insert(subscriptionData)
+            .upsert(subscriptionData, { onConflict: 'user_id' })
 
           if (subError) {
-            console.error('❌ Error creating subscription:', subError)
+            console.error('❌ Error upserting subscription:', subError)
             throw subError
           }
 
           console.log('✅ Subscription created successfully')
+
+          // Award credits for the subscription
+          if (creditsAmount > 0) {
+            console.log(`💰 Awarding ${creditsAmount} credits for subscription to user ${userId}`);
+            const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
+              p_user_id: userId,
+              p_amount: creditsAmount
+            });
+
+            if (creditError) {
+              console.error('❌ Error adding credits for subscription:', creditError);
+              // Don't throw here, as the subscription itself was successful
+            } else {
+                console.log('✅ Credits awarded successfully for subscription');
+            }
+          }
 
           // Update user roles - remove voter, add subscriber
           console.log('🔄 Updating user roles...')
