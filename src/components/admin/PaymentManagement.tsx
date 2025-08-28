@@ -33,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { StripeToggleSettings } from './StripeToggleSettings';
+import { PaymentGatewayManagement } from './PaymentGatewayManagement';
 
 interface CreditPackage {
   id: string;
@@ -285,7 +285,7 @@ export const PaymentManagement = () => {
   return (
     <div className="space-y-8">
       {/* Payment Gateway Settings */}
-      <StripeToggleSettings />
+      <PaymentGatewayManagement />
 
       {/* Credit Packages Section */}
       <div>
