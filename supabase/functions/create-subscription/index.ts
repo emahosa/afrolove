@@ -24,7 +24,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('--- [DEBUG] create-subscription function invoked ---');
+  console.log('--- [DEBUG] create-subscription V3 LATEST-CODE invoked ---');
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
