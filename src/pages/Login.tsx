@@ -245,7 +245,6 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-              style={{ color: 'white' }}
             />
           </div>
           <div>
@@ -263,7 +262,6 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-              style={{ color: 'white' }}
             />
           </div>
           <Button
