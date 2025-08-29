@@ -109,6 +109,7 @@ serve(async (req) => {
             expires_at: expiresAt.toISOString(),
             paystack_subscription_code: chargeData.authorization?.authorization_code,
             paystack_customer_code: chargeData.customer?.customer_code,
+              payment_provider: 'paystack',
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' })
 

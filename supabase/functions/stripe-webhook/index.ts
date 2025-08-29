@@ -151,6 +151,7 @@ serve(async (req) => {
             expires_at: expiresAt.toISOString(),
             stripe_subscription_id: stripeSubscriptionId,
             stripe_customer_id: stripeCustomerId,
+            payment_provider: 'stripe',
             updated_at: new Date().toISOString()
           }
 

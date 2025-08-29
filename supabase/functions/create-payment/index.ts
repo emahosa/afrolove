@@ -67,7 +67,9 @@ serve(async (req) => {
       throw new Error('Could not load payment settings.');
     }
 
+    console.log("DEBUG: Raw settingsData from Supabase:", JSON.stringify(settingsData, null, 2));
     const settings = settingsData?.value as PaymentGatewaySettings | undefined;
+    console.log("DEBUG: Parsed settings object:", JSON.stringify(settings, null, 2));
 
     const { amount, credits, description, packId } = await req.json();
 
