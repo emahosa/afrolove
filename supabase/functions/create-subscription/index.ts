@@ -55,11 +55,15 @@ serve(async (req) => {
       .eq('key', 'payment_gateway_settings')
       .single();
 
-    if (settingsError) throw new Error('Could not load payment settings.');
+    if (settingsError) {
+      console.error("Error loading payment settings:", settingsError);
+      throw new Error('Could not load system payment settings.');
+    }
+    if (!settingsData?.value) {
+      throw new Error('Payment settings are not configured in the system.');
+    }
 
     const settings = settingsData.value as PaymentGatewaySettings;
-    console.log("DEBUG: Full settings object from DB:", JSON.stringify(settings, null, 2));
-
     const { priceId, planId, planName, amount, paystackPlanCode } = await req.json();
 
     if (!planId || !planName || !amount) {
@@ -77,8 +81,11 @@ serve(async (req) => {
     // --- Stripe Subscription Flow ---
     if (settings.activeGateway === 'stripe') {
       if (!priceId) throw new Error("Stripe price ID is required for subscription.");
+
       const stripeKeys = settings.mode === 'live' ? settings.stripe.live : settings.stripe.test;
-      if (!stripeKeys.secretKey) throw new Error(`Stripe ${settings.mode} secret key is not configured.`);
+      if (!stripeKeys?.secretKey) {
+        throw new Error(`Stripe secret key for ${settings.mode} mode is not configured.`);
+      }
 
       const stripe = new Stripe(stripeKeys.secretKey, { apiVersion: "2023-10-16" });
 
@@ -106,11 +113,10 @@ serve(async (req) => {
     if (settings.activeGateway === 'paystack') {
       if (!paystackPlanCode) throw new Error("Paystack plan code is required for subscription.");
 
-      console.log(`DEBUG: Paystack flow initiated. Mode: ${settings.mode}`);
       const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
-      console.log("DEBUG: Selected Paystack keys:", JSON.stringify(paystackKeys, null, 2));
-
-      if (!paystackKeys.secretKey) throw new Error(`Paystack ${settings.mode} secret key is not configured.`);
+      if (!paystackKeys?.secretKey) {
+        throw new Error(`Paystack secret key for ${settings.mode} mode is not configured.`);
+      }
 
       const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({

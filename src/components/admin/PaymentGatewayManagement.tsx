@@ -47,6 +47,7 @@ export const PaymentGatewayManagement = () => {
   const [initialSettings, setInitialSettings] = useState<PaymentGatewaySettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -92,6 +93,7 @@ export const PaymentGatewayManagement = () => {
       toast.error('Failed to load payment gateway settings');
     } finally {
       setLoading(false);
+      setIsDirty(false);
     }
   };
 
@@ -133,19 +135,27 @@ export const PaymentGatewayManagement = () => {
     const success = await persistSettings(settings);
     if (success) {
       toast.success('All payment gateway settings saved.');
+      setIsDirty(false);
     }
     setSaving(false);
   };
 
-  const handleToggleEnabled = async (enabled: boolean) => {
-    const newSettings = { ...settings, enabled };
+  const handleQuickSave = async <K extends keyof PaymentGatewaySettings>(
+    key: K,
+    value: PaymentGatewaySettings[K],
+    toastMessage: string
+  ) => {
+    const originalSettings = { ...settings };
+    const newSettings = { ...settings, [key]: value };
     setSettings(newSettings);
+
     const success = await persistSettings(newSettings);
+
     if (success) {
-      toast.success(`Payment gateways ${enabled ? 'enabled' : 'disabled'}.`);
+      toast.success(toastMessage);
+      setInitialSettings(newSettings);
     } else {
-      // Revert on failure
-      setSettings(s => ({...s, enabled: !enabled}));
+      setSettings(originalSettings); // Revert on failure
     }
   };
 
@@ -160,6 +170,7 @@ export const PaymentGatewayManagement = () => {
         },
       },
     }));
+    setIsDirty(true);
   };
 
   if (loading) {
@@ -178,7 +189,11 @@ export const PaymentGatewayManagement = () => {
             <Label htmlFor="payment-enabled" className="text-base font-medium">Enable Payment Gateways</Label>
             <p className="text-sm text-muted-foreground">Master switch to enable or disable all payment processing.</p>
           </div>
-          <Switch id="payment-enabled" checked={settings.enabled} onCheckedChange={handleToggleEnabled} />
+          <Switch
+            id="payment-enabled"
+            checked={settings.enabled}
+            onCheckedChange={(enabled) => handleQuickSave('enabled', enabled, `Payment gateways ${enabled ? 'enabled' : 'disabled'}.`)}
+          />
         </div>
 
         {settings.enabled && (
@@ -186,14 +201,22 @@ export const PaymentGatewayManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4 p-4 border rounded-lg">
                 <Label className="text-base font-medium">Active Gateway</Label>
-                <RadioGroup value={settings.activeGateway} onValueChange={(v: 'stripe' | 'paystack') => setSettings(s => ({ ...s, activeGateway: v }))} className="flex space-x-4">
+                <RadioGroup
+                  value={settings.activeGateway}
+                  onValueChange={(v: 'stripe' | 'paystack') => handleQuickSave('activeGateway', v, `Active gateway set to ${v.charAt(0).toUpperCase() + v.slice(1)}.`)}
+                  className="flex space-x-4"
+                >
                   <div className="flex items-center space-x-2"><RadioGroupItem value="stripe" id="stripe" /><Label htmlFor="stripe">Stripe</Label></div>
                   <div className="flex items-center space-x-2"><RadioGroupItem value="paystack" id="paystack" /><Label htmlFor="paystack">Paystack</Label></div>
                 </RadioGroup>
               </div>
               <div className="space-y-4 p-4 border rounded-lg">
                 <Label className="text-base font-medium">Operating Mode</Label>
-                <RadioGroup value={settings.mode} onValueChange={(v: 'test' | 'live') => setSettings(s => ({ ...s, mode: v }))} className="flex space-x-4">
+                <RadioGroup
+                  value={settings.mode}
+                  onValueChange={(v: 'test' | 'live') => handleQuickSave('mode', v, `Operating mode set to ${v}.`)}
+                  className="flex space-x-4"
+                >
                   <div className="flex items-center space-x-2"><RadioGroupItem value="test" id="test" /><Label htmlFor="test" className="flex items-center gap-2"><TestTube size={16}/>Test</Label></div>
                   <div className="flex items-center space-x-2"><RadioGroupItem value="live" id="live" /><Label htmlFor="live" className="flex items-center gap-2"><Zap size={16}/>Live</Label></div>
                 </RadioGroup>
@@ -240,9 +263,9 @@ export const PaymentGatewayManagement = () => {
         )}
 
         <div className="flex justify-end">
-          <Button onClick={handleSaveAllSettings} disabled={saving}>
+          <Button onClick={handleSaveAllSettings} disabled={!isDirty || saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save All Settings
+            Save API Keys
           </Button>
         </div>
       </CardContent>
