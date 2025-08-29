@@ -198,16 +198,19 @@ const Billing: React.FC = () => {
         }
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message || 'Failed to create subscription session.');
+      }
 
-      if (data?.success) {
-        toast.success("Subscription Activated!", { description: `Your ${plan.name} plan is now active.` });
-        window.location.href = '/dashboard';
-      } else if (data?.url) {
+      if (data?.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned from payment processor.');
       }
     } catch (error: any) {
-      toast.error("Subscription failed", { description: error.message });
+      toast.error("Subscription failed", {
+        description: error.message || "There was an error processing your subscription. Please try again.",
+      });
     } finally {
       setPaymentProcessing(false);
       setDialogOpen(false);
