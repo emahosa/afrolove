@@ -57,3 +57,9 @@ timeout_s = 30 # Default timeout is 5s, might need more for multiple DB operatio
 [realtime]
 # enabled = true
 # max_connections = 100
+
+[functions.create-payment]
+verify_jwt = true
+
+[functions.create-subscription]
+verify_jwt = true
