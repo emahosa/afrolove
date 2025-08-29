@@ -38,7 +38,7 @@ const navItems: NavItem[] = [
   { href: "/library", label: "Library", icon: Library, isProtected: true },
   { href: "/contest", label: "Contest", icon: Trophy },
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/credits", label: "Credits & Plans", icon: CreditCard, paths: ["/subscribe"] },
+  { href: "/billing", label: "Billing", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
 ];
 
@@ -79,7 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 )}
                 onClick={() => {
                   if (needsSubscription) {
-                    navigate("/credits");
+                    navigate("/billing");
                   } else {
                     navigate(item.href);
                   }
