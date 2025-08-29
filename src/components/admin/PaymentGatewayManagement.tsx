@@ -59,7 +59,7 @@ export const PaymentGatewayManagement = () => {
       const { data, error } = await supabase
         .from('system_settings')
         .select('value')
-        .eq('key', 'Payment_Gateway_Settings')
+        .eq('key', 'payment_gateway_settings')
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -105,14 +105,14 @@ export const PaymentGatewayManagement = () => {
       const { data, error } = await supabase
         .from('system_settings')
         .select('id')
-        .eq('key', 'Payment_Gateway_Settings')
+        .eq('key', 'payment_gateway_settings')
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
 
       const { error: upsertError } = await supabase.from('system_settings').upsert({
         id: data?.id,
-        key: 'Payment_Gateway_Settings',
+        key: 'payment_gateway_settings',
         value: settingsToSave,
         category: 'payment',
         description: 'Configuration for payment gateways (Stripe, Paystack)',
