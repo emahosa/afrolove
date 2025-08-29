@@ -178,7 +178,7 @@ const Contest = () => {
                   <p className="text-gray-400 mb-4">
                     Subscribe to view and participate in contests.
                   </p>
-                  <Button onClick={() => window.location.href = '/credits'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+                  <Button onClick={() => window.location.href = '/billing'} className="bg-dark-purple hover:bg-opacity-90 font-bold">
                     View Plans
                   </Button>
                 </CardContent>

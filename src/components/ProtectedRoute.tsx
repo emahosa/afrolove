@@ -94,7 +94,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   // STRICT ACCESS CONTROL: Only allow voters to access contest, subscribe, dashboard, and profile pages
   if (isOnlyVoter) {
     const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
-    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
+    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/billing';
     const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
 
     if (isContestPage || isSubscribePage || isDashboardPage || isProfilePage) {
@@ -108,7 +108,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   // For users who should be subscribers but subscription has lapsed
   if (!hasActiveSubscription && !isAdmin() && !isSuperAdmin()) {
     const isContestPage = location.pathname.toLowerCase() === '/contest' || location.pathname.toLowerCase().startsWith('/contest/');
-    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/credits';
+    const isSubscribePage = location.pathname.toLowerCase() === '/subscribe' || location.pathname.toLowerCase() === '/billing';
     const isDashboardPage = location.pathname.toLowerCase() === '/dashboard';
 
     // Allow access to these pages even for lapsed subscribers
