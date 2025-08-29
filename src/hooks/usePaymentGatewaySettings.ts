@@ -1,24 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ClientApiKeys {
-  publicKey: string;
-}
-
-interface ClientGatewayConfig {
-  test: Partial<ClientApiKeys>;
-  live: Partial<ClientApiKeys>;
-}
-
 /**
  * @description Defines the client-safe settings for the payment gateway.
  */
-export interface PaymentGatewayClientSettings {
+interface PaymentGatewayClientSettings {
   enabled: boolean;
-  mode: 'test' | 'live';
   activeGateway: 'stripe' | 'paystack';
-  stripe: ClientGatewayConfig;
-  paystack: ClientGatewayConfig;
 }
 
 /**
@@ -33,15 +21,7 @@ export interface PaymentGatewayClientSettings {
 export const usePaymentGatewaySettings = () => {
   return useQuery<PaymentGatewayClientSettings>({
     queryKey: ['payment-gateway-settings'],
-    queryFn: async (): Promise<PaymentGatewayClientSettings> => {
-      const defaultClientSettings: PaymentGatewayClientSettings = {
-        enabled: false,
-        mode: 'test',
-        activeGateway: 'paystack',
-        stripe: { test: {}, live: {} },
-        paystack: { test: {}, live: {} },
-      };
-
+    queryFn: async () => {
       try {
         const { data: gatewayData, error: gatewayError } = await supabase
           .from('system_settings')
@@ -50,12 +30,13 @@ export const usePaymentGatewaySettings = () => {
           .maybeSingle();
 
         if (gatewayError && gatewayError.code !== 'PGRST116') {
+          // PGRST116 is the error code for "Not Found", which is expected if settings are not yet saved.
           console.error('Error fetching payment gateway settings:', gatewayError);
-          return defaultClientSettings;
+          return { enabled: false, activeGateway: 'paystack' };
         }
 
         if (gatewayData?.value) {
-          let settings: any;
+          let settings: { enabled?: boolean; activeGateway?: string };
           if (typeof gatewayData.value === 'string') {
             console.warn('gatewayData.value was stringified JSON, parsing now.');
             settings = JSON.parse(gatewayData.value);
@@ -63,27 +44,22 @@ export const usePaymentGatewaySettings = () => {
             settings = gatewayData.value;
           }
 
-          const activeGateway: 'stripe' | 'paystack' = settings.activeGateway === 'stripe' ? 'stripe' : 'paystack';
+          const active = settings.activeGateway;
+          const activeGateway: 'stripe' | 'paystack' = active === 'stripe' ? 'stripe' : 'paystack';
 
           return { 
             enabled: settings.enabled === true,
-            mode: settings.mode === 'live' ? 'live' : 'test',
-            activeGateway: activeGateway,
-            stripe: {
-              test: { publicKey: settings.stripe?.test?.publicKey || '' },
-              live: { publicKey: settings.stripe?.live?.publicKey || '' }
-            },
-            paystack: {
-              test: { publicKey: settings.paystack?.test?.publicKey || '' },
-              live: { publicKey: settings.paystack?.live?.publicKey || '' }
-            }
+            activeGateway: activeGateway
           };
         }
 
-        return defaultClientSettings;
+        // If no settings row is found, or if the value is null, default to disabled.
+        // This is a safe default to prevent users from attempting payments if the system isn't configured.
+        return { enabled: false, activeGateway: 'paystack' };
       } catch (error) {
         console.error('Error in usePaymentGatewaySettings:', error);
-        return defaultClientSettings;
+        // In case of any unexpected error, default to disabled for safety.
+        return { enabled: false, activeGateway: 'paystack' };
       }
     },
     // Cache the settings for 5 minutes to reduce unnecessary database calls.

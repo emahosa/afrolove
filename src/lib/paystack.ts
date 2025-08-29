@@ -5,14 +5,12 @@ declare global {
 }
 
 export const startPaystackPayment = ({
-  publicKey,
   email,
   amount,
   reference,
   onSuccess,
   onCancel,
 }: {
-  publicKey: string;
   email: string;
   amount: number; // in Naira
   reference: string;
@@ -22,7 +20,7 @@ export const startPaystackPayment = ({
   const paystack = new window.PaystackPop();
 
   paystack.newTransaction({
-    key: publicKey,
+    key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
     email,
     amount: amount * 100, // Paystack wants Kobo
     ref: reference,
