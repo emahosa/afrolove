@@ -78,7 +78,7 @@ serve(async (req) => {
     }
 
     // --- Stripe Payment Flow ---
-    if (settings.activeGateway === 'stripe') {
+    if (settings.activeGateway?.toLowerCase() === 'stripe') {
       console.log('💳 Stripe enabled - creating checkout session');
 
       if (!settings.stripe?.secretKey && !Deno.env.get("STRIPE_SECRET_KEY")) {
@@ -113,8 +113,8 @@ serve(async (req) => {
           },
         ],
         mode: "payment",
-        success_url: `${req.headers.get("origin")}/credits?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get("origin")}/credits?payment=canceled`,
+        success_url: `${req.headers.get("origin")}/billing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get("origin")}/billing?payment=canceled`,
         metadata: {
           type: 'credits',
           user_id: user.id,
@@ -133,7 +133,7 @@ serve(async (req) => {
     }
 
     // --- Paystack Payment Flow ---
-    if (settings.activeGateway === 'paystack') {
+    if (settings.activeGateway?.toLowerCase() === 'paystack') {
       console.log('💳 Paystack enabled - creating transaction');
 
       if (!settings.paystack?.secretKey) {
