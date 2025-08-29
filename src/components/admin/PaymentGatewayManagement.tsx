@@ -28,20 +28,16 @@ interface PaymentGatewaySettings {
   paystack: GatewayConfig;
 }
 
-// ✅ Paystack is now the default gateway with your test keys included
 const defaultSettings: PaymentGatewaySettings = {
   enabled: false,
   mode: 'test',
-  activeGateway: 'paystack',
+  activeGateway: 'stripe',
   stripe: {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
   },
   paystack: {
-    test: {
-      publicKey: 'pk_test_7e51eb9c6bdfcbc7fb9fe166978fe29f9e0cfed9',
-      secretKey: 'sk_test_03ceac5bf5a0f2e1230caad16af27852396555be',
-    },
+    test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
   },
 };
@@ -178,17 +174,7 @@ export const PaymentGatewayManagement = () => {
   };
 
   if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Gateway Settings</CardTitle>
-          <CardDescription>Loading...</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </CardContent>
-      </Card>
-    );
+    return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
   }
 
   return (
@@ -237,7 +223,7 @@ export const PaymentGatewayManagement = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="paystack" className="w-full">
+            <Tabs defaultValue="stripe" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="stripe">Stripe Keys</TabsTrigger>
                 <TabsTrigger value="paystack">Paystack Keys</TabsTrigger>
