@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export const useStripeSettings = () => {
+export const usePaymentGatewaySettings = () => {
   return useQuery({
-    queryKey: ['stripe-settings'],
+    queryKey: ['payment-gateway-settings'],
     queryFn: async () => {
       try {
         // Check for payment gateway settings first
