@@ -14,7 +14,7 @@ import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
-import { startPaystackPayment } from '@/lib/paystack';
+import { PaystackButton } from 'react-paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
 
@@ -39,10 +39,7 @@ const Billing: React.FC = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
-  const [processing, setProcessing] = useState(false);
   const { trackActivity } = useAffiliateTracking();
 
   // State for subscriptions
@@ -78,92 +75,8 @@ const Billing: React.FC = () => {
     { credits: 5, amount: 5, popular: false },
     { credits: 15, amount: 10, popular: false },
     { credits: 50, amount: 25, popular: true },
-    { credits: 100, amount: 45, popular: false },
+    { credits: 100,. amount: 45, popular: false },
   ];
-
-  const handlePurchase = async (pkg: any) => {
-    // ... (same as before)
-  };
-
-  const handleCustomPurchase = async () => {
-    // ... (same as before)
-  };
-
-  const processPayment = async () => {
-    if (!user) {
-      toast.error("Please log in to purchase credits.");
-      return;
-    }
-    if (!selectedPackage) {
-      toast.error("No credit package selected.");
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey) {
-          toast.error("Paystack public key not found. Cannot proceed with payment.");
-          setProcessing(false);
-          return;
-        }
-        const reference = `txn_credits_${user.id}_${Date.now()}`;
-        await startPaystackPayment({
-          publicKey: publicKeys.paystackPublicKey,
-          email: user.email!,
-          amount: selectedPackage.amount,
-          reference: reference,
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying...", {
-              description: `Reference: ${ref}. Credits will be added shortly.`
-            });
-            // The verification function will be created in the next step
-            await supabase.functions.invoke('verify-paystack-transaction', {
-              body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
-            });
-          },
-          onCancel: () => {
-            toast.info("Payment canceled.");
-          },
-        });
-        setPaymentDialogOpen(false);
-
-      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
-        console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
-        trackActivity('credit_purchase_start');
-
-        const { data, error } = await supabase.functions.invoke('create-payment', {
-          body: {
-            amount: Math.round(selectedPackage.amount * 100),
-            credits: selectedPackage.credits,
-            description: `Purchase of ${selectedPackage.credits} credits`,
-            packId: `credits_${selectedPackage.credits}`,
-          }
-        });
-
-        if (error) throw new Error(error.message || 'Failed to create payment session.');
-        if (!data?.url) throw new Error('Payment processor did not return a valid checkout URL.');
-
-        await trackActivity('credit_purchase_redirect');
-        window.location.href = data.url;
-        setPaymentDialogOpen(false);
-
-      } else {
-        toast.error("Payment processing is currently disabled or no gateway is configured.");
-        console.warn("Payment settings state:", paymentSettings);
-      }
-    } catch (error: any) {
-      console.error('💥 Payment process failed:', error);
-      console.error("Error purchasing credits:", error);
-      toast.error("Purchase failed", {
-        description: error.message || "There was an error processing your payment. Please try again.",
-      });
-      // Track affiliate activity for failed purchase
-      trackActivity('credit_purchase_failed');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   const handleSubscriptionChange = async (planId: string) => {
     const plan = plans.find(p => p.id === planId);
@@ -178,7 +91,6 @@ const Billing: React.FC = () => {
     if (isDowngrade) {
       setDowngradeConfirmationOpen(true);
     } else {
-      // This handles new subscriptions and upgrades
       setDialogOpen(true);
     }
   };
@@ -203,7 +115,6 @@ const Billing: React.FC = () => {
       toast.success("Downgrade Scheduled", {
         description: `Your subscription will be changed to the ${plan.name} plan at the end of your current billing cycle.`
       });
-      // Optionally, refresh user data here to show the pending change
     } catch (error: any) {
       toast.error("Failed to schedule downgrade", { description: error.message });
     } finally {
@@ -219,32 +130,7 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey) {
-          toast.error("Paystack public key not found. Cannot proceed with payment.");
-          setPaymentProcessing(false);
-          return;
-        }
-        const reference = `txn_sub_${user.id}_${Date.now()}`;
-        await startPaystackPayment({
-          publicKey: publicKeys.paystackPublicKey,
-          email: user.email!,
-          amount: plan.price,
-          reference: reference,
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying subscription...", {
-              description: `Reference: ${ref}. Your plan will be updated shortly.`
-            });
-            await supabase.functions.invoke('verify-paystack-transaction', {
-              body: { reference: ref, type: 'subscription', planId: plan.id }
-            });
-          },
-          onCancel: () => {
-            toast.info("Payment canceled.");
-          },
-        });
-
-      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
+      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
         console.log('🔄 Starting Stripe subscription process for plan:', plan.name);
         const { data, error } = await supabase.functions.invoke('create-subscription', {
           body: {
@@ -264,7 +150,6 @@ const Billing: React.FC = () => {
           amount: plan.price
         });
         window.location.href = data.url;
-
       } else {
         toast.error("Payment processing is currently disabled or no gateway is configured.");
         console.warn("Payment settings state:", paymentSettings);
@@ -292,16 +177,57 @@ const Billing: React.FC = () => {
     if (!currentUserPlan) return 'Subscribe Now';
     if (plan.id === currentUserPlan.id) return 'Current Plan';
     if (plan.rank > currentUserPlan.rank) {
-      const gateway = paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe';
-      return `Upgrade with ${gateway}`;
+      return 'Upgrade';
     }
     return 'Downgrade';
+  };
+
+  const getPaystackSubProps = (plan: Plan) => {
+    if (!user || !publicKeys?.paystackPublicKey) return null;
+    return {
+      email: user.email!,
+      amount: plan.price * 100, // in Kobo
+      publicKey: publicKeys.paystackPublicKey,
+      reference: `txn_sub_${user.id}_${Date.now()}`,
+      onSuccess: async (transaction: { reference: string }) => {
+        toast.success("Payment successful! Verifying subscription...", {
+          description: `Reference: ${transaction.reference}. Your plan will be updated shortly.`
+        });
+        await supabase.functions.invoke('verify-paystack-transaction', {
+          body: { reference: transaction.reference, type: 'subscription', planId: plan.id }
+        });
+      },
+      onClose: () => {
+        toast.info("Payment canceled.");
+      },
+    };
+  };
+
+  const getCreditPurchaseProps = (pkg: { credits: number, amount: number }) => {
+    if (!user || !publicKeys?.paystackPublicKey) return null;
+    return {
+      email: user.email!,
+      amount: pkg.amount * 100, // in Kobo
+      publicKey: publicKeys.paystackPublicKey,
+      reference: `txn_credits_${user.id}_${Date.now()}`,
+      onSuccess: async (transaction: { reference: string }) => {
+        toast.success("Payment successful! Verifying...", {
+          description: `Reference: ${transaction.reference}. Credits will be added shortly.`
+        });
+        await supabase.functions.invoke('verify-paystack-transaction', {
+          body: { reference: transaction.reference, type: 'credits', credits: pkg.credits }
+        });
+      },
+      onClose: () => {
+        toast.info("Payment canceled.");
+      },
+    };
   };
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6 text-white">
       <Tabs defaultValue="plans" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10">
+        <TabsList className="grid w-full grid-cols-2 bg-black/30 border-white/10">
           <TabsTrigger value="plans" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Subscription Plans</TabsTrigger>
           <TabsTrigger value="credits" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Buy Credits</TabsTrigger>
         </TabsList>
@@ -315,29 +241,41 @@ const Billing: React.FC = () => {
               {loadingPlans ? (
                 <p className="text-center col-span-3">Loading plans...</p>
               ) : (
-              plans.map((plan) => (
-                <Card key={plan.id} className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300">
-                  <CardHeader>
-                    <CardTitle className="text-white">{plan.name}</CardTitle>
-                    <CardDescription className="text-dark-purple">{plan.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <ul className="space-y-2 text-sm text-gray-300">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
-                      onClick={() => {
-                        setSelectedPlanId(plan.id);
-                        handleSubscriptionChange(plan.id);
-                      }}
-                      disabled={paymentProcessing || plan.id === currentUserPlan?.id}
-                    >
-                      {getButtonText(plan)}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              )))}
+              plans.map((plan) => {
+                const paystackSubProps = getPaystackSubProps(plan);
+                return (
+                  <Card key={plan.id} className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300">
+                    <CardHeader>
+                      <CardTitle className="text-white">{plan.name}</CardTitle>
+                      <CardDescription className="text-dark-purple">{plan.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <ul className="space-y-2 text-sm text-gray-300">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
+                    </CardContent>
+                    <CardFooter>
+                      {paymentSettings?.activeGateway === 'paystack' && paystackSubProps ? (
+                        <PaystackButton
+                          {...paystackSubProps}
+                          text={getButtonText(plan)}
+                          className="w-full bg-dark-purple hover:bg-opacity-90 font-bold py-2 px-4 rounded"
+                          disabled={paymentProcessing || plan.id === currentUserPlan?.id}
+                        />
+                      ) : (
+                        <Button
+                          className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
+                          onClick={() => {
+                            setSelectedPlanId(plan.id);
+                            handleSubscriptionChange(plan.id);
+                          }}
+                          disabled={paymentProcessing || plan.id === currentUserPlan?.id}
+                        >
+                          {getButtonText(plan)}
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                )
+              }))}
             </CardContent>
           </Card>
         </TabsContent>
@@ -362,30 +300,32 @@ const Billing: React.FC = () => {
             </CardContent>
           </Card>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {creditPackages.map((pkg, index) => (
-              <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
-                {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
-                <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
-                  <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
-                  <Button
-                    onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
-                    className="w-full"
-                    variant={pkg.popular ? "default" : "outline"}
-                    disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                  >
-                    {isLoadingPaymentSettings || isLoadingPublicKeys
-                      ? 'Loading...'
-                      : !paymentReady
-                      ? 'Payments Disabled'
-                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            {creditPackages.map((pkg, index) => {
+              const creditPurchaseProps = getCreditPurchaseProps(pkg);
+              return (
+                <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
+                  {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
+                  <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
+                    <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
+                    {isLoadingPaymentSettings || isLoadingPublicKeys ? (
+                      <Button disabled className="w-full">Loading...</Button>
+                    ) : !paymentReady || !creditPurchaseProps ? (
+                      <Button disabled className="w-full">Payments Disabled</Button>
+                    ) : (
+                      <PaystackButton
+                        {...creditPurchaseProps}
+                        text="Purchase"
+                        className="w-full bg-white text-black hover:bg-gray-200 font-bold py-2 px-4 rounded"
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
@@ -398,37 +338,31 @@ const Billing: React.FC = () => {
                   <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
                   <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
                 </div>
-                <Button
-                  onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
-                  disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                  className="bg-dark-purple hover:bg-opacity-90 font-bold"
-                >
-                  {isLoadingPaymentSettings || isLoadingPublicKeys
-                    ? 'Loading...'
-                    : !paymentReady
-                    ? 'Payments Disabled'
-                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
-                </Button>
+                {(() => {
+                  const amount = parseFloat(customAmount);
+                  if (isNaN(amount) || amount < 1) {
+                    return <Button disabled className="bg-dark-purple hover:bg-opacity-90 font-bold">Purchase</Button>;
+                  }
+                  const customAmountProps = getCreditPurchaseProps({ credits: Math.floor(amount), amount: amount });
+                  if (isLoadingPaymentSettings || isLoadingPublicKeys) {
+                    return <Button disabled className="w-full">Loading...</Button>;
+                  }
+                  if (!paymentReady || !customAmountProps) {
+                    return <Button disabled className="w-full">Payments Disabled</Button>;
+                  }
+                  return (
+                    <PaystackButton
+                      {...customAmountProps}
+                      text="Purchase"
+                      className="bg-dark-purple hover:bg-opacity-90 font-bold py-2 px-4 rounded"
+                    />
+                  );
+                })()}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      <PaymentDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        title={
-          currentUserPlan
-            ? `Upgrade to ${selectedPlanDetails?.name}`
-            : `Subscribe to ${selectedPlanDetails?.name}`
-        }
-        description={`You are about to change your subscription to the ${selectedPlanDetails?.name} plan for ${selectedPlanDetails?.description}.`}
-        amount={selectedPlanDetails?.price || 0}
-        onConfirm={confirmUpgradeOrSub}
-        processing={paymentProcessing}
-        type="subscription"
-      />
 
       <AlertDialog open={downgradeConfirmationOpen} onOpenChange={setDowngradeConfirmationOpen}>
         <AlertDialogContent className="bg-gray-900 border-white/10 text-white">
@@ -446,18 +380,6 @@ const Billing: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <PaymentDialog
-        open={paymentDialogOpen}
-        onOpenChange={setPaymentDialogOpen}
-        title="Purchase Credits"
-        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.amount}`}
-        amount={selectedPackage?.amount || 0}
-        credits={selectedPackage?.credits || 0}
-        onConfirm={processPayment}
-        processing={processing}
-        type="credits"
-      />
     </div>
   );
 };
