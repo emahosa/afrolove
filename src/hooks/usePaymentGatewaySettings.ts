@@ -26,23 +26,7 @@ export const usePaymentGatewaySettings = () => {
           };
         }
 
-        // Fallback to legacy stripe_enabled setting
-        const { data: legacyData, error: legacyError } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'stripe_enabled')
-          .maybeSingle();
-
-        if (legacyError) {
-          console.error('Error fetching legacy Stripe settings:', legacyError);
-          return { enabled: false };
-        }
-
-        if (legacyData?.value) {
-          return legacyData.value as { enabled: boolean };
-        }
-
-        // Default to disabled if no settings found
+        // If no settings are found, or if the value is null, default to disabled.
         return { enabled: false };
       } catch (error) {
         console.error('Error in useStripeSettings:', error);
