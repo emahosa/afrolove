@@ -18,7 +18,7 @@ export const usePaymentGatewaySettings = () => {
         const { data: gatewayData, error: gatewayError } = await supabase
           .from('system_settings')
           .select('value')
-          .eq('key', 'payment_gateway_settings')
+          .eq('key', 'Payment_Gateway_Settings')
           .maybeSingle();
 
         if (gatewayError && gatewayError.code !== 'PGRST116') {
