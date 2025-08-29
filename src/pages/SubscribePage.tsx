@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,8 +15,7 @@ const subscriptionPlansData = [
     id: "basic_monthly",
     name: "Basic",
     price: 9.99,
-    priceId: "price_basic_monthly", // Replace with your Stripe Price ID
-    paystackPlanCode: "PLN_xxxxxxxxxxxx", // Replace with your Paystack Plan Code
+    paystackPlanCode: "PLN_xxxxxxxxxxxx",
     currency: "USD",
     interval: "month",
     description: "$9.99/month",
@@ -33,8 +31,7 @@ const subscriptionPlansData = [
     id: "premium_monthly",
     name: "Premium",
     price: 19.99,
-    priceId: "price_premium_monthly", // Replace with your Stripe Price ID
-    paystackPlanCode: "PLN_yyyyyyyyyyyy", // Replace with your Paystack Plan Code
+    paystackPlanCode: "PLN_yyyyyyyyyyyy",
     currency: "USD",
     interval: "month",
     description: "$19.99/month",
@@ -51,8 +48,7 @@ const subscriptionPlansData = [
     id: "professional_monthly",
     name: "Professional",
     price: 39.99,
-    priceId: "price_professional_monthly", // Replace with your Stripe Price ID
-    paystackPlanCode: "PLN_zzzzzzzzzzzz", // Replace with your Paystack Plan Code
+    paystackPlanCode: "PLN_zzzzzzzzzzzz",
     currency: "USD",
     interval: "month",
     description: "$39.99/month",
@@ -69,18 +65,20 @@ const subscriptionPlansData = [
   },
 ];
 
-import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
-
 const SubscribePage: React.FC = () => {
   const { user } = useAuth();
   const { isVerifying } = usePaymentVerification();
-  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (isVerifying) {
-    return <PaymentLoadingScreen title="Activating Subscription..." description="Please wait while we activate your subscription." />;
+    return (
+      <PaymentLoadingScreen
+        title="Activating Subscription..."
+        description="Please wait while we activate your subscription."
+      />
+    );
   }
 
   const handleSubscribe = async (planId: string) => {
@@ -88,63 +86,53 @@ const SubscribePage: React.FC = () => {
       toast.error("Please log in to subscribe.");
       return;
     }
-    
+
     setPaymentProcessing(true);
     try {
-      const plan = subscriptionPlansData.find(p => p.id === planId);
-      if (!plan) {
-        throw new Error("Selected plan not found.");
-      }
+      const plan = subscriptionPlansData.find((p) => p.id === planId);
+      if (!plan) throw new Error("Selected plan not found.");
 
-      // The backend will determine which payment gateway to use.
+      // Call Supabase Edge Function to create Paystack transaction
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
-          priceId: plan.priceId,
-          paystackPlanCode: plan.paystackPlanCode,
           planId: plan.id,
           planName: plan.name,
-          amount: Math.round(plan.price * 100),
+          paystackPlanCode: plan.paystackPlanCode,
+          amount: Math.round(plan.price * 100), // convert to cents/kobo
           credits: plan.creditsPerMonth,
-        }
+          email: user.email,
+        },
       });
 
-      if (error) {
-        // The function itself might throw an error (e.g., payments disabled)
-        throw new Error(error.message || 'Failed to create subscription session.');
-      }
+      if (error) throw new Error(error.message || "Failed to create subscription session.");
 
-      // A successful response should always contain a URL to redirect the user to.
       if (data?.url) {
+        // 🚨 Always redirect to Paystack’s hosted checkout
         window.location.href = data.url;
       } else {
-        // If there's no URL, something is wrong with the configuration or response.
-        console.error("No redirect URL received from server:", data);
-        throw new Error('Could not initialize payment. Please contact support.');
+        throw new Error("No Paystack checkout URL returned.");
       }
-      
-    } catch (error) {
-      console.error("Error during subscription initiation:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-      toast.error("Subscription Failed", {
-        description: errorMessage || "There was an error processing your subscription. Please try again.",
+    } catch (err: any) {
+      console.error("Error subscribing:", err);
+      toast.error("Subscription failed", {
+        description: err.message || "There was an error processing your subscription. Please try again.",
       });
-      // Close the dialog on failure so the user can try again.
-      setDialogOpen(false);
     } finally {
-      // Don't set processing to false here, as the user is being redirected.
-      // If there's an error, it will be set to false in the catch block.
-      // setPaymentProcessing(false);
+      setPaymentProcessing(false);
+      setDialogOpen(false);
     }
   };
 
-  const selectedPlanDetails = subscriptionPlansData.find(p => p.id === selectedPlanId);
+  const selectedPlanDetails = subscriptionPlansData.find((p) => p.id === selectedPlanId);
 
   return (
     <>
       <div className="container mx-auto py-12 px-4 md:px-6 max-w-5xl text-white">
         <Card className="shadow-lg border-white/10 bg-white/5 backdrop-blur-sm">
           <CardHeader className="text-center px-6 py-8 bg-dark-purple/20 rounded-t-lg">
-            <CardTitle className="text-4xl font-extrabold tracking-tight text-white">Unlock Your Full Potential</CardTitle>
+            <CardTitle className="text-4xl font-extrabold tracking-tight text-white">
+              Unlock Your Full Potential
+            </CardTitle>
             <CardDescription className="text-xl text-gray-300 mt-2">
               Choose a plan that fits your creative needs and access all premium features.
             </CardDescription>
@@ -158,10 +146,15 @@ const SubscribePage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {subscriptionPlansData.map((plan) => (
-                <Card key={plan.id} className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300">
+                <Card
+                  key={plan.id}
+                  className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300"
+                >
                   <CardHeader className="pb-4">
                     <CardTitle className="text-2xl font-semibold text-white">{plan.name}</CardTitle>
-                    <CardDescription className="text-lg font-medium text-dark-purple">{plan.description}</CardDescription>
+                    <CardDescription className="text-lg font-medium text-dark-purple">
+                      {plan.description}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow space-y-4">
                     <ul className="space-y-2 text-sm text-gray-300">
@@ -180,13 +173,13 @@ const SubscribePage: React.FC = () => {
                         setSelectedPlanId(plan.id);
                         setDialogOpen(true);
                       }}
-                      disabled={isLoadingSettings || !paymentSettings?.enabled || paymentProcessing || !user || user?.subscription?.planId === plan.id}
+                      disabled={paymentProcessing || !user || user?.subscription?.planId === plan.id}
                     >
                       {user?.subscription?.planId === plan.id
-                        ? 'Current Plan'
+                        ? "Current Plan"
                         : user?.subscription?.planId
-                        ? 'Upgrade / Downgrade'
-                        : 'Subscribe Now'}
+                        ? "Upgrade / Downgrade"
+                        : "Subscribe Now"}
                     </Button>
                   </CardFooter>
                 </Card>
@@ -195,10 +188,20 @@ const SubscribePage: React.FC = () => {
           </CardContent>
           <CardFooter className="flex flex-col items-center text-center p-6 bg-black/20 rounded-b-lg">
             <p className="text-sm text-gray-500 mb-4">
-              By subscribing, you agree to our <Link to="/terms" className="underline hover:text-dark-purple">Terms of Service</Link> and <Link to="/privacy" className="underline hover:text-dark-purple">Privacy Policy</Link>.
+              By subscribing, you agree to our{" "}
+              <Link to="/terms" className="underline hover:text-dark-purple">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className="underline hover:text-dark-purple">
+                Privacy Policy
+              </Link>
+              .
             </p>
             <Link to="/dashboard">
-              <Button variant="ghost" className="text-gray-400 hover:text-white">Maybe Later</Button>
+              <Button variant="ghost" className="text-gray-400 hover:text-white">
+                Maybe Later
+              </Button>
             </Link>
           </CardFooter>
         </Card>
@@ -208,15 +211,12 @@ const SubscribePage: React.FC = () => {
         <PaymentDialog
           open={dialogOpen && selectedPlanId !== null}
           onOpenChange={(open) => {
-            if (!open) {
-              setSelectedPlanId(null);
-              setPaymentProcessing(false); // Reset processing state if dialog is closed
-            }
+            if (!open) setSelectedPlanId(null);
             setDialogOpen(open);
           }}
           title={`Subscribe to ${selectedPlanDetails.name}`}
           description={`You are about to subscribe to the ${selectedPlanDetails.name} plan for ${selectedPlanDetails.description}.`}
-          amount={Math.round(selectedPlanDetails.price * 100)}
+          amount={selectedPlanDetails.price}
           onConfirm={() => selectedPlanId && handleSubscribe(selectedPlanId)}
           processing={paymentProcessing}
           type="subscription"

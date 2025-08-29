@@ -1,19 +1,11 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { PaystackClient } from "../_shared/paystack.ts";
 
-// Define interfaces for settings
 interface PaymentGatewaySettings {
   enabled: boolean;
   activeGateway: 'stripe' | 'paystack';
-  stripe: {
-    publicKey: string;
-    secretKey: string;
-  };
   paystack: {
-    publicKey: string;
     secretKey: string;
   };
 }
@@ -24,32 +16,22 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('--- [DEBUG] create-subscription V3 LATEST-CODE invoked ---');
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-  );
-
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Authorization header required");
-    }
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    const { data: { user } } = await supabaseClient.auth.getUser();
     
-    if (!user?.email) {
+    if (!user) {
       throw new Error("User not authenticated");
     }
-
-    console.log('🔍 Checking payment gateway settings...');
 
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -64,81 +46,46 @@ serve(async (req) => {
       .single();
 
     if (settingsError && settingsError.code !== 'PGRST116') {
-      console.error('❌ Error loading payment gateway settings:', settingsError);
       throw new Error('Could not load payment settings.');
     }
 
     const settings = settingsData?.value as PaymentGatewaySettings | undefined;
+    const { planId, planName, credits, paystackPlanCode, email } = await req.json();
 
-    const { priceId, planId, planName, amount, credits, paystackPlanCode } = await req.json();
-
-    // If payment gateways are disabled, throw an error
-    if (!settings?.enabled) {
-      console.error('❌ Payment gateways are disabled. Cannot process subscription.');
-      throw new Error("The payment system is currently disabled. Please contact support.");
+    if (!settings?.enabled || settings?.activeGateway !== 'paystack') {
+      throw new Error("The payment system is not configured for Paystack subscriptions.");
     }
 
-    // --- Stripe Subscription Flow ---
-    if (settings.activeGateway === 'stripe') {
-      console.log('💳 Stripe enabled - creating subscription session');
-
-      if (!settings.stripe?.secretKey && !Deno.env.get("STRIPE_SECRET_KEY")) {
-        throw new Error("Stripe secret key is not configured.");
-      }
-      if (!priceId) {
-        throw new Error("Stripe price ID is required for subscription.");
-      }
-
-      const stripe = new Stripe(settings.stripe.secretKey || Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2023-10-16" });
-
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      let customerId;
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        customer_email: customerId ? undefined : user.email,
-        line_items: [{ price: priceId, quantity: 1 }],
-        mode: "subscription",
-        success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
-        metadata: { type: 'subscription', user_id: user.id, plan_id: planId, plan_name: planName, user_email: user.email, credits: credits || 0 }
-      });
-
-      console.log("Stripe subscription session created successfully:", session.id);
-      return new Response(JSON.stringify({ url: session.url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+    if (!settings.paystack?.secretKey) {
+      throw new Error("Paystack secret key is not configured.");
+    }
+    if (!paystackPlanCode) {
+      throw new Error("Paystack plan code is required for subscription.");
     }
 
-    // --- Paystack Subscription Flow ---
-    if (settings.activeGateway === 'paystack') {
-      console.log('💳 Paystack enabled - creating subscription transaction');
+    const paystack = new PaystackClient(settings.paystack.secretKey);
 
-      if (!settings.paystack?.secretKey) {
-        throw new Error("Paystack secret key is not configured.");
+    const tx = await paystack.initTransaction({
+      email: email,
+      plan: paystackPlanCode,
+      callback_url: `${req.headers.get("origin")}/subscribe?subscription=success`,
+      metadata: {
+        type: 'subscription',
+        user_id: user.id,
+        plan_id: planId,
+        plan_name: planName,
+        user_email: email,
+        credits: credits || 0
       }
-      if (!paystackPlanCode) {
-        throw new Error("Paystack plan code is required for subscription.");
-      }
+    });
 
-      const paystack = new PaystackClient(settings.paystack.secretKey);
+    return new Response(JSON.stringify({ url: tx.authorization_url }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
 
-      const tx = await paystack.initTransaction({
-        email: user.email,
-        plan: paystackPlanCode,
-        callback_url: `${req.headers.get("origin")}/subscribe?subscription=success`,
-        metadata: { type: 'subscription', user_id: user.id, plan_id: planId, plan_name: planName, user_email: user.email, credits: credits || 0 }
-      });
-
-      console.log("Paystack transaction initialized successfully:", tx.reference);
-      return new Response(JSON.stringify({ url: tx.authorization_url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-    }
-
-    // If no gateway is active or configured
-    throw new Error("No active payment gateway configured.");
   } catch (error) {
-    console.error("Subscription creation error:", error);
+    console.error("Subscription creation error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

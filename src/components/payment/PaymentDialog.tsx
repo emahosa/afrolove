@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   AlertDialog,
@@ -10,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { Loader2 } from 'lucide-react';
 
 interface PaymentDialogProps {
@@ -19,7 +17,6 @@ interface PaymentDialogProps {
   title: string;
   description: string;
   amount: number;
-  credits?: number;
   onConfirm: () => void;
   processing: boolean;
   type: 'credits' | 'subscription';
@@ -34,27 +31,13 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   onConfirm,
   processing,
 }) => {
-  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
-
-  const getPaymentMethodText = () => {
-    if (isLoadingSettings) return 'Loading payment information...';
-    if (!paymentSettings?.enabled) {
-      return 'The payment system is currently disabled. Please contact support.';
-    }
-    const gatewayName = paymentSettings.activeGateway === 'stripe' ? 'Stripe' : 'Paystack';
-    return `Secure payment processing via ${gatewayName}`;
-  };
 
   const getButtonText = () => {
-    if (processing) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>;
-    if (isLoadingSettings) return 'Loading...';
-    if (!paymentSettings?.enabled) {
-      return 'Unavailable';
+    if (processing) {
+      return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>;
     }
-    return `Pay $${(amount / 100).toFixed(2)}`; // Assuming amount is in cents
+    return `Pay $${amount.toFixed(2)}`;
   };
-
-  const isPaymentDisabled = processing || isLoadingSettings || !paymentSettings?.enabled;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -64,21 +47,16 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
           <AlertDialogDescription className="space-y-2 text-gray-400">
             <div>{description}</div>
             <div className="text-sm text-gray-500">
-              {getPaymentMethodText()}
+              You will be redirected to complete your payment.
             </div>
-            {paymentSettings?.enabled === false && (
-              <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 p-2 rounded">
-                Payments are currently disabled by the administrator.
-              </div>
-            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm} 
-            disabled={isPaymentDisabled}
-            className="bg-dark-purple hover:bg-opacity-90 font-bold disabled:bg-gray-500 disabled:cursor-not-allowed"
+            disabled={processing}
+            className="bg-dark-purple hover:bg-opacity-90 font-bold disabled:bg-gray-500"
           >
             {getButtonText()}
           </AlertDialogAction>
