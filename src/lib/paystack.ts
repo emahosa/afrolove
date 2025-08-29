@@ -10,17 +10,19 @@ export const startPaystackPayment = ({
   reference,
   onSuccess,
   onCancel,
+  publicKey,
 }: {
   email: string;
   amount: number; // in Naira
   reference: string;
   onSuccess: (ref: string) => void;
   onCancel: () => void;
+  publicKey: string;
 }) => {
   const paystack = new window.PaystackPop();
 
   paystack.newTransaction({
-    key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+    key: publicKey,
     email,
     amount: amount * 100, // Paystack wants Kobo
     ref: reference,
