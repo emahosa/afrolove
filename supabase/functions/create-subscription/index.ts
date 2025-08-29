@@ -79,7 +79,7 @@ serve(async (req) => {
     }
 
     // --- Stripe Subscription Flow ---
-    if (settings.activeGateway === 'stripe') {
+    if (settings.activeGateway?.toLowerCase() === 'stripe') {
       console.log('💳 Stripe enabled - creating subscription session');
 
       if (!settings.stripe?.secretKey && !Deno.env.get("STRIPE_SECRET_KEY")) {
@@ -112,7 +112,7 @@ serve(async (req) => {
     }
 
     // --- Paystack Subscription Flow ---
-    if (settings.activeGateway === 'paystack') {
+    if (settings.activeGateway?.toLowerCase() === 'paystack') {
       console.log('💳 Paystack enabled - creating subscription transaction');
 
       if (!settings.paystack?.secretKey) {
