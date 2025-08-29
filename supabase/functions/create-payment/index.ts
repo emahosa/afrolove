@@ -30,19 +30,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-  );
-
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization header required");
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
-    
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user?.email) throw new Error("User not authenticated");
 
     const supabaseService = createClient(
@@ -52,20 +52,14 @@ serve(async (req) => {
     );
 
     const { data: settingsData, error: settingsError } = await supabaseService
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'Payment_Gateway_Settings')
+      .from("system_settings")
+      .select("value")
+      .eq("key", "payment_gateway_settings") // ✅ consistent key
       .single();
 
-    if (settingsError) {
-      console.error("Error loading payment settings:", settingsError);
-      throw new Error('Could not load system payment settings.');
-    }
-    if (!settingsData?.value) {
-      throw new Error('Payment settings are not configured in the system.');
-    }
-
+    if (settingsError) throw new Error("Could not load payment settings.");
     const settings = settingsData.value as PaymentGatewaySettings;
+
     const { amount, credits, description, packId } = await req.json();
 
     if (!amount || !credits || amount <= 0 || credits <= 0) {
@@ -83,9 +77,7 @@ serve(async (req) => {
     // --- Stripe Payment Flow ---
     if (settings.activeGateway === 'stripe') {
       const stripeKeys = settings.mode === 'live' ? settings.stripe.live : settings.stripe.test;
-      if (!stripeKeys?.secretKey) {
-        throw new Error(`Stripe secret key for ${settings.mode} mode is not configured.`);
-      }
+      if (!stripeKeys.secretKey) throw new Error(`Stripe ${settings.mode} secret key is not configured.`);
 
       const stripe = new Stripe(stripeKeys.secretKey, { apiVersion: "2023-10-16" });
 
@@ -98,50 +90,87 @@ serve(async (req) => {
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
-        line_items: [{
-          price_data: {
-            currency: "usd",
-            product_data: { name: description || `Credit Pack - ${credits} credits` },
-            unit_amount: amount,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: description || `Credit Pack - ${credits} credits`,
+              },
+              unit_amount: amount, // already cents
+            },
+            quantity: 1,
           },
-          quantity: 1,
-        }],
+        ],
         mode: "payment",
-        success_url: `${req.headers.get("origin")}/billing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get("origin")}/billing?payment=canceled`,
-        metadata: { type: 'credits', user_id: user.id, credits: credits.toString(), pack_id: packId, user_email: user.email }
+        success_url: `${req.headers.get(
+          "origin"
+        )}/credits?status=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get("origin")}/credits?status=canceled`,
+        metadata: {
+          type: "credits",
+          user_id: user.id,
+          credits: credits.toString(),
+          pack_id: packId,
+          user_email: user.email,
+        },
       });
 
-      if (!session.url) throw new Error("Stripe session created but no URL returned");
-      return new Response(JSON.stringify({ url: session.url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      if (!session.url)
+        throw new Error("Stripe session created but no URL returned");
+      return new Response(JSON.stringify({ url: session.url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
-    // --- Paystack Payment Flow ---
-    if (settings.activeGateway === 'paystack') {
-      const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
-      if (!paystackKeys?.secretKey) {
-        throw new Error(`Paystack secret key for ${settings.mode} mode is not configured.`);
-      }
+    // Paystack payment flow
+    if (settings.activeGateway === "paystack") {
+      const paystackKeys =
+        settings.mode === "live"
+          ? settings.paystack.live
+          : settings.paystack.test;
+      if (!paystackKeys.secretKey)
+        throw new Error(
+          `Paystack ${settings.mode} secret key is not configured.`
+        );
 
       const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({
         email: user.email,
-        amount: amount,
-        currency: 'USD',
-        callback_url: `${req.headers.get("origin")}/billing?payment=success`,
-        metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email }
+        amount: amount * 100, // ✅ convert to kobo
+        currency: "NGN", // ✅ default NGN unless multi-currency enabled
+        callback_url: `${req.headers.get("origin")}/credits?status=success`,
+        metadata: {
+          type: "credits",
+          user_id: user.id,
+          credits,
+          pack_id: packId,
+          user_email: user.email,
+        },
       });
 
-      if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned");
-      return new Response(JSON.stringify({ url: tx.authorization_url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
+      if (!tx.authorization_url)
+        throw new Error(
+          "Paystack transaction created but no authorization URL returned"
+        );
+      return new Response(JSON.stringify({ url: tx.authorization_url }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
     }
 
     throw new Error(`Unsupported payment gateway: ${settings.activeGateway}.`);
   } catch (error) {
     console.error("Payment creation error:", error);
-    return new Response(JSON.stringify({ error: error.message || "Failed to create payment session" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message || "Failed to create payment session",
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
   }
 });

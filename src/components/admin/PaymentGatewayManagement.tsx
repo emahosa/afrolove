@@ -28,16 +28,20 @@ interface PaymentGatewaySettings {
   paystack: GatewayConfig;
 }
 
+// ✅ Paystack is now the default gateway with your test keys included
 const defaultSettings: PaymentGatewaySettings = {
   enabled: false,
   mode: 'test',
-  activeGateway: 'stripe',
+  activeGateway: 'paystack',
   stripe: {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
   },
   paystack: {
-    test: { publicKey: '', secretKey: '' },
+    test: {
+      publicKey: 'pk_test_7e51eb9c6bdfcbc7fb9fe166978fe29f9e0cfed9',
+      secretKey: 'sk_test_03ceac5bf5a0f2e1230caad16af27852396555be',
+    },
     live: { publicKey: '', secretKey: '' },
   },
 };
@@ -59,7 +63,7 @@ export const PaymentGatewayManagement = () => {
       const { data, error } = await supabase
         .from('system_settings')
         .select('value')
-        .eq('key', 'Payment_Gateway_Settings')
+        .eq('key', 'payment_gateway_settings')
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -105,14 +109,14 @@ export const PaymentGatewayManagement = () => {
       const { data, error } = await supabase
         .from('system_settings')
         .select('id')
-        .eq('key', 'Payment_Gateway_Settings')
+        .eq('key', 'payment_gateway_settings')
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
 
       const { error: upsertError } = await supabase.from('system_settings').upsert({
         id: data?.id,
-        key: 'Payment_Gateway_Settings',
+        key: 'payment_gateway_settings',
         value: settingsToSave,
         category: 'payment',
         description: 'Configuration for payment gateways (Stripe, Paystack)',
@@ -174,7 +178,17 @@ export const PaymentGatewayManagement = () => {
   };
 
   if (loading) {
-    return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Gateway Settings</CardTitle>
+          <CardDescription>Loading...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -223,7 +237,7 @@ export const PaymentGatewayManagement = () => {
               </div>
             </div>
 
-            <Tabs defaultValue="stripe" className="w-full">
+            <Tabs defaultValue="paystack" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="stripe">Stripe Keys</TabsTrigger>
                 <TabsTrigger value="paystack">Paystack Keys</TabsTrigger>
