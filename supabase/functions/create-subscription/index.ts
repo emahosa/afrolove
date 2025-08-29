@@ -58,6 +58,8 @@ serve(async (req) => {
     if (settingsError) throw new Error('Could not load payment settings.');
 
     const settings = settingsData.value as PaymentGatewaySettings;
+    console.log("DEBUG: Full settings object from DB:", JSON.stringify(settings, null, 2));
+
     const { priceId, planId, planName, amount, paystackPlanCode } = await req.json();
 
     if (!planId || !planName || !amount) {
@@ -103,7 +105,11 @@ serve(async (req) => {
     // --- Paystack Subscription Flow ---
     if (settings.activeGateway === 'paystack') {
       if (!paystackPlanCode) throw new Error("Paystack plan code is required for subscription.");
+
+      console.log(`DEBUG: Paystack flow initiated. Mode: ${settings.mode}`);
       const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
+      console.log("DEBUG: Selected Paystack keys:", JSON.stringify(paystackKeys, null, 2));
+
       if (!paystackKeys.secretKey) throw new Error(`Paystack ${settings.mode} secret key is not configured.`);
 
       const paystack = new PaystackClient(paystackKeys.secretKey);
