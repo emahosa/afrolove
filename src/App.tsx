@@ -18,11 +18,10 @@ import Create from "./pages/Create";
 import Library from "./pages/Library";
 import Contest from "./pages/Contest";
 import Profile from "./pages/Profile";
-import Credits from "./pages/Credits";
+import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import AffiliatePage from "./pages/Affiliate";
-import SubscribePage from "./pages/SubscribePage";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -64,10 +63,9 @@ const App = () => {
                     <Route path="/library" element={<Library />} />
                     <Route path="/contest" element={<Contest />} />
                     <Route path="/profile" element={<Profile />} />
-                    <Route path="/credits" element={<Credits />} />
+                    <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
-                    <Route path="/subscribe" element={<SubscribePage />} />
                   </Route>
                 </Route>
 

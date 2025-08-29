@@ -145,8 +145,8 @@ serve(async (req) => {
       const tx = await paystack.initTransaction({
         email: user.email,
         amount: amount, // Amount is already in cents/kobo
-        currency: 'NGN', // Or get from request if supporting multiple currencies
-        callback_url: `${req.headers.get("origin")}/credits?payment=success`,
+        currency: 'USD',
+        callback_url: `${req.headers.get("origin")}/billing?payment=success`,
         metadata: {
           type: 'credits',
           user_id: user.id,

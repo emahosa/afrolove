@@ -102,8 +102,8 @@ serve(async (req) => {
         customer_email: customerId ? undefined : user.email,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
-        success_url: `${req.headers.get("origin")}/subscribe?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get("origin")}/subscribe?subscription=canceled`,
+        success_url: `${req.headers.get("origin")}/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get("origin")}/billing?subscription=canceled`,
         metadata: { type: 'subscription', user_id: user.id, plan_id: planId, plan_name: planName, user_email: user.email, credits: credits || 0 }
       });
 
@@ -126,8 +126,10 @@ serve(async (req) => {
 
       const tx = await paystack.initTransaction({
         email: user.email,
+        amount: amount,
+        currency: 'USD',
         plan: paystackPlanCode,
-        callback_url: `${req.headers.get("origin")}/subscribe?subscription=success`,
+        callback_url: `${req.headers.get("origin")}/billing?subscription=success`,
         metadata: { type: 'subscription', user_id: user.id, plan_id: planId, plan_name: planName, user_email: user.email, credits: credits || 0 }
       });
 

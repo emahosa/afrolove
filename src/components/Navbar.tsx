@@ -1,8 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu, Bell, Music, LogOut, User, Star } from "lucide-react";
+import { Menu, Bell, Music, LogOut, User, Star, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,6 +18,8 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
     navigate('/login', { replace: true });
   };
 
+  const isSubscribed = user?.subscription?.status === 'active';
+
   return (
     <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm sticky top-0 z-30">
       <div className="px-4 h-16 flex items-center justify-between">
@@ -33,10 +34,17 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
         </div>
         
         <div className="flex items-center gap-2">
-          <Link to="/credits" className="flex items-center mr-2 group">
+          <Link to="/billing">
+            <Button size="sm" className="mr-2 bg-dark-purple hover:bg-opacity-80 text-white font-bold">
+              <Crown className="mr-2 h-4 w-4" />
+              {isSubscribed ? 'Manage Plan' : 'Subscription'}
+            </Button>
+          </Link>
+
+          <Link to="/billing" className="flex items-center mr-2 group">
             <div className="flex items-center px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-              <Star className="h-4 w-4 text-dark-purple mr-2 group-hover:scale-110 transition-transform" />
-              <span className="text-sm font-medium text-white">{user?.credits || 0}</span>
+              <Star className="h-4 w-4 text-yellow-400 mr-2 group-hover:scale-110 transition-transform" />
+              <span className="text-sm font-medium text-white">{user?.credits ?? 0}</span>
             </div>
           </Link>
           
