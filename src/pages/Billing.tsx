@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
+import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
 import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
@@ -34,6 +35,7 @@ interface Plan {
 const Billing: React.FC = () => {
   const { user } = useAuth();
   const { data: paymentSettings, isLoading: isLoadingPaymentSettings } = usePaymentGatewaySettings();
+  const { data: publicKeys, isLoading: isLoadingPublicKeys } = usePaymentPublicKeys();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -100,8 +102,14 @@ const Billing: React.FC = () => {
     setProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
+          setProcessing(false);
+          return;
+        }
         const reference = `txn_credits_${user.id}_${Date.now()}`;
         startPaystackPayment({
+          publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
           amount: selectedPackage.amount,
           reference: reference,
@@ -212,8 +220,14 @@ const Billing: React.FC = () => {
     setPaymentProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
+          setPaymentProcessing(false);
+          return;
+        }
         const reference = `txn_sub_${user.id}_${Date.now()}`;
         startPaystackPayment({
+          publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
           amount: plan.price,
           reference: reference,
@@ -268,6 +282,11 @@ const Billing: React.FC = () => {
 
   const selectedPlanDetails = plans.find(p => p.id === selectedPlanId);
   const currentUserPlan = user?.subscription?.planId ? plans.find(p => p.id === user.subscription.planId) : null;
+
+  const paymentReady = paymentSettings?.enabled && (
+    (paymentSettings.activeGateway === 'paystack' && publicKeys?.paystackPublicKey) ||
+    (paymentSettings.activeGateway === 'stripe' && publicKeys?.stripePublicKey)
+  );
 
   const getButtonText = (plan: Plan) => {
     if (!currentUserPlan) return 'Subscribe Now';
@@ -356,9 +375,13 @@ const Billing: React.FC = () => {
                     onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
                     className="w-full"
                     variant={pkg.popular ? "default" : "outline"}
-                    disabled={isLoadingPaymentSettings || !paymentSettings?.enabled}
+                    disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   >
-                    {isLoadingPaymentSettings ? 'Loading...' : !paymentSettings?.enabled ? 'Payments Disabled' : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                    {isLoadingPaymentSettings || isLoadingPublicKeys
+                      ? 'Loading...'
+                      : !paymentReady
+                      ? 'Payments Disabled'
+                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
                   </Button>
                 </CardContent>
               </Card>
@@ -377,10 +400,14 @@ const Billing: React.FC = () => {
                 </div>
                 <Button
                   onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
-                  disabled={!customAmount || isLoadingPaymentSettings || !paymentSettings?.enabled}
+                  disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   className="bg-dark-purple hover:bg-opacity-90 font-bold"
                 >
-                  {isLoadingPaymentSettings ? 'Loading...' : !paymentSettings?.enabled ? 'Payments Disabled' : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                  {isLoadingPaymentSettings || isLoadingPublicKeys
+                    ? 'Loading...'
+                    : !paymentReady
+                    ? 'Payments Disabled'
+                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
                 </Button>
               </div>
             </CardContent>
