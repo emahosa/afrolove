@@ -63,13 +63,31 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Payment system is disabled.' }), { status: 400, headers: corsHeaders });
     }
 
-    // --- Paystack Flow (Not implemented for management yet) ---
-    if (settings.activeGateway === 'paystack') {
-        return new Response(JSON.stringify({ error: 'Subscription management for Paystack is not yet supported.' }), { status: 501, headers: corsHeaders });
+    // --- Paystack Flow ---
+    if (settings.activeGateway?.toLowerCase() === 'paystack') {
+        if (action === 'downgrade') {
+            if (!newPlanId) {
+                return new Response(JSON.stringify({ error: 'Missing newPlanId for downgrade' }), { status: 400, headers: corsHeaders });
+            }
+            const { error: updateError } = await supabaseService
+                .from('user_subscriptions')
+                .update({ subscription_type: newPlanId, updated_at: new Date().toISOString() })
+                .eq('user_id', user.id)
+                .eq('subscription_status', 'active');
+
+            if (updateError) {
+                console.error("Paystack downgrade DB error:", updateError);
+                throw new Error('Failed to downgrade subscription in DB.');
+            }
+
+            return new Response(JSON.stringify({ success: true, message: 'Downgrade successful.' }), { headers: corsHeaders });
+        }
+        // For other actions like 'cancel', we can still say not supported.
+        return new Response(JSON.stringify({ error: `Action '${action}' for Paystack subscriptions is not yet supported.` }), { status: 501, headers: corsHeaders });
     }
 
     // --- Stripe Flow ---
-    if (settings.activeGateway === 'stripe') {
+    if (settings.activeGateway?.toLowerCase() === 'stripe') {
         const { data: currentSub, error: dbError } = await supabaseService
         .from('user_subscriptions')
         .select('stripe_subscription_id')
