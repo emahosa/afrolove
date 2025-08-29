@@ -108,7 +108,7 @@ const Billing: React.FC = () => {
           return;
         }
         const reference = `txn_credits_${user.id}_${Date.now()}`;
-        startPaystackPayment({
+        await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
           amount: selectedPackage.amount,
@@ -226,7 +226,7 @@ const Billing: React.FC = () => {
           return;
         }
         const reference = `txn_sub_${user.id}_${Date.now()}`;
-        startPaystackPayment({
+        await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
           amount: plan.price,
