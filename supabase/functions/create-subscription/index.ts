@@ -29,27 +29,40 @@ serve(async (req) => {
   }
 
   try {
-    const { email, fullName, role, password, permissions, credits, appBaseUrl }: NewUserDetails = await req.json();
-    console.log('admin-create-user: Received request:', { email, fullName, role, permissions, credits, appBaseUrl, passwordProvided: !!password });
-
-    if (!email || !fullName || !role) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: email, fullName, role' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
-    }
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Authorization header required");
     }
 
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
+
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
+    const { data: { user } } = await supabaseClient.auth.getUser(token);
     
     if (!user?.email) {
       throw new Error("User not authenticated");
+    }
+
+    const body = await req.json();
+    const {
+      priceId, planId, planName, amount, credits, paystackPlanCode, // For user subscription
+      email, fullName, role // For admin-created user subscription
+    } = body;
+
+    // This function can be called by an admin to create a user AND a subscription
+    // or by a user to create their own subscription. The `role` field indicates the admin path.
+    if (role) {
+      console.log('admin-create-user path detected in create-subscription');
+      if (!email || !fullName) {
+        return new Response(JSON.stringify({ error: 'Missing required fields for admin user creation: email, fullName, role' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
+      }
     }
 
     console.log('🔍 Checking payment gateway settings...');
@@ -71,11 +84,7 @@ serve(async (req) => {
       throw new Error('Could not load payment settings.');
     }
 
-    console.log("DEBUG: Raw settingsData from Supabase:", JSON.stringify(settingsData, null, 2));
     const settings = settingsData?.value as PaymentGatewaySettings | undefined;
-    console.log("DEBUG: Parsed settings object:", JSON.stringify(settings, null, 2));
-
-    const { priceId, planId, planName, amount, credits, paystackPlanCode } = await req.json();
 
     // Validate required fields
     if (!planId || !planName || !amount) {

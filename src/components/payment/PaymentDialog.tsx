@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useStripeSettings } from '@/hooks/useStripeSettings';
+import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { Loader2 } from 'lucide-react';
 
 interface PaymentDialogProps {
@@ -36,14 +36,16 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   processing,
   type
 }) => {
-  const { data: stripeSettings, isLoading: isLoadingSettings } = useStripeSettings();
-  const isStripeEnabled = stripeSettings?.enabled ?? true;
+  const { data: paymentSettings, isLoading: isLoadingSettings } = usePaymentGatewaySettings();
+  const isGatewayEnabled = paymentSettings?.enabled ?? false;
+  const activeGateway = paymentSettings?.activeGateway || 'stripe';
 
   const getPaymentMethodText = () => {
     if (isLoadingSettings) return 'Loading payment information...';
     
-    if (isStripeEnabled) {
-      return 'Secure payment processing via Stripe';
+    if (isGatewayEnabled) {
+      const gatewayName = activeGateway.charAt(0).toUpperCase() + activeGateway.slice(1);
+      return `Secure payment processing via ${gatewayName}`;
     } else {
       return 'Payment processing is currently disabled. Please contact support for assistance.';
     }
@@ -51,13 +53,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
   const getButtonText = () => {
     if (processing) return <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>;
-    
     if (isLoadingSettings) return 'Loading...';
-    
-    if (isStripeEnabled) {
+    if (isGatewayEnabled) {
       return `Pay $${amount.toFixed(2)}`;
     } else {
-      return 'Contact Support';
+      return 'Payments Disabled';
     }
   };
 
@@ -71,9 +71,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             <div className="text-sm text-gray-500">
               {getPaymentMethodText()}
             </div>
-            {!isStripeEnabled && (
+            {!isGatewayEnabled && (
               <div className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded">
-                Note: Payment processing is currently in test mode
+                Note: Payment processing is currently disabled or not configured.
               </div>
             )}
           </AlertDialogDescription>
@@ -82,7 +82,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
           <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm} 
-            disabled={processing || isLoadingSettings}
+            disabled={processing || isLoadingSettings || !isGatewayEnabled}
             className="bg-dark-purple hover:bg-opacity-90 font-bold"
           >
             {getButtonText()}
