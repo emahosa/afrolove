@@ -12,6 +12,8 @@ import { Coins, DollarSign, Zap, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
+import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
+import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
 
@@ -31,6 +33,7 @@ interface Plan {
 
 const Billing: React.FC = () => {
   const { user } = useAuth();
+  const { data: paymentSettings, isLoading: isLoadingPaymentSettings } = usePaymentGatewaySettings();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -96,52 +99,51 @@ const Billing: React.FC = () => {
 
     setProcessing(true);
     try {
-      console.log('🔄 Starting credit purchase process for package:', selectedPackage);
-      
-      // Track affiliate activity for credit purchase
-      trackActivity('credit_purchase_start');
+      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        const reference = `txn_credits_${user.id}_${Date.now()}`;
+        startPaystackPayment({
+          email: user.email!,
+          amount: selectedPackage.amount,
+          reference: reference,
+          onSuccess: async (ref: string) => {
+            toast.success("Payment successful! Verifying...", {
+              description: `Reference: ${ref}. Credits will be added shortly.`
+            });
+            // The verification function will be created in the next step
+            await supabase.functions.invoke('verify-paystack-transaction', {
+              body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
+            });
+          },
+          onCancel: () => {
+            toast.info("Payment canceled.");
+          },
+        });
+        setPaymentDialogOpen(false);
 
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          amount: Math.round(selectedPackage.amount * 100), // Backend expects cents/kobo
-          credits: selectedPackage.credits,
-          description: `Purchase of ${selectedPackage.credits} credits`,
-          packId: `credits_${selectedPackage.credits}`,
-        }
-      });
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
+        console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
+        trackActivity('credit_purchase_start');
 
-      console.log('📥 Payment response:', { data, error });
+        const { data, error } = await supabase.functions.invoke('create-payment', {
+          body: {
+            amount: Math.round(selectedPackage.amount * 100),
+            credits: selectedPackage.credits,
+            description: `Purchase of ${selectedPackage.credits} credits`,
+            packId: `credits_${selectedPackage.credits}`,
+          }
+        });
 
-      if (error) {
-        console.error('❌ Payment creation failed:', error);
-        throw new Error(error.message || 'Failed to create payment session.');
-      }
+        if (error) throw new Error(error.message || 'Failed to create payment session.');
+        if (!data?.url) throw new Error('Payment processor did not return a valid checkout URL.');
 
-      // Validate that we received a valid response with URL
-      if (!data) {
-        console.error('❌ No data returned from payment function');
-        throw new Error('No response received from payment processor. Please try again.');
-      }
-
-      if (!data.url || typeof data.url !== 'string' || data.url.trim() === '') {
-        console.error('❌ Invalid or missing checkout URL:', data);
-        throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration or contact support.');
-      }
-
-      console.log('✅ Valid checkout URL received, redirecting to:', data.url);
-      
-      // Track affiliate activity for successful redirection
-      try {
         await trackActivity('credit_purchase_redirect');
-      } catch (trackingError) {
-        console.warn('⚠️ Failed to track affiliate activity:', trackingError);
-        // Don't block the payment flow for tracking errors
-      }
+        window.location.href = data.url;
+        setPaymentDialogOpen(false);
 
-      // Redirect to payment processor
-      window.location.href = data.url;
-      
-      setPaymentDialogOpen(false);
+      } else {
+        toast.error("Payment processing is currently disabled or no gateway is configured.");
+        console.warn("Payment settings state:", paymentSettings);
+      }
     } catch (error: any) {
       console.error('💥 Payment process failed:', error);
       console.error("Error purchasing credits:", error);
@@ -209,54 +211,50 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      console.log('🔄 Starting subscription process for plan:', plan.name);
-      
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: {
-          paystackPlanCode: plan.paystack_plan_code,
-          priceId: plan.stripePriceId, // Pass stripe's ID as priceId for the backend
-          planId: plan.id,
-          planName: plan.name,
-          amount: Math.round(plan.price * 100),
-          credits: plan.creditsPerMonth,
-        }
-      });
+      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        const reference = `txn_sub_${user.id}_${Date.now()}`;
+        startPaystackPayment({
+          email: user.email!,
+          amount: plan.price,
+          reference: reference,
+          onSuccess: async (ref: string) => {
+            toast.success("Payment successful! Verifying subscription...", {
+              description: `Reference: ${ref}. Your plan will be updated shortly.`
+            });
+            await supabase.functions.invoke('verify-paystack-transaction', {
+              body: { reference: ref, type: 'subscription', planId: plan.id }
+            });
+          },
+          onCancel: () => {
+            toast.info("Payment canceled.");
+          },
+        });
 
-      console.log('📥 Subscription response:', { data, error });
-
-      if (error) {
-        console.error('❌ Subscription creation failed:', error);
-        throw new Error(error.message || 'Failed to create subscription session.');
-      }
-
-      // Validate that we received a valid response with URL
-      if (!data) {
-        console.error('❌ No data returned from subscription function');
-        throw new Error('No response received from payment processor. Please try again.');
-      }
-
-      if (!data.url || typeof data.url !== 'string' || data.url.trim() === '') {
-        console.error('❌ Invalid or missing checkout URL:', data);
-        throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration or contact support.');
-      }
-
-      console.log('✅ Valid checkout URL received, redirecting to:', data.url);
-      
-      // Track affiliate activity before redirect
-      try {
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
+        console.log('🔄 Starting Stripe subscription process for plan:', plan.name);
+        const { data, error } = await supabase.functions.invoke('create-subscription', {
+          body: {
+            paystackPlanCode: plan.paystack_plan_code,
+            priceId: plan.stripePriceId,
+            planId: plan.id,
+            planName: plan.name,
+            amount: Math.round(plan.price * 100),
+            credits: plan.credits_per_month,
+          }
+        });
+        if (error) throw new Error(error.message || 'Failed to create subscription session.');
+        if (!data?.url) throw new Error('Payment processor did not return a valid checkout URL.');
         await trackActivity('subscription_page_visit', {
           plan_id: plan.id,
           plan_name: plan.name,
           amount: plan.price
         });
-      } catch (trackingError) {
-        console.warn('⚠️ Failed to track affiliate activity:', trackingError);
-        // Don't block the payment flow for tracking errors
-      }
+        window.location.href = data.url;
 
-      // Redirect to payment processor
-      window.location.href = data.url;
-      
+      } else {
+        toast.error("Payment processing is currently disabled or no gateway is configured.");
+        console.warn("Payment settings state:", paymentSettings);
+      }
     } catch (error: any) {
       console.error('💥 Subscription process failed:', error);
       toast.error("Subscription failed", {
@@ -274,7 +272,10 @@ const Billing: React.FC = () => {
   const getButtonText = (plan: Plan) => {
     if (!currentUserPlan) return 'Subscribe Now';
     if (plan.id === currentUserPlan.id) return 'Current Plan';
-    if (plan.rank > currentUserPlan.rank) return 'Upgrade';
+    if (plan.rank > currentUserPlan.rank) {
+      const gateway = paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe';
+      return `Upgrade with ${gateway}`;
+    }
     return 'Downgrade';
   };
 
@@ -351,7 +352,14 @@ const Billing: React.FC = () => {
                 </CardHeader>
                 <CardContent className="text-center">
                   <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
-                  <Button onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }} className="w-full" variant={pkg.popular ? "default" : "outline"}>Purchase Now</Button>
+                  <Button
+                    onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
+                    className="w-full"
+                    variant={pkg.popular ? "default" : "outline"}
+                    disabled={isLoadingPaymentSettings || !paymentSettings?.enabled}
+                  >
+                    {isLoadingPaymentSettings ? 'Loading...' : !paymentSettings?.enabled ? 'Payments Disabled' : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -367,7 +375,13 @@ const Billing: React.FC = () => {
                   <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
                   <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
                 </div>
-                <Button onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }} disabled={!customAmount} className="bg-dark-purple hover:bg-opacity-90 font-bold">Purchase</Button>
+                <Button
+                  onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
+                  disabled={!customAmount || isLoadingPaymentSettings || !paymentSettings?.enabled}
+                  className="bg-dark-purple hover:bg-opacity-90 font-bold"
+                >
+                  {isLoadingPaymentSettings ? 'Loading...' : !paymentSettings?.enabled ? 'Payments Disabled' : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                </Button>
               </div>
             </CardContent>
           </Card>
