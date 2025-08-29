@@ -3,18 +3,21 @@ import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { PaystackClient } from "../_shared/paystack.ts";
 
-// Define interfaces for settings
+// Define new interfaces for settings
+interface ApiKeys {
+  publicKey: string;
+  secretKey: string;
+}
+interface GatewayConfig {
+  test: ApiKeys;
+  live: ApiKeys;
+}
 interface PaymentGatewaySettings {
   enabled: boolean;
+  mode: 'test' | 'live';
   activeGateway: 'stripe' | 'paystack';
-  stripe: {
-    publicKey: string;
-    secretKey: string;
-  };
-  paystack: {
-    publicKey: string;
-    secretKey: string;
-  };
+  stripe: GatewayConfig;
+  paystack: GatewayConfig;
 }
 
 const corsHeaders = {
@@ -23,49 +26,22 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log('--- [DEBUG] create-subscription V4 FIXED-CHECKOUT-URL invoked ---');
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Authorization header required");
-    }
+    if (!authHeader) throw new Error("Authorization header required");
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+      { global: { headers: { Authorization: authHeader } } }
     );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
     
-    if (!user?.email) {
-      throw new Error("User not authenticated");
-    }
-
-    const body = await req.json();
-    const {
-      priceId, planId, planName, amount, credits, paystackPlanCode, // For user subscription
-      email, fullName, role // For admin-created user subscription
-    } = body;
-
-    // This function can be called by an admin to create a user AND a subscription
-    // or by a user to create their own subscription. The `role` field indicates the admin path.
-    if (role) {
-      console.log('admin-create-user path detected in create-subscription');
-      if (!email || !fullName) {
-        return new Response(JSON.stringify({ error: 'Missing required fields for admin user creation: email, fullName, role' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        });
-      }
-    }
-
-    console.log('🔍 Checking payment gateway settings...');
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user?.email) throw new Error("User not authenticated");
 
     const supabaseService = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -79,135 +55,74 @@ serve(async (req) => {
       .eq('key', 'payment_gateway_settings')
       .single();
 
-    if (settingsError && settingsError.code !== 'PGRST116') {
-      console.error('❌ Error loading payment gateway settings:', settingsError);
-      throw new Error('Could not load payment settings.');
-    }
+    if (settingsError) throw new Error('Could not load payment settings.');
 
-    const settings = settingsData?.value as PaymentGatewaySettings | undefined;
+    const settings = settingsData.value as PaymentGatewaySettings;
+    const { priceId, planId, planName, amount, paystackPlanCode } = await req.json();
 
-    // Validate required fields
     if (!planId || !planName || !amount) {
-      throw new Error("Missing required fields: planId, planName, amount");
+      throw new Error("Missing required subscription fields.");
     }
 
-    // If payment gateways are disabled, return error instead of processing
     if (!settings?.enabled) {
-      console.error('❌ Payment gateways are disabled. Cannot process subscription.');
-      throw new Error("Payment processing is currently disabled. Please contact support for assistance.");
+      throw new Error("Payment processing is currently disabled.");
     }
 
-    // Validate that we have an active gateway configured
     if (!settings.activeGateway) {
-      throw new Error("No payment gateway is currently configured. Please contact support.");
+      throw new Error("No payment gateway is currently configured.");
     }
 
     // --- Stripe Subscription Flow ---
-    if (settings.activeGateway?.toLowerCase() === 'stripe') {
-      console.log('💳 Stripe enabled - creating subscription session');
+    if (settings.activeGateway === 'stripe') {
+      if (!priceId) throw new Error("Stripe price ID is required for subscription.");
+      const stripeKeys = settings.mode === 'live' ? settings.stripe.live : settings.stripe.test;
+      if (!stripeKeys.secretKey) throw new Error(`Stripe ${settings.mode} secret key is not configured.`);
 
-      if (!settings.stripe?.secretKey && !Deno.env.get("STRIPE_SECRET_KEY")) {
-        throw new Error("Stripe secret key is not configured. Please contact support.");
-      }
-      if (!priceId) {
-        throw new Error("Stripe price ID is required for subscription.");
-      }
+      const stripe = new Stripe(stripeKeys.secretKey, { apiVersion: "2023-10-16" });
 
-      const stripe = new Stripe(settings.stripe.secretKey || Deno.env.get("STRIPE_SECRET_KEY")!, { apiVersion: "2023-10-16" });
-
-      // Find or create customer
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      let customerId;
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
+      let customerId = customers.data.length > 0 ? customers.data[0].id : undefined;
+      if (!customerId) {
+        const newCustomer = await stripe.customers.create({ email: user.email });
+        customerId = newCustomer.id;
       }
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
-        customer_email: customerId ? undefined : user.email,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
         success_url: `${req.headers.get("origin")}/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.get("origin")}/billing?subscription=canceled`,
-        metadata: { 
-          type: 'subscription', 
-          user_id: user.id, 
-          plan_id: planId, 
-          plan_name: planName, 
-          user_email: user.email, 
-          credits: credits || 0 
-        }
+        metadata: { type: 'subscription', user_id: user.id, plan_id: planId }
       });
 
-      console.log("Stripe subscription session created successfully:", session.id);
-      
-      // Validate that we have a checkout URL before returning
-      if (!session.url) {
-        console.error("❌ Stripe session created but no URL returned");
-        throw new Error("Payment session created but checkout URL is missing. Please try again.");
-      }
-
-      return new Response(JSON.stringify({ url: session.url }), { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
-        status: 200 
-      });
+      if (!session.url) throw new Error("Stripe session created but no URL returned.");
+      return new Response(JSON.stringify({ url: session.url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }});
     }
 
     // --- Paystack Subscription Flow ---
-    if (settings.activeGateway?.toLowerCase() === 'paystack') {
-      console.log('💳 Paystack enabled - creating subscription transaction');
+    if (settings.activeGateway === 'paystack') {
+      if (!paystackPlanCode) throw new Error("Paystack plan code is required for subscription.");
+      const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
+      if (!paystackKeys.secretKey) throw new Error(`Paystack ${settings.mode} secret key is not configured.`);
 
-      if (!settings.paystack?.secretKey) {
-        throw new Error("Paystack secret key is not configured. Please contact support.");
-      }
-      if (!paystackPlanCode) {
-        throw new Error("Paystack plan code is required for subscription.");
-      }
-
-      const paystack = new PaystackClient(settings.paystack.secretKey);
-
+      const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({
         email: user.email,
         amount: amount,
-        currency: 'USD',
         plan: paystackPlanCode,
         callback_url: `${req.headers.get("origin")}/billing?subscription=success`,
-        metadata: { 
-          type: 'subscription', 
-          user_id: user.id, 
-          plan_id: planId, 
-          plan_name: planName, 
-          user_email: user.email, 
-          credits: credits || 0 
-        }
+        metadata: { type: 'subscription', user_id: user.id, plan_id: planId }
       });
 
-      console.log("Paystack transaction initialized successfully:", tx.reference);
-      
-      // Validate that we have an authorization URL before returning
-      if (!tx.authorization_url) {
-        console.error("❌ Paystack transaction created but no authorization URL returned");
-        throw new Error("Payment session created but checkout URL is missing. Please try again.");
-      }
-
-      return new Response(JSON.stringify({ url: tx.authorization_url }), { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, 
-        status: 200 
-      });
+      if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned.");
+      return new Response(JSON.stringify({ url: tx.authorization_url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }});
     }
 
-    // If we reach here, no valid gateway was configured
-    throw new Error(`Unsupported payment gateway: ${settings.activeGateway}. Please contact support.`);
-
+    throw new Error(`Unsupported payment gateway: ${settings.activeGateway}.`);
   } catch (error) {
-    console.error("❌ Subscription creation error:", error);
-    
-    // Return detailed error information to help with debugging
-    return new Response(JSON.stringify({ 
-      error: error.message || "Failed to create subscription session",
-      details: "Please check your payment gateway configuration or contact support if the issue persists.",
-      timestamp: new Date().toISOString()
-    }), {
+    console.error("Subscription creation error:", error);
+    return new Response(JSON.stringify({ error: error.message || "Failed to create subscription session" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
