@@ -93,8 +93,8 @@ const Billing: React.FC = () => {
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
         const paystackPublicKey = paymentSettings.mode === 'live'
-          ? paymentSettings.paystack.live?.publicKey
-          : paymentSettings.paystack.test?.publicKey;
+          ? paymentSettings.paystack?.live?.publicKey
+          : paymentSettings.paystack?.test?.publicKey;
 
         if (!paystackPublicKey) {
           toast.error("Paystack public key is not configured for the current mode.");
@@ -148,7 +148,7 @@ const Billing: React.FC = () => {
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
         const paystackPublicKey = paymentSettings.mode === 'live'
-          ? paymentSettings.paystack.live?.publicKey
+          ? paymentSettings.paystack?.live?.publicKey
           : paymentSettings.paystack?.test?.publicKey;
 
         if (!paystackPublicKey) {
@@ -203,15 +203,15 @@ const Billing: React.FC = () => {
   };
 
   const paystackPublicKey = paymentSettings?.mode === 'live'
-    ? paymentSettings.paystack?.live?.publicKey
-    : paymentSettings.paystack?.test?.publicKey;
+    ? paymentSettings?.paystack?.live?.publicKey
+    : paymentSettings?.paystack?.test?.publicKey;
 
   // A simple check for stripe public key for consistency, assuming it would be structured similarly
   const stripePublicKey = paymentSettings?.mode === 'live'
-    ? paymentSettings.stripe?.live?.publicKey
-    : paymentSettings.stripe?.test?.publicKey;
+    ? paymentSettings?.stripe?.live?.publicKey
+    : paymentSettings?.stripe?.test?.publicKey;
 
-  const paymentReady = paymentSettings?.enabled &&
+  const paymentReady = !isLoadingPaymentSettings && paymentSettings?.enabled &&
     ((paymentSettings.activeGateway === 'paystack' && paystackPublicKey) ||
      (paymentSettings.activeGateway === 'stripe' && stripePublicKey));
 
