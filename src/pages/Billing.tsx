@@ -96,6 +96,8 @@ const Billing: React.FC = () => {
 
     setProcessing(true);
     try {
+      console.log('🔄 Starting credit purchase process for package:', selectedPackage);
+      
       // Track affiliate activity for credit purchase
       trackActivity('credit_purchase_start');
 
@@ -108,20 +110,40 @@ const Billing: React.FC = () => {
         }
       });
 
+      console.log('📥 Payment response:', { data, error });
+
       if (error) {
+        console.error('❌ Payment creation failed:', error);
         throw new Error(error.message || 'Failed to create payment session.');
       }
 
-      if (data?.url) {
-        // Affiliate tracking for successful redirection
-        trackActivity('credit_purchase_redirect');
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned from payment processor.');
+      // Validate that we received a valid response with URL
+      if (!data) {
+        console.error('❌ No data returned from payment function');
+        throw new Error('No response received from payment processor. Please try again.');
       }
 
+      if (!data.url || typeof data.url !== 'string' || data.url.trim() === '') {
+        console.error('❌ Invalid or missing checkout URL:', data);
+        throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration or contact support.');
+      }
+
+      console.log('✅ Valid checkout URL received, redirecting to:', data.url);
+      
+      // Track affiliate activity for successful redirection
+      try {
+        await trackActivity('credit_purchase_redirect');
+      } catch (trackingError) {
+        console.warn('⚠️ Failed to track affiliate activity:', trackingError);
+        // Don't block the payment flow for tracking errors
+      }
+
+      // Redirect to payment processor
+      window.location.href = data.url;
+      
       setPaymentDialogOpen(false);
     } catch (error: any) {
+      console.error('💥 Payment process failed:', error);
       console.error("Error purchasing credits:", error);
       toast.error("Purchase failed", {
         description: error.message || "There was an error processing your payment. Please try again.",
@@ -187,6 +209,8 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
+      console.log('🔄 Starting subscription process for plan:', plan.name);
+      
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: {
           paystackPlanCode: plan.paystack_plan_code,
@@ -198,16 +222,43 @@ const Billing: React.FC = () => {
         }
       });
 
+      console.log('📥 Subscription response:', { data, error });
+
       if (error) {
+        console.error('❌ Subscription creation failed:', error);
         throw new Error(error.message || 'Failed to create subscription session.');
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned from payment processor.');
+      // Validate that we received a valid response with URL
+      if (!data) {
+        console.error('❌ No data returned from subscription function');
+        throw new Error('No response received from payment processor. Please try again.');
       }
+
+      if (!data.url || typeof data.url !== 'string' || data.url.trim() === '') {
+        console.error('❌ Invalid or missing checkout URL:', data);
+        throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration or contact support.');
+      }
+
+      console.log('✅ Valid checkout URL received, redirecting to:', data.url);
+      
+      // Track affiliate activity before redirect
+      try {
+        await trackActivity('subscription_page_visit', {
+          plan_id: plan.id,
+          plan_name: plan.name,
+          amount: plan.price
+        });
+      } catch (trackingError) {
+        console.warn('⚠️ Failed to track affiliate activity:', trackingError);
+        // Don't block the payment flow for tracking errors
+      }
+
+      // Redirect to payment processor
+      window.location.href = data.url;
+      
     } catch (error: any) {
+      console.error('💥 Subscription process failed:', error);
       toast.error("Subscription failed", {
         description: error.message || "There was an error processing your subscription. Please try again.",
       });

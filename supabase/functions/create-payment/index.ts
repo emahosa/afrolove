@@ -73,10 +73,20 @@ serve(async (req) => {
 
     const { amount, credits, description, packId } = await req.json();
 
+    // Validate required fields
+    if (!amount || !credits || amount <= 0 || credits <= 0) {
+      throw new Error("Invalid amount or credits specified");
+    }
+
     // If payment gateways are disabled, throw an error
     if (!settings?.enabled) {
       console.error('❌ Payment gateways are disabled. Cannot process payment.');
-      throw new Error("The payment system is currently disabled. Please contact support.");
+      throw new Error("Payment processing is currently disabled. Please contact support for assistance.");
+    }
+
+    // Validate that we have an active gateway configured
+    if (!settings.activeGateway) {
+      throw new Error("No payment gateway is currently configured. Please contact support.");
     }
 
     // --- Stripe Payment Flow ---
@@ -84,13 +94,14 @@ serve(async (req) => {
       console.log('💳 Stripe enabled - creating checkout session');
 
       if (!settings.stripe?.secretKey && !Deno.env.get("STRIPE_SECRET_KEY")) {
-        throw new Error("Stripe secret key is not configured.");
+        throw new Error("Stripe secret key is not configured. Please contact support.");
       }
 
       const stripe = new Stripe(settings.stripe.secretKey || Deno.env.get("STRIPE_SECRET_KEY")!, {
         apiVersion: "2023-10-16",
       });
 
+      // Find or create customer
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
       let customerId;
       if (customers.data.length > 0) {
@@ -128,6 +139,12 @@ serve(async (req) => {
 
       console.log("Stripe session created successfully:", session.id);
 
+      // Validate that we have a checkout URL before returning
+      if (!session.url) {
+        console.error("❌ Stripe session created but no URL returned");
+        throw new Error("Payment session created but checkout URL is missing. Please try again.");
+      }
+
       return new Response(JSON.stringify({ url: session.url }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -139,7 +156,7 @@ serve(async (req) => {
       console.log('💳 Paystack enabled - creating transaction');
 
       if (!settings.paystack?.secretKey) {
-        throw new Error("Paystack secret key is not configured.");
+        throw new Error("Paystack secret key is not configured. Please contact support.");
       }
 
       const paystack = new PaystackClient(settings.paystack.secretKey);
@@ -160,6 +177,12 @@ serve(async (req) => {
 
       console.log("Paystack transaction initialized successfully:", tx.reference);
 
+      // Validate that we have an authorization URL before returning
+      if (!tx.authorization_url) {
+        console.error("❌ Paystack transaction created but no authorization URL returned");
+        throw new Error("Payment session created but checkout URL is missing. Please try again.");
+      }
+
       return new Response(JSON.stringify({ url: tx.authorization_url }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -167,10 +190,16 @@ serve(async (req) => {
     }
 
     // If no gateway is active or configured
-    throw new Error("No active payment gateway configured.");
+    throw new Error(`Unsupported payment gateway: ${settings.activeGateway}. Please contact support.`);
   } catch (error) {
     console.error("Payment creation error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    
+    // Return detailed error information to help with debugging
+    return new Response(JSON.stringify({ 
+      error: error.message || "Failed to create payment session",
+      details: "Please check your payment gateway configuration or contact support if the issue persists.",
+      timestamp: new Date().toISOString()
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

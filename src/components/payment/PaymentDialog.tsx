@@ -45,9 +45,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     if (isStripeEnabled) {
       return 'Secure payment processing via Stripe';
     } else {
-      return type === 'subscription' 
-        ? 'Subscription will be activated automatically'
-        : 'Credits will be added automatically';
+      return 'Payment processing is currently disabled. Please contact support for assistance.';
     }
   };
 
@@ -59,7 +57,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     if (isStripeEnabled) {
       return `Pay $${amount.toFixed(2)}`;
     } else {
-      return type === 'subscription' ? 'Activate Subscription' : 'Add Credits';
+      return 'Contact Support';
     }
   };
 
