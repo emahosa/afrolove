@@ -1,12 +1,12 @@
-import { createHmac } from "https://deno.land/std@0.190.0/node/crypto.ts";
+import crypto from "crypto";
+import fetch from "node-fetch";
 
 export interface InitTransactionParams {
   email: string;
-  amount?: number; // in kobo (e.g., ₦1000 => 100000)
+  amount: number; // in kobo (e.g., ₦1000 => 100000)
   currency?: string;
   callback_url?: string;
   metadata?: Record<string, any>;
-  plan?: string;
 }
 
 export interface InitTransactionResponse {
@@ -45,15 +45,6 @@ export class PaystackClient {
 
     if (!res.ok) {
       const errorText = await res.text();
-      // Try to parse the error for a more descriptive message
-      try {
-        const errorJson = JSON.parse(errorText);
-        if (errorJson.message) {
-          throw new Error(`Paystack API error: ${errorJson.message}`);
-        }
-      } catch (e) {
-        // Ignore parsing error and use the raw text
-      }
       throw new Error(`Paystack API error: ${res.status} ${errorText}`);
     }
 
@@ -62,24 +53,9 @@ export class PaystackClient {
   }
 
   async initTransaction(params: InitTransactionParams): Promise<InitTransactionResponse> {
-    const body: any = {
-      email: params.email,
-      currency: params.currency ?? "NGN",
-      callback_url: params.callback_url,
-      metadata: params.metadata,
-    };
-
-    if (params.plan) {
-      body.plan = params.plan;
-    } else if (params.amount) {
-      body.amount = params.amount;
-    } else {
-      throw new Error("Either amount or plan must be provided to initialize a transaction.");
-    }
-
     return this.request<InitTransactionResponse>("/transaction/initialize", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify(params),
     });
   }
 
@@ -88,7 +64,7 @@ export class PaystackClient {
   }
 
   static verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-    const hash = createHmac("sha512", secret).update(body).digest("hex");
+    const hash = crypto.createHmac("sha512", secret).update(body).digest("hex");
     return hash === signature;
   }
 }

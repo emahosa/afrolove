@@ -1,157 +1,227 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { createHmac } from "https://deno.land/std@0.190.0/node/crypto.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { PaystackClient } from '../_shared/paystack.ts'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paystack-signature",
-};
-
-function verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-  const hash = createHmac("sha512", secret).update(body).digest("hex");
-  return hash === signature;
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-paystack-signature',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
-
-  const supabaseService = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
 
   try {
-    const signature = req.headers.get("x-paystack-signature");
+    console.log('=== PAYSTACK WEBHOOK STARTED ===')
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    const signature = req.headers.get('x-paystack-signature')
     if (!signature) {
-      throw new Error("Missing Paystack signature");
+      console.error('❌ No Paystack signature found')
+      return new Response('No signature', { status: 400, headers: corsHeaders })
     }
 
-    const body = await req.text();
+    const body = await req.text()
+    const secret = Deno.env.get('PAYSTACK_SECRET_KEY')
 
-    const { data: settingsData, error: settingsError } = await supabaseService
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'payment_gateway_settings')
-      .single();
-
-    if (settingsError) {
-      throw new Error("Could not load payment settings to verify webhook.");
+    if (!PaystackClient.verifyWebhookSignature(body, signature, secret || '')) {
+        console.error('❌ Webhook signature verification failed.')
+        return new Response('Invalid signature', { status: 401, headers: corsHeaders })
     }
 
-    const secret = settingsData?.value?.paystack?.secretKey;
-    if (!secret) {
-      throw new Error("Paystack secret key not found in settings.");
-    }
+    const event = JSON.parse(body)
+    console.log('✅ Webhook event verified:', event.event, event.data.id)
 
-    if (!verifyWebhookSignature(body, signature, secret)) {
-      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-    }
+    if (event.event === 'charge.success') {
+      const chargeData = event.data
+      console.log('🔄 Processing charge success event:', chargeData.reference)
 
-    const event = JSON.parse(body);
+      const metadata = chargeData.metadata || {}
+      const userId = metadata.user_id
+      const paymentType = metadata.type
+      const creditsAmount = parseInt(metadata.credits || '0')
+      const planId = metadata.plan_id
+      const planName = metadata.plan_name
 
-    // --- Handle Successful Charge ---
-    if (event.event === "charge.success") {
-      const { data } = event;
-      const metadata = data.metadata;
-      const userId = metadata?.user_id;
+      console.log('📋 Event metadata:', { userId, paymentType, creditsAmount, planId, planName })
 
       if (!userId) {
-        throw new Error("Missing user_id in webhook metadata");
+        console.error('❌ No user_id in event metadata')
+        return new Response('No user_id in metadata', { status: 400, headers: corsHeaders })
       }
 
-      console.log('✅ Processing successful charge:', data.reference);
-
-      // Log the transaction
-      await supabaseService.from('payment_transactions').insert({
+      // ALWAYS log the transaction first
+      console.log('💾 Logging payment transaction...')
+      const transactionData = {
         user_id: userId,
-        amount: data.amount / 100,
-        currency: data.currency,
+        amount: (chargeData.amount || 0) / 100, // Amount is in kobo
+        currency: chargeData.currency?.toUpperCase() || 'NGN',
         payment_method: 'paystack',
         status: 'completed',
-        payment_id: data.reference,
-        credits_purchased: metadata?.credits || 0,
-      });
-
-      // Handle Credit Purchase
-      if (metadata.type === 'credits') {
-        const credits = metadata?.credits;
-        if (!credits) throw new Error("Missing credits in webhook metadata for credit purchase");
-        console.log(`💳 Processing credit purchase for user ${userId}, credits: ${credits}`);
-        await supabaseService.rpc('update_user_credits', { p_user_id: userId, p_amount: credits });
+        payment_id: chargeData.reference,
+        credits_purchased: creditsAmount || 0
       }
 
-      // Handle Subscription Purchase
-      if (metadata.type === 'subscription') {
-        const { plan_id, plan_name, credits } = metadata;
-        console.log(`🔄 Processing subscription for user ${userId} to plan ${plan_name} (${plan_id})`);
+      const { error: transactionError } = await supabaseClient
+        .from('payment_transactions')
+        .insert(transactionData)
 
-        const subscriptionStartDate = new Date();
-        const expiresAt = new Date(subscriptionStartDate);
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
+      if (transactionError) {
+        console.error('❌ Error logging transaction:', transactionError)
+      } else {
+        console.log('✅ Transaction logged successfully:', transactionData)
+      }
 
-        // Deactivate existing subscriptions
-        await supabaseService.from('user_subscriptions').update({ subscription_status: 'inactive' }).eq('user_id', userId);
+      // Handle credit purchases
+      if (paymentType === 'credits' && creditsAmount > 0) {
+        console.log(`💳 Processing credit purchase: ${creditsAmount} credits for user ${userId}`)
 
-        // Upsert new subscription
-        await supabaseService.from('user_subscriptions').upsert({
-          user_id: userId,
-          subscription_type: plan_id,
-          subscription_status: 'active',
-          started_at: subscriptionStartDate.toISOString(),
-          expires_at: expiresAt.toISOString(),
-          paystack_subscription_code: data.authorization.authorization_code,
-          paystack_customer_code: data.customer.customer_code,
-        }, { onConflict: 'user_id' });
+        try {
+          const { data: newBalance, error: creditError } = await supabaseClient.rpc('update_user_credits', {
+            p_user_id: userId,
+            p_amount: creditsAmount
+          })
 
-        // Update user roles
-        await supabaseService.from('user_roles').delete().eq('user_id', userId).eq('role', 'voter');
-        await supabaseService.from('user_roles').upsert({ user_id: userId, role: 'subscriber' }, { onConflict: 'user_id,role' });
+          if (creditError) {
+            console.error('❌ Error updating credits:', creditError)
+            throw creditError
+          }
 
-        // Grant credits that come with the subscription
-        if (credits && credits > 0) {
-          await supabaseService.rpc('update_user_credits', { p_user_id: userId, p_amount: credits });
+          console.log(`✅ Credits updated successfully. New balance: ${newBalance}`)
+
+        } catch (error) {
+          console.error('❌ Failed to process credit purchase:', error)
+          return new Response('Credit processing failed', { status: 500, headers: corsHeaders })
         }
       }
-    }
 
-    // --- Handle Subscription Disabled ---
-    if (event.event === 'subscription.disable') {
-        const { customer, subscription_code } = event.data;
-        const customerCode = customer.customer_code;
+      // Handle subscription purchases
+      if (paymentType === 'subscription' && planId && planName) {
+        console.log(`🔄 Processing subscription for user ${userId} to plan ${planName} (${planId})`)
 
-        console.log(`🚫 Subscription disabled for customer ${customerCode}, subscription code: ${subscription_code}`);
+        try {
+          const subscriptionStartDate = new Date(chargeData.paid_at)
+          const expiresAt = new Date(subscriptionStartDate)
+          expiresAt.setMonth(expiresAt.getMonth() + 1)
 
-        // Find the subscription by customer code and deactivate it
-        const { data: sub, error } = await supabaseService
+          const paystackSubscriptionCode = chargeData.authorization?.authorization_code
+          const paystackCustomerCode = chargeData.customer?.customer_code
+
+          console.log('📅 Subscription details:', {
+            paystackSubscriptionCode,
+            paystackCustomerCode,
+            expiresAt: expiresAt.toISOString()
+          })
+
+          // First, deactivate any existing subscriptions for this user
+          console.log('🔄 Deactivating existing subscriptions...')
+          const { error: deactivateError } = await supabaseClient
             .from('user_subscriptions')
-            .update({ subscription_status: 'inactive', updated_at: new Date().toISOString() })
-            .eq('paystack_customer_code', customerCode)
-            .select();
+            .update({
+              subscription_status: 'inactive',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId)
+            .eq('subscription_status', 'active')
 
-        if (error) {
-            console.error('❌ Error deactivating subscription:', error);
-        } else if (sub && sub.length > 0) {
-            const userId = sub[0].user_id;
-            // Remove subscriber role
-            await supabaseService.from('user_roles').delete().eq('user_id', userId).eq('role', 'subscriber');
-            console.log(`✅ Subscription deactivated for user ${userId}`);
+          if (deactivateError) {
+            console.error('⚠️  Error deactivating existing subscriptions:', deactivateError)
+          } else {
+            console.log('✅ Existing subscriptions deactivated')
+          }
+
+          // Upsert subscription record
+          const subscriptionData = {
+            user_id: userId,
+            subscription_type: planId,
+            subscription_status: 'active',
+            started_at: subscriptionStartDate.toISOString(),
+            expires_at: expiresAt.toISOString(),
+            paystack_subscription_code: paystackSubscriptionCode,
+            paystack_customer_code: paystackCustomerCode,
+            updated_at: new Date().toISOString()
+          }
+
+          console.log('💾 Upserting subscription record:', subscriptionData)
+          const { error: subError } = await supabaseClient
+            .from('user_subscriptions')
+            .upsert(subscriptionData, { onConflict: 'user_id' })
+
+          if (subError) {
+            console.error('❌ Error upserting subscription:', subError)
+            throw subError
+          }
+
+          console.log('✅ Subscription created successfully')
+
+          // Award credits for the subscription
+          if (creditsAmount > 0) {
+            console.log(`💰 Awarding ${creditsAmount} credits for subscription to user ${userId}`);
+            const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
+              p_user_id: userId,
+              p_amount: creditsAmount
+            });
+
+            if (creditError) {
+              console.error('❌ Error adding credits for subscription:', creditError)
+            } else {
+                console.log('✅ Credits awarded successfully for subscription');
+            }
+          }
+
+          // Update user roles
+          console.log('🔄 Updating user roles...')
+           const { error: deleteRoleError } = await supabaseClient
+            .from('user_roles')
+            .delete()
+            .eq('user_id', userId)
+            .eq('role', 'voter')
+
+          if (deleteRoleError) {
+            console.error('⚠️  Error removing voter role:', deleteRoleError)
+          }
+
+          const { error: roleError } = await supabaseClient
+            .from('user_roles')
+            .upsert({
+              user_id: userId,
+              role: 'subscriber'
+            }, {
+              onConflict: 'user_id,role'
+            })
+
+          if (roleError) {
+            console.error('⚠️  Error adding subscriber role:', roleError)
+          } else {
+            console.log('✅ User role updated to subscriber')
+          }
+
+        } catch (error) {
+          console.error('❌ Failed to process subscription:', error)
+          return new Response('Subscription processing failed', { status: 500, headers: corsHeaders })
         }
+      }
+
+      console.log('🎉 Charge success event processing completed successfully')
     }
 
-
+    console.log('=== PAYSTACK WEBHOOK COMPLETED ===')
     return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-    });
+    })
 
   } catch (error) {
-    console.error("Paystack webhook error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
+    console.error('💥 Webhook error:', error)
+    return new Response(`Webhook error: ${error.message}`, {
+      status: 500,
+      headers: corsHeaders,
+    })
   }
-});
+})
