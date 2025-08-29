@@ -36,7 +36,14 @@ export const usePaymentGatewaySettings = () => {
         }
 
         if (gatewayData?.value) {
-          const settings = gatewayData.value as { enabled?: boolean; activeGateway?: string };
+          let settings: { enabled?: boolean; activeGateway?: string };
+          if (typeof gatewayData.value === 'string') {
+            console.warn('gatewayData.value was stringified JSON, parsing now.');
+            settings = JSON.parse(gatewayData.value);
+          } else {
+            settings = gatewayData.value;
+          }
+
           const active = settings.activeGateway;
           const activeGateway: 'stripe' | 'paystack' = active === 'stripe' ? 'stripe' : 'paystack';
 
