@@ -65,7 +65,14 @@ serve(async (req) => {
       throw new Error('Payment settings are not configured in the system.');
     }
 
-    const settings = settingsData.value as PaymentGatewaySettings;
+    let settings: PaymentGatewaySettings;
+    if (typeof settingsData.value === 'string') {
+      console.warn('settingsData.value was stringified JSON, parsing now.');
+      settings = JSON.parse(settingsData.value);
+    } else {
+      settings = settingsData.value as PaymentGatewaySettings;
+    }
+
     const { amount, credits, description, packId } = await req.json();
 
     if (!amount || !credits || amount <= 0 || credits <= 0) {

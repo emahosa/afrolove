@@ -65,7 +65,14 @@ export const PaymentGatewayManagement = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data?.value) {
-        const dbValue = data.value as Partial<PaymentGatewaySettings>;
+        let dbValue: Partial<PaymentGatewaySettings>;
+        if (typeof data.value === 'string') {
+          console.warn('data.value was stringified JSON, parsing now.');
+          dbValue = JSON.parse(data.value);
+        } else {
+          dbValue = data.value as Partial<PaymentGatewaySettings>;
+        }
+
         const mergedSettings: PaymentGatewaySettings = {
           ...defaultSettings,
           ...dbValue,
