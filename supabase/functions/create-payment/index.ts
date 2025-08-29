@@ -54,7 +54,7 @@ serve(async (req) => {
     const { data: settingsData, error: settingsError } = await supabaseService
       .from('system_settings')
       .select('value')
-      .eq('key', 'payment_gateway_settings')
+      .eq('key', 'Payment_Gateway_Settings')
       .single();
 
     if (settingsError) {
