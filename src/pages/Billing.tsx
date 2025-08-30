@@ -118,7 +118,7 @@ const Billing: React.FC = () => {
               description: `Reference: ${ref}. Credits will be added shortly.`
             });
             // The verification function will be created in the next step
-            await supabase.functions.invoke('verify-paystack-transaction', {
+          const { error } = await supabase.functions.invoke('verify-paystack', {
               body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
             });
           },
@@ -235,7 +235,7 @@ const Billing: React.FC = () => {
             toast.success("Payment successful! Verifying subscription...", {
               description: `Reference: ${ref}. Your plan will be updated shortly.`
             });
-            await supabase.functions.invoke('verify-paystack-transaction', {
+          const { error } = await supabase.functions.invoke('verify-paystack', {
               body: { reference: ref, type: 'subscription', planId: plan.id }
             });
           },
