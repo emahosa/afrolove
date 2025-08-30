@@ -2,7 +2,8 @@ import Paystack from '@paystack/inline-js';
 
 export const startPaystackPayment = ({
   email,
-  amount,
+  usdAmount,
+  usdToNgnRate,
   reference,
   onSuccess,
   onCancel,
@@ -10,7 +11,8 @@ export const startPaystackPayment = ({
   metadata,
 }: {
   email: string;
-  amount: number; // in USD
+  usdAmount: number;
+  usdToNgnRate: number;
   reference: string;
   onSuccess: (ref: string) => void;
   onCancel: () => void;
@@ -18,12 +20,13 @@ export const startPaystackPayment = ({
   metadata?: Record<string, unknown>;
 }) => {
   const paystack = new Paystack();
+  const ngnAmountInKobo = Math.round(usdAmount * usdToNgnRate * 100);
 
   paystack.checkout({
     key: publicKey,
     email,
-    amount: amount * 100, // Paystack wants cents
-    currency: 'USD',
+    amount: ngnAmountInKobo,
+    currency: 'NGN',
     ref: reference,
     metadata,
     onSuccess: (transaction: { reference: string }) => {
