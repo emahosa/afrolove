@@ -63,3 +63,6 @@ verify_jwt = true
 
 [functions.create-subscription]
 verify_jwt = true
+
+[functions.verify-paystack]
+verify_jwt = false
