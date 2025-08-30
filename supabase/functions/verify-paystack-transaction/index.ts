@@ -61,19 +61,8 @@ serve(async (req) => {
       });
     }
 
-    let metadata = verificationData.data.metadata;
-    if (typeof metadata === 'string') {
-      try {
-        metadata = JSON.parse(metadata);
-      } catch (e) {
-        console.error('Failed to parse transaction metadata:', metadata);
-        throw new Error('Failed to parse transaction metadata.');
-      }
-    }
-
-    const userId = metadata?.user_id;
+    const userId = verificationData.data.metadata?.user_id;
     if (!userId) {
-      console.error('User ID not found in transaction metadata:', metadata);
       throw new Error('User ID not found in transaction metadata.');
     }
 
