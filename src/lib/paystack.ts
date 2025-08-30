@@ -4,7 +4,6 @@ export const startPaystackPayment = ({
   email,
   amount,
   reference,
-  metadata,
   onSuccess,
   onCancel,
   publicKey,
@@ -12,7 +11,6 @@ export const startPaystackPayment = ({
   email: string;
   amount: number; // in Naira
   reference: string;
-  metadata: Record<string, any>;
   onSuccess: (ref: string) => void;
   onCancel: () => void;
   publicKey: string;
@@ -24,7 +22,6 @@ export const startPaystackPayment = ({
     email,
     amount: amount * 100, // Paystack wants Kobo
     ref: reference,
-    metadata,
     onSuccess: (transaction: { reference: string }) => {
       onSuccess(transaction.reference);
     },
