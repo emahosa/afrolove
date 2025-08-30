@@ -155,6 +155,11 @@ const Billing: React.FC = () => {
           email: user.email!,
           amount: plan.price,
           reference: reference,
+          metadata: {
+            user_id: user.id,
+            type: 'subscription',
+            plan_id: plan.id,
+          },
           onSuccess: async (ref: string) => {
             toast.success("Payment successful! Verifying subscription...", {
               description: `Reference: ${ref}. Your plan will be updated shortly.`
@@ -250,6 +255,11 @@ const Billing: React.FC = () => {
           email: user.email!,
           amount: selectedPackage.amount,
           reference: reference,
+          metadata: {
+            user_id: user.id,
+            type: 'credits',
+            credits: selectedPackage.credits,
+          },
           onSuccess: async (ref: string) => {
             toast.success("Payment successful! Verifying...", {
               description: `Reference: ${ref}. Credits will be added shortly.`
