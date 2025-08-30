@@ -5,7 +5,7 @@ export interface InitTransactionParams {
   amount?: number; // in kobo (e.g., ₦1000 => 100000)
   currency?: string;
   callback_url?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, any>;
   plan?: string;
 }
 
@@ -21,7 +21,7 @@ export interface VerifyResponse {
   amount: number;
   currency: string;
   customer: { email: string };
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export class PaystackClient {
@@ -62,9 +62,9 @@ export class PaystackClient {
   }
 
   async initTransaction(params: InitTransactionParams): Promise<InitTransactionResponse> {
-    const body: Record<string, unknown> = {
+    const body: any = {
       email: params.email,
-      currency: params.currency ?? "USD",
+      currency: params.currency ?? "NGN",
       callback_url: params.callback_url,
       metadata: params.metadata,
     };
