@@ -1,4 +1,4 @@
-import { createHmac } from "https://deno.land/std@0.190.0/node/crypto.ts";
+import { createHmac } from "https://deno.land/std@0.208.0/node/crypto.ts";
 
 export interface InitTransactionParams {
   email: string;
