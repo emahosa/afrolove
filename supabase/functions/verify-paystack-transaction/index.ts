@@ -3,6 +3,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
 serve(async (req) => {
+  console.log("🔎 Incoming request:", {
+    method: req.method,
+    origin: req.headers.get("origin"),
+    host: req.headers.get("host"),
+    path: new URL(req.url).pathname,
+  });
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
