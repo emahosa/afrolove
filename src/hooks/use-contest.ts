@@ -145,7 +145,7 @@ export const useContest = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, currentContest]);
+  }, [user]);
 
   // Create new contest - ONLY contests table
   const createContest = async (contestData: {
