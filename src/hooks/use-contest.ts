@@ -45,9 +45,11 @@ export const useContest = () => {
   const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
+  const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
+  const [pastContests, setPastContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
-  const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
+  const [allContestEntries, setAllContestEntries] = useState<Record<string, ContestEntry[]>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
@@ -72,24 +74,32 @@ export const useContest = () => {
     return data.length === 0;
   }, [user]);
 
-  // Fetch active contests - ONLY contests table
+  // Fetch all contests and categorize them
   const fetchContests = useCallback(async () => {
     try {
       console.log('🔄 use-contest: fetchContests()');
       setLoading(true);
       setError(null);
+
+      // First, update contest statuses
+      const { error: rpcError } = await supabase.rpc('update_contest_statuses');
+      if (rpcError) {
+          console.error('Error updating contest statuses:', rpcError);
+          // Non-fatal, we can still proceed with fetching
+      }
       
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('start_date', { ascending: true });
 
       if (error) {
         console.error('Error fetching contests:', error);
         throw error;
       }
       
-      setContests(data || []);
+      const allContests = data || [];
+      setContests(allContests);
       
       let newUnlockedIds = new Set<string>();
       if (user) {
@@ -106,22 +116,22 @@ export const useContest = () => {
       }
       setUnlockedContestIds(newUnlockedIds);
       
-      const activeContestsData = data
-        ?.filter(contest => contest.status === 'active')
-        .map(contest => ({
-          ...contest,
-          is_unlocked: newUnlockedIds.has(contest.id)
-        })) || [];
+      const upcoming = allContests.filter(c => c.status === 'upcoming').map(c => ({ ...c, is_unlocked: newUnlockedIds.has(c.id) }));
+      const active = allContests.filter(c => c.status === 'active').map(c => ({ ...c, is_unlocked: newUnlockedIds.has(c.id) }));
+      const past = allContests.filter(c => c.status === 'closed').map(c => ({ ...c, is_unlocked: newUnlockedIds.has(c.id) }));
+
+      setUpcomingContests(upcoming);
+      setActiveContests(active);
+      setPastContests(past);
       
-      setActiveContests(activeContestsData);
-      
-      if (activeContestsData.length > 0) {
-        const firstContest = activeContestsData[0];
-        setCurrentContest(firstContest);
-        console.log('Set current contest:', firstContest);
+      if (active.length > 0) {
+        setCurrentContest(active[0]);
+      } else if (upcoming.length > 0) {
+        setCurrentContest(upcoming[0]);
       } else {
         setCurrentContest(null);
       }
+
     } catch (error: any) {
       console.error('Error in fetchContests:', error);
       const errorMessage = error.message || 'Unknown error occurred';
@@ -272,89 +282,56 @@ export const useContest = () => {
     }
   };
 
-  // Fetch entries for current contest - ONLY contest_entries + profiles
-  const fetchContestEntries = async (contestId: string) => {
-    if (!contestId) {
-      console.log('No contest ID provided for fetching entries');
-      setContestEntries([]);
+  // Fetch entries for all active contests
+  const fetchAllContestEntries = useCallback(async (contestsToFetch: Contest[]) => {
+    if (contestsToFetch.length === 0) {
+      setAllContestEntries({});
       return;
     }
 
     try {
-      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
+      console.log('🔄 use-contest: fetchAllContestEntries()');
       setError(null);
+
+      const contestIds = contestsToFetch.map(c => c.id);
       
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
-      
-      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('*')
-        .eq('contest_id', contestId)
+        .select('*, profiles(full_name, username)')
+        .in('contest_id', contestIds)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
-
-      console.log('✅ Successfully queried contest_entries table');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
         throw entriesError;
       }
 
-      console.log('Contest entries fetched:', entriesData);
-      
-      // Then get profiles for each entry separately - PROFILES TABLE ONLY
-      const entriesWithProfiles = await Promise.all(
-        (entriesData || []).map(async (entry) => {
-          console.log('🔍 About to query supabase.from("profiles") for user:', entry.user_id);
-          
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, username')
-            .eq('id', entry.user_id)
-            .single();
+      const groupedEntries: Record<string, ContestEntry[]> = {};
+      for (const contestId of contestIds) {
+        groupedEntries[contestId] = [];
+      }
 
-          console.log('✅ Successfully queried profiles table');
-
-          return {
-            id: entry.id,
-            contest_id: entry.contest_id,
-            user_id: entry.user_id,
-            video_url: entry.video_url || '',
-            description: entry.description || '',
-            approved: entry.approved,
-            vote_count: entry.vote_count || 0,
-            media_type: entry.media_type || 'video',
-            created_at: entry.created_at,
-            profiles: profileData ? {
-              full_name: profileData.full_name || '',
-              username: profileData.username || ''
-            } : null
-          };
-        })
-      );
+      for (const entry of entriesData) {
+        if (groupedEntries[entry.contest_id]) {
+          groupedEntries[entry.contest_id].push(entry as ContestEntry);
+        }
+      }
       
-      console.log('✅ Combined entries with profiles');
-      setContestEntries(entriesWithProfiles);
+      setAllContestEntries(groupedEntries);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast.error('Failed to load contest entries: ' + errorMessage);
-      setContestEntries([]);
+      setAllContestEntries({});
     }
-  };
+  }, []);
 
-  // Unlock a contest - only for subscribers
+  // Unlock a contest
   const unlockContest = async (contestId: string, fee: number) => {
     if (!user) {
       toast.error('Please log in to unlock contests');
-      return false;
-    }
-
-    // Only subscribers can unlock contests
-    if (!isSubscriber()) {
-      toast.error('Only subscribers can unlock contests. Please subscribe to access this feature.');
       return false;
     }
 
@@ -410,6 +387,24 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
+      // Check if user has already submitted an entry
+      const { data: existingEntry, error: existingEntryError } = await supabase
+        .from('contest_entries')
+        .select('id')
+        .eq('contest_id', contestId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingEntryError && existingEntryError.code !== 'PGRST116') { // PGRST116 = no rows found
+        toast.error(`Error checking for existing entry: ${existingEntryError.message}`);
+        return false;
+      }
+
+      if (existingEntry) {
+        toast.error('You have already submitted an entry for this contest.');
+        return false;
+      }
+
       console.log('🔄 use-contest: submitEntry() - Starting submission process');
       
       const timestamp = Date.now();
@@ -481,10 +476,7 @@ export const useContest = () => {
       
       toast.success('Entry submitted successfully!');
       
-      if (currentContest) {
-        console.log('🔄 use-contest:submitEntry - Refreshing contest entries for contest ID:', currentContest.id);
-        await fetchContestEntries(currentContest.id);
-      }
+      fetchAllContestEntries(activeContests);
       
       return true;
     } catch (error: any) {
@@ -518,9 +510,7 @@ export const useContest = () => {
         // Refresh user credits from auth context
         await user.refreshProfile();
         // Refresh contest entries to show new vote count
-        if (currentContest) {
-          fetchContestEntries(currentContest.id);
-        }
+        fetchAllContestEntries(activeContests);
       } else {
         toast.error(data.message);
       }
@@ -577,17 +567,18 @@ export const useContest = () => {
   }, [fetchContests]);
 
   useEffect(() => {
-    if (currentContest) {
-      console.log('🎯 use-contest: Current contest changed, fetching entries - PROFILES ONLY:', currentContest.id);
-      fetchContestEntries(currentContest.id);
+    if (activeContests.length > 0) {
+      fetchAllContestEntries(activeContests);
     }
-  }, [currentContest]);
+  }, [activeContests, fetchAllContestEntries]);
 
   return {
     contests,
+    upcomingContests,
     activeContests,
+    pastContests,
     currentContest,
-    contestEntries,
+    allContestEntries,
     loading,
     submitting,
     isVoting,
@@ -600,7 +591,7 @@ export const useContest = () => {
     checkHasFreeVote,
     downloadInstrumental,
     unlockContest,
-    refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
+    refreshEntries: () => fetchAllContestEntries(activeContests),
     refreshContests: fetchContests,
     setCurrentContest
   };

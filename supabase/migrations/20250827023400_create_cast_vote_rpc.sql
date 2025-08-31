@@ -37,9 +37,11 @@ BEGIN
     credits_to_deduct := actual_votes_to_pay * vote_cost;
 
     -- 4. Check if the user has enough credits
-    SELECT credits INTO user_credits FROM public.users WHERE id = current_user_id;
-    IF user_credits < credits_to_deduct THEN
-        RETURN jsonb_build_object('success', false, 'message', 'Insufficient credits.');
+    IF credits_to_deduct > 0 THEN
+        SELECT credits INTO user_credits FROM public.users WHERE id = current_user_id;
+        IF user_credits < credits_to_deduct THEN
+            RETURN jsonb_build_object('success', false, 'message', 'Insufficient credits.');
+        END IF;
     END IF;
 
     -- 5. Deduct credits
