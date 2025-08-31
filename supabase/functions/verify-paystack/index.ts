@@ -186,8 +186,9 @@ serve(async (req) => {
         subscription_status: 'active',
         started_at: subscriptionStartDate.toISOString(),
         expires_at: expiresAt.toISOString(),
-        paystack_subscription_code: verificationData.data.subscription_code,
-        paystack_customer_code: verificationData.data.customer?.customer_code,
+        paystack_subscription_code: verificationData.data.authorization?.authorization_code || null,
+        paystack_customer_code: verificationData.data.customer?.customer_code || null,
+        payment_provider: 'paystack',
         updated_at: new Date().toISOString()
       };
 
