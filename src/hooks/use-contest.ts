@@ -381,7 +381,9 @@ export const useContest = () => {
       }
 
       // Deduct credits
+      console.log(`[DEBUG] Calling updateUserCredits with fee: ${-fee}`);
       await updateUserCredits(-fee);
+      console.log('[DEBUG] Finished awaiting updateUserCredits.');
 
       // Record the unlock
       const { error: unlockError } = await supabase
