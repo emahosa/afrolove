@@ -144,8 +144,8 @@ const Billing: React.FC = () => {
     setPaymentProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey || !paymentSettings.paystack.usdToNgnRate) {
-          toast.error("Paystack is not configured correctly. Missing public key or exchange rate.");
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
           setPaymentProcessing(false);
           return;
         }
@@ -153,8 +153,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          usdAmount: plan.price,
-          usdToNgnRate: paymentSettings.paystack.usdToNgnRate,
+          amount: plan.price,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -245,8 +244,8 @@ const Billing: React.FC = () => {
     setProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey || !paymentSettings.paystack.usdToNgnRate) {
-          toast.error("Paystack is not configured correctly. Missing public key or exchange rate.");
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
           setProcessing(false);
           return;
         }
@@ -254,8 +253,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          usdAmount: selectedPackage.amount,
-          usdToNgnRate: paymentSettings.paystack.usdToNgnRate,
+          amount: selectedPackage.amount,
           reference: reference,
           metadata: {
             user_id: user.id,

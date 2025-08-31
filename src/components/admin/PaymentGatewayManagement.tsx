@@ -18,7 +18,6 @@ interface ApiKeys {
 interface GatewayConfig {
   test: ApiKeys;
   live: ApiKeys;
-  usdToNgnRate?: number;
 }
 
 interface PaymentGatewaySettings {
@@ -40,7 +39,6 @@ const defaultSettings: PaymentGatewaySettings = {
   paystack: {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
-    usdToNgnRate: 1500,
   },
 };
 
@@ -182,18 +180,6 @@ export const PaymentGatewayManagement = () => {
     setIsDirty(true);
   };
 
-  const handlePaystackRateChange = (value: string) => {
-    const rate = parseFloat(value) || 0;
-    setSettings(prev => ({
-        ...prev,
-        paystack: {
-            ...prev.paystack,
-            usdToNgnRate: rate,
-        },
-    }));
-    setIsDirty(true);
-  };
-
   if (loading) {
     return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
   }
@@ -265,21 +251,7 @@ export const PaymentGatewayManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="paystack" className="p-4 border rounded-lg mt-2">
-                <h3 className="text-lg font-medium mb-4">Paystack Settings</h3>
-                <div className="space-y-4 mb-6 border-b pb-6">
-                  <Label htmlFor="paystack-rate">USD to NGN Exchange Rate</Label>
-                  <Input
-                    id="paystack-rate"
-                    type="number"
-                    placeholder="e.g., 1500"
-                    value={settings.paystack.usdToNgnRate || ''}
-                    onChange={(e) => handlePaystackRateChange(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Set the value of 1 USD in NGN for Paystack transactions.
-                  </p>
-                </div>
-                <h4 className="text-base font-medium mb-4">Paystack API Keys</h4>
+                <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h4 className="font-medium text-muted-foreground">Test Keys</h4>
