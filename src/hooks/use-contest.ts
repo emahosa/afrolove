@@ -401,9 +401,9 @@ export const useContest = () => {
       const updateContestState = (contests: Contest[]) =>
         contests.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c);
 
-      setActiveContests(updateContestState);
-      setUpcomingContests(updateContestState);
-      setPastContests(updateContestState);
+      setActiveContests(prev => updateContestState(prev));
+      setUpcomingContests(prev => updateContestState(prev));
+      setPastContests(prev => updateContestState(prev));
 
       if (currentContest?.id === contestId) {
         setCurrentContest(prev => prev ? { ...prev, is_unlocked: true } : null);
