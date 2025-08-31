@@ -6,8 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "../components/ui/input";
 import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useContest } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 
+// Contest component main interface
 interface Contest {
   id: string;
   title: string;
