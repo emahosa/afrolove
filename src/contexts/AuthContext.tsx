@@ -390,7 +390,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
-      setUser(prev => prev ? { ...prev, credits: data } : null);
+      const newBalance = typeof data === 'number' ? data : parseInt(data, 10) || 0;
+      setUser(prev => prev ? { ...prev, credits: newBalance } : null);
     } catch (error) {
       console.error('Error updating credits:', error);
       throw error;
