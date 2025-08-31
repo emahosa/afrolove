@@ -44,7 +44,9 @@ export interface ContestEntry {
 export const useContest = () => {
   const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
+  const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
+  const [pastContests, setPastContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -72,7 +74,6 @@ export const useContest = () => {
     return data.length === 0;
   }, [user]);
 
-  // Fetch active contests - ONLY contests table
   const fetchContests = useCallback(async () => {
     try {
       console.log('🔄 use-contest: fetchContests()');
@@ -82,14 +83,15 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('start_date', { ascending: true });
 
       if (error) {
         console.error('Error fetching contests:', error);
         throw error;
       }
       
-      setContests(data || []);
+      const allContests = data || [];
+      setContests(allContests);
       
       let newUnlockedIds = new Set<string>();
       if (user) {
@@ -106,22 +108,35 @@ export const useContest = () => {
       }
       setUnlockedContestIds(newUnlockedIds);
       
-      const activeContestsData = data
-        ?.filter(contest => contest.status === 'active')
-        .map(contest => ({
-          ...contest,
-          is_unlocked: newUnlockedIds.has(contest.id)
-        })) || [];
+      const now = new Date();
+      const upcoming: Contest[] = [];
+      const active: Contest[] = [];
+      const past: Contest[] = [];
+
+      allContests.forEach(contest => {
+        const startDate = new Date(contest.start_date);
+        const endDate = new Date(contest.end_date);
+        const contestWithUnlocked = { ...contest, is_unlocked: newUnlockedIds.has(contest.id) };
+
+        if (endDate < now) {
+          past.push(contestWithUnlocked);
+        } else if (startDate > now) {
+          upcoming.push(contestWithUnlocked);
+        } else {
+          active.push(contestWithUnlocked);
+        }
+      });
+
+      setUpcomingContests(upcoming);
+      setActiveContests(active);
+      setPastContests(past);
       
-      setActiveContests(activeContestsData);
-      
-      if (activeContestsData.length > 0) {
-        const firstContest = activeContestsData[0];
-        setCurrentContest(firstContest);
-        console.log('Set current contest:', firstContest);
-      } else {
+      if (active.length > 0 && !currentContest) {
+        setCurrentContest(active[0]);
+      } else if (active.length === 0) {
         setCurrentContest(null);
       }
+
     } catch (error: any) {
       console.error('Error in fetchContests:', error);
       const errorMessage = error.message || 'Unknown error occurred';
@@ -130,7 +145,7 @@ export const useContest = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, currentContest]);
 
   // Create new contest - ONLY contests table
   const createContest = async (contestData: {
@@ -345,53 +360,56 @@ export const useContest = () => {
     }
   };
 
-  // Unlock a contest - only for subscribers
   const unlockContest = async (contestId: string, fee: number) => {
     if (!user) {
       toast.error('Please log in to unlock contests');
       return false;
     }
 
-    // Only subscribers can unlock contests
-    if (!isSubscriber()) {
-      toast.error('Only subscribers can unlock contests. Please subscribe to access this feature.');
-      return false;
-    }
-
-    if (fee === 0) {
-      // If contest is free, just mark as unlocked locally
-      setUnlockedContestIds(prev => new Set(prev).add(contestId));
-      setActiveContests(prev => prev.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c));
-      toast.success('Free contest unlocked!');
+    if (unlockedContestIds.has(contestId)) {
+      toast.info('You have already unlocked this contest.');
       return true;
     }
 
     try {
       setSubmitting(true);
       const userCredits = await checkUserCredits(user.id);
+
       if (userCredits < fee) {
-        toast.error(`You need ${fee} credits to unlock this contest. You only have ${userCredits}.`);
+        toast.error(`You need ${fee} credits to unlock this contest. You have ${userCredits}.`);
         return false;
       }
 
+      // Deduct credits
       await updateUserCredits(-fee);
 
+      // Record the unlock
       const { error: unlockError } = await supabase
         .from('unlocked_contests')
         .insert({ user_id: user.id, contest_id: contestId });
 
       if (unlockError) {
-        await updateUserCredits(fee); // Refund
+        // Refund credits if the insert fails
+        await updateUserCredits(fee);
         throw unlockError;
       }
 
-      setUnlockedContestIds(prev => new Set(prev).add(contestId));
-      setActiveContests(prev => prev.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c));
+      // Update local state
+      const newUnlockedIds = new Set(unlockedContestIds).add(contestId);
+      setUnlockedContestIds(newUnlockedIds);
+
+      const updateContestState = (contests: Contest[]) =>
+        contests.map(c => c.id === contestId ? { ...c, is_unlocked: true } : c);
+
+      setActiveContests(updateContestState);
+      setUpcomingContests(updateContestState);
+      setPastContests(updateContestState);
+
       if (currentContest?.id === contestId) {
-          setCurrentContest(prev => prev ? { ...prev, is_unlocked: true } : null);
+        setCurrentContest(prev => prev ? { ...prev, is_unlocked: true } : null);
       }
 
-      toast.success('Contest unlocked!');
+      toast.success('Contest unlocked successfully!');
       return true;
     } catch (error: any) {
       toast.error(error.message || 'Failed to unlock contest.');
@@ -410,6 +428,23 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
+      // Check for existing entry
+      const { data: existingEntry, error: existingEntryError } = await supabase
+        .from('contest_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('contest_id', contestId)
+        .single();
+
+      if (existingEntryError && existingEntryError.code !== 'PGRST116') { // Ignore 'not found' error
+        throw existingEntryError;
+      }
+
+      if (existingEntry) {
+        toast.error('You have already submitted an entry for this contest.');
+        return false;
+      }
+
       console.log('🔄 use-contest: submitEntry() - Starting submission process');
       
       const timestamp = Date.now();
@@ -585,7 +620,9 @@ export const useContest = () => {
 
   return {
     contests,
+    upcomingContests,
     activeContests,
+    pastContests,
     currentContest,
     contestEntries,
     loading,
