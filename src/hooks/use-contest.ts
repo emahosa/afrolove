@@ -416,7 +416,7 @@ export const useContest = () => {
       console.log('📁 use-contest:submitEntry - Attempting to upload file:', filename, 'Size:', videoFile.size, 'Type:', videoFile.type);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('instrumentals')
+        .from('contest-videos')
         .upload(`entries/${filename}`, videoFile, {
           contentType: videoFile.type,
           upsert: false
