@@ -383,26 +383,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     try {
-      console.log(`[DEBUG] updateUserCredits called with amount: ${amount}`);
       const { data, error } = await supabase.rpc('update_user_credits', {
         p_user_id: user.id,
         p_amount: amount
       });
-      console.log(`[DEBUG] RPC returned. Error: ${JSON.stringify(error)}, Data: ${JSON.stringify(data)}`);
 
-      if (error) {
-        console.error('[DEBUG] Throwing error from updateUserCredits');
-        throw error;
-      }
+      if (error) throw error;
 
-      const newBalance = typeof data === 'number' ? data : parseInt(data, 10) || 0;
-      console.log(`[DEBUG] Calculated newBalance: ${newBalance}`);
-
-      setUser(prev => {
-        const newState = prev ? { ...prev, credits: newBalance } : null;
-        console.log('[DEBUG] Calling setUser. Previous state:', prev, 'New state:', newState);
-        return newState;
-      });
+      setUser(prev => prev ? { ...prev, credits: data } : null);
     } catch (error) {
       console.error('Error updating credits:', error);
       throw error;
