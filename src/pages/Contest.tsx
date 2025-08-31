@@ -220,7 +220,7 @@ const Contest = () => {
         </p>
         {user && (
           <p className="text-sm text-gray-300 mt-2">
-            Your Credits: <span className="font-bold text-dark-purple">{user.profile?.credits ?? 'Loading...'}</span>
+            Your Credits: <span className="font-bold text-dark-purple">{user?.credits ?? 'Loading...'}</span>
           </p>
         )}
       </div>
@@ -261,7 +261,7 @@ const Contest = () => {
                           Submit Entry
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.profile?.credits ?? 0) < contest.entry_fee}>
+                        <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
                           {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
                         </Button>
                       )}
