@@ -55,13 +55,13 @@ interface Song {
 }
 
 const Contest = () => {
-  const { user, isVoter, isSubscriber, userRoles } = useAuth();
+  const { user, isVoter, isSubscriber, userRoles, loading: authLoading } = useAuth();
   const {
     upcomingContests,
     activeContests,
     pastContests,
     contestEntries,
-    loading,
+    loading: contestLoading,
     isVoting,
     castVote,
     checkHasFreeVote,
@@ -202,11 +202,11 @@ const Contest = () => {
     return <span className="text-sm font-mono">{timeLeft}</span>;
   };
 
-  if (loading) {
+  if (authLoading || contestLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-        <span className="ml-2">Loading contests...</span>
+        <span className="ml-2">Loading...</span>
       </div>
     );
   }
@@ -218,6 +218,11 @@ const Contest = () => {
         <p className="text-gray-400">
           Showcase your talent and win amazing prizes!
         </p>
+        {user && (
+          <p className="text-sm text-gray-300 mt-2">
+            Your Credits: <span className="font-bold text-dark-purple">{user.profile?.credits ?? 'Loading...'}</span>
+          </p>
+        )}
       </div>
 
       <Tabs defaultValue="active" className="w-full flex flex-col flex-grow mt-6">
