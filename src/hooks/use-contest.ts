@@ -44,9 +44,7 @@ export interface ContestEntry {
 export const useContest = () => {
   const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
-  const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
-  const [pastContests, setPastContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -84,15 +82,14 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .select('*')
-        .order('start_date', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching contests:', error);
         throw error;
       }
       
-      const allContests = data || [];
-      setContests(allContests);
+      setContests(data || []);
       
       let newUnlockedIds = new Set<string>();
       if (user) {
@@ -108,35 +105,18 @@ export const useContest = () => {
         }
       }
       setUnlockedContestIds(newUnlockedIds);
-
-      const now = new Date();
-      const upcoming: Contest[] = [];
-      const active: Contest[] = [];
-      const past: Contest[] = [];
-
-      allContests.forEach(contest => {
-        const startDate = new Date(contest.start_date);
-        const endDate = new Date(contest.end_date);
-        const contestWithUnlocked = {
-            ...contest,
-            is_unlocked: newUnlockedIds.has(contest.id)
-        };
-
-        if (now < startDate) {
-            upcoming.push(contestWithUnlocked);
-        } else if (now >= startDate && now <= endDate) {
-            active.push(contestWithUnlocked);
-        } else {
-            past.push(contestWithUnlocked);
-        }
-      });
-
-      setUpcomingContests(upcoming);
-      setActiveContests(active);
-      setPastContests(past);
       
-      if (active.length > 0) {
-        const firstContest = active[0];
+      const activeContestsData = data
+        ?.filter(contest => contest.status === 'active')
+        .map(contest => ({
+          ...contest,
+          is_unlocked: newUnlockedIds.has(contest.id)
+        })) || [];
+      
+      setActiveContests(activeContestsData);
+      
+      if (activeContestsData.length > 0) {
+        const firstContest = activeContestsData[0];
         setCurrentContest(firstContest);
         console.log('Set current contest:', firstContest);
       } else {
@@ -292,47 +272,89 @@ export const useContest = () => {
     }
   };
 
-  // Fetch entries for a given contest - ONLY contest_entries + profiles
-  const fetchContestEntries = async (contestId: string): Promise<ContestEntry[]> => {
+  // Fetch entries for current contest - ONLY contest_entries + profiles
+  const fetchContestEntries = async (contestId: string) => {
     if (!contestId) {
       console.log('No contest ID provided for fetching entries');
-      return [];
+      setContestEntries([]);
+      return;
     }
 
     try {
-      console.log('🔄 use-contest: fetchContestEntries() for contest:', contestId);
+      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
+      setError(null);
+      
+      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
+      
+      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            username
-          )
-        `)
+        .select('*')
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
+
+      console.log('✅ Successfully queried contest_entries table');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
         throw entriesError;
       }
-      
-      return (entriesData as ContestEntry[]) || [];
 
+      console.log('Contest entries fetched:', entriesData);
+      
+      // Then get profiles for each entry separately - PROFILES TABLE ONLY
+      const entriesWithProfiles = await Promise.all(
+        (entriesData || []).map(async (entry) => {
+          console.log('🔍 About to query supabase.from("profiles") for user:', entry.user_id);
+          
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('full_name, username')
+            .eq('id', entry.user_id)
+            .single();
+
+          console.log('✅ Successfully queried profiles table');
+
+          return {
+            id: entry.id,
+            contest_id: entry.contest_id,
+            user_id: entry.user_id,
+            video_url: entry.video_url || '',
+            description: entry.description || '',
+            approved: entry.approved,
+            vote_count: entry.vote_count || 0,
+            media_type: entry.media_type || 'video',
+            created_at: entry.created_at,
+            profiles: profileData ? {
+              full_name: profileData.full_name || '',
+              username: profileData.username || ''
+            } : null
+          };
+        })
+      );
+      
+      console.log('✅ Combined entries with profiles');
+      setContestEntries(entriesWithProfiles);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
+      setError(errorMessage);
       toast.error('Failed to load contest entries: ' + errorMessage);
-      return [];
+      setContestEntries([]);
     }
   };
 
-  // Unlock a contest
+  // Unlock a contest - only for subscribers
   const unlockContest = async (contestId: string, fee: number) => {
     if (!user) {
       toast.error('Please log in to unlock contests');
+      return false;
+    }
+
+    // Only subscribers can unlock contests
+    if (!isSubscriber()) {
+      toast.error('Only subscribers can unlock contests. Please subscribe to access this feature.');
       return false;
     }
 
@@ -388,24 +410,6 @@ export const useContest = () => {
 
     setSubmitting(true);
     try {
-      // Check for existing entry
-      const { data: existingEntry, error: existingEntryError } = await supabase
-        .from('contest_entries')
-        .select('id')
-        .eq('contest_id', contestId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (existingEntryError && existingEntryError.code !== 'PGRST116') { // PGRST116: no rows found
-        throw existingEntryError;
-      }
-
-      if (existingEntry) {
-        toast.error('You have already submitted an entry for this contest.');
-        setSubmitting(false);
-        return false;
-      }
-
       console.log('🔄 use-contest: submitEntry() - Starting submission process');
       
       const timestamp = Date.now();
@@ -573,16 +577,15 @@ export const useContest = () => {
   }, [fetchContests]);
 
   useEffect(() => {
-    if (currentContest && !contestEntries.length) {
-      fetchContestEntries(currentContest.id).then(setContestEntries);
+    if (currentContest) {
+      console.log('🎯 use-contest: Current contest changed, fetching entries - PROFILES ONLY:', currentContest.id);
+      fetchContestEntries(currentContest.id);
     }
   }, [currentContest]);
 
   return {
     contests,
-    upcomingContests,
     activeContests,
-    pastContests,
     currentContest,
     contestEntries,
     loading,
@@ -597,9 +600,8 @@ export const useContest = () => {
     checkHasFreeVote,
     downloadInstrumental,
     unlockContest,
-    refreshEntries: () => currentContest && fetchContestEntries(currentContest.id).then(setContestEntries),
+    refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
-    setCurrentContest,
-    fetchContestEntries,
+    setCurrentContest
   };
 };
