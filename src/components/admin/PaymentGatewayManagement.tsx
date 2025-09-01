@@ -1,281 +1,326 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { CreditCard, Save, Loader2, TestTube, Zap } from 'lucide-react';
-
-interface ApiKeys {
-  publicKey: string;
-  secretKey: string;
-}
-
-interface GatewayConfig {
-  test: ApiKeys;
-  live: ApiKeys;
-}
+import { toast } from 'sonner';
 
 interface PaymentGatewaySettings {
   enabled: boolean;
   mode: 'test' | 'live';
   activeGateway: 'stripe' | 'paystack';
-  stripe: GatewayConfig;
-  paystack: GatewayConfig;
+  stripe: {
+    test: { publicKey: string; secretKey: string };
+    live: { publicKey: string; secretKey: string };
+  };
+  paystack: {
+    test: { publicKey: string; secretKey: string };
+    live: { publicKey: string; secretKey: string };
+  };
 }
 
-const defaultSettings: PaymentGatewaySettings = {
-  enabled: false,
-  mode: 'test',
-  activeGateway: 'stripe',
-  stripe: {
-    test: { publicKey: '', secretKey: '' },
-    live: { publicKey: '', secretKey: '' },
-  },
-  paystack: {
-    test: { publicKey: '', secretKey: '' },
-    live: { publicKey: '', secretKey: '' },
-  },
-};
-
-export const PaymentGatewayManagement = () => {
-  const [settings, setSettings] = useState<PaymentGatewaySettings>(defaultSettings);
-  const [initialSettings, setInitialSettings] = useState<PaymentGatewaySettings>(defaultSettings);
+const PaymentGatewayManagement = () => {
+  const [settings, setSettings] = useState<PaymentGatewaySettings>({
+    enabled: false,
+    mode: 'test',
+    activeGateway: 'stripe',
+    stripe: {
+      test: { publicKey: '', secretKey: '' },
+      live: { publicKey: '', secretKey: '' }
+    },
+    paystack: {
+      test: { publicKey: '', secretKey: '' },
+      live: { publicKey: '', secretKey: '' }
+    }
+  });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('system_settings')
         .select('value')
         .eq('key', 'payment_gateway_settings')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading payment settings:', error);
+        toast.error('Failed to load payment settings');
+        return;
+      }
 
       if (data?.value) {
-        let dbValue: Partial<PaymentGatewaySettings>;
+        let loadedSettings: PaymentGatewaySettings;
         if (typeof data.value === 'string') {
-          console.warn('data.value was stringified JSON, parsing now.');
-          dbValue = JSON.parse(data.value);
+          loadedSettings = JSON.parse(data.value);
         } else {
-          dbValue = data.value as Partial<PaymentGatewaySettings>;
+          loadedSettings = data.value as PaymentGatewaySettings;
         }
-
-        const mergedSettings: PaymentGatewaySettings = {
-          ...defaultSettings,
-          ...dbValue,
-          stripe: {
-            ...defaultSettings.stripe,
-            ...dbValue.stripe,
-            test: { ...defaultSettings.stripe.test, ...dbValue.stripe?.test },
-            live: { ...defaultSettings.stripe.live, ...dbValue.stripe?.live },
-          },
-          paystack: {
-            ...defaultSettings.paystack,
-            ...dbValue.paystack,
-            test: { ...defaultSettings.paystack.test, ...dbValue.paystack?.test },
-            live: { ...defaultSettings.paystack.live, ...dbValue.paystack?.live },
-          },
-        };
-        setSettings(mergedSettings);
-        setInitialSettings(mergedSettings);
-      } else {
-        setSettings(defaultSettings);
-        setInitialSettings(defaultSettings);
+        setSettings(loadedSettings);
       }
     } catch (error) {
-      console.error('Error loading payment gateway settings:', error);
-      toast.error('Failed to load payment gateway settings');
+      console.error('Error loading settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
-      setIsDirty(false);
     }
   };
 
-  const persistSettings = async (settingsToSave: PaymentGatewaySettings) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('id')
-        .eq('key', 'payment_gateway_settings')
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      const { error: upsertError } = await supabase.from('system_settings').upsert({
-        id: data?.id,
-        key: 'payment_gateway_settings',
-        value: settingsToSave,
-        category: 'payment',
-        description: 'Configuration for payment gateways (Stripe, Paystack)',
-        updated_by: user.id,
-      });
-
-      if (upsertError) throw upsertError;
-
-      setInitialSettings(settingsToSave);
-      return true;
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      toast.error('Failed to save settings.');
-      return false;
-    }
-  };
-
-  const handleSaveAllSettings = async () => {
+  const saveSettings = async () => {
     setSaving(true);
-    const success = await persistSettings(settings);
-    if (success) {
-      toast.success('All payment gateway settings saved.');
-      setIsDirty(false);
+    try {
+      // Convert settings to a plain object that can be serialized to JSON
+      const settingsToSave = JSON.parse(JSON.stringify(settings));
+      
+      const { error } = await supabase
+        .from('system_settings')
+        .upsert({
+          key: 'payment_gateway_settings',
+          value: settingsToSave,
+          category: 'payment',
+          description: 'Payment gateway configuration settings',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+
+      if (error) {
+        console.error('Error saving settings:', error);
+        throw error;
+      }
+
+      toast.success('Payment settings saved successfully');
+    } catch (error: any) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  const handleQuickSave = async <K extends keyof PaymentGatewaySettings>(
-    key: K,
-    value: PaymentGatewaySettings[K],
-    toastMessage: string
-  ) => {
-    const originalSettings = { ...settings };
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-
-    const success = await persistSettings(newSettings);
-
-    if (success) {
-      toast.success(toastMessage);
-      setInitialSettings(newSettings);
-    } else {
-      setSettings(originalSettings); // Revert on failure
-    }
-  };
-
-  const handleInputChange = (gateway: 'stripe' | 'paystack', mode: 'test' | 'live', field: 'publicKey' | 'secretKey', value: string) => {
+  const updateGatewaySettings = (gateway: 'stripe' | 'paystack', mode: 'test' | 'live', field: 'publicKey' | 'secretKey', value: string) => {
     setSettings(prev => ({
       ...prev,
       [gateway]: {
         ...prev[gateway],
         [mode]: {
           ...prev[gateway][mode],
-          [field]: value,
-        },
-      },
+          [field]: value
+        }
+      }
     }));
-    setIsDirty(true);
   };
 
   if (loading) {
-    return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
+    return (
+      <Card className="bg-white/5 border-white/10">
+        <CardContent className="p-6">
+          <div className="text-center text-gray-400">Loading payment settings...</div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><CreditCard />Payment Gateway Management</CardTitle>
-        <CardDescription>Configure and manage payment gateways, API keys, and operating mode.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div>
-            <Label htmlFor="payment-enabled" className="text-base font-medium">Enable Payment Gateways</Label>
-            <p className="text-sm text-muted-foreground">Master switch to enable or disable all payment processing.</p>
-          </div>
-          <Switch
-            id="payment-enabled"
-            checked={settings.enabled}
-            onCheckedChange={(enabled) => handleQuickSave('enabled', enabled, `Payment gateways ${enabled ? 'enabled' : 'disabled'}.`)}
-          />
-        </div>
-
-        {settings.enabled && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4 p-4 border rounded-lg">
-                <Label className="text-base font-medium">Active Gateway</Label>
-                <RadioGroup
-                  value={settings.activeGateway}
-                  onValueChange={(v: 'stripe' | 'paystack') => handleQuickSave('activeGateway', v, `Active gateway set to ${v.charAt(0).toUpperCase() + v.slice(1)}.`)}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2"><RadioGroupItem value="stripe" id="stripe" /><Label htmlFor="stripe">Stripe</Label></div>
-                  <div className="flex items-center space-x-2"><RadioGroupItem value="paystack" id="paystack" /><Label htmlFor="paystack">Paystack</Label></div>
-                </RadioGroup>
-              </div>
-              <div className="space-y-4 p-4 border rounded-lg">
-                <Label className="text-base font-medium">Operating Mode</Label>
-                <RadioGroup
-                  value={settings.mode}
-                  onValueChange={(v: 'test' | 'live') => handleQuickSave('mode', v, `Operating mode set to ${v}.`)}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2"><RadioGroupItem value="test" id="test" /><Label htmlFor="test" className="flex items-center gap-2"><TestTube size={16}/>Test</Label></div>
-                  <div className="flex items-center space-x-2"><RadioGroupItem value="live" id="live" /><Label htmlFor="live" className="flex items-center gap-2"><Zap size={16}/>Live</Label></div>
-                </RadioGroup>
-              </div>
+    <div className="space-y-6">
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-white">Payment Gateway Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Global Settings */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.enabled}
+                onCheckedChange={(enabled) => setSettings(prev => ({ ...prev, enabled }))}
+              />
+              <Label className="text-white">Enable Payment Processing</Label>
             </div>
-
-            <Tabs defaultValue="stripe" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="stripe">Stripe Keys</TabsTrigger>
-                <TabsTrigger value="paystack">Paystack Keys</TabsTrigger>
-              </TabsList>
-              <TabsContent value="stripe" className="p-4 border rounded-lg mt-2">
-                <h3 className="text-lg font-medium mb-4">Stripe API Keys</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.stripe.test.publicKey} onChange={(e) => handleInputChange('stripe', 'test', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.stripe.test.secretKey} onChange={(e) => handleInputChange('stripe', 'test', 'secretKey', e.target.value)} /></div>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.stripe.live.publicKey} onChange={(e) => handleInputChange('stripe', 'live', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.stripe.live.secretKey} onChange={(e) => handleInputChange('stripe', 'live', 'secretKey', e.target.value)} /></div>
-                  </div>
-                </div>
-              </TabsContent>
-              <TabsContent value="paystack" className="p-4 border rounded-lg mt-2">
-                <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.paystack.test.publicKey} onChange={(e) => handleInputChange('paystack', 'test', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.paystack.test.secretKey} onChange={(e) => handleInputChange('paystack', 'test', 'secretKey', e.target.value)} /></div>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.paystack.live.publicKey} onChange={(e) => handleInputChange('paystack', 'live', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.paystack.live.secretKey} onChange={(e) => handleInputChange('paystack', 'live', 'secretKey', e.target.value)} /></div>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+            
+            <div className="space-y-2">
+              <Label className="text-white">Mode</Label>
+              <Select 
+                value={settings.mode} 
+                onValueChange={(mode: 'test' | 'live') => setSettings(prev => ({ ...prev, mode }))}
+              >
+                <SelectTrigger className="bg-black/20 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="test">Test Mode</SelectItem>
+                  <SelectItem value="live">Live Mode</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-white">Active Gateway</Label>
+              <Select 
+                value={settings.activeGateway} 
+                onValueChange={(gateway: 'stripe' | 'paystack') => setSettings(prev => ({ ...prev, activeGateway: gateway }))}
+              >
+                <SelectTrigger className="bg-black/20 border-white/20 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stripe">Stripe</SelectItem>
+                  <SelectItem value="paystack">Paystack</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        )}
 
-        <div className="flex justify-end">
-          <Button onClick={handleSaveAllSettings} disabled={!isDirty || saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save API Keys
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+          {/* Gateway Configuration */}
+          <Tabs defaultValue="stripe" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 bg-black/30">
+              <TabsTrigger value="stripe" className="data-[state=active]:bg-dark-purple">Stripe</TabsTrigger>
+              <TabsTrigger value="paystack" className="data-[state=active]:bg-dark-purple">Paystack</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="stripe" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="bg-black/20 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Test Mode</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Publishable Key</Label>
+                      <Input
+                        type="text"
+                        value={settings.stripe.test.publicKey}
+                        onChange={(e) => updateGatewaySettings('stripe', 'test', 'publicKey', e.target.value)}
+                        placeholder="pk_test_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Secret Key</Label>
+                      <Input
+                        type="password"
+                        value={settings.stripe.test.secretKey}
+                        onChange={(e) => updateGatewaySettings('stripe', 'test', 'secretKey', e.target.value)}
+                        placeholder="sk_test_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/20 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Live Mode</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Publishable Key</Label>
+                      <Input
+                        type="text"
+                        value={settings.stripe.live.publicKey}
+                        onChange={(e) => updateGatewaySettings('stripe', 'live', 'publicKey', e.target.value)}
+                        placeholder="pk_live_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Secret Key</Label>
+                      <Input
+                        type="password"
+                        value={settings.stripe.live.secretKey}
+                        onChange={(e) => updateGatewaySettings('stripe', 'live', 'secretKey', e.target.value)}
+                        placeholder="sk_live_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="paystack" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="bg-black/20 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Test Mode</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Public Key</Label>
+                      <Input
+                        type="text"
+                        value={settings.paystack.test.publicKey}
+                        onChange={(e) => updateGatewaySettings('paystack', 'test', 'publicKey', e.target.value)}
+                        placeholder="pk_test_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Secret Key</Label>
+                      <Input
+                        type="password"
+                        value={settings.paystack.test.secretKey}
+                        onChange={(e) => updateGatewaySettings('paystack', 'test', 'secretKey', e.target.value)}
+                        placeholder="sk_test_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-black/20 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Live Mode</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-white">Public Key</Label>
+                      <Input
+                        type="text"
+                        value={settings.paystack.live.publicKey}
+                        onChange={(e) => updateGatewaySettings('paystack', 'live', 'publicKey', e.target.value)}
+                        placeholder="pk_live_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-white">Secret Key</Label>
+                      <Input
+                        type="password"
+                        value={settings.paystack.live.secretKey}
+                        onChange={(e) => updateGatewaySettings('paystack', 'live', 'secretKey', e.target.value)}
+                        placeholder="sk_live_..."
+                        className="bg-black/30 border-white/20 text-white"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end">
+            <Button 
+              onClick={saveSettings} 
+              disabled={saving}
+              className="bg-dark-purple hover:bg-opacity-90"
+            >
+              {saving ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
+
+export default PaymentGatewayManagement;
