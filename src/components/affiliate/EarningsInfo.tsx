@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,46 +40,27 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
     setError(null);
 
     try {
-      // Fetch total commissions
-      const { data: commissions, error: commissionsError } = await supabase
-        .from('affiliate_commissions')
-        .select('amount_earned, commission_month')
-        .eq('affiliate_user_id', affiliateId);
-
-      if (commissionsError) throw new Error(`Failed to fetch commissions: ${commissionsError.message}`);
-
-      const totalEarned = commissions?.reduce((sum, record) => sum + Number(record.amount_earned), 0) || 0;
-
-      // Fetch this month's earnings
-      const currentMonth = new Date().toISOString().substring(0, 7);
-      const thisMonthCommissions = commissions?.filter(c => 
-        c.commission_month && new Date(c.commission_month).toISOString().substring(0, 7) === currentMonth
-      ) || [];
-      const thisMonthEarnings = thisMonthCommissions.reduce((sum, record) => sum + Number(record.amount_earned), 0);
-
-      // Fetch payout requests
-      const { data: payouts, error: payoutsError } = await supabase
-        .from('affiliate_payout_requests')
-        .select('requested_amount, status')
-        .eq('affiliate_user_id', affiliateId);
-
-      if (payoutsError) throw new Error(`Failed to fetch payouts: ${payoutsError.message}`);
-
-      const pendingPayouts = payouts?.filter(p => p.status === 'pending' || p.status === 'approved')
-        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
-
-      const totalPaidOut = payouts?.filter(p => p.status === 'paid')
-        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
-
-      const availableBalance = totalEarned - pendingPayouts - totalPaidOut;
-
-      setEarnings({
-        totalEarned,
-        availableBalance: Math.max(0, availableBalance),
-        pendingPayouts,
-        totalPaidOut,
-        thisMonthEarnings,
+      // Use edge function to fetch affiliate data
+      const { data, error: fetchError } = await supabase.functions.invoke('get-affiliate-data', {
+        body: { type: 'earnings-summary', userId: affiliateId }
       });
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch earnings: ${fetchError.message}`);
+      }
+
+      if (data?.earningsSummary) {
+        setEarnings(data.earningsSummary);
+      } else {
+        // Fallback to default values if no data
+        setEarnings({
+          totalEarned: 0,
+          availableBalance: 0,
+          pendingPayouts: 0,
+          totalPaidOut: 0,
+          thisMonthEarnings: 0,
+        });
+      }
 
     } catch (err: any) {
       console.error("Error in fetchEarnings:", err);

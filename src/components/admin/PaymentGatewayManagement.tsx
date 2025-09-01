@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ const PaymentGatewayManagement = () => {
   const loadSettings = async () => {
     try {
       const { data, error } = await supabase
-        .from('settings')
+        .from('system_settings')
         .select('value')
         .eq('key', 'payment_gateway_settings')
         .maybeSingle();
@@ -65,16 +66,9 @@ const PaymentGatewayManagement = () => {
           if (typeof data.value === 'string') {
             loadedSettings = JSON.parse(data.value);
           } else {
-            // Type assertion with validation
-            const rawSettings = data.value as unknown;
-            if (typeof rawSettings === 'object' && rawSettings !== null) {
-              loadedSettings = rawSettings as PaymentGatewaySettings;
-            } else {
-              throw new Error('Invalid settings format');
-            }
+            loadedSettings = data.value as PaymentGatewaySettings;
           }
           
-          // Validate the loaded settings have the required structure
           if (loadedSettings && typeof loadedSettings === 'object' && 
               'enabled' in loadedSettings && 'mode' in loadedSettings && 
               'activeGateway' in loadedSettings) {
@@ -97,11 +91,11 @@ const PaymentGatewayManagement = () => {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('settings')
+        .from('system_settings')
         .upsert({
           key: 'payment_gateway_settings',
-          value: settings,
-          description: 'Payment gateway configuration settings',
+          value: JSON.stringify(settings),
+          category: 'payment',
           updated_at: new Date().toISOString()
         }, { onConflict: 'key' });
 

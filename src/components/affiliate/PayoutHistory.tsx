@@ -30,22 +30,20 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
     setError(null);
 
     try {
-      const { data, error: dbError } = await supabase
-        .from('affiliate_payout_requests')
-        .select('*')
-        .eq('affiliate_user_id', affiliateId)
-        .order('requested_at', { ascending: false });
+      // Use edge function to fetch payout history
+      const { data, error: fetchError } = await supabase.functions.invoke('get-affiliate-data', {
+        body: { type: 'payout-history', userId: affiliateId }
+      });
 
-      if (dbError) {
-        throw new Error(`Failed to fetch payout history: ${dbError.message}`);
+      if (fetchError) {
+        throw new Error(`Failed to fetch payout history: ${fetchError.message}`);
       }
 
-      const typedData: PayoutRequest[] = (data || []).map(item => ({
-        ...item,
-        status: item.status as 'pending' | 'approved' | 'rejected' | 'paid'
-      }));
-
-      setPayoutRequests(typedData);
+      if (data?.payoutHistory) {
+        setPayoutRequests(data.payoutHistory);
+      } else {
+        setPayoutRequests([]);
+      }
     } catch (err: any) {
       console.error("Error in fetchPayoutHistory:", err);
       setError(err.message || "An unexpected error occurred while fetching payout history.");
