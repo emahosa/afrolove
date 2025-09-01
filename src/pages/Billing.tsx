@@ -159,6 +159,7 @@ const Billing: React.FC = () => {
             user_id: user.id,
             type: 'subscription',
             plan_id: plan.id,
+            credits: plan.credits_per_month,
           },
           onSuccess: async (ref: string) => {
             toast.success("Payment successful! Verifying subscription...", {

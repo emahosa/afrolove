@@ -71,7 +71,7 @@ serve(async (req) => {
       settings = settingsData.value as PaymentGatewaySettings;
     }
 
-    const { priceId, planId, planName, amount, paystackPlanCode } = await req.json();
+    const { priceId, planId, planName, amount, paystackPlanCode, credits } = await req.json();
 
     if (!planId || !planName || !amount) {
       throw new Error("Missing required subscription fields.");
@@ -109,7 +109,12 @@ serve(async (req) => {
         mode: "subscription",
         success_url: `${req.headers.get("origin")}/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${req.headers.get("origin")}/billing?subscription=canceled`,
-        metadata: { type: 'subscription', user_id: user.id, plan_id: planId }
+        metadata: {
+          type: 'subscription',
+          user_id: user.id,
+          plan_id: planId,
+          credits: credits ? credits.toString() : '0',
+        }
       });
 
       if (!session.url) throw new Error("Stripe session created but no URL returned.");
@@ -131,7 +136,12 @@ serve(async (req) => {
         amount: amount,
         plan: paystackPlanCode,
         callback_url: `${req.headers.get("origin")}/billing?subscription=success`,
-        metadata: { type: 'subscription', user_id: user.id, plan_id: planId }
+        metadata: {
+          type: 'subscription',
+          user_id: user.id,
+          plan_id: planId,
+          credits: credits || 0,
+        }
       });
 
       if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned.");
