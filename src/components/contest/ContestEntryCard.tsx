@@ -89,7 +89,7 @@ export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVote
             </div>
             
             <div className="text-sm text-muted-foreground mb-3">
-              by {entry.profiles?.full_name || entry.profiles?.username || 'Anonymous'}
+              by {entry.user?.full_name || entry.user?.username || 'Anonymous'}
             </div>
             
             <div className="flex items-center justify-between">

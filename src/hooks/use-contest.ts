@@ -125,15 +125,11 @@ export const useContest = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
+      // First get contest entries
+      const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select(`
           *,
-          user:profiles (
-            id,
-            full_name,
-            username
-          ),
           song:songs (
             id,
             title,
@@ -146,11 +142,39 @@ export const useContest = () => {
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching contest entries:', error);
-        setError(error.message);
+      if (entriesError) {
+        console.error('Error fetching contest entries:', entriesError);
+        setError(entriesError.message);
+        return;
+      }
+
+      // Get user profiles separately
+      if (entriesData && entriesData.length > 0) {
+        const userIds = entriesData.map(entry => entry.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Error fetching profiles:', profilesError);
+        }
+
+        // Map entries with user info, filtering out entries with unsupported status
+        const mappedEntries = entriesData
+          .filter(entry => ['pending', 'approved', 'rejected'].includes(entry.status))
+          .map(entry => ({
+            ...entry,
+            user: profilesData?.find(profile => profile.id === entry.user_id) || {
+              id: entry.user_id,
+              full_name: null,
+              username: null
+            }
+          }));
+
+        setEntries(mappedEntries);
       } else {
-        setEntries(data || []);
+        setEntries([]);
       }
     } catch (error: any) {
       console.error('Error in fetchContestEntries:', error);
@@ -212,7 +236,7 @@ export const useContest = () => {
       // Type assertion for the response data
       const response = data as { success: boolean; message: string };
       
-      if (response.success) {
+      if (response && response.success) {
         // Optimistically update the vote count
         setEntries(prevEntries =>
           prevEntries.map(entry =>
@@ -226,7 +250,7 @@ export const useContest = () => {
         toast.success('Vote submitted successfully');
         return true;
       } else {
-        toast.error(response.message);
+        toast.error(response?.message || 'Failed to vote');
         return false;
       }
     } catch (error: any) {
@@ -258,12 +282,12 @@ export const useContest = () => {
       // Type assertion for the response data
       const response = data as { success: boolean; message: string };
       
-      if (response.success) {
+      if (response && response.success) {
         toast.success(response.message);
         await fetchContestEntries(contestId);
         return true;
       } else {
-        toast.error(response.message);
+        toast.error(response?.message || 'Failed to submit entry');
         return false;
       }
     } catch (error: any) {
@@ -295,10 +319,10 @@ export const useContest = () => {
           title: contestData.title,
           description: contestData.description,
           prize: contestData.prize,
-          rules: contestData.rules,
+          rules: contestData.rules || '',
           start_date: contestData.start_date,
           end_date: contestData.end_date,
-          instrumental_url: contestData.instrumental_url,
+          instrumental_url: contestData.instrumental_url || '',
           entry_fee: contestData.entry_fee || 0,
           status: 'active',
           created_by: user?.id || ''
@@ -351,10 +375,10 @@ export const useContest = () => {
           title: contestData.title,
           description: contestData.description,
           prize: contestData.prize,
-          rules: contestData.rules,
+          rules: contestData.rules || '',
           start_date: contestData.start_date,
           end_date: contestData.end_date,
-          instrumental_url: contestData.instrumental_url,
+          instrumental_url: contestData.instrumental_url || '',
           entry_fee: contestData.entry_fee || 0
         })
         .eq('id', contestId)

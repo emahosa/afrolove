@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ThumbsUp, Trophy } from 'lucide-react';
@@ -130,7 +130,9 @@ const Contest = () => {
   const fetchContestEntries = useCallback(async (contestId: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get contest entries
+      const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
         .select(`
           id,
@@ -138,28 +140,50 @@ const Contest = () => {
           description,
           vote_count,
           approved,
-          user:profiles (
-            id,
-            full_name,
-            username
-          ),
+          media_type,
+          video_url,
+          user_id,
           song:songs (
             id,
             title,
             artist,
             audio_url,
             cover_url
-          ),
-          media_type,
-          video_url
+          )
         `)
         .eq('contest_id', contestId);
 
-      if (error) {
-        console.error('Error fetching contest entries:', error);
+      if (entriesError) {
+        console.error('Error fetching contest entries:', entriesError);
         toast.error('Failed to load contest entries');
+        return;
+      }
+
+      // Get user profiles separately
+      if (entriesData && entriesData.length > 0) {
+        const userIds = entriesData.map(entry => entry.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Error fetching profiles:', profilesError);
+        }
+
+        // Map entries with user info
+        const mappedEntries = entriesData.map(entry => ({
+          ...entry,
+          user: profilesData?.find(profile => profile.id === entry.user_id) || {
+            id: entry.user_id,
+            full_name: null,
+            username: null
+          }
+        }));
+
+        setEntries(mappedEntries);
       } else {
-        setEntries(data || []);
+        setEntries([]);
       }
     } catch (error) {
       console.error('Error fetching contest entries:', error);
@@ -190,7 +214,7 @@ const Contest = () => {
   }, [user]);
 
   const handleVote = async (entryId: string) => {
-    if (!user) {
+    if (!user || !contestId) {
       toast.error('Please log in to vote');
       return;
     }
@@ -199,7 +223,12 @@ const Contest = () => {
       setLoading(true);
       const { error } = await supabase
         .from('contest_votes')
-        .insert([{ user_id: user.id, contest_entry_id: entryId }]);
+        .insert([{ 
+          user_id: user.id, 
+          contest_entry_id: entryId,
+          contest_id: contestId,
+          num_votes: 1
+        }]);
 
       if (error) {
         console.error('Error submitting vote:', error);
@@ -248,12 +277,12 @@ const Contest = () => {
       // Type assertion for the response data
       const response = data as { success: boolean; message: string };
       
-      if (response.success) {
+      if (response && response.success) {
         toast.success(response.message);
         await fetchContestEntries(contestId);
         return true;
       } else {
-        toast.error(response.message);
+        toast.error(response?.message || 'Failed to submit entry');
         return false;
       }
     } catch (error: any) {
@@ -364,21 +393,7 @@ const Contest = () => {
               {entries.map((entry) => (
                 <ContestEntryCard
                   key={entry.id}
-                  entry={{
-                    id: entry.id,
-                    song_id: entry.song_id,
-                    description: entry.description,
-                    vote_count: entry.vote_count,
-                    user: {
-                      id: entry.user.id,
-                      full_name: entry.user.full_name,
-                      username: entry.user.username
-                    },
-                    song: entry.song || null,
-                    media_type: entry.media_type,
-                    video_url: entry.video_url,
-                    approved: entry.approved
-                  }}
+                  entry={entry}
                   onVote={handleVote}
                   canVote={contest?.voting_enabled}
                   hasVoted={votedEntries.includes(entry.id)}

@@ -4,8 +4,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Download, Heart, Share2 } from 'lucide-react';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import { useSongs } from '@/hooks/use-songs';
-import { formatDuration } from '@/lib/audio-utils';
 import { Badge } from '@/components/ui/badge';
 
 export interface GeneratedSongCardProps {
@@ -22,6 +20,13 @@ export interface GeneratedSongCardProps {
   isPlaying?: boolean;
 }
 
+const formatDuration = (seconds: number): string => {
+  if (!seconds || seconds === 0) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({ song, isPlaying = false }) => {
   const { currentTrack, isPlaying: playerIsPlaying, playTrack, pauseTrack } = useAudioPlayer();
   const [isLiked, setIsLiked] = useState(false);
@@ -36,8 +41,8 @@ const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({ song, isPlaying =
         id: song.id,
         title: song.title,
         artist: 'AI Generated',
-        url: song.audio_url,
-        coverUrl: undefined
+        audio_url: song.audio_url,
+        artwork_url: undefined
       });
     }
   };
@@ -133,7 +138,7 @@ const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({ song, isPlaying =
             </div>
           </div>
           
-          <div className="text-xs text-muted-foreground pt-1">
+          <div className="text-sm text-muted-foreground pt-1">
             Credits used: {song.credits_used} • {new Date(song.created_at).toLocaleDateString()}
           </div>
         </div>

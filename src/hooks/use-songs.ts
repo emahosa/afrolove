@@ -27,7 +27,22 @@ export const useSongs = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSongs(data || []);
+      
+      // Map database fields to Song interface
+      const mappedSongs = data?.map(song => ({
+        id: song.id,
+        title: song.title || 'Untitled',
+        artist: song.artist || 'AI Generated',
+        audio_url: song.audio_url,
+        cover_image_url: song.cover_image_url,
+        status: ['pending', 'completed', 'failed'].includes(song.status) ? song.status : 'pending',
+        created_at: song.created_at,
+        prompt: song.prompt || '',
+        credits_used: song.credits_used || 0,
+        duration: song.duration || 0
+      })) || [];
+      
+      setSongs(mappedSongs);
     } catch (error) {
       console.error('Error fetching songs:', error);
     } finally {
