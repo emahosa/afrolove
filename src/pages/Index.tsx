@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Music, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import ContestWinnerBanner from "@/components/contest/ContestWinnerBanner";
 
 // Helper component for the floating icons
 const FloatingIcon = ({
@@ -111,6 +112,7 @@ export default function Index() {
                 </button>
               </div>
             </section>
+            <ContestWinnerBanner />
         </div>
       </main>
 
