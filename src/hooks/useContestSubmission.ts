@@ -21,6 +21,22 @@ export const useContestSubmission = () => {
         throw new Error('User not authenticated');
       }
 
+      // Check for existing entry
+      const { data: existingEntry, error: existingEntryError } = await supabase
+        .from('contest_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('contest_id', data.contestId)
+        .single();
+
+      if (existingEntryError && existingEntryError.code !== 'PGRST116') { // PGRST116 = no rows found
+        throw new Error(`Error checking for existing entry: ${existingEntryError.message}`);
+      }
+
+      if (existingEntry) {
+        throw new Error('You have already submitted an entry for this contest.');
+      }
+
       // Create contest entry with proper user_id
       const entryData = {
         contest_id: data.contestId,
