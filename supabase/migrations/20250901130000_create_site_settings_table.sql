@@ -1,12 +1,7 @@
 -- Create the site_settings table
 CREATE TABLE public.site_settings (
-    id SERIAL PRIMARY KEY,
-    key TEXT UNIQUE NOT NULL,
-    value JSONB,
-    category TEXT,
-    description TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
 -- Enable Row Level Security
@@ -25,5 +20,5 @@ USING (is_admin(auth.uid()))
 WITH CHECK (is_admin(auth.uid()));
 
 -- Insert a default value for the hero video URL
-INSERT INTO public.site_settings (key, value, category, description)
-VALUES ('homepage_hero_video_url', '""', 'site', 'Homepage hero section video URL');
+INSERT INTO public.site_settings (key, value)
+VALUES ('homepage_hero_video_url', '');

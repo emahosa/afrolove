@@ -1,202 +1,281 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Save } from 'lucide-react';
+import { CreditCard, Save, Loader2, TestTube, Zap } from 'lucide-react';
 
-interface PaymentSettings {
-  paystack_public_key: string;
-  paystack_secret_key: string;
-  stripe_publishable_key: string;
-  stripe_secret_key: string;
-  paystack_enabled: boolean;
-  stripe_enabled: boolean;
+interface ApiKeys {
+  publicKey: string;
+  secretKey: string;
 }
 
-const PaymentGatewayManagement = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [settings, setSettings] = useState<PaymentSettings>({
-    paystack_public_key: '',
-    paystack_secret_key: '',
-    stripe_publishable_key: '',
-    stripe_secret_key: '',
-    paystack_enabled: false,
-    stripe_enabled: false,
-  });
+interface GatewayConfig {
+  test: ApiKeys;
+  live: ApiKeys;
+}
+
+interface PaymentGatewaySettings {
+  enabled: boolean;
+  mode: 'test' | 'live';
+  activeGateway: 'stripe' | 'paystack';
+  stripe: GatewayConfig;
+  paystack: GatewayConfig;
+}
+
+const defaultSettings: PaymentGatewaySettings = {
+  enabled: false,
+  mode: 'test',
+  activeGateway: 'stripe',
+  stripe: {
+    test: { publicKey: '', secretKey: '' },
+    live: { publicKey: '', secretKey: '' },
+  },
+  paystack: {
+    test: { publicKey: '', secretKey: '' },
+    live: { publicKey: '', secretKey: '' },
+  },
+};
+
+export const PaymentGatewayManagement = () => {
+  const [settings, setSettings] = useState<PaymentGatewaySettings>(defaultSettings);
+  const [initialSettings, setInitialSettings] = useState<PaymentGatewaySettings>(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
   const loadSettings = async () => {
+    setLoading(true);
     try {
-      setIsLoading(true);
       const { data, error } = await supabase
         .from('system_settings')
-        .select('*')
-        .in('key', [
-          'paystack_public_key',
-          'paystack_secret_key', 
-          'stripe_publishable_key',
-          'stripe_secret_key',
-          'paystack_enabled',
-          'stripe_enabled'
-        ]);
+        .select('value')
+        .eq('key', 'payment_gateway_settings')
+        .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
 
-      const newSettings: PaymentSettings = { ...settings };
-      data?.forEach(setting => {
-        const key = setting.key as keyof PaymentSettings;
-        if (typeof setting.value === 'boolean') {
-          (newSettings[key] as boolean) = setting.value;
-        } else if (typeof setting.value === 'string') {
-          (newSettings[key] as string) = setting.value;
+      if (data?.value) {
+        let dbValue: Partial<PaymentGatewaySettings>;
+        if (typeof data.value === 'string') {
+          console.warn('data.value was stringified JSON, parsing now.');
+          dbValue = JSON.parse(data.value);
+        } else {
+          dbValue = data.value as Partial<PaymentGatewaySettings>;
         }
+
+        const mergedSettings: PaymentGatewaySettings = {
+          ...defaultSettings,
+          ...dbValue,
+          stripe: {
+            ...defaultSettings.stripe,
+            ...dbValue.stripe,
+            test: { ...defaultSettings.stripe.test, ...dbValue.stripe?.test },
+            live: { ...defaultSettings.stripe.live, ...dbValue.stripe?.live },
+          },
+          paystack: {
+            ...defaultSettings.paystack,
+            ...dbValue.paystack,
+            test: { ...defaultSettings.paystack.test, ...dbValue.paystack?.test },
+            live: { ...defaultSettings.paystack.live, ...dbValue.paystack?.live },
+          },
+        };
+        setSettings(mergedSettings);
+        setInitialSettings(mergedSettings);
+      } else {
+        setSettings(defaultSettings);
+        setInitialSettings(defaultSettings);
+      }
+    } catch (error) {
+      console.error('Error loading payment gateway settings:', error);
+      toast.error('Failed to load payment gateway settings');
+    } finally {
+      setLoading(false);
+      setIsDirty(false);
+    }
+  };
+
+  const persistSettings = async (settingsToSave: PaymentGatewaySettings) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('id')
+        .eq('key', 'payment_gateway_settings')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      const { error: upsertError } = await supabase.from('system_settings').upsert({
+        id: data?.id,
+        key: 'payment_gateway_settings',
+        value: settingsToSave,
+        category: 'payment',
+        description: 'Configuration for payment gateways (Stripe, Paystack)',
+        updated_by: user.id,
       });
 
-      setSettings(newSettings);
-    } catch (error: any) {
-      console.error('Error loading payment settings:', error);
-      toast.error('Failed to load payment settings');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (upsertError) throw upsertError;
 
-  const updateSetting = async (key: keyof PaymentSettings, value: string | boolean) => {
-    try {
-      const { error } = await supabase
-        .from('system_settings')
-        .upsert({
-          key,
-          value,
-          category: 'payment',
-          description: `Payment gateway setting: ${key}`,
-        });
-
-      if (error) throw error;
-
-      setSettings(prev => ({ ...prev, [key]: value }));
-      toast.success('Setting updated successfully');
-    } catch (error: any) {
-      console.error('Error updating setting:', error);
-      toast.error('Failed to update setting');
-    }
-  };
-
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      // Save all settings
-      for (const [key, value] of Object.entries(settings)) {
-        await updateSetting(key as keyof PaymentSettings, value);
-      }
-      toast.success('All payment settings saved successfully');
+      setInitialSettings(settingsToSave);
+      return true;
     } catch (error) {
-      toast.error('Failed to save some settings');
-    } finally {
-      setIsLoading(false);
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings.');
+      return false;
     }
   };
+
+  const handleSaveAllSettings = async () => {
+    setSaving(true);
+    const success = await persistSettings(settings);
+    if (success) {
+      toast.success('All payment gateway settings saved.');
+      setIsDirty(false);
+    }
+    setSaving(false);
+  };
+
+  const handleQuickSave = async <K extends keyof PaymentGatewaySettings>(
+    key: K,
+    value: PaymentGatewaySettings[K],
+    toastMessage: string
+  ) => {
+    const originalSettings = { ...settings };
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+
+    const success = await persistSettings(newSettings);
+
+    if (success) {
+      toast.success(toastMessage);
+      setInitialSettings(newSettings);
+    } else {
+      setSettings(originalSettings); // Revert on failure
+    }
+  };
+
+  const handleInputChange = (gateway: 'stripe' | 'paystack', mode: 'test' | 'live', field: 'publicKey' | 'secretKey', value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      [gateway]: {
+        ...prev[gateway],
+        [mode]: {
+          ...prev[gateway][mode],
+          [field]: value,
+        },
+      },
+    }));
+    setIsDirty(true);
+  };
+
+  if (loading) {
+    return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Payment Gateway Management</h2>
-          <p className="text-muted-foreground">Configure payment processors for the platform</p>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><CreditCard />Payment Gateway Management</CardTitle>
+        <CardDescription>Configure and manage payment gateways, API keys, and operating mode.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div>
+            <Label htmlFor="payment-enabled" className="text-base font-medium">Enable Payment Gateways</Label>
+            <p className="text-sm text-muted-foreground">Master switch to enable or disable all payment processing.</p>
+          </div>
+          <Switch
+            id="payment-enabled"
+            checked={settings.enabled}
+            onCheckedChange={(enabled) => handleQuickSave('enabled', enabled, `Payment gateways ${enabled ? 'enabled' : 'disabled'}.`)}
+          />
         </div>
-        <Button onClick={handleSave} disabled={isLoading}>
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          Save All Changes
-        </Button>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Paystack Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Paystack Configuration
-              <Switch
-                checked={settings.paystack_enabled}
-                onCheckedChange={(checked) => updateSetting('paystack_enabled', checked)}
-              />
-            </CardTitle>
-            <CardDescription>
-              Configure Paystack payment gateway for NGN transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="paystack_public_key">Public Key</Label>
-              <Input
-                id="paystack_public_key"
-                type="text"
-                value={settings.paystack_public_key}
-                onChange={(e) => setSettings(prev => ({ ...prev, paystack_public_key: e.target.value }))}
-                placeholder="pk_test_..."
-              />
+        {settings.enabled && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4 p-4 border rounded-lg">
+                <Label className="text-base font-medium">Active Gateway</Label>
+                <RadioGroup
+                  value={settings.activeGateway}
+                  onValueChange={(v: 'stripe' | 'paystack') => handleQuickSave('activeGateway', v, `Active gateway set to ${v.charAt(0).toUpperCase() + v.slice(1)}.`)}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="stripe" id="stripe" /><Label htmlFor="stripe">Stripe</Label></div>
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="paystack" id="paystack" /><Label htmlFor="paystack">Paystack</Label></div>
+                </RadioGroup>
+              </div>
+              <div className="space-y-4 p-4 border rounded-lg">
+                <Label className="text-base font-medium">Operating Mode</Label>
+                <RadioGroup
+                  value={settings.mode}
+                  onValueChange={(v: 'test' | 'live') => handleQuickSave('mode', v, `Operating mode set to ${v}.`)}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="test" id="test" /><Label htmlFor="test" className="flex items-center gap-2"><TestTube size={16}/>Test</Label></div>
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="live" id="live" /><Label htmlFor="live" className="flex items-center gap-2"><Zap size={16}/>Live</Label></div>
+                </RadioGroup>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="paystack_secret_key">Secret Key</Label>
-              <Input
-                id="paystack_secret_key"
-                type="password"
-                value={settings.paystack_secret_key}
-                onChange={(e) => setSettings(prev => ({ ...prev, paystack_secret_key: e.target.value }))}
-                placeholder="sk_test_..."
-              />
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Stripe Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Stripe Configuration
-              <Switch
-                checked={settings.stripe_enabled}
-                onCheckedChange={(checked) => updateSetting('stripe_enabled', checked)}
-              />
-            </CardTitle>
-            <CardDescription>
-              Configure Stripe payment gateway for international transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="stripe_publishable_key">Publishable Key</Label>
-              <Input
-                id="stripe_publishable_key"
-                type="text"
-                value={settings.stripe_publishable_key}
-                onChange={(e) => setSettings(prev => ({ ...prev, stripe_publishable_key: e.target.value }))}
-                placeholder="pk_test_..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="stripe_secret_key">Secret Key</Label>
-              <Input
-                id="stripe_secret_key"
-                type="password"
-                value={settings.stripe_secret_key}
-                onChange={(e) => setSettings(prev => ({ ...prev, stripe_secret_key: e.target.value }))}
-                placeholder="sk_test_..."
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+            <Tabs defaultValue="stripe" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="stripe">Stripe Keys</TabsTrigger>
+                <TabsTrigger value="paystack">Paystack Keys</TabsTrigger>
+              </TabsList>
+              <TabsContent value="stripe" className="p-4 border rounded-lg mt-2">
+                <h3 className="text-lg font-medium mb-4">Stripe API Keys</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.stripe.test.publicKey} onChange={(e) => handleInputChange('stripe', 'test', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.stripe.test.secretKey} onChange={(e) => handleInputChange('stripe', 'test', 'secretKey', e.target.value)} /></div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.stripe.live.publicKey} onChange={(e) => handleInputChange('stripe', 'live', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.stripe.live.secretKey} onChange={(e) => handleInputChange('stripe', 'live', 'secretKey', e.target.value)} /></div>
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="paystack" className="p-4 border rounded-lg mt-2">
+                <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.paystack.test.publicKey} onChange={(e) => handleInputChange('paystack', 'test', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.paystack.test.secretKey} onChange={(e) => handleInputChange('paystack', 'test', 'secretKey', e.target.value)} /></div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.paystack.live.publicKey} onChange={(e) => handleInputChange('paystack', 'live', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.paystack.live.secretKey} onChange={(e) => handleInputChange('paystack', 'live', 'secretKey', e.target.value)} /></div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+
+        <div className="flex justify-end">
+          <Button onClick={handleSaveAllSettings} disabled={!isDirty || saving}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save API Keys
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
-
-export default PaymentGatewayManagement;

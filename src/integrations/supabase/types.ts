@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -165,7 +165,6 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          last_voted_at: string | null
           media_type: string | null
           song_id: string | null
           status: Database["public"]["Enums"]["song_status"] | null
@@ -180,7 +179,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
@@ -195,7 +193,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
@@ -226,28 +223,25 @@ export type Database = {
           contest_entry_id: string
           contest_id: string
           created_at: string
-          credits_spent: number
-          id: number
-          num_votes: number
+          id: string
           user_id: string
+          voter_phone: string | null
         }
         Insert: {
           contest_entry_id: string
           contest_id: string
           created_at?: string
-          credits_spent?: number
-          id?: never
-          num_votes: number
+          id?: string
           user_id: string
+          voter_phone?: string | null
         }
         Update: {
           contest_entry_id?: string
           contest_id?: string
           created_at?: string
-          credits_spent?: number
-          id?: never
-          num_votes?: number
+          id?: string
           user_id?: string
+          voter_phone?: string | null
         }
         Relationships: [
           {
@@ -259,51 +253,6 @@ export type Database = {
           },
           {
             foreignKeyName: "contest_votes_contest_id_fkey"
-            columns: ["contest_id"]
-            isOneToOne: false
-            referencedRelation: "contests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contest_winners: {
-        Row: {
-          contest_entry_id: string
-          contest_id: string
-          created_at: string
-          id: string
-          rank: number
-          user_id: string
-          won_at: string
-        }
-        Insert: {
-          contest_entry_id: string
-          contest_id: string
-          created_at?: string
-          id?: string
-          rank?: number
-          user_id: string
-          won_at?: string
-        }
-        Update: {
-          contest_entry_id?: string
-          contest_id?: string
-          created_at?: string
-          id?: string
-          rank?: number
-          user_id?: string
-          won_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contest_winners_contest_entry_id_fkey"
-            columns: ["contest_entry_id"]
-            isOneToOne: false
-            referencedRelation: "contest_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contest_winners_contest_id_fkey"
             columns: ["contest_id"]
             isOneToOne: false
             referencedRelation: "contests"
@@ -709,165 +658,6 @@ export type Database = {
         }
         Relationships: []
       }
-      plans: {
-        Row: {
-          active: boolean | null
-          created_at: string | null
-          credits_per_month: number
-          currency: string
-          description: string | null
-          features: string[] | null
-          id: string
-          interval: string
-          name: string
-          paystack_plan_code: string | null
-          price: number
-          rank: number
-          stripe_price_id: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          created_at?: string | null
-          credits_per_month: number
-          currency?: string
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          interval: string
-          name: string
-          paystack_plan_code?: string | null
-          price: number
-          rank?: number
-          stripe_price_id?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          created_at?: string | null
-          credits_per_month?: number
-          currency?: string
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          interval?: string
-          name?: string
-          paystack_plan_code?: string | null
-          price?: number
-          rank?: number
-          stripe_price_id?: string | null
-        }
-        Relationships: []
-      }
-      producer_payouts: {
-        Row: {
-          amount_credits: number
-          amount_usd: number
-          created_at: string | null
-          id: string
-          processed_at: string | null
-          producer_id: string
-          reproduction_request_id: string
-          status: string | null
-          transaction_hash: string | null
-          usdt_wallet_address: string | null
-        }
-        Insert: {
-          amount_credits: number
-          amount_usd: number
-          created_at?: string | null
-          id?: string
-          processed_at?: string | null
-          producer_id: string
-          reproduction_request_id: string
-          status?: string | null
-          transaction_hash?: string | null
-          usdt_wallet_address?: string | null
-        }
-        Update: {
-          amount_credits?: number
-          amount_usd?: number
-          created_at?: string | null
-          id?: string
-          processed_at?: string | null
-          producer_id?: string
-          reproduction_request_id?: string
-          status?: string | null
-          transaction_hash?: string | null
-          usdt_wallet_address?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "producer_payouts_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "producers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "producer_payouts_reproduction_request_id_fkey"
-            columns: ["reproduction_request_id"]
-            isOneToOne: false
-            referencedRelation: "reproduction_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      producers: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          business_name: string | null
-          created_at: string | null
-          id: string
-          id_document_url: string | null
-          max_price_credits: number | null
-          min_price_credits: number | null
-          portfolio_tracks: string[] | null
-          rating: number | null
-          social_media_links: Json | null
-          status: Database["public"]["Enums"]["producer_status"] | null
-          total_jobs: number | null
-          updated_at: string | null
-          user_id: string
-          verification_notes: string | null
-        }
-        Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          business_name?: string | null
-          created_at?: string | null
-          id?: string
-          id_document_url?: string | null
-          max_price_credits?: number | null
-          min_price_credits?: number | null
-          portfolio_tracks?: string[] | null
-          rating?: number | null
-          social_media_links?: Json | null
-          status?: Database["public"]["Enums"]["producer_status"] | null
-          total_jobs?: number | null
-          updated_at?: string | null
-          user_id: string
-          verification_notes?: string | null
-        }
-        Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          business_name?: string | null
-          created_at?: string | null
-          id?: string
-          id_document_url?: string | null
-          max_price_credits?: number | null
-          min_price_credits?: number | null
-          portfolio_tracks?: string[] | null
-          rating?: number | null
-          social_media_links?: Json | null
-          status?: Database["public"]["Enums"]["producer_status"] | null
-          total_jobs?: number | null
-          updated_at?: string | null
-          user_id?: string
-          verification_notes?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -904,125 +694,40 @@ export type Database = {
         }
         Relationships: []
       }
-      reproduction_requests: {
+      referrals: {
         Row: {
-          accepted_at: string | null
-          completed_at: string | null
-          created_at: string | null
-          escrow_held: boolean | null
-          final_track_url: string | null
+          conversion_date: string | null
+          created_at: string
           id: string
-          price_credits: number
-          producer_id: string
-          revision_count: number | null
-          revision_notes: string | null
-          special_instructions: string | null
-          status: Database["public"]["Enums"]["reproduction_status"] | null
-          track_id: string | null
-          track_title: string
-          updated_at: string | null
-          uploaded_track_url: string | null
-          user_id: string
-          user_vocal_recording_url: string
+          is_converted: boolean
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
         }
         Insert: {
-          accepted_at?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          escrow_held?: boolean | null
-          final_track_url?: string | null
+          conversion_date?: string | null
+          created_at?: string
           id?: string
-          price_credits: number
-          producer_id: string
-          revision_count?: number | null
-          revision_notes?: string | null
-          special_instructions?: string | null
-          status?: Database["public"]["Enums"]["reproduction_status"] | null
-          track_id?: string | null
-          track_title: string
-          updated_at?: string | null
-          uploaded_track_url?: string | null
-          user_id: string
-          user_vocal_recording_url: string
+          is_converted?: boolean
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
         }
         Update: {
-          accepted_at?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          escrow_held?: boolean | null
-          final_track_url?: string | null
+          conversion_date?: string | null
+          created_at?: string
           id?: string
-          price_credits?: number
-          producer_id?: string
-          revision_count?: number | null
-          revision_notes?: string | null
-          special_instructions?: string | null
-          status?: Database["public"]["Enums"]["reproduction_status"] | null
-          track_id?: string | null
-          track_title?: string
-          updated_at?: string | null
-          uploaded_track_url?: string | null
-          user_id?: string
-          user_vocal_recording_url?: string
+          is_converted?: boolean
+          referral_code?: string
+          referred_user_id?: string
+          referrer_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "reproduction_requests_producer_id_fkey"
-            columns: ["producer_id"]
+            foreignKeyName: "referrals_referred_user_id_fkey"
+            columns: ["referred_user_id"]
             isOneToOne: false
-            referencedRelation: "producers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reproduction_requests_track_id_fkey"
-            columns: ["track_id"]
-            isOneToOne: false
-            referencedRelation: "songs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reproduction_reviews: {
-        Row: {
-          created_at: string | null
-          id: string
-          producer_id: string
-          rating: number | null
-          reproduction_request_id: string
-          review_text: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          producer_id: string
-          rating?: number | null
-          reproduction_request_id: string
-          review_text?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          producer_id?: string
-          rating?: number | null
-          reproduction_request_id?: string
-          review_text?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reproduction_reviews_producer_id_fkey"
-            columns: ["producer_id"]
-            isOneToOne: false
-            referencedRelation: "producers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reproduction_reviews_reproduction_request_id_fkey"
-            columns: ["reproduction_request_id"]
-            isOneToOne: false
-            referencedRelation: "reproduction_requests"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1048,36 +753,6 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: Json
-        }
-        Relationships: []
-      }
-      site_settings: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          key: string
-          updated_at: string
-          value: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          key: string
-          updated_at?: string
-          value: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          key?: string
-          updated_at?: string
-          value?: string
         }
         Relationships: []
       }
@@ -1262,33 +937,6 @@ export type Database = {
         }
         Relationships: []
       }
-      transactions: {
-        Row: {
-          created_at: string
-          id: number
-          metadata: Json | null
-          provider: string
-          reference: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          metadata?: Json | null
-          provider: string
-          reference: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          metadata?: Json | null
-          provider?: string
-          reference?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       unlocked_contests: {
         Row: {
           contest_id: string
@@ -1321,7 +969,6 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
-          referrer_affiliate_id: string | null
           user_id: string
         }
         Insert: {
@@ -1329,7 +976,6 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          referrer_affiliate_id?: string | null
           user_id: string
         }
         Update: {
@@ -1337,7 +983,6 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          referrer_affiliate_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1487,51 +1132,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_apply_for_affiliate: {
-        Args: { user_id_param: string }
-        Returns: boolean
-      }
-      cast_vote: {
-        Args: { entry_id: string; p_contest_id: string; p_num_votes: number }
-        Returns: Json
-      }
       current_user_has_role: {
         Args: { role_name: string }
         Returns: boolean
-      }
-      generate_affiliate_code: {
-        Args: { p_full_name: string }
-        Returns: string
-      }
-      get_affiliate_links: {
-        Args: { user_id: string }
-        Returns: {
-          affiliate_user_id: string
-          clicks_count: number
-          created_at: string
-          id: string
-          link_code: string
-          updated_at: string
-        }[]
-      }
-      get_affiliate_payout_history: {
-        Args: { user_id_param: string }
-        Returns: {
-          admin_notes: string
-          id: string
-          processed_at: string
-          requested_amount: number
-          requested_at: string
-          status: string
-        }[]
-      }
-      get_affiliate_referrals_count: {
-        Args: { user_id_param: string }
-        Returns: number
-      }
-      get_total_affiliate_earnings: {
-        Args: { user_id_param: string }
-        Returns: number
       }
       get_user_role: {
         Args: { user_id_param: string }
@@ -1544,15 +1147,15 @@ export type Database = {
         }[]
       }
       has_admin_permission: {
-        Args: { _permission: string; _user_id: string }
+        Args: { _user_id: string; _permission: string }
         Returns: boolean
       }
       has_role: {
         Args:
           | { _role: Database["public"]["Enums"]["user_role"] }
           | {
-              _role: Database["public"]["Enums"]["user_role"]
               _user_id: string
+              _role: Database["public"]["Enums"]["user_role"]
             }
         Returns: boolean
       }
@@ -1572,32 +1175,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      process_free_referral_bonus: {
-        Args: {
-          p_affiliate_id: string
-          p_bonus_amount: number
-          p_referred_user_id: string
-        }
-        Returns: undefined
-      }
-      process_subscription_commission: {
-        Args: {
-          p_affiliate_id: string
-          p_commission_amount: number
-          p_is_first_payment: boolean
-        }
-        Returns: undefined
-      }
-      release_escrow: {
-        Args: { release_to: string; request_id: string }
-        Returns: boolean
-      }
-      submit_contest_entry: {
-        Args: { p_contest_id: string; p_description: string; p_song_id: string }
-        Returns: Json
-      }
       update_user_credits: {
-        Args: { p_amount: number; p_user_id: string }
+        Args: { p_user_id: string; p_amount: number }
         Returns: number
       }
     }
@@ -1610,16 +1189,6 @@ export type Database = {
         | "audio_uploaded"
         | "completed"
       flag_status: "pending" | "reviewed" | "dismissed"
-      producer_status: "pending" | "approved" | "rejected" | "suspended"
-      reproduction_status:
-        | "pending"
-        | "accepted"
-        | "in_progress"
-        | "submitted"
-        | "revision_requested"
-        | "completed"
-        | "rejected"
-        | "cancelled"
       song_status: "pending" | "approved" | "rejected" | "completed"
       song_type: "song" | "instrumental"
       user_role:
@@ -1629,7 +1198,6 @@ export type Database = {
         | "super_admin"
         | "voter"
         | "subscriber"
-        | "affiliate"
         | "contest_entrant"
       voice_clone_status: "pending" | "approved" | "rejected"
     }
@@ -1768,17 +1336,6 @@ export const Constants = {
         "completed",
       ],
       flag_status: ["pending", "reviewed", "dismissed"],
-      producer_status: ["pending", "approved", "rejected", "suspended"],
-      reproduction_status: [
-        "pending",
-        "accepted",
-        "in_progress",
-        "submitted",
-        "revision_requested",
-        "completed",
-        "rejected",
-        "cancelled",
-      ],
       song_status: ["pending", "approved", "rejected", "completed"],
       song_type: ["song", "instrumental"],
       user_role: [
@@ -1788,7 +1345,6 @@ export const Constants = {
         "super_admin",
         "voter",
         "subscriber",
-        "affiliate",
         "contest_entrant",
       ],
       voice_clone_status: ["pending", "approved", "rejected"],

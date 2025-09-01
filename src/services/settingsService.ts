@@ -68,7 +68,7 @@ export const defaultSettings: SystemSettings = {
 export const loadSystemSettings = async (): Promise<SystemSettings> => {
   try {
     const { data, error } = await supabase
-      .from('site_settings')
+      .from('system_settings')
       .select('key, value')
       .in('key', ['general', 'api', 'security', 'notifications', 'adminProfile']);
 
@@ -119,7 +119,7 @@ export const saveSystemSettings = async (settings: SystemSettings): Promise<void
 
     for (const setting of settingsToSave) {
       const { error } = await supabase
-        .from('site_settings')
+        .from('system_settings')
         .upsert({
           key: setting.key,
           value: setting.value,

@@ -1,17 +1,20 @@
 
-export type UserRole = "admin" | "moderator" | "user" | "super_admin" | "voter" | "subscriber" | "contest_entrant" | "affiliate";
+import { Database } from "@/integrations/supabase/types";
+
+export type UserRole = Database["public"]["Enums"]["user_role"];
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  credits: number;
-  status: 'active' | 'suspended';
+  status: "active" | "suspended";
   role: UserRole;
+  credits: number;
+  joinDate: string;
   permissions?: string[];
 }
 
 export interface UserManagementContainerProps {
-  users?: User[];
-  renderStatusLabel?: (status: User['status']) => React.ReactNode;
+  users: User[];
+  renderStatusLabel: (status: string) => React.ReactNode;
 }

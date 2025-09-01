@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -35,27 +34,16 @@ export default function Index() {
 
   useEffect(() => {
     const fetchHeroVideoUrl = async () => {
-      try {
-        console.log('Fetching hero video URL...');
-        const { data, error } = await supabase
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'homepage_hero_video_url')
-          .single();
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'homepage_hero_video_url')
+        .single();
 
-        if (error) {
-          if (error.code === 'PGRST116') {
-            console.log('No hero video setting found');
-          } else {
-            console.error('Error fetching hero video URL:', error);
-          }
-        } else if (data) {
-          const videoUrl = typeof data.value === 'string' ? data.value : data.value?.url || '';
-          console.log('Hero video URL fetched:', videoUrl);
-          setHeroVideoUrl(videoUrl);
-        }
-      } catch (err) {
-        console.error('Unexpected error fetching hero video:', err);
+      if (error) {
+        console.error('Error fetching hero video URL:', error);
+      } else if (data) {
+        setHeroVideoUrl(data.value);
       }
     };
 
@@ -121,34 +109,18 @@ export default function Index() {
 
       <main className="relative z-10 grid place-items-center min-h-screen w-full text-center p-4">
         <div>
-            {/* Hero Section */}
+            {/* New Hero Section */}
             <section className="w-full max-w-4xl">
               {heroVideoUrl ? (
-                <div className="space-y-6">
-                  <AspectRatio ratio={16 / 9} className="bg-muted">
-                    <video
-                      src={heroVideoUrl}
-                      autoPlay
-                      muted
-                      loop
-                      className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        console.error('Video load error:', e);
-                        console.log('Failed to load video URL:', heroVideoUrl);
-                      }}
-                      onLoadStart={() => console.log('Video loading started')}
-                      onLoadedData={() => console.log('Video loaded successfully')}
-                    />
-                  </AspectRatio>
-                  <div className="mt-6 flex justify-center">
-                    <button
-                      onClick={() => navigate('/contest')}
-                      className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300 text-xl"
-                    >
-                      Earn
-                    </button>
-                  </div>
-                </div>
+                <AspectRatio ratio={16 / 9} className="bg-muted">
+                  <video
+                    src={heroVideoUrl}
+                    autoPlay
+                    muted
+                    loop
+                    className="w-full h-full object-cover rounded-lg"
+                  />
+                </AspectRatio>
               ) : (
                 <>
                   <div className="relative inline-block">
@@ -163,16 +135,16 @@ export default function Index() {
                   <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
                     Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
                   </p>
-                  <div className="mt-10 flex justify-center">
-                    <button
-                      onClick={() => navigate('/contest')}
-                      className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
-                    >
-                      Earn
-                    </button>
-                  </div>
                 </>
               )}
+              <div className="mt-10 flex justify-center">
+                <button
+                  onClick={() => navigate('/contest')}
+                  className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
+                >
+                  Earn
+                </button>
+              </div>
             </section>
             <ContestWinnerBanner />
         </div>
