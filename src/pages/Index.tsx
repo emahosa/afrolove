@@ -111,7 +111,7 @@ export default function Index() {
         <div>
             {/* New Hero Section */}
             <section className="w-full max-w-4xl">
-              {heroVideoUrl && (
+              {heroVideoUrl ? (
                 <AspectRatio ratio={16 / 9} className="bg-muted">
                   <video
                     src={heroVideoUrl}
@@ -121,6 +121,21 @@ export default function Index() {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 </AspectRatio>
+              ) : (
+                <>
+                  <div className="relative inline-block">
+                    <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
+                    <h1 className="relative text-6xl font-bold text-dark-purple">
+                      Afroverse
+                    </h1>
+                  </div>
+                  <p className="mt-4 text-2xl font-semibold text-gray-100">
+                    Create Afrobeats with AI. Earn while you play.
+                  </p>
+                  <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
+                    Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
+                  </p>
+                </>
               )}
               <div className="mt-10 flex justify-center">
                 <button
