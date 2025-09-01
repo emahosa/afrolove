@@ -18,7 +18,7 @@ export const SiteSettingsManagement = () => {
     const fetchSettings = async () => {
       setLoading(true);
       const { data, error } = await supabase
-        .from('system_settings')
+        .from('site_settings')
         .select('value')
         .eq('key', 'homepage_hero_video_url')
         .single();
@@ -95,7 +95,7 @@ export const SiteSettingsManagement = () => {
 
       // Check if setting exists
       const { data: existingSetting } = await supabase
-        .from('system_settings')
+        .from('site_settings')
         .select('id')
         .eq('key', 'homepage_hero_video_url')
         .single();
@@ -103,7 +103,7 @@ export const SiteSettingsManagement = () => {
       if (existingSetting) {
         // Update existing setting
         const { error: updateError } = await supabase
-          .from('system_settings')
+          .from('site_settings')
           .update({ 
             value: publicUrl,
             updated_at: new Date().toISOString()
@@ -116,7 +116,7 @@ export const SiteSettingsManagement = () => {
       } else {
         // Insert new setting
         const { error: insertError } = await supabase
-          .from('system_settings')
+          .from('site_settings')
           .insert({
             key: 'homepage_hero_video_url',
             value: publicUrl,
