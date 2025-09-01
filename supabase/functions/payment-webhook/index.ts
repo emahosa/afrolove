@@ -76,8 +76,8 @@ serve(async (req) => {
         })
 
         if (creditError) {
-          console.error('Paystack webhook FATAL: Error updating credits:', creditError)
-          throw new Error(`Failed to update credits: ${creditError.message}`);
+          console.error('Paystack webhook error: Error updating credits:', creditError)
+          // Do not return here, attempt to process subscription if it exists
         }
       }
 
@@ -140,8 +140,7 @@ serve(async (req) => {
             p_amount: creditsAmount
           });
           if (creditError) {
-            console.error('Paystack webhook FATAL: Error adding credits for subscription:', creditError);
-            throw new Error(`Failed to add credits for subscription: ${creditError.message}`);
+            console.error('Paystack webhook error: Error adding credits for subscription:', creditError)
           }
         }
 
