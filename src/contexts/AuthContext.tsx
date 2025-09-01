@@ -32,6 +32,7 @@ interface AuthContextType {
   hasRole: (role: string) => boolean;
   hasAdminPermission: (permission: string) => boolean;
   updateUserCredits: (amount: number) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -426,6 +427,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return isAdmin() || isSuperAdmin();
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const userData = await fetchUserData(user.id);
+      if (userData) {
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Error refreshing user profile:", error);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -441,6 +454,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     hasRole,
     hasAdminPermission,
     updateUserCredits,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
