@@ -186,11 +186,28 @@ serve(async (req) => {
         subscription_status: 'active',
         started_at: subscriptionStartDate.toISOString(),
         expires_at: expiresAt.toISOString(),
-        paystack_subscription_code: verificationData.data.authorization?.authorization_code || null,
-        paystack_customer_code: verificationData.data.customer?.customer_code || null,
-        payment_provider: 'paystack',
         updated_at: new Date().toISOString()
       };
+
+      // Only add Paystack-specific fields if they exist in the schema
+      try {
+        // Check if the columns exist by attempting a test query
+        const { error: schemaCheckError } = await supabaseAdmin
+          .from('user_subscriptions')
+          .select('paystack_customer_code, paystack_subscription_code, payment_provider')
+          .limit(1);
+
+        if (!schemaCheckError) {
+          // Columns exist, add Paystack data
+          subscriptionData.paystack_subscription_code = verificationData.data.authorization?.authorization_code || null;
+          subscriptionData.paystack_customer_code = verificationData.data.customer?.customer_code || null;
+          subscriptionData.payment_provider = 'paystack';
+        } else {
+          console.log(`⚠️ [${service_name}] Paystack columns not found in schema, proceeding without them`);
+        }
+      } catch (schemaError) {
+        console.log(`⚠️ [${service_name}] Schema check failed, proceeding without Paystack columns:`, schemaError);
+      }
 
       const { error: subError } = await supabaseAdmin
         .from('user_subscriptions')

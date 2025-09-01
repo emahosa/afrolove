@@ -99,19 +99,34 @@ serve(async (req) => {
         }
 
         // Upsert subscription record
+        const subscriptionData = {
+          user_id: userId,
+          subscription_type: planId,
+          subscription_status: 'active',
+          started_at: subscriptionStartDate.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Only add Paystack-specific fields if they exist in the schema
+        try {
+          const { error: schemaCheckError } = await supabaseClient
+            .from('user_subscriptions')
+            .select('paystack_customer_code, paystack_subscription_code, payment_provider')
+            .limit(1);
+
+          if (!schemaCheckError) {
+            subscriptionData.paystack_customer_code = chargeData.customer?.customer_code || null;
+            subscriptionData.paystack_subscription_code = chargeData.authorization?.authorization_code || null;
+            subscriptionData.payment_provider = 'paystack';
+          }
+        } catch (schemaError) {
+          console.log('Paystack columns not available, proceeding without them');
+        }
+
         const { error: subError } = await supabaseClient
           .from('user_subscriptions')
-          .upsert({
-            user_id: userId,
-            subscription_type: planId,
-            subscription_status: 'active',
-            started_at: subscriptionStartDate.toISOString(),
-            expires_at: expiresAt.toISOString(),
-            paystack_subscription_code: chargeData.authorization?.authorization_code,
-            paystack_customer_code: chargeData.customer?.customer_code,
-            payment_provider: 'paystack',
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'user_id' })
+          .upsert(subscriptionData, { onConflict: 'user_id' })
 
         if (subError) {
           console.error('Paystack webhook error: Error upserting subscription:', subError)
