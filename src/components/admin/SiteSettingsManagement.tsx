@@ -1,118 +1,107 @@
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { Loader2, Upload, X } from "lucide-react";
+import { toast } from 'sonner';
+import { Loader2, Upload } from 'lucide-react';
 
-const SiteSettingsManagement: React.FC = () => {
-  const [heroVideoUrl, setHeroVideoUrl] = useState('');
+export const SiteSettingsManagement = () => {
+  const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
   useEffect(() => {
-    fetchHeroVideo();
-  }, []);
-
-  const fetchHeroVideo = async () => {
-    try {
+    const fetchSettings = async () => {
+      setLoading(true);
       const { data, error } = await supabase
         .from('site_settings')
         .select('value')
-        .eq('key', 'hero_video_url')
+        .eq('key', 'homepage_hero_video_url')
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (error) {
+        toast.error('Failed to fetch site settings.');
+        console.error(error);
+      } else {
+        setVideoUrl(data.value || '');
       }
-
-      if (data) {
-        setHeroVideoUrl(data.value);
-      }
-    } catch (error) {
-      console.error('Error fetching hero video:', error);
-      toast.error('Failed to fetch hero video settings');
-    } finally {
       setLoading(false);
+    };
+
+    fetchSettings();
+  }, []);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('video/')) {
+        toast.error('Please select a video file.');
+        return;
+      }
+      if (file.size > 100 * 1024 * 1024) { // 100MB limit
+        toast.error('File size must be less than 100MB.');
+        return;
+      }
+      setVideoFile(file);
     }
   };
 
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('video/')) {
-      toast.error('Please select a video file');
-      return;
-    }
-
-    // Validate file size (50MB limit)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('Video file size must be less than 50MB');
+  const handleUpload = async () => {
+    if (!videoFile) {
+      toast.error('Please select a video file to upload.');
       return;
     }
 
     setUploading(true);
     try {
-      const fileName = `hero-video-${Date.now()}.${file.name.split('.').pop()}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('public-assets')
-        .upload(fileName, file);
+      const timestamp = Date.now();
+      const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-      if (uploadError) throw uploadError;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('public-assets')
+        .upload(filename, videoFile, {
+          contentType: videoFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('public-assets')
-        .getPublicUrl(fileName);
+        .getPublicUrl(filename);
 
-      // Save to site_settings
-      const { error: saveError } = await supabase
+      if (!publicUrl) {
+        throw new Error('Failed to get public URL for the uploaded video.');
+      }
+
+      const { error: updateError } = await supabase
         .from('site_settings')
-        .upsert({
-          key: 'hero_video_url',
-          value: publicUrl,
-          description: 'Hero section background video URL'
-        }, { onConflict: 'key' });
+        .update({ value: publicUrl })
+        .eq('key', 'homepage_hero_video_url');
 
-      if (saveError) throw saveError;
+      if (updateError) {
+        throw updateError;
+      }
 
-      setHeroVideoUrl(publicUrl);
-      toast.success('Hero video uploaded successfully');
-    } catch (error) {
-      console.error('Error uploading hero video:', error);
-      toast.error('Failed to upload hero video');
+      setVideoUrl(publicUrl);
+      setVideoFile(null);
+      toast.success('Hero video updated successfully.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload video.');
     } finally {
       setUploading(false);
     }
   };
 
-  const removeHeroVideo = async () => {
-    try {
-      const { error } = await supabase
-        .from('site_settings')
-        .delete()
-        .eq('key', 'hero_video_url');
-
-      if (error) throw error;
-
-      setHeroVideoUrl('');
-      toast.success('Hero video removed successfully');
-    } catch (error) {
-      console.error('Error removing hero video:', error);
-      toast.error('Failed to remove hero video');
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex justify-center items-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading site settings...</span>
       </div>
     );
   }
@@ -120,75 +109,33 @@ const SiteSettingsManagement: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Site Settings Management</CardTitle>
+        <CardTitle>Site Settings</CardTitle>
+        <CardDescription>Manage site-wide settings.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Hero Section Video</h3>
-          <p className="text-sm text-muted-foreground">
-            Upload a video for the hero section background (16:9 aspect ratio recommended, max 50MB)
-          </p>
-          
-          {heroVideoUrl ? (
-            <div className="space-y-4">
-              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-                <video
-                  src={heroVideoUrl}
-                  controls
-                  className="w-full h-full object-cover"
-                >
-                  Your browser does not support the video tag.
-                </video>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={removeHeroVideo}>
-                  <X className="mr-2 h-4 w-4" />
-                  Remove Video
-                </Button>
-                <Label htmlFor="video-upload" className="cursor-pointer">
-                  <Button variant="outline" asChild>
-                    <span>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Replace Video
-                    </span>
-                  </Button>
-                </Label>
-              </div>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Homepage Hero Video</Label>
+          {videoUrl ? (
+            <div className="space-y-2">
+              <video src={videoUrl} controls className="w-full rounded-md" />
+              <p className="text-sm text-muted-foreground">Current video URL: {videoUrl}</p>
             </div>
           ) : (
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-              <Upload className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground mb-4">No hero video uploaded</p>
-              <Label htmlFor="video-upload" className="cursor-pointer">
-                <Button disabled={uploading}>
-                  {uploading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload Video
-                    </>
-                  )}
-                </Button>
-              </Label>
-            </div>
+            <p className="text-sm text-muted-foreground">No video uploaded yet.</p>
           )}
-          
-          <Input
-            id="video-upload"
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={handleVideoUpload}
-            disabled={uploading}
-          />
+        </div>
+        <div className="space-y-2">
+          <Label>Upload New Video</Label>
+          <div className="flex items-center space-x-2">
+            <Input type="file" accept="video/*" onChange={handleFileSelect} />
+            <Button onClick={handleUpload} disabled={uploading || !videoFile}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              <span className="ml-2">Upload</span>
+            </Button>
+          </div>
+          {videoFile && <p className="text-sm text-muted-foreground">Selected file: {videoFile.name}</p>}
         </div>
       </CardContent>
     </Card>
   );
 };
-
-export default SiteSettingsManagement;

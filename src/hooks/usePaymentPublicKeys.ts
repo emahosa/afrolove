@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -35,15 +34,7 @@ export const usePaymentPublicKeys = () => {
       }
 
       if (data?.value) {
-        let settings: PaymentGatewayKeys;
-        
-        // Handle different value types from the database
-        if (typeof data.value === 'string') {
-          settings = JSON.parse(data.value);
-        } else {
-          settings = data.value as unknown as PaymentGatewayKeys;
-        }
-        
+        const settings = data.value as PaymentGatewayKeys;
         const mode = settings.mode || 'test';
 
         return {
@@ -54,6 +45,6 @@ export const usePaymentPublicKeys = () => {
 
       return {};
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 };

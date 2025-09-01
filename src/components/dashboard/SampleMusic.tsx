@@ -1,63 +1,47 @@
 
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import GeneratedSongCard from '@/components/music-generation/GeneratedSongCard';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Music } from 'lucide-react';
 
-interface Song {
-  id: string;
-  title: string;
-  audio_url: string;
-  status: "completed";
-  created_at: string;
-  prompt: string;
-  credits_used: number;
-  duration: number;
-}
+const sampleSongs = [
+  {
+    id: 'sample-1',
+    title: 'Cosmic Drift',
+    audio_url: 'https://storage.googleapis.com/melody-share/cosmic-drift.mp3',
+    status: 'completed' as const,
+    created_at: '2025-06-15T12:00:00Z',
+    prompt: 'A dreamy synthwave track with a retro vibe, perfect for late-night drives through a neon city.',
+    credits_used: 0,
+    duration: 184,
+  },
+  {
+    id: 'sample-2',
+    title: 'Forest Lullaby',
+    audio_url: 'https://storage.googleapis.com/melody-share/forest-lullaby.mp3',
+    status: 'completed' as const,
+    created_at: '2025-06-15T12:05:00Z',
+    prompt: 'A gentle acoustic guitar melody with soft piano, evoking a peaceful walk through a sun-dappled forest.',
+    credits_used: 0,
+    duration: 152,
+  },
+];
 
 const SampleMusic = () => {
-  const [sampleSongs, setSampleSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchSampleSongs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('songs')
-          .select('*')
-          .eq('status', 'completed')
-          .limit(6)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setSampleSongs(data || []);
-      } catch (error) {
-        console.error('Error fetching sample songs:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSampleSongs();
-  }, []);
-
-  if (loading) {
-    return <div className="text-center py-8">Loading sample music...</div>;
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sample Music</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Music className="h-5 w-5 text-purple-500" />
+          Sample Our Music
+        </CardTitle>
+        <CardDescription>
+          You can't generate new songs on a Voter plan, but you can listen to these samples.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sampleSongs.map((song) => (
-            <GeneratedSongCard 
-              key={song.id} 
-              song={song}
-              isPlaying={false}
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {sampleSongs.map(song => (
+            <GeneratedSongCard key={song.id} song={song} />
           ))}
         </div>
       </CardContent>

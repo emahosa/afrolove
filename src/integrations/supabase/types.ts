@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -165,7 +165,6 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          last_voted_at: string | null
           media_type: string | null
           song_id: string | null
           status: Database["public"]["Enums"]["song_status"] | null
@@ -180,7 +179,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
@@ -195,7 +193,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
@@ -226,28 +223,25 @@ export type Database = {
           contest_entry_id: string
           contest_id: string
           created_at: string
-          credits_spent: number
-          id: number
-          num_votes: number
+          id: string
           user_id: string
+          voter_phone: string | null
         }
         Insert: {
           contest_entry_id: string
           contest_id: string
           created_at?: string
-          credits_spent?: number
-          id?: never
-          num_votes: number
+          id?: string
           user_id: string
+          voter_phone?: string | null
         }
         Update: {
           contest_entry_id?: string
           contest_id?: string
           created_at?: string
-          credits_spent?: number
-          id?: never
-          num_votes?: number
+          id?: string
           user_id?: string
+          voter_phone?: string | null
         }
         Relationships: [
           {
@@ -259,51 +253,6 @@ export type Database = {
           },
           {
             foreignKeyName: "contest_votes_contest_id_fkey"
-            columns: ["contest_id"]
-            isOneToOne: false
-            referencedRelation: "contests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contest_winners: {
-        Row: {
-          contest_entry_id: string
-          contest_id: string
-          created_at: string
-          id: string
-          rank: number
-          user_id: string
-          won_at: string
-        }
-        Insert: {
-          contest_entry_id: string
-          contest_id: string
-          created_at?: string
-          id?: string
-          rank?: number
-          user_id: string
-          won_at?: string
-        }
-        Update: {
-          contest_entry_id?: string
-          contest_id?: string
-          created_at?: string
-          id?: string
-          rank?: number
-          user_id?: string
-          won_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contest_winners_contest_entry_id_fkey"
-            columns: ["contest_entry_id"]
-            isOneToOne: false
-            referencedRelation: "contest_entries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "contest_winners_contest_id_fkey"
             columns: ["contest_id"]
             isOneToOne: false
             referencedRelation: "contests"
@@ -709,54 +658,6 @@ export type Database = {
         }
         Relationships: []
       }
-      plans: {
-        Row: {
-          active: boolean | null
-          created_at: string | null
-          credits_per_month: number
-          currency: string
-          description: string | null
-          features: string[] | null
-          id: string
-          interval: string
-          name: string
-          paystack_plan_code: string | null
-          price: number
-          rank: number
-          stripe_price_id: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          created_at?: string | null
-          credits_per_month: number
-          currency?: string
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          interval: string
-          name: string
-          paystack_plan_code?: string | null
-          price: number
-          rank?: number
-          stripe_price_id?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          created_at?: string | null
-          credits_per_month?: number
-          currency?: string
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          interval?: string
-          name?: string
-          paystack_plan_code?: string | null
-          price?: number
-          rank?: number
-          stripe_price_id?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -793,6 +694,44 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          conversion_date: string | null
+          created_at: string
+          id: string
+          is_converted: boolean
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+        }
+        Insert: {
+          conversion_date?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean
+          referral_code: string
+          referred_user_id: string
+          referrer_id: string
+        }
+        Update: {
+          conversion_date?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean
+          referral_code?: string
+          referred_user_id?: string
+          referrer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_user_id_fkey"
+            columns: ["referred_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           description: string | null
@@ -814,36 +753,6 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: Json
-        }
-        Relationships: []
-      }
-      site_settings: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          key: string
-          updated_at: string
-          value: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          key: string
-          updated_at?: string
-          value: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          key?: string
-          updated_at?: string
-          value?: string
         }
         Relationships: []
       }
@@ -1028,33 +937,6 @@ export type Database = {
         }
         Relationships: []
       }
-      transactions: {
-        Row: {
-          created_at: string
-          id: number
-          metadata: Json | null
-          provider: string
-          reference: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          metadata?: Json | null
-          provider: string
-          reference: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          metadata?: Json | null
-          provider?: string
-          reference?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       unlocked_contests: {
         Row: {
           contest_id: string
@@ -1087,7 +969,6 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
-          referrer_affiliate_id: string | null
           user_id: string
         }
         Insert: {
@@ -1095,7 +976,6 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          referrer_affiliate_id?: string | null
           user_id: string
         }
         Update: {
@@ -1103,7 +983,6 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          referrer_affiliate_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1253,51 +1132,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_apply_for_affiliate: {
-        Args: { user_id_param: string }
-        Returns: boolean
-      }
-      cast_vote: {
-        Args: { entry_id: string; p_contest_id: string; p_num_votes: number }
-        Returns: Json
-      }
       current_user_has_role: {
         Args: { role_name: string }
         Returns: boolean
-      }
-      generate_affiliate_code: {
-        Args: { p_full_name: string }
-        Returns: string
-      }
-      get_affiliate_links: {
-        Args: { user_id: string }
-        Returns: {
-          affiliate_user_id: string
-          clicks_count: number
-          created_at: string
-          id: string
-          link_code: string
-          updated_at: string
-        }[]
-      }
-      get_affiliate_payout_history: {
-        Args: { user_id_param: string }
-        Returns: {
-          admin_notes: string
-          id: string
-          processed_at: string
-          requested_amount: number
-          requested_at: string
-          status: string
-        }[]
-      }
-      get_affiliate_referrals_count: {
-        Args: { user_id_param: string }
-        Returns: number
-      }
-      get_total_affiliate_earnings: {
-        Args: { user_id_param: string }
-        Returns: number
       }
       get_user_role: {
         Args: { user_id_param: string }
@@ -1310,15 +1147,15 @@ export type Database = {
         }[]
       }
       has_admin_permission: {
-        Args: { _permission: string; _user_id: string }
+        Args: { _user_id: string; _permission: string }
         Returns: boolean
       }
       has_role: {
         Args:
           | { _role: Database["public"]["Enums"]["user_role"] }
           | {
-              _role: Database["public"]["Enums"]["user_role"]
               _user_id: string
+              _role: Database["public"]["Enums"]["user_role"]
             }
         Returns: boolean
       }
@@ -1338,28 +1175,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      process_free_referral_bonus: {
-        Args: {
-          p_affiliate_id: string
-          p_bonus_amount: number
-          p_referred_user_id: string
-        }
-        Returns: undefined
-      }
-      process_subscription_commission: {
-        Args: {
-          p_affiliate_id: string
-          p_commission_amount: number
-          p_is_first_payment: boolean
-        }
-        Returns: undefined
-      }
-      submit_contest_entry: {
-        Args: { p_contest_id: string; p_description: string; p_song_id: string }
-        Returns: Json
-      }
       update_user_credits: {
-        Args: { p_amount: number; p_user_id: string }
+        Args: { p_user_id: string; p_amount: number }
         Returns: number
       }
     }
@@ -1381,7 +1198,6 @@ export type Database = {
         | "super_admin"
         | "voter"
         | "subscriber"
-        | "affiliate"
         | "contest_entrant"
       voice_clone_status: "pending" | "approved" | "rejected"
     }
@@ -1529,7 +1345,6 @@ export const Constants = {
         "super_admin",
         "voter",
         "subscriber",
-        "affiliate",
         "contest_entrant",
       ],
       voice_clone_status: ["pending", "approved", "rejected"],

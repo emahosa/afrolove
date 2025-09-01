@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 
@@ -18,7 +17,6 @@ interface AudioPlayerContextType {
   isLoading: boolean;
   playTrack: (track: Track) => void;
   togglePlayPause: () => void;
-  pauseTrack: () => void;
   seek: (time: number) => void;
 }
 
@@ -151,12 +149,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const pauseTrack = () => {
-    if (audioRef.current && audioRef.current.src) {
-      audioRef.current.pause();
-    }
-  };
-
   const playTrack = (track: Track) => {
     console.log(`🎵 playTrack called for "${track.title}".`);
     console.log('🎵 Track data:', {
@@ -274,7 +266,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     playTrack,
     togglePlayPause,
-    pauseTrack,
     seek,
   };
 

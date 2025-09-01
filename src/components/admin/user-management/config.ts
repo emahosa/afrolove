@@ -1,54 +1,62 @@
 
-import { z } from 'zod';
+import * as z from 'zod';
+import { UserRole } from './types';
 
-// User roles without affiliate
-export const userRoleSchema = z.enum([
-  'admin',
-  'moderator', 
-  'user',
-  'super_admin',
-  'voter',
-  'subscriber',
-  'contest_entrant'
-]);
-
-export const userManagementFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Valid email is required"),
-  role: userRoleSchema.default('user'),
-  credits: z.number().min(0).default(0),
-  status: z.enum(['active', 'suspended']).default('active'),
-  is_suspended: z.boolean().default(false),
-  is_banned: z.boolean().default(false),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
-  confirmPassword: z.string().optional(),
-}).refine((data) => {
-  if (data.password && data.confirmPassword) {
-    return data.password === data.confirmPassword;
-  }
-  return true;
-}, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-export type UserRole = z.infer<typeof userRoleSchema>;
-export type UserManagementFormData = z.infer<typeof userManagementFormSchema>;
-export type UserFormValues = UserManagementFormData;
-
-export const roleLabels: Record<UserRole, string> = {
-  admin: 'Administrator',
-  moderator: 'Moderator',
-  user: 'Regular User',
-  super_admin: 'Super Administrator',
-  voter: 'Voter',
-  subscriber: 'Subscriber',
-  contest_entrant: 'Contest Entrant',
-};
+// Define an array of UserRole values for Zod enum
+const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber", "contest_entrant"] as const;
 
 export const ADMIN_PERMISSIONS = [
-  { id: 'manage_users', label: 'Manage Users' },
-  { id: 'manage_content', label: 'Manage Content' },
-  { id: 'manage_settings', label: 'Manage Settings' },
-  { id: 'view_analytics', label: 'View Analytics' },
+  { id: 'users', label: 'User Management' },
+  { id: 'content', label: 'Content Management' },
+  { id: 'genres', label: 'Genre Management' },
+  { id: 'custom-songs', label: 'Custom Songs' },
+  { id: 'suno-api', label: 'Suno API' },
+  { id: 'contest', label: 'Contest Management' },
+  { id: 'payments', label: 'Payment Management' },
+  { id: 'support', label: 'Support Management' },
+  { id: 'reports', label: 'Reports & Analytics' },
+  { id: 'settings', label: 'Settings Management' }
 ];
+
+export const userFormSchema = z.object({
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  credits: z.coerce.number().int().min(0, { message: "Credits cannot be negative." }),
+  status: z.enum(["active", "suspended"]).default("active"),
+  role: z.enum(userRoleValues).default("voter" as UserRole),
+  permissions: z.array(z.string()).optional(),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.password || data.confirmPassword) {
+    if (!data.password || data.password.length === 0) {
+      if (data.confirmPassword && data.confirmPassword.length > 0) {
+         ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Password is required if confirm password is set.",
+          path: ["password"],
+        });
+      }
+    } else {
+      if (data.password.length < 8) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          minimum: 8,
+          type: "string",
+          inclusive: true,
+          message: "Password must be at least 8 characters.",
+          path: ["password"],
+        });
+      }
+      if (data.password !== data.confirmPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Passwords do not match.",
+          path: ["confirmPassword"],
+        });
+      }
+    }
+  }
+});
+
+export type UserFormValues = z.infer<typeof userFormSchema>;

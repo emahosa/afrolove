@@ -1,43 +1,100 @@
+import React, { useEffect } from 'react';
+import { Toaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { PaymentVerificationProvider } from "@/components/payment/PaymentVerificationProvider";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthProvider } from './contexts/AuthContext';
-import Navbar from './components/Navbar';
-import Index from './pages/Index';
-import Support from './pages/Support';
-import Admin from './pages/Admin';
-import { Toaster } from 'sonner';
+// Pages
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AdminRegister from "./pages/AdminRegister";
+import AdminLoginPage from "./pages/AdminLogin";
+import Dashboard from "./pages/Dashboard";
+import Create from "./pages/Create";
+import Library from "./pages/Library";
+import Contest from "./pages/Contest";
+import Profile from "./pages/Profile";
+import Billing from "./pages/Billing";
+import Support from "./pages/Support";
+import Admin from "./pages/Admin";
+import AffiliatePage from "./pages/Affiliate";
 
-// Create a query client instance
-const queryClient = new QueryClient();
+// Layouts
+import AppLayout from "./layouts/AppLayout";
+import AuthLayout from "./layouts/AuthLayout";
+import AdminLayout from "./layouts/AdminLayout";
 
-function App() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+// Protected Routes
+import ProtectedRoute from "./components/ProtectedRoute";
 
-  const handleMenuClick = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+import { ensureStorageBuckets } from './utils/storageSetup';
 
+const App = () => {
+  useEffect(() => {
+    ensureStorageBuckets();
+  }, []);
+  
   return (
-    <QueryClientProvider client={queryClient}>
+    <ErrorBoundary>
       <BrowserRouter>
         <AuthProvider>
-          <div className="min-h-screen bg-background">
-            <Navbar onMenuClick={handleMenuClick} />
-            <main className="pt-16">
+          <PaymentVerificationProvider>
+            <TooltipProvider>
+              <Toaster />
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/support" element={<Support />} />
-                <Route path="/admin" element={<Admin />} />
+                
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route element={<AuthLayout />}>
+                  <Route path="/register/admin" element={<AdminRegister />} />
+                </Route>
+                
+                <Route path="/admin/login" element={<AdminLoginPage />} />
+                
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/create" element={<Create />} />
+                    <Route path="/library" element={<Library />} />
+                    <Route path="/contest" element={<Contest />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/billing" element={<Billing />} />
+                    <Route path="/support" element={<Support />} />
+                    <Route path="/affiliate" element={<AffiliatePage />} />
+                  </Route>
+                </Route>
+
+                <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
+                  <Route element={<AdminLayout />}>
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/overview" element={<Admin tab="overview" />} />
+                    <Route path="/admin/users" element={<Admin tab="users" />} />
+                    <Route path="/admin/admins" element={<Admin tab="admins" />} />
+                    <Route path="/admin/genres" element={<Admin tab="genres" />} />
+                    <Route path="/admin/suno-api" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/api-keys" element={<Admin tab="suno-api" />} />
+                    <Route path="/admin/contest" element={<Admin tab="contest" />} />
+                    <Route path="/admin/content" element={<Admin tab="content" />} />
+                    <Route path="/admin/payments" element={<Admin tab="payments" />} />
+                    <Route path="/admin/support" element={<Admin tab="support" />} />
+                    <Route path="/admin/reports" element={<Admin tab="reports" />} />
+                    <Route path="/admin/settings" element={<Admin tab="settings" />} />
+                  </Route>
+                </Route>
+                
+                <Route path="*" element={<NotFound />} />
               </Routes>
-            </main>
-            <Toaster />
-          </div>
+            </TooltipProvider>
+          </PaymentVerificationProvider>
         </AuthProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </ErrorBoundary>
   );
-}
+};
 
 export default App;
