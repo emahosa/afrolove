@@ -109,16 +109,27 @@ export const useContest = () => {
       setUnlockedContestIds(newUnlockedIds);
       
       const allContests = data || [];
+      const now = new Date();
 
-      const active = allContests
-        .filter(contest => contest.status === 'active')
-        .map(contest => ({
-          ...contest,
-          is_unlocked: newUnlockedIds.has(contest.id)
-        }));
-      
-      const upcoming = allContests.filter(contest => contest.status === 'upcoming');
-      const past = allContests.filter(contest => contest.status === 'past');
+      const active: Contest[] = [];
+      const upcoming: Contest[] = [];
+      const past: Contest[] = [];
+
+      allContests.forEach(contest => {
+        const startDate = new Date(contest.start_date);
+        const endDate = new Date(contest.end_date);
+
+        if (endDate < now) {
+          past.push(contest);
+        } else if (startDate > now) {
+          upcoming.push(contest);
+        } else {
+          active.push({
+            ...contest,
+            is_unlocked: newUnlockedIds.has(contest.id)
+          });
+        }
+      });
 
       setActiveContests(active);
       setUpcomingContests(upcoming);
