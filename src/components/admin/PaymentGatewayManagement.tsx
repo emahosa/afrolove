@@ -1,160 +1,202 @@
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Loader2, Save } from 'lucide-react';
 
-interface PaymentGatewaySettings {
-  stripe_enabled: boolean;
-  stripe_publishable_key: string;
-  paystack_enabled: boolean;
+interface PaymentSettings {
   paystack_public_key: string;
+  paystack_secret_key: string;
+  stripe_publishable_key: string;
+  stripe_secret_key: string;
+  paystack_enabled: boolean;
+  stripe_enabled: boolean;
 }
 
-export const PaymentGatewayManagement = () => {
-  const [settings, setSettings] = useState<PaymentGatewaySettings>({
-    stripe_enabled: false,
+const PaymentGatewayManagement = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<PaymentSettings>({
+    paystack_public_key: '',
+    paystack_secret_key: '',
     stripe_publishable_key: '',
+    stripe_secret_key: '',
     paystack_enabled: false,
-    paystack_public_key: ''
+    stripe_enabled: false,
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchSettings();
+    loadSettings();
   }, []);
 
-  const fetchSettings = async () => {
+  const loadSettings = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('system_settings')
-        .select('key, value')
-        .in('key', ['stripe_enabled', 'stripe_publishable_key', 'paystack_enabled', 'paystack_public_key']);
+        .select('*')
+        .in('key', [
+          'paystack_public_key',
+          'paystack_secret_key', 
+          'stripe_publishable_key',
+          'stripe_secret_key',
+          'paystack_enabled',
+          'stripe_enabled'
+        ]);
 
       if (error) throw error;
 
-      const settingsMap = data?.reduce((acc, item) => {
-        acc[item.key as keyof PaymentGatewaySettings] = item.value as any;
-        return acc;
-      }, {} as Partial<PaymentGatewaySettings>);
+      const newSettings: PaymentSettings = { ...settings };
+      data?.forEach(setting => {
+        const key = setting.key as keyof PaymentSettings;
+        if (typeof setting.value === 'boolean') {
+          (newSettings[key] as boolean) = setting.value;
+        } else if (typeof setting.value === 'string') {
+          (newSettings[key] as string) = setting.value;
+        }
+      });
 
-      setSettings(prev => ({ ...prev, ...settingsMap }));
+      setSettings(newSettings);
     } catch (error: any) {
-      console.error('Error fetching payment settings:', error);
+      console.error('Error loading payment settings:', error);
       toast.error('Failed to load payment settings');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const saveSettings = async () => {
+  const updateSetting = async (key: keyof PaymentSettings, value: string | boolean) => {
     try {
-      setSaving(true);
-
-      const updates = Object.entries(settings).map(([key, value]) => ({
-        key,
-        value: value as any,
-        category: 'payment_gateways',
-        description: `Payment gateway setting for ${key}`
-      }));
-
       const { error } = await supabase
         .from('system_settings')
-        .upsert(updates, { onConflict: 'key' });
+        .upsert({
+          key,
+          value,
+          category: 'payment',
+          description: `Payment gateway setting: ${key}`,
+        });
 
       if (error) throw error;
 
-      toast.success('Payment gateway settings saved successfully');
+      setSettings(prev => ({ ...prev, [key]: value }));
+      toast.success('Setting updated successfully');
     } catch (error: any) {
-      console.error('Error saving payment settings:', error);
-      toast.error('Failed to save payment settings');
-    } finally {
-      setSaving(false);
+      console.error('Error updating setting:', error);
+      toast.error('Failed to update setting');
     }
   };
 
-  if (loading) {
-    return <div>Loading payment gateway settings...</div>;
-  }
+  const handleSave = async () => {
+    setIsLoading(true);
+    try {
+      // Save all settings
+      for (const [key, value] of Object.entries(settings)) {
+        await updateSetting(key as keyof PaymentSettings, value);
+      }
+      toast.success('All payment settings saved successfully');
+    } catch (error) {
+      toast.error('Failed to save some settings');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Payment Gateway Management</h2>
+          <p className="text-muted-foreground">Configure payment processors for the platform</p>
+        </div>
+        <Button onClick={handleSave} disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Save All Changes
+        </Button>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Stripe Settings */}
+        {/* Paystack Configuration */}
         <Card>
           <CardHeader>
-            <CardTitle>Stripe Settings</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Paystack Configuration
+              <Switch
+                checked={settings.paystack_enabled}
+                onCheckedChange={(checked) => updateSetting('paystack_enabled', checked)}
+              />
+            </CardTitle>
+            <CardDescription>
+              Configure Paystack payment gateway for NGN transactions
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="stripe-enabled">Enable Stripe</Label>
-              <Switch
-                id="stripe-enabled"
-                checked={settings.stripe_enabled}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, stripe_enabled: checked }))
-                }
+            <div>
+              <Label htmlFor="paystack_public_key">Public Key</Label>
+              <Input
+                id="paystack_public_key"
+                type="text"
+                value={settings.paystack_public_key}
+                onChange={(e) => setSettings(prev => ({ ...prev, paystack_public_key: e.target.value }))}
+                placeholder="pk_test_..."
               />
             </div>
-
             <div>
-              <Label htmlFor="stripe-key">Publishable Key</Label>
+              <Label htmlFor="paystack_secret_key">Secret Key</Label>
               <Input
-                id="stripe-key"
+                id="paystack_secret_key"
                 type="password"
-                value={settings.stripe_publishable_key}
-                onChange={(e) =>
-                  setSettings(prev => ({ ...prev, stripe_publishable_key: e.target.value }))
-                }
-                placeholder="pk_test_..."
-                disabled={!settings.stripe_enabled}
+                value={settings.paystack_secret_key}
+                onChange={(e) => setSettings(prev => ({ ...prev, paystack_secret_key: e.target.value }))}
+                placeholder="sk_test_..."
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Paystack Settings */}
+        {/* Stripe Configuration */}
         <Card>
           <CardHeader>
-            <CardTitle>Paystack Settings</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Stripe Configuration
+              <Switch
+                checked={settings.stripe_enabled}
+                onCheckedChange={(checked) => updateSetting('stripe_enabled', checked)}
+              />
+            </CardTitle>
+            <CardDescription>
+              Configure Stripe payment gateway for international transactions
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="paystack-enabled">Enable Paystack</Label>
-              <Switch
-                id="paystack-enabled"
-                checked={settings.paystack_enabled}
-                onCheckedChange={(checked) =>
-                  setSettings(prev => ({ ...prev, paystack_enabled: checked }))
-                }
+            <div>
+              <Label htmlFor="stripe_publishable_key">Publishable Key</Label>
+              <Input
+                id="stripe_publishable_key"
+                type="text"
+                value={settings.stripe_publishable_key}
+                onChange={(e) => setSettings(prev => ({ ...prev, stripe_publishable_key: e.target.value }))}
+                placeholder="pk_test_..."
               />
             </div>
-
             <div>
-              <Label htmlFor="paystack-key">Public Key</Label>
+              <Label htmlFor="stripe_secret_key">Secret Key</Label>
               <Input
-                id="paystack-key"
+                id="stripe_secret_key"
                 type="password"
-                value={settings.paystack_public_key}
-                onChange={(e) =>
-                  setSettings(prev => ({ ...prev, paystack_public_key: e.target.value }))
-                }
-                placeholder="pk_test_..."
-                disabled={!settings.paystack_enabled}
+                value={settings.stripe_secret_key}
+                onChange={(e) => setSettings(prev => ({ ...prev, stripe_secret_key: e.target.value }))}
+                placeholder="sk_test_..."
               />
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <Button onClick={saveSettings} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Settings'}
-      </Button>
     </div>
   );
 };
+
+export default PaymentGatewayManagement;
