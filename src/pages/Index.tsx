@@ -38,7 +38,7 @@ export default function Index() {
       try {
         console.log('Fetching hero video URL...');
         const { data, error } = await supabase
-          .from('system_settings')
+          .from('site_settings')
           .select('value')
           .eq('key', 'homepage_hero_video_url')
           .single();
