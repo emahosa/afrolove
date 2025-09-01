@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,16 +18,22 @@ export const SiteSettingsManagement = () => {
     const fetchSettings = async () => {
       setLoading(true);
       const { data, error } = await supabase
-        .from('site_settings')
+        .from('system_settings')
         .select('value')
         .eq('key', 'homepage_hero_video_url')
         .single();
 
       if (error) {
-        toast.error('Failed to fetch site settings.');
-        console.error(error);
+        if (error.code === 'PGRST116') {
+          // No record found, that's ok
+          setVideoUrl('');
+        } else {
+          toast.error('Failed to fetch site settings.');
+          console.error(error);
+        }
       } else {
-        setVideoUrl(data.value || '');
+        const parsedValue = typeof data.value === 'string' ? data.value : data.value?.url || '';
+        setVideoUrl(parsedValue);
       }
       setLoading(false);
     };
@@ -58,7 +65,9 @@ export const SiteSettingsManagement = () => {
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const filename = `${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filename = `hero_video_${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+
+      console.log('Uploading video file:', filename);
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('public-assets')
@@ -68,8 +77,11 @@ export const SiteSettingsManagement = () => {
         });
 
       if (uploadError) {
+        console.error('Upload error:', uploadError);
         throw uploadError;
       }
+
+      console.log('Upload successful:', uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from('public-assets')
@@ -79,19 +91,49 @@ export const SiteSettingsManagement = () => {
         throw new Error('Failed to get public URL for the uploaded video.');
       }
 
-      const { error: updateError } = await supabase
-        .from('site_settings')
-        .update({ value: publicUrl })
-        .eq('key', 'homepage_hero_video_url');
+      console.log('Public URL:', publicUrl);
 
-      if (updateError) {
-        throw updateError;
+      // Check if setting exists
+      const { data: existingSetting } = await supabase
+        .from('system_settings')
+        .select('id')
+        .eq('key', 'homepage_hero_video_url')
+        .single();
+
+      if (existingSetting) {
+        // Update existing setting
+        const { error: updateError } = await supabase
+          .from('system_settings')
+          .update({ 
+            value: publicUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq('key', 'homepage_hero_video_url');
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        // Insert new setting
+        const { error: insertError } = await supabase
+          .from('system_settings')
+          .insert({
+            key: 'homepage_hero_video_url',
+            value: publicUrl,
+            category: 'site',
+            description: 'Homepage hero section video URL'
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
       }
 
       setVideoUrl(publicUrl);
       setVideoFile(null);
       toast.success('Hero video updated successfully.');
     } catch (error: any) {
+      console.error('Upload process error:', error);
       toast.error(error.message || 'Failed to upload video.');
     } finally {
       setUploading(false);
