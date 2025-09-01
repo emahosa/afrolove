@@ -45,6 +45,8 @@ export const useContest = () => {
   const { user, updateUserCredits, isSubscriber } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [activeContests, setActiveContests] = useState<Contest[]>([]);
+  const [upcomingContests, setUpcomingContests] = useState<Contest[]>([]);
+  const [pastContests, setPastContests] = useState<Contest[]>([]);
   const [currentContest, setCurrentContest] = useState<Contest | null>(null);
   const [unlockedContestIds, setUnlockedContestIds] = useState<Set<string>>(new Set());
   const [contestEntries, setContestEntries] = useState<ContestEntry[]>([]);
@@ -106,17 +108,24 @@ export const useContest = () => {
       }
       setUnlockedContestIds(newUnlockedIds);
       
-      const activeContestsData = data
-        ?.filter(contest => contest.status === 'active')
+      const allContests = data || [];
+
+      const active = allContests
+        .filter(contest => contest.status === 'active')
         .map(contest => ({
           ...contest,
           is_unlocked: newUnlockedIds.has(contest.id)
-        })) || [];
+        }));
       
-      setActiveContests(activeContestsData);
+      const upcoming = allContests.filter(contest => contest.status === 'upcoming');
+      const past = allContests.filter(contest => contest.status === 'past');
 
-      if (activeContestsData.length > 0) {
-        const firstContest = activeContestsData[0];
+      setActiveContests(active);
+      setUpcomingContests(upcoming);
+      setPastContests(past);
+
+      if (active.length > 0) {
+        const firstContest = active[0];
         setCurrentContest(firstContest);
         console.log('Set current contest:', firstContest);
       } else {
@@ -586,6 +595,8 @@ export const useContest = () => {
   return {
     contests,
     activeContests,
+    upcomingContests,
+    pastContests,
     currentContest,
     contestEntries,
     loading,

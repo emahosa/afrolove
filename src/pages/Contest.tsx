@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useContest } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
+import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
 
 // Contest component main interface
 interface Contest {
@@ -401,6 +402,18 @@ const Contest = () => {
           userHasFreeVote={userHasFreeVote}
           userCredits={user?.credits ?? 0}
           isVoting={isVoting}
+        />
+      )}
+
+      {selectedContest && (
+        <SubmissionDialog
+          open={submissionDialogOpen}
+          onOpenChange={setSubmissionDialogOpen}
+          contestId={selectedContest.id}
+          onSubmissionSuccess={() => {
+            toast.success('Your entry has been submitted for review.');
+            refreshEntries();
+          }}
         />
       )}
     </div>
