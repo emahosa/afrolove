@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,25 +21,50 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
 
   const fetchWallet = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
-        body: { type: 'wallet', userId: affiliateId }
-      });
+      // First try to get existing wallet
+      let { data: walletData, error: walletError } = await supabase
+        .from('affiliate_wallets')
+        .select('*')
+        .eq('affiliate_user_id', affiliateId)
+        .single();
 
-      if (error) {
-        console.error('Error fetching wallet:', error);
-        toast.error('Failed to load wallet data');
-        return;
+      if (walletError && walletError.code === 'PGRST116') {
+        // No wallet found, get USDT address from affiliate application
+        const { data: applicationData } = await supabase
+          .from('affiliate_applications')
+          .select('usdt_wallet_address')
+          .eq('user_id', affiliateId)
+          .eq('status', 'approved')
+          .single();
+
+        if (applicationData?.usdt_wallet_address) {
+          // Create wallet with the registered USDT address
+          const { data: newWallet, error: createError } = await supabase
+            .from('affiliate_wallets')
+            .insert({
+              affiliate_user_id: affiliateId,
+              usdt_wallet_address: applicationData.usdt_wallet_address,
+              balance: 0,
+              total_earned: 0,
+              total_withdrawn: 0
+            })
+            .select()
+            .single();
+
+          if (!createError && newWallet) {
+            walletData = newWallet;
+          }
+        }
       }
 
-      if (data?.wallet) {
-        setWallet(data.wallet);
-        if (data.wallet.usdt_wallet_address) {
-          setUsdtAddress(data.wallet.usdt_wallet_address);
+      if (walletData) {
+        setWallet(walletData);
+        if (walletData.usdt_wallet_address) {
+          setUsdtAddress(walletData.usdt_wallet_address);
         }
       }
     } catch (err) {
       console.error('Error fetching wallet:', err);
-      toast.error('Failed to load wallet data');
     } finally {
       setLoading(false);
     }

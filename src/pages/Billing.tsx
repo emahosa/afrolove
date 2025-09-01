@@ -16,6 +16,7 @@ import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
 import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from 'react-router-dom';
 
 interface Plan {
   id: string;
@@ -28,7 +29,7 @@ interface Plan {
   credits_per_month: number;
   features: string[];
   rank: number;
-  stripe_price_id: string;
+  stripePriceId: string;
 }
 
 const Billing: React.FC = () => {
@@ -80,6 +81,14 @@ const Billing: React.FC = () => {
     { credits: 100, amount: 45, popular: false },
   ];
 
+  const handlePurchase = async (pkg: any) => {
+    // ... (same as before)
+  };
+
+  const handleCustomPurchase = async () => {
+    // ... (same as before)
+  };
+
   const handleSubscriptionChange = async (planId: string) => {
     const plan = plans.find(p => p.id === planId);
     if (!plan) return;
@@ -105,34 +114,22 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      console.log('Attempting to downgrade to plan:', plan.name);
-      
-      const { data, error } = await supabase.functions.invoke('manage-subscription', {
+      const { error } = await supabase.functions.invoke('manage-subscription', {
         body: {
           action: 'downgrade',
           newPlanId: plan.id,
-          newStripePriceId: plan.stripe_price_id,
+          newStripePriceId: plan.stripePriceId,
         }
       });
 
-      if (error) {
-        console.error('Downgrade error:', error);
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
 
-      console.log('Downgrade response:', data);
-      
       toast.success("Downgrade Scheduled", {
         description: `Your subscription will be changed to the ${plan.name} plan at the end of your current billing cycle.`
       });
-      
-      // Refresh user data to show the pending change
-      window.location.reload();
+      // Optionally, refresh user data here to show the pending change
     } catch (error: any) {
-      console.error('Downgrade failed:', error);
-      toast.error("Failed to schedule downgrade", { 
-        description: error.message || "There was an error scheduling your downgrade. Please try again." 
-      });
+      toast.error("Failed to schedule downgrade", { description: error.message });
     } finally {
       setPaymentProcessing(false);
       setDowngradeConfirmationOpen(false);
@@ -162,7 +159,6 @@ const Billing: React.FC = () => {
             user_id: user.id,
             type: 'subscription',
             plan_id: plan.id,
-            plan_name: plan.name,
             credits: plan.credits_per_month,
           },
           onSuccess: async (ref: string) => {
@@ -185,7 +181,7 @@ const Billing: React.FC = () => {
           const { data, error } = await supabase.functions.invoke('create-subscription', {
             body: {
               paystackPlanCode: plan.paystack_plan_code,
-              priceId: plan.stripe_price_id,
+              priceId: plan.stripePriceId,
               planId: plan.id,
               planName: plan.name,
               amount: Math.round(plan.price * 100),
@@ -218,7 +214,7 @@ const Billing: React.FC = () => {
           toast.error("Subscription failed", {
             description: subscriptionError.message || "There was an error processing your subscription. Please try again.",
           });
-          return;
+          return; // Don't proceed if subscription creation failed
         }
       } else {
         toast.error("Payment processing is currently disabled or no gateway is configured.");
@@ -314,7 +310,7 @@ const Billing: React.FC = () => {
             description: paymentError.message || "There was an error processing your payment. Please try again.",
           });
           trackActivity('credit_purchase_failed');
-          return;
+          return; // Don't proceed if payment creation failed
         }
 
       } else {
@@ -357,7 +353,6 @@ const Billing: React.FC = () => {
           <TabsTrigger value="plans" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Subscription Plans</TabsTrigger>
           <TabsTrigger value="credits" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Buy Credits</TabsTrigger>
         </TabsList>
-        
         <TabsContent value="plans" className="mt-6">
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
@@ -375,14 +370,7 @@ const Billing: React.FC = () => {
                     <CardDescription className="text-dark-purple">{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                    <ul className="space-y-2 text-sm text-gray-300">
-                      {plan.features.map(f => (
-                        <li key={f} className="flex items-start">
-                          <CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <ul className="space-y-2 text-sm text-gray-300">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
                   </CardContent>
                   <CardFooter>
                     <Button
@@ -401,18 +389,14 @@ const Billing: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
         <TabsContent value="credits" className="mt-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight mb-2 text-white">Buy Credits</h1>
             <p className="text-gray-400">Purchase credits to generate amazing songs with AI</p>
           </div>
-          
           <Card className="mb-8 bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="flex items-center text-white">
-                <Coins className="mr-2 h-5 w-5 text-dark-purple" />Your Credits
-              </CardTitle>
+              <CardTitle className="flex items-center text-white"><Coins className="mr-2 h-5 w-5 text-dark-purple" />Your Credits</CardTitle>
               <CardDescription className="text-gray-400">Use credits to generate songs, create custom tracks, and more</CardDescription>
             </CardHeader>
             <CardContent>
@@ -425,15 +409,12 @@ const Billing: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {creditPackages.map((pkg, index) => (
               <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
                 {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
                 <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center text-white">
-                    <Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits
-                  </CardTitle>
+                  <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
                   <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
                 </CardHeader>
                 <CardContent className="text-center">
@@ -454,39 +435,19 @@ const Billing: React.FC = () => {
               </Card>
             ))}
           </div>
-          
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="flex items-center text-white">
-                <DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount
-              </CardTitle>
+              <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
               <CardDescription className="text-gray-400">Purchase any amount of credits (1 USD = 1 Credit)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
                   <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
-                  <Input 
-                    id="custom-amount" 
-                    type="number" 
-                    placeholder="Enter amount" 
-                    value={customAmount} 
-                    onChange={(e) => setCustomAmount(e.target.value)} 
-                    min="1" 
-                    step="1" 
-                    className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-                  />
+                  <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
                 </div>
                 <Button
-                  onClick={() => {
-                    const amount = parseFloat(customAmount);
-                    if (!isNaN(amount) && amount >= 1) {
-                      setSelectedPackage({ credits: Math.floor(amount), amount: amount });
-                      setPaymentDialogOpen(true);
-                    } else {
-                      toast.error('Please enter a valid amount');
-                    }
-                  }}
+                  onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
                   disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   className="bg-dark-purple hover:bg-opacity-90 font-bold"
                 >

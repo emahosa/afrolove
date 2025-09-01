@@ -1,9 +1,9 @@
-
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { PaystackClient } from "../_shared/paystack.ts";
 
+// Define new interfaces for settings
 interface ApiKeys {
   publicKey: string;
   secretKey: string;
@@ -23,7 +23,6 @@ interface PaymentGatewaySettings {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -86,8 +85,6 @@ serve(async (req) => {
       throw new Error("No payment gateway is currently configured.");
     }
 
-    console.log(`Creating subscription for plan: ${planName}, credits: ${credits}`);
-
     // --- Stripe Subscription Flow ---
     if (settings.activeGateway === 'stripe') {
       if (!priceId) throw new Error("Stripe price ID is required for subscription.");
@@ -116,18 +113,12 @@ serve(async (req) => {
           type: 'subscription',
           user_id: user.id,
           plan_id: planId,
-          plan_name: planName,
           credits: credits ? credits.toString() : '0',
         }
       });
 
       if (!session.url) throw new Error("Stripe session created but no URL returned.");
-      
-      console.log(`Stripe session created for user ${user.id}, plan ${planName}`);
-      
-      return new Response(JSON.stringify({ url: session.url }), { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ url: session.url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }});
     }
 
     // --- Paystack Subscription Flow ---
@@ -149,18 +140,12 @@ serve(async (req) => {
           type: 'subscription',
           user_id: user.id,
           plan_id: planId,
-          plan_name: planName,
           credits: credits || 0,
         }
       });
 
       if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned.");
-      
-      console.log(`Paystack transaction created for user ${user.id}, plan ${planName}`);
-      
-      return new Response(JSON.stringify({ url: tx.authorization_url }), { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ url: tx.authorization_url }), { headers: { ...corsHeaders, "Content-Type": "application/json" }});
     }
 
     throw new Error(`Unsupported payment gateway: ${settings.activeGateway}.`);
