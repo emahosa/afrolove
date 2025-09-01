@@ -1,5 +1,5 @@
-import { createHmac } from "https://deno.land/std@0.208.0/node/crypto.ts";
 
+// Use the Web Crypto API instead of the deprecated Node crypto module
 export interface InitTransactionParams {
   email: string;
   amount?: number; // in kobo (e.g., ₦1000 => 100000)
@@ -87,8 +87,21 @@ export class PaystackClient {
     return this.request<VerifyResponse>(`/transaction/verify/${reference}`);
   }
 
-  static verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-    const hash = createHmac("sha512", secret).update(body).digest("hex");
+  static async verifyWebhookSignature(body: string, signature: string, secret: string): Promise<boolean> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-512' },
+      false,
+      ['sign']
+    );
+    
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+    const hash = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
     return hash === signature;
   }
 }
