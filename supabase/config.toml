@@ -66,3 +66,6 @@ verify_jwt = true
 
 [functions.verify-paystack]
 verify_jwt = false
+
+[functions.payment-webhook]
+verify_jwt = false
