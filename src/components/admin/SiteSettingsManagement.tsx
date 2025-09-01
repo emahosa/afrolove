@@ -1,182 +1,153 @@
 
 import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Upload } from 'lucide-react';
 
 export const SiteSettingsManagement = () => {
-  const [videoUrl, setVideoUrl] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [heroVideoUrl, setHeroVideoUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSettings = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'homepage_hero_video_url')
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No record found, that's ok
-          setVideoUrl('');
-        } else {
-          toast.error('Failed to fetch site settings.');
-          console.error(error);
-        }
-      } else {
-        const parsedValue = typeof data.value === 'string' ? data.value : data.value?.url || '';
-        setVideoUrl(parsedValue);
-      }
-      setLoading(false);
-    };
-
     fetchSettings();
   }, []);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('video/')) {
-        toast.error('Please select a video file.');
-        return;
+  const fetchSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'hero_video_url')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      if (data?.value) {
+        setHeroVideoUrl(data.value as string);
       }
-      if (file.size > 100 * 1024 * 1024) { // 100MB limit
-        toast.error('File size must be less than 100MB.');
-        return;
-      }
-      setVideoFile(file);
+    } catch (error: any) {
+      console.error('Error fetching site settings:', error);
+      toast.error('Failed to load site settings');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleUpload = async () => {
-    if (!videoFile) {
-      toast.error('Please select a video file to upload.');
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please select a video file');
       return;
     }
 
-    setUploading(true);
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Video file must be less than 50MB');
+      return;
+    }
+
     try {
-      const timestamp = Date.now();
-      const filename = `hero_video_${timestamp}_${videoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      setUploading(true);
 
-      console.log('Uploading video file:', filename);
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const fileName = `hero_video_${Date.now()}.${file.name.split('.').pop()}`;
+      
+      const { error: uploadError } = await supabase.storage
         .from('public-assets')
-        .upload(filename, videoFile, {
-          contentType: videoFile.type,
-          upsert: false,
-        });
+        .upload(fileName, file);
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('Upload successful:', uploadData);
+      if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from('public-assets')
-        .getPublicUrl(filename);
+        .getPublicUrl(fileName);
 
-      if (!publicUrl) {
-        throw new Error('Failed to get public URL for the uploaded video.');
-      }
-
-      console.log('Public URL:', publicUrl);
-
-      // Check if setting exists
-      const { data: existingSetting } = await supabase
-        .from('site_settings')
-        .select('id')
-        .eq('key', 'homepage_hero_video_url')
-        .single();
-
-      if (existingSetting) {
-        // Update existing setting
-        const { error: updateError } = await supabase
-          .from('site_settings')
-          .update({ 
-            value: publicUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq('key', 'homepage_hero_video_url');
-
-        if (updateError) {
-          throw updateError;
-        }
-      } else {
-        // Insert new setting
-        const { error: insertError } = await supabase
-          .from('site_settings')
-          .insert({
-            key: 'homepage_hero_video_url',
-            value: publicUrl,
-            category: 'site',
-            description: 'Homepage hero section video URL'
-          });
-
-        if (insertError) {
-          throw insertError;
-        }
-      }
-
-      setVideoUrl(publicUrl);
-      setVideoFile(null);
-      toast.success('Hero video updated successfully.');
+      setHeroVideoUrl(publicUrl);
+      toast.success('Video uploaded successfully');
     } catch (error: any) {
-      console.error('Upload process error:', error);
-      toast.error(error.message || 'Failed to upload video.');
+      console.error('Error uploading video:', error);
+      toast.error('Failed to upload video');
     } finally {
       setUploading(false);
     }
   };
 
+  const saveSettings = async () => {
+    try {
+      const { error } = await supabase
+        .from('system_settings')
+        .upsert({
+          key: 'hero_video_url',
+          value: heroVideoUrl,
+          category: 'site',
+          description: 'Hero section video URL'
+        }, { onConflict: 'key' });
+
+      if (error) throw error;
+
+      toast.success('Settings saved successfully');
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    }
+  };
+
   if (loading) {
-    return (
-      <div className="flex justify-center items-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <div>Loading site settings...</div>;
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Site Settings</CardTitle>
-        <CardDescription>Manage site-wide settings.</CardDescription>
+        <CardTitle>Hero Section Settings</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label>Homepage Hero Video</Label>
-          {videoUrl ? (
-            <div className="space-y-2">
-              <video src={videoUrl} controls className="w-full rounded-md" />
-              <p className="text-sm text-muted-foreground">Current video URL: {videoUrl}</p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No video uploaded yet.</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label>Upload New Video</Label>
-          <div className="flex items-center space-x-2">
-            <Input type="file" accept="video/*" onChange={handleFileSelect} />
-            <Button onClick={handleUpload} disabled={uploading || !videoFile}>
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              <span className="ml-2">Upload</span>
+        <div>
+          <Label htmlFor="video-upload">Hero Video (16:9 aspect ratio recommended)</Label>
+          <div className="flex gap-2 mt-2">
+            <Input
+              id="video-upload"
+              type="file"
+              accept="video/*"
+              onChange={handleVideoUpload}
+              disabled={uploading}
+            />
+            <Button
+              variant="outline"
+              disabled={uploading}
+              onClick={() => document.getElementById('video-upload')?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {uploading ? 'Uploading...' : 'Upload'}
             </Button>
           </div>
-          {videoFile && <p className="text-sm text-muted-foreground">Selected file: {videoFile.name}</p>}
         </div>
+
+        {heroVideoUrl && (
+          <div>
+            <Label>Current Video</Label>
+            <div className="mt-2 aspect-video bg-black rounded-lg overflow-hidden">
+              <video
+                src={heroVideoUrl}
+                controls
+                className="w-full h-full object-cover"
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        )}
+
+        <Button onClick={saveSettings} disabled={uploading}>
+          Save Settings
+        </Button>
       </CardContent>
     </Card>
   );
