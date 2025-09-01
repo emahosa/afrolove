@@ -341,8 +341,7 @@ const Billing: React.FC = () => {
     if (!currentUserPlan) return 'Subscribe Now';
     if (plan.id === currentUserPlan.id) return 'Current Plan';
     if (plan.rank > currentUserPlan.rank) {
-      const gateway = paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe';
-      return `Upgrade with ${gateway}`;
+      return 'Upgrade';
     }
     return 'Downgrade';
   };
@@ -430,7 +429,7 @@ const Billing: React.FC = () => {
                       ? 'Loading...'
                       : !paymentReady
                       ? 'Payments Disabled'
-                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                      : 'Purchase'}
                   </Button>
                 </CardContent>
               </Card>
@@ -456,7 +455,7 @@ const Billing: React.FC = () => {
                     ? 'Loading...'
                     : !paymentReady
                     ? 'Payments Disabled'
-                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                    : 'Purchase'}
                 </Button>
               </div>
             </CardContent>
