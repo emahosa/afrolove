@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +17,10 @@ export interface Contest {
   is_active: boolean;
   voting_enabled: boolean;
   created_by: string;
+  status: string;
+  instrumental_url?: string;
+  entry_fee?: number;
+  max_entries_per_user?: number;
 }
 
 export interface ContestEntry {
@@ -251,7 +256,136 @@ export const useContest = () => {
     }
   };
 
-  const refetchContests = () => {
+  const createContest = async (contestData: {
+    title: string;
+    description: string;
+    prize: string;
+    rules?: string;
+    start_date: string;
+    end_date: string;
+    instrumental_url?: string;
+    entry_fee?: number;
+  }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('contests')
+        .insert([{
+          ...contestData,
+          status: 'active',
+          is_active: true,
+          voting_enabled: true,
+          created_by: user?.id || ''
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating contest:', error);
+        setError(error.message);
+        toast.error('Failed to create contest');
+        return false;
+      }
+
+      setContests(prev => [data, ...prev]);
+      toast.success('Contest created successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Error in createContest:', error);
+      setError(error.message || 'Failed to create contest');
+      toast.error('Failed to create contest');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateContest = async (contestId: string, contestData: {
+    title: string;
+    description: string;
+    prize: string;
+    rules?: string;
+    start_date: string;
+    end_date: string;
+    instrumental_url?: string;
+    entry_fee?: number;
+  }) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('contests')
+        .update(contestData)
+        .eq('id', contestId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating contest:', error);
+        setError(error.message);
+        toast.error('Failed to update contest');
+        return false;
+      }
+
+      setContests(prev => prev.map(contest => 
+        contest.id === contestId ? data : contest
+      ));
+      
+      if (activeContest?.id === contestId) {
+        setActiveContest(data);
+      }
+
+      toast.success('Contest updated successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Error in updateContest:', error);
+      setError(error.message || 'Failed to update contest');
+      toast.error('Failed to update contest');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteContest = async (contestId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await supabase
+        .from('contests')
+        .delete()
+        .eq('id', contestId);
+
+      if (error) {
+        console.error('Error deleting contest:', error);
+        setError(error.message);
+        toast.error('Failed to delete contest');
+        return false;
+      }
+
+      setContests(prev => prev.filter(contest => contest.id !== contestId));
+      
+      if (activeContest?.id === contestId) {
+        setActiveContest(null);
+      }
+
+      toast.success('Contest deleted successfully');
+      return true;
+    } catch (error: any) {
+      console.error('Error in deleteContest:', error);
+      setError(error.message || 'Failed to delete contest');
+      toast.error('Failed to delete contest');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshContests = () => {
     fetchContests();
   };
 
@@ -276,7 +410,10 @@ export const useContest = () => {
     fetchUserVotes,
     handleVote,
     submitEntry,
-    refetchContests,
+    createContest,
+    updateContest,
+    deleteContest,
+    refreshContests,
     refetchContestEntries,
     setActiveContest
   };

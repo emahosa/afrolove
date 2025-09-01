@@ -13,10 +13,23 @@ export const userRoleSchema = z.enum([
 ]);
 
 export const userManagementFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
   role: userRoleSchema.default('user'),
   credits: z.number().min(0).default(0),
+  status: z.enum(['active', 'suspended']).default('active'),
   is_suspended: z.boolean().default(false),
   is_banned: z.boolean().default(false),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  confirmPassword: z.string().optional(),
+}).refine((data) => {
+  if (data.password && data.confirmPassword) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 export type UserRole = z.infer<typeof userRoleSchema>;
