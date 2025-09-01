@@ -16,10 +16,7 @@ interface Winner {
     title: string;
     prize: string;
   };
-  profiles: {
-    full_name: string;
-    username: string;
-  };
+  user_name: string;
 }
 
 const ContestWinnerBanner: React.FC = () => {
@@ -33,21 +30,46 @@ const ContestWinnerBanner: React.FC = () => {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const { data, error } = await supabase
+        // First get contest winners with contest details
+        const { data: winnersData, error: winnersError } = await supabase
           .from('contest_winners')
           .select(`
             *,
-            contests!inner(title, prize),
-            profiles!inner(full_name, username)
+            contests!inner(title, prize)
           `)
           .gte('won_at', thirtyDaysAgo.toISOString())
           .order('won_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching contest winners:', error);
-        } else {
-          setWinners(data || []);
+        if (winnersError) {
+          console.error('Error fetching contest winners:', winnersError);
+          return;
         }
+
+        if (!winnersData || winnersData.length === 0) {
+          setWinners([]);
+          return;
+        }
+
+        // Get user profiles separately
+        const userIds = winnersData.map(winner => winner.user_id);
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Error fetching profiles:', profilesError);
+        }
+
+        // Map winners with user info
+        const winnersWithUserInfo = winnersData.map(winner => ({
+          ...winner,
+          user_name: profilesData?.find(profile => profile.id === winner.user_id)?.full_name || 
+                   profilesData?.find(profile => profile.id === winner.user_id)?.username || 
+                   'Anonymous User'
+        }));
+
+        setWinners(winnersWithUserInfo);
       } catch (error) {
         console.error('Error in fetchRecentWinners:', error);
       } finally {
@@ -76,7 +98,7 @@ const ContestWinnerBanner: React.FC = () => {
                   </div>
                   <h3 className="text-2xl font-bold mb-2">{winner.contests.title}</h3>
                   <p className="text-lg mb-2">
-                    🎉 Winner: <span className="font-semibold">{winner.profiles.full_name || winner.profiles.username}</span>
+                    🎉 Winner: <span className="font-semibold">{winner.user_name}</span>
                   </p>
                   <p className="text-md mb-3">Prize: {winner.contests.prize}</p>
                   <div className="flex items-center justify-center text-sm opacity-90">

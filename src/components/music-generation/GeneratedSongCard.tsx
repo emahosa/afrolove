@@ -1,144 +1,141 @@
-import React, { useState, useCallback } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Download, Mic, MoreVertical, Pause, Play, Trash2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Song } from '@/hooks/use-songs';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import { formatTime } from '@/lib/audio-utils';
-import { Progress } from '@/components/ui/progress';
-import { toast } from 'sonner';
 
-interface GeneratedSongCardProps {
-  song: Song;
-  onPlay?: (song: Song) => void;
-  onPause?: (song: Song) => void;
-  onDownload?: (song: Song) => void;
-  onDelete?: (songId: string) => void;
-  onSeparateVocals?: (song: Song) => void;
-  isPlaying: boolean;
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Play, Pause, Download, Heart, Share2 } from 'lucide-react';
+import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { useSongs } from '@/hooks/use-songs';
+import { formatDuration } from '@/lib/audio-utils';
+import { Badge } from '@/components/ui/badge';
+
+export interface GeneratedSongCardProps {
+  song: {
+    id: string;
+    title: string;
+    audio_url: string;
+    status: 'pending' | 'completed' | 'failed';
+    created_at: string;
+    prompt: string;
+    credits_used: number;
+    duration: number;
+  };
+  isPlaying?: boolean;
 }
 
-const GeneratedSongCard = ({ song, onPlay, onPause, isPlaying, onDownload, onDelete, onSeparateVocals }: GeneratedSongCardProps) => {
-  const { setNowPlaying } = useAudioPlayer();
-  const [downloading, setDownloading] = useState(false);
+const GeneratedSongCard: React.FC<GeneratedSongCardProps> = ({ song, isPlaying = false }) => {
+  const { currentTrack, isPlaying: playerIsPlaying, playTrack, pauseTrack } = useAudioPlayer();
+  const [isLiked, setIsLiked] = useState(false);
+  
+  const isCurrentlyPlaying = currentTrack?.id === song.id && playerIsPlaying;
 
-  const handlePlayPause = useCallback(() => {
-    if (song.audio_url) {
-      setNowPlaying(song);
-      if (isPlaying) {
-        onPause?.(song);
-      } else {
-        onPlay?.(song);
+  const handlePlayPause = () => {
+    if (isCurrentlyPlaying) {
+      pauseTrack();
+    } else {
+      playTrack({
+        id: song.id,
+        title: song.title,
+        artist: 'AI Generated',
+        url: song.audio_url,
+        coverUrl: undefined
+      });
+    }
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = song.audio_url;
+    link.download = `${song.title}.mp3`;
+    link.click();
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: song.title,
+          text: `Check out this AI-generated song: ${song.title}`,
+          url: song.audio_url,
+        });
+      } catch (error) {
+        console.log('Error sharing:', error);
       }
     } else {
-      toast.error("Audio not available");
+      navigator.clipboard.writeText(song.audio_url);
     }
-  }, [song, isPlaying, onPlay, onPause, setNowPlaying]);
+  };
 
   return (
-    <Card className="bg-card/80 backdrop-blur-sm border-border/50 hover:border-primary/50 transition-all duration-300 group">
+    <Card className="w-full max-w-sm bg-card hover:bg-accent/50 transition-colors">
       <CardContent className="p-4">
-        <div className="space-y-2">
-          <img
-            src={song.cover_image_url || "/placeholder.png"}
-            alt={song.title}
-            className="aspect-square object-cover w-full rounded-md"
-          />
-          <h3 className="text-lg font-semibold truncate">{song.title}</h3>
-          <p className="text-sm text-muted-foreground truncate">{song.artist || 'Unknown Artist'}</p>
+        <div className="aspect-square bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg mb-4 flex items-center justify-center">
+          <div className="text-4xl">🎵</div>
         </div>
         
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handlePlayPause}
-              disabled={!song.audio_url || song.status !== 'completed'}
-              className="h-8 w-8 p-0"
-            >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-              <span className="sr-only">
-                {isPlaying ? 'Pause' : 'Play'}
-              </span>
-            </Button>
-
-            {song.audio_url && (
+        <div className="space-y-2">
+          <h3 className="font-semibold text-lg truncate">{song.title}</h3>
+          
+          <div className="flex items-center gap-2">
+            <Badge variant={song.status === 'completed' ? 'default' : 'secondary'}>
+              {song.status}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {formatDuration(song.duration)}
+            </span>
+          </div>
+          
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {song.prompt}
+          </p>
+          
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePlayPause}
+                disabled={song.status !== 'completed'}
+              >
+                {isCurrentlyPlaying ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+              </Button>
+              
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onDownload?.(song)}
-                className="h-8 w-8 p-0"
-                title="Download"
+                onClick={() => setIsLiked(!isLiked)}
+              >
+                <Heart className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownload}
+                disabled={song.status !== 'completed'}
               >
                 <Download className="h-4 w-4" />
               </Button>
-            )}
-
-            {song.audio_url && song.type !== 'instrumental' && (
+              
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onSeparateVocals?.(song)}
-                className="h-8 w-8 p-0"
-                title="Separate Vocals"
+                onClick={handleShare}
+                disabled={song.status !== 'completed'}
               >
-                <Mic className="h-4 w-4" />
+                <Share2 className="h-4 w-4" />
               </Button>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onDelete?.(song.id)}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            </div>
           </div>
-
-          <div className="text-right">
-            {song.credits && (
-              <p className="text-xs text-muted-foreground">
-                Credits: {song.credits}
-              </p>
-            )}
-            {song.duration && (
-              <p className="text-xs text-muted-foreground">
-                {formatTime(song.duration)}
-              </p>
-            )}
+          
+          <div className="text-xs text-muted-foreground pt-1">
+            Credits used: {song.credits_used} • {new Date(song.created_at).toLocaleDateString()}
           </div>
-        </div>
-
-        <div className="mt-4">
-          {song.status === 'pending' && (
-            <div className="text-sm text-muted-foreground">
-              <p>Processing...</p>
-            </div>
-          )}
-          {song.status === 'processing' && (
-            <div className="text-sm text-muted-foreground">
-              <p>Generating audio...</p>
-              <Progress value={song.progress || 0} className="mt-1" />
-            </div>
-          )}
-          {song.status === 'completed' && (
-            <div className="text-sm text-green-500">
-              <p>Ready to play</p>
-            </div>
-          )}
-          {song.status === 'failed' && (
-            <div className="text-sm text-red-500">
-              <p>Generation failed. Please try again.</p>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

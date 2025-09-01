@@ -74,7 +74,13 @@ export const useContest = () => {
         console.error('Error fetching contests:', error);
         setError(error.message);
       } else {
-        setContests(data || []);
+        // Map database fields to interface
+        const mappedContests = data?.map(contest => ({
+          ...contest,
+          is_active: contest.status === 'active',
+          voting_enabled: contest.status === 'active'
+        })) || [];
+        setContests(mappedContests);
       }
     } catch (error: any) {
       console.error('Error in fetchContests:', error);
@@ -99,7 +105,12 @@ export const useContest = () => {
         console.error('Error fetching contest:', error);
         setError(error.message);
       } else {
-        setActiveContest(data || null);
+        const mappedContest = {
+          ...data,
+          is_active: data.status === 'active',
+          voting_enabled: data.status === 'active'
+        };
+        setActiveContest(mappedContest);
       }
     } catch (error: any) {
       console.error('Error in fetchContest:', error);
@@ -185,10 +196,10 @@ export const useContest = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.rpc('vote_for_contest_entry', {
+      const { data, error } = await supabase.rpc('cast_vote', {
+        entry_id: entryId,
         p_contest_id: contestId,
-        p_entry_id: entryId,
-        p_user_id: user.id
+        p_num_votes: 1
       });
 
       if (error) {
@@ -198,18 +209,26 @@ export const useContest = () => {
         return false;
       }
 
-      // Optimistically update the vote count
-      setEntries(prevEntries =>
-        prevEntries.map(entry =>
-          entry.id === entryId ? { ...entry, vote_count: entry.vote_count + 1 } : entry
-        )
-      );
+      // Type assertion for the response data
+      const response = data as { success: boolean; message: string };
+      
+      if (response.success) {
+        // Optimistically update the vote count
+        setEntries(prevEntries =>
+          prevEntries.map(entry =>
+            entry.id === entryId ? { ...entry, vote_count: entry.vote_count + 1 } : entry
+          )
+        );
 
-      // Update the voted entries
-      setVotedEntries(prevVoted => [...prevVoted, entryId]);
+        // Update the voted entries
+        setVotedEntries(prevVoted => [...prevVoted, entryId]);
 
-      toast.success('Vote submitted successfully');
-      return true;
+        toast.success('Vote submitted successfully');
+        return true;
+      } else {
+        toast.error(response.message);
+        return false;
+      }
     } catch (error: any) {
       console.error('Error in handleVote:', error);
       setError(error.message || 'Failed to submit vote');
@@ -273,10 +292,15 @@ export const useContest = () => {
       const { data, error } = await supabase
         .from('contests')
         .insert([{
-          ...contestData,
+          title: contestData.title,
+          description: contestData.description,
+          prize: contestData.prize,
+          rules: contestData.rules,
+          start_date: contestData.start_date,
+          end_date: contestData.end_date,
+          instrumental_url: contestData.instrumental_url,
+          entry_fee: contestData.entry_fee || 0,
           status: 'active',
-          is_active: true,
-          voting_enabled: true,
           created_by: user?.id || ''
         }])
         .select()
@@ -289,7 +313,12 @@ export const useContest = () => {
         return false;
       }
 
-      setContests(prev => [data, ...prev]);
+      const mappedContest = {
+        ...data,
+        is_active: data.status === 'active',
+        voting_enabled: data.status === 'active'
+      };
+      setContests(prev => [mappedContest, ...prev]);
       toast.success('Contest created successfully');
       return true;
     } catch (error: any) {
@@ -318,7 +347,16 @@ export const useContest = () => {
 
       const { data, error } = await supabase
         .from('contests')
-        .update(contestData)
+        .update({
+          title: contestData.title,
+          description: contestData.description,
+          prize: contestData.prize,
+          rules: contestData.rules,
+          start_date: contestData.start_date,
+          end_date: contestData.end_date,
+          instrumental_url: contestData.instrumental_url,
+          entry_fee: contestData.entry_fee || 0
+        })
         .eq('id', contestId)
         .select()
         .single();
@@ -330,12 +368,18 @@ export const useContest = () => {
         return false;
       }
 
+      const mappedContest = {
+        ...data,
+        is_active: data.status === 'active',
+        voting_enabled: data.status === 'active'
+      };
+
       setContests(prev => prev.map(contest => 
-        contest.id === contestId ? data : contest
+        contest.id === contestId ? mappedContest : contest
       ));
       
       if (activeContest?.id === contestId) {
-        setActiveContest(data);
+        setActiveContest(mappedContest);
       }
 
       toast.success('Contest updated successfully');
