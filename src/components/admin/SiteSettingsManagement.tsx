@@ -105,7 +105,7 @@ export const SiteSettingsManagement = () => {
         const { error: updateError } = await supabase
           .from('site_settings')
           .update({ 
-            value: publicUrl,
+            value: { url: publicUrl },
             updated_at: new Date().toISOString()
           })
           .eq('key', 'homepage_hero_video_url');
@@ -119,7 +119,7 @@ export const SiteSettingsManagement = () => {
           .from('site_settings')
           .insert({
             key: 'homepage_hero_video_url',
-            value: publicUrl,
+            value: { url: publicUrl },
             category: 'site',
             description: 'Homepage hero section video URL'
           });

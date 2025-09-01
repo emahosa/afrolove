@@ -26,4 +26,4 @@ WITH CHECK (is_admin(auth.uid()));
 
 -- Insert a default value for the hero video URL
 INSERT INTO public.site_settings (key, value, category, description)
-VALUES ('homepage_hero_video_url', '""', 'site', 'Homepage hero section video URL');
+VALUES ('homepage_hero_video_url', null, 'site', 'Homepage hero section video URL');
