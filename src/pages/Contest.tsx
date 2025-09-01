@@ -399,7 +399,7 @@ const Contest = () => {
           onVoteSubmit={handleVoteSubmit}
           entryTitle={selectedEntry.songs?.title || 'this entry'}
           userHasFreeVote={userHasFreeVote}
-          userCredits={user?.profile?.credits ?? 0}
+          userCredits={user?.credits ?? 0}
           isVoting={isVoting}
         />
       )}
