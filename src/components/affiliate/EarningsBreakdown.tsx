@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, TrendingUp } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { AffiliateEarning } from '@/types/affiliate';
 
 interface EarningsBreakdownProps {
@@ -15,81 +14,25 @@ interface EarningsBreakdownProps {
 const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) => {
   const [earnings, setEarnings] = useState<AffiliateEarning[]>([]);
   const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    free_referrals: { count: 0, total: 0 },
-    commissions: { count: 0, total: 0 }
-  });
 
   const fetchEarnings = async () => {
     try {
-      // First fetch earnings
-      const { data: earningsData, error: earningsError } = await supabase
-        .from('affiliate_earnings')
-        .select(`
-          id,
-          affiliate_user_id,
-          referred_user_id,
-          earning_type,
-          amount,
-          status,
-          created_at,
-          processed_at
-        `)
-        .eq('affiliate_user_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.functions.invoke('get-affiliate-data', {
+        body: { type: 'earnings', userId: affiliateId }
+      });
 
-      if (earningsError) {
-        console.error('Error fetching earnings:', earningsError);
+      if (error) {
+        console.error('Error fetching earnings:', error);
+        toast.error('Failed to load earnings data');
         return;
       }
 
-      if (earningsData) {
-        // Fetch profile data separately for each referred user
-        const earningsWithProfiles = await Promise.all(
-          earningsData.map(async (earning) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, username')
-              .eq('id', earning.referred_user_id)
-              .single();
-
-            return {
-              id: earning.id,
-              affiliate_user_id: earning.affiliate_user_id,
-              referred_user_id: earning.referred_user_id,
-              earning_type: earning.earning_type as 'free_referral' | 'subscription_commission',
-              amount: Number(earning.amount),
-              status: earning.status,
-              created_at: earning.created_at,
-              processed_at: earning.processed_at,
-              profile: {
-                full_name: profile?.full_name || null,
-                username: profile?.username || null
-              }
-            };
-          })
-        );
-        
-        setEarnings(earningsWithProfiles);
-
-        // Calculate summary
-        const freeReferrals = earningsWithProfiles.filter(e => e.earning_type === 'free_referral');
-        const commissions = earningsWithProfiles.filter(e => e.earning_type === 'subscription_commission');
-
-        setSummary({
-          free_referrals: {
-            count: freeReferrals.length,
-            total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
-          },
-          commissions: {
-            count: commissions.length,
-            total: commissions.reduce((sum, e) => sum + e.amount, 0)
-          }
-        });
+      if (data?.earnings) {
+        setEarnings(data.earnings);
       }
     } catch (err) {
       console.error('Error fetching earnings:', err);
+      toast.error('Failed to load earnings data');
     } finally {
       setLoading(false);
     }
@@ -101,14 +44,44 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
     }
   }, [affiliateId]);
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <DollarSign className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5" /> Earnings Breakdown</CardTitle>
+          <CardTitle className="flex items-center">
+            <DollarSign className="mr-2 h-5 w-5" /> Earnings Breakdown
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex justify-center items-center p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <CardContent>
+          <div className="animate-pulse space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
@@ -117,76 +90,42 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5" /> Earnings Breakdown</CardTitle>
+        <CardTitle className="flex items-center">
+          <DollarSign className="mr-2 h-5 w-5" /> Earnings Breakdown
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-green-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-600">Free Referrals</h3>
-            <p className="text-xl font-bold text-green-600">
-              {summary.free_referrals.count} referrals
-            </p>
-            <p className="text-sm text-gray-600">
-              ${summary.free_referrals.total.toFixed(2)} earned
-            </p>
-          </div>
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-600">Subscription Commissions</h3>
-            <p className="text-xl font-bold text-blue-600">
-              {summary.commissions.count} commissions
-            </p>
-            <p className="text-sm text-gray-600">
-              ${summary.commissions.total.toFixed(2)} earned
-            </p>
-          </div>
-        </div>
-
-        {/* Earnings Table */}
-        {earnings.length > 0 ? (
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Recent Earnings</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {earnings.map((earning) => (
-                  <TableRow key={earning.id}>
-                    <TableCell>
-                      {format(parseISO(earning.created_at), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      {earning.profile?.full_name || earning.profile?.username || 'Unknown User'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={earning.earning_type === 'free_referral' ? 'outline' : 'default'}>
-                        {earning.earning_type === 'free_referral' ? 'Free Referral' : 'Commission'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      ${earning.amount.toFixed(2)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>
-                        {earning.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      <CardContent className="space-y-4">
+        {earnings.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            <DollarSign className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p>No earnings yet</p>
+            <p className="text-sm">Your earnings will appear here as you refer users</p>
           </div>
         ) : (
-          <p className="text-center text-muted-foreground py-8">
-            No earnings recorded yet. Start sharing your affiliate links to earn commissions!
-          </p>
+          earnings.map((earning) => (
+            <div key={earning.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center space-x-3">
+                {getStatusIcon(earning.status)}
+                <div>
+                  <p className="font-medium">
+                    {earning.earning_type === 'free_referral' ? 'Free Referral Bonus' : 'Subscription Commission'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {earning.profile?.full_name || earning.profile?.username || 'Anonymous User'}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(earning.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-lg">${Number(earning.amount).toFixed(2)}</p>
+                <Badge className={getStatusColor(earning.status)}>
+                  {earning.status.charAt(0).toUpperCase() + earning.status.slice(1)}
+                </Badge>
+              </div>
+            </div>
+          ))
         )}
       </CardContent>
     </Card>

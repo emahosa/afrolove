@@ -1,94 +1,116 @@
-import { createHmac } from "https://deno.land/std@0.208.0/node/crypto.ts";
 
-export interface InitTransactionParams {
-  email: string;
-  amount?: number; // in kobo (e.g., ₦1000 => 100000)
-  currency?: string;
-  callback_url?: string;
-  metadata?: Record<string, any>;
-  plan?: string;
-}
+import { createHash, createHmac } from "node:crypto";
 
-export interface InitTransactionResponse {
-  authorization_url: string;
-  access_code: string;
-  reference: string;
-}
-
-export interface VerifyResponse {
-  status: string;
+export interface PaystackTransaction {
   reference: string;
   amount: number;
+  status: string;
+  gateway_response: string;
+  paid_at: string;
+  created_at: string;
+  channel: string;
   currency: string;
-  customer: { email: string };
-  [key: string]: any;
+  ip_address: string;
+  metadata?: any;
+  customer: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    customer_code: string;
+    phone: string;
+    metadata?: any;
+    risk_action: string;
+  };
+  authorization: {
+    authorization_code: string;
+    bin: string;
+    last4: string;
+    exp_month: string;
+    exp_year: string;
+    channel: string;
+    card_type: string;
+    bank: string;
+    country_code: string;
+    brand: string;
+    reusable: boolean;
+    signature: string;
+  };
+  plan?: any;
 }
 
-export class PaystackClient {
-  private secret: string;
-  private baseUrl = "https://api.paystack.co";
+export interface PaystackWebhookEvent {
+  event: string;
+  data: PaystackTransaction;
+}
 
-  constructor(secret: string) {
-    if (!secret) throw new Error("Paystack secret key is required");
-    this.secret = secret;
+export class PaystackService {
+  private secretKey: string;
+
+  constructor(secretKey: string) {
+    this.secretKey = secretKey;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${this.secret}`,
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      // Try to parse the error for a more descriptive message
-      try {
-        const errorJson = JSON.parse(errorText);
-        if (errorJson.message) {
-          throw new Error(`Paystack API error: ${errorJson.message}`);
-        }
-      } catch (e) {
-        // Ignore parsing error and use the raw text
-      }
-      throw new Error(`Paystack API error: ${res.status} ${errorText}`);
-    }
-
-    const json = await res.json();
-    return json.data as T;
-  }
-
-  async initTransaction(params: InitTransactionParams): Promise<InitTransactionResponse> {
-    const body: any = {
-      email: params.email,
-      currency: params.currency ?? "NGN",
-      callback_url: params.callback_url,
-      metadata: params.metadata,
-    };
-
-    if (params.plan) {
-      body.plan = params.plan;
-    } else if (params.amount) {
-      body.amount = params.amount;
-    } else {
-      throw new Error("Either amount or plan must be provided to initialize a transaction.");
-    }
-
-    return this.request<InitTransactionResponse>("/transaction/initialize", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  async verifyTransaction(reference: string): Promise<VerifyResponse> {
-    return this.request<VerifyResponse>(`/transaction/verify/${reference}`);
-  }
-
-  static verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
-    const hash = createHmac("sha512", secret).update(body).digest("hex");
+  verifyWebhookSignature(body: string, signature: string): boolean {
+    const hash = createHmac('sha512', this.secretKey)
+      .update(body)
+      .digest('hex');
+    
     return hash === signature;
+  }
+
+  async verifyTransaction(reference: string): Promise<PaystackTransaction | null> {
+    try {
+      const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          'Authorization': `Bearer ${this.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+      
+      if (result.status && result.data) {
+        return result.data as PaystackTransaction;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error verifying Paystack transaction:', error);
+      return null;
+    }
+  }
+
+  async initializeTransaction(data: {
+    email: string;
+    amount: number;
+    reference?: string;
+    callback_url?: string;
+    metadata?: any;
+  }): Promise<{ authorization_url: string; access_code: string; reference: string } | null> {
+    try {
+      const response = await fetch('https://api.paystack.co/transaction/initialize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          amount: data.amount * 100, // Convert to kobo
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.status && result.data) {
+        return result.data;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error initializing Paystack transaction:', error);
+      return null;
+    }
   }
 }

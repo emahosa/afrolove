@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,7 @@ const PaymentGatewayManagement = () => {
   const loadSettings = async () => {
     try {
       const { data, error } = await supabase
-        .from('system_settings')
+        .from('settings')
         .select('value')
         .eq('key', 'payment_gateway_settings')
         .maybeSingle();
@@ -61,13 +60,30 @@ const PaymentGatewayManagement = () => {
       }
 
       if (data?.value) {
-        let loadedSettings: PaymentGatewaySettings;
-        if (typeof data.value === 'string') {
-          loadedSettings = JSON.parse(data.value);
-        } else {
-          loadedSettings = data.value as PaymentGatewaySettings;
+        try {
+          let loadedSettings: PaymentGatewaySettings;
+          if (typeof data.value === 'string') {
+            loadedSettings = JSON.parse(data.value);
+          } else {
+            // Type assertion with validation
+            const rawSettings = data.value as unknown;
+            if (typeof rawSettings === 'object' && rawSettings !== null) {
+              loadedSettings = rawSettings as PaymentGatewaySettings;
+            } else {
+              throw new Error('Invalid settings format');
+            }
+          }
+          
+          // Validate the loaded settings have the required structure
+          if (loadedSettings && typeof loadedSettings === 'object' && 
+              'enabled' in loadedSettings && 'mode' in loadedSettings && 
+              'activeGateway' in loadedSettings) {
+            setSettings(loadedSettings);
+          }
+        } catch (parseError) {
+          console.error('Error parsing settings:', parseError);
+          toast.error('Failed to parse payment settings');
         }
-        setSettings(loadedSettings);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -80,15 +96,11 @@ const PaymentGatewayManagement = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      // Convert settings to a plain object that can be serialized to JSON
-      const settingsToSave = JSON.parse(JSON.stringify(settings));
-      
       const { error } = await supabase
-        .from('system_settings')
+        .from('settings')
         .upsert({
           key: 'payment_gateway_settings',
-          value: settingsToSave,
-          category: 'payment',
+          value: settings,
           description: 'Payment gateway configuration settings',
           updated_at: new Date().toISOString()
         }, { onConflict: 'key' });
