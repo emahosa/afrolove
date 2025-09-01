@@ -189,8 +189,9 @@ serve(async (req) => {
             });
 
             if (creditError) {
-              console.error('❌ Error adding credits for subscription:', creditError);
-              // Don't throw here, as the subscription itself was successful
+              console.error('❌ FATAL: Error adding credits for subscription:', creditError);
+              // This is a critical error. If credits aren't awarded, the entire operation should fail.
+              throw new Error(`Failed to add credits for subscription: ${creditError.message}`);
             } else {
                 console.log('✅ Credits awarded successfully for subscription');
             }
