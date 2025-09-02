@@ -13,41 +13,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { useContest } from "@/hooks/use-contest";
+import { useContest, Contest, ContestEntry } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
-
-// Contest component main interface
-interface Contest {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  prize: string;
-  entry_fee: number;
-  status: string;
-}
-
-interface ContestEntry {
-  id: string;
-  contest_id: string;
-  user_id: string;
-  description: string;
-  vote_count: number;
-  song_id: string | null;
-  video_url: string | null;
-  approved: boolean;
-  created_at: string;
-  profiles: {
-    full_name: string;
-  } | null;
-  songs?: {
-    id: string;
-    title: string;
-    audio_url: string;
-  } | null;
-}
 
 interface Song {
   id: string;
@@ -125,15 +93,19 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (song: ContestEntry['songs']) => {
-    if (!song) return;
-    if (currentTrack?.id === song.id && isPlaying) {
+  const handlePlay = (entry: ContestEntry) => {
+    if (!entry.video_url) {
+      toast.error('No audio or video URL found for this entry.');
+      return;
+    }
+
+    if (currentTrack?.id === entry.id) {
       togglePlayPause();
-    } else if (song.audio_url) {
+    } else {
       playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url
+        id: entry.id,
+        title: entry.description || 'Contest Entry',
+        audio_url: entry.video_url,
       });
     }
   };
@@ -368,11 +340,11 @@ const Contest = () => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
-                                {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                               </Button>
                               <div className="flex-grow mx-4 min-w-0">
-                                <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                                <p className="font-semibold truncate">{entry.description || 'Contest Entry'}</p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
@@ -398,7 +370,7 @@ const Contest = () => {
           open={voteDialogOpen}
           onOpenChange={setVoteDialogOpen}
           onVoteSubmit={handleVoteSubmit}
-          entryTitle={selectedEntry.songs?.title || 'this entry'}
+          entryTitle={selectedEntry.description || 'this entry'}
           userHasFreeVote={userHasFreeVote}
           userCredits={user?.credits ?? 0}
           isVoting={isVoting}
