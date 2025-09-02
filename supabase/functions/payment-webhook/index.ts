@@ -1,6 +1,23 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PaystackClient } from '../_shared/paystack.ts'
+
+// Define interfaces for settings for type safety
+interface ApiKeys {
+  publicKey: string;
+  secretKey: string;
+}
+interface GatewayConfig {
+  test: ApiKeys;
+  live: ApiKeys;
+}
+interface PaymentGatewaySettings {
+  enabled: boolean;
+  mode: 'test' | 'live';
+  activeGateway: 'stripe' | 'paystack';
+  stripe: GatewayConfig;
+  paystack: GatewayConfig;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +38,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Load settings from the database to get the secret key
+    const { data: settingsData, error: settingsError } = await supabaseClient
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'payment_gateway_settings')
+      .single();
+
+    if (settingsError) {
+      console.error("Paystack webhook error: Could not load system payment settings.", settingsError);
+      throw new Error('Could not load system payment settings.');
+    }
+    if (!settingsData?.value) {
+      throw new Error('Payment settings are not configured in the system.');
+    }
+
+    let settings: PaymentGatewaySettings;
+    if (typeof settingsData.value === 'string') {
+      settings = JSON.parse(settingsData.value);
+    } else {
+      settings = settingsData.value as PaymentGatewaySettings;
+    }
+
+    const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
+    const secret = paystackKeys?.secretKey || '';
+
+    // Verify the webhook signature
     const signature = req.headers.get('x-paystack-signature')
     if (!signature) {
       console.error('Paystack webhook error: No signature found')
@@ -28,9 +71,7 @@ serve(async (req) => {
     }
 
     const body = await req.text()
-    const secret = Deno.env.get('PAYSTACK_SECRET_KEY')
-
-    if (!PaystackClient.verifyWebhookSignature(body, signature, secret || '')) {
+    if (!PaystackClient.verifyWebhookSignature(body, signature, secret)) {
         console.error('Paystack webhook error: Webhook signature verification failed.')
         return new Response('Invalid signature', { status: 401, headers: corsHeaders })
     }
@@ -38,7 +79,28 @@ serve(async (req) => {
     const event = JSON.parse(body)
 
     if (event.event === 'charge.success') {
-      const chargeData = event.data
+      const chargeData = event.data;
+      const reference = chargeData.reference;
+
+      // Idempotency Check: Ensure we haven't already processed this transaction
+      const { data: existingTx, error: txCheckError } = await supabaseClient
+        .from('transactions')
+        .select('id')
+        .eq('reference', reference)
+        .single();
+
+      if (txCheckError && txCheckError.code !== 'PGRST116') {
+        console.error('Paystack webhook error: Error checking for existing transaction:', txCheckError);
+        throw txCheckError;
+      }
+      if (existingTx) {
+        console.log(`Paystack webhook: Transaction reference ${reference} already processed. Skipping.`);
+        return new Response(JSON.stringify({ success: true, message: 'Transaction already processed.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        });
+      }
+
       const metadata = chargeData.metadata || {}
       const userId = metadata.user_id
       const paymentType = metadata.type
@@ -52,21 +114,12 @@ serve(async (req) => {
       }
 
       // Log the transaction
-      const { error: transactionError } = await supabaseClient
-        .from('payment_transactions')
-        .insert({
-          user_id: userId,
-          amount: (chargeData.amount || 0) / 100,
-          currency: chargeData.currency?.toUpperCase() || 'NGN',
-          payment_method: 'paystack',
-          status: 'completed',
-          payment_id: chargeData.reference,
-          credits_purchased: creditsAmount || 0
-        })
-
-      if (transactionError) {
-        console.error('Paystack webhook error: Error logging transaction:', transactionError)
-      }
+      await supabaseClient.from('transactions').insert({
+        reference: reference,
+        provider: 'paystack',
+        user_id: userId,
+        metadata: chargeData,
+      });
 
       // Handle credit purchases
       if (paymentType === 'credits' && creditsAmount > 0) {
@@ -77,7 +130,6 @@ serve(async (req) => {
 
         if (creditError) {
           console.error('Paystack webhook error: Error updating credits:', creditError)
-          // Do not return here, attempt to process subscription if it exists
         }
       }
 
@@ -108,7 +160,15 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         };
 
-        // Award credits for the subscription
+        const { error: subError } = await supabaseClient
+          .from('user_subscriptions')
+          .upsert(subscriptionData, { onConflict: 'user_id' })
+
+        if (subError) {
+          console.error('Paystack webhook error: Error upserting subscription:', subError)
+        }
+
+        // Award credits for the subscription (ONCE)
         if (creditsAmount > 0) {
           console.log(`💰 Awarding ${creditsAmount} credits for subscription to user ${userId}`);
           const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
@@ -120,26 +180,6 @@ serve(async (req) => {
             console.error('❌ Error adding credits for subscription:', creditError);
           } else {
             console.log('✅ Credits awarded successfully for subscription');
-          }
-        }
-
-        const { error: subError } = await supabaseClient
-          .from('user_subscriptions')
-          .upsert(subscriptionData, { onConflict: 'user_id' })
-
-        if (subError) {
-          console.error('Paystack webhook error: Error upserting subscription:', subError)
-          // Do not return, attempt to process credits/roles
-        }
-
-        // Award credits for the subscription
-        if (creditsAmount > 0) {
-          const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
-            p_user_id: userId,
-            p_amount: creditsAmount
-          });
-          if (creditError) {
-            console.error('Paystack webhook error: Error adding credits for subscription:', creditError)
           }
         }
 
