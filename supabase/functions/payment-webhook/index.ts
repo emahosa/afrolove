@@ -108,20 +108,19 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         };
 
-        // Only add Paystack-specific fields if they exist in the schema
-        try {
-          const { error: schemaCheckError } = await supabaseClient
-            .from('user_subscriptions')
-            .select('paystack_customer_code, paystack_subscription_code, payment_provider')
-            .limit(1);
+        // Award credits for the subscription
+        if (creditsAmount > 0) {
+          console.log(`💰 Awarding ${creditsAmount} credits for subscription to user ${userId}`);
+          const { error: creditError } = await supabaseClient.rpc('update_user_credits', {
+            p_user_id: userId,
+            p_amount: creditsAmount
+          });
 
-          if (!schemaCheckError) {
-            subscriptionData.paystack_customer_code = chargeData.customer?.customer_code || null;
-            subscriptionData.paystack_subscription_code = chargeData.authorization?.authorization_code || null;
-            subscriptionData.payment_provider = 'paystack';
+          if (creditError) {
+            console.error('❌ Error adding credits for subscription:', creditError);
+          } else {
+            console.log('✅ Credits awarded successfully for subscription');
           }
-        } catch (schemaError) {
-          console.log('Paystack columns not available, proceeding without them');
         }
 
         const { error: subError } = await supabaseClient
