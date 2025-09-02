@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   { href: "/billing", label: "Billing", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
   { href: "/reproduce-track", label: "Humanize AI Track", icon: Music },
-  { href: "/become-producer", label: "Producer Monetization", icon: Briefcase },
+  { href: "/become-producer", label: "Become a Producer", icon: Briefcase },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {

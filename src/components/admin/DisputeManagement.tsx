@@ -15,10 +15,10 @@ const fetchDisputes = async () => {
       created_at,
       status,
       rejection_reason,
-      reproduction_requests (
+      reproduction_requests!request_id (
         id,
-        user:profiles!reproduction_requests_user_id_fkey( full_name, email ),
-        producer:profiles!reproduction_requests_producer_id_fkey( full_name, email )
+        user:profiles!user_id( full_name, email ),
+        producer:profiles!producer_id( full_name, email )
       )
     `)
     .eq('status', 'open');
