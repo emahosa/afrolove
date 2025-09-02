@@ -29,7 +29,7 @@ const fetchRequestDetails = async (requestId: string) => {
     .from('reproduction_requests')
     .select(`
       *,
-      producer:producer_id (
+      producer:profiles!reproduction_requests_producer_id_fkey(
         full_name,
         email
       )
