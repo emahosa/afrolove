@@ -102,6 +102,7 @@ const Billing: React.FC = () => {
       setDowngradeConfirmationOpen(true);
     } else {
       // This handles new subscriptions and upgrades
+      setSelectedPlanId(planId);
       setDialogOpen(true);
     }
   };
@@ -142,50 +143,7 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        console.log('🔄 Starting Paystack subscription process for plan:', plan.name);
-
-        try {
-          const { data, error } = await supabase.functions.invoke('create-subscription', {
-            body: {
-              paystackPlanCode: plan.paystack_plan_code,
-              priceId: plan.stripePriceId,
-              planId: plan.id,
-              planName: plan.name,
-              amount: Math.round(plan.price * 100),
-              credits: plan.credits_per_month,
-            }
-          });
-
-          if (error) {
-            console.error('💥 Subscription creation error:', error);
-            throw new Error(error.message || 'Failed to create subscription session.');
-          }
-
-          if (!data?.url) {
-            console.error('💥 No checkout URL returned:', data);
-            throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration.');
-          }
-
-          console.log('✅ Subscription session created, redirecting to:', data.url);
-
-          await trackActivity('subscription_page_visit', {
-            plan_id: plan.id,
-            plan_name: plan.name,
-            amount: plan.price
-          });
-
-          window.location.href = data.url;
-
-        } catch (subscriptionError: any) {
-          console.error('💥 Subscription process failed:', subscriptionError);
-          toast.error("Subscription failed", {
-            description: subscriptionError.message || "There was an error processing your subscription. Please try again.",
-          });
-          return;
-        }
-
-      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
+      if (paymentSettings?.enabled) {
         console.log('🔄 Starting Stripe subscription process for plan:', plan.name);
         
         try {
@@ -255,45 +213,7 @@ const Billing: React.FC = () => {
 
     setProcessing(true);
     try {
-      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        console.log('🔄 Starting Paystack credit purchase process for package:', selectedPackage);
-        trackActivity('credit_purchase_start');
-
-        try {
-          const { data, error } = await supabase.functions.invoke('create-payment', {
-            body: {
-              amount: Math.round(selectedPackage.amount * 100),
-              credits: selectedPackage.credits,
-              description: `Purchase of ${selectedPackage.credits} credits`,
-              packId: `credits_${selectedPackage.credits}`,
-            }
-          });
-
-          if (error) {
-            console.error('💥 Payment creation error:', error);
-            throw new Error(error.message || 'Failed to create payment session.');
-          }
-
-          if (!data?.url) {
-            console.error('💥 No checkout URL returned:', data);
-            throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration.');
-          }
-
-          console.log('✅ Payment session created, redirecting to:', data.url);
-          await trackActivity('credit_purchase_redirect');
-          window.location.href = data.url;
-          setPaymentDialogOpen(false);
-
-        } catch (paymentError: any) {
-          console.error('💥 Payment process failed:', paymentError);
-          toast.error("Purchase failed", {
-            description: paymentError.message || "There was an error processing your payment. Please try again.",
-          });
-          trackActivity('credit_purchase_failed');
-          return;
-        }
-
-      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
+      if (paymentSettings?.enabled) {
         console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
         trackActivity('credit_purchase_start');
 
