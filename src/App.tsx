@@ -22,6 +22,11 @@ import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import AffiliatePage from "./pages/Affiliate";
+import BecomeProducer from "./pages/BecomeProducer";
+import ReproduceTrack from "./pages/ReproduceTrack";
+import ProducerDashboard from "./pages/ProducerDashboard";
+import RequestDetails from "./pages/RequestDetails";
+import MyRequests from "./pages/MyRequests";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -66,6 +71,16 @@ const App = () => {
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
+                    <Route path="/become-producer" element={<BecomeProducer />} />
+                    <Route path="/reproduce-track" element={<ReproduceTrack />} />
+                    <Route path="/requests/:id" element={<RequestDetails />} />
+                    <Route path="/my-requests" element={<MyRequests />} />
+                  </Route>
+                </Route>
+
+                <Route element={<ProtectedRoute allowedRoles={['producer']} />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/producer/dashboard" element={<ProducerDashboard />} />
                   </Route>
                 </Route>
 
@@ -84,6 +99,8 @@ const App = () => {
                     <Route path="/admin/support" element={<Admin tab="support" />} />
                     <Route path="/admin/reports" element={<Admin tab="reports" />} />
                     <Route path="/admin/settings" element={<Admin tab="settings" />} />
+                    <Route path="/admin/producer-apps" element={<Admin tab="producer-apps" />} />
+                    <Route path="/admin/disputes" element={<Admin tab="disputes" />} />
                   </Route>
                 </Route>
                 
