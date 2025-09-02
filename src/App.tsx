@@ -22,7 +22,7 @@ import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import AffiliatePage from "./pages/Affiliate";
-
+import BecomeProducer from "./pages/BecomeProducer";
 import ReproduceTrack from "./pages/ReproduceTrack";
 import ProducerDashboard from "./pages/ProducerDashboard";
 import RequestDetails from "./pages/RequestDetails";
@@ -71,7 +71,7 @@ const App = () => {
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
-                    
+                    <Route path="/become-producer" element={<BecomeProducer />} />
                     <Route path="/reproduce-track" element={<ReproduceTrack />} />
                     <Route path="/requests/:id" element={<RequestDetails />} />
                     <Route path="/my-requests" element={<MyRequests />} />
