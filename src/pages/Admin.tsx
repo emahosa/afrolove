@@ -18,10 +18,7 @@ import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
-import { SiteSettingsManagement } from "@/components/admin/SiteSettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
-import { ProducerApplications } from "@/components/admin/ProducerApplications";
-import { DisputeManagement } from "@/components/admin/DisputeManagement";
 
 interface AdminProps {
   tab?: string;
@@ -379,7 +376,6 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingsManagement />
-                <SiteSettingsManagement />
               </CardContent>
             </Card>
           </TabsContent>
