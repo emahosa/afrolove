@@ -11,6 +11,11 @@ DECLARE
   user_ip_address TEXT;
   referral_code_from_meta TEXT;
 BEGIN
+  -- If this trigger is fired by an UPDATE operation, do nothing.
+  IF TG_OP = 'UPDATE' THEN
+    RETURN NEW;
+  END IF;
+
   -- Extract data from new user object
   user_ip_address := NEW.last_sign_in_ip;
   user_device_id := NEW.raw_user_meta_data->>'device_id';
