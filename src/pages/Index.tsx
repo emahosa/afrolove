@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { Music, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import ContestWinnerBanner from "@/components/contest/ContestWinnerBanner";
-import { supabase } from "@/integrations/supabase/client";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 // Helper component for the floating icons
 const FloatingIcon = ({
@@ -30,25 +27,6 @@ export default function Index() {
   const navigate = useNavigate();
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [heroVideoUrl, setHeroVideoUrl] = useState('');
-
-  useEffect(() => {
-    const fetchHeroVideoUrl = async () => {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'homepage_hero_video_url')
-        .single();
-
-      if (error) {
-        console.error('Error fetching hero video URL:', error);
-      } else if (data) {
-        setHeroVideoUrl(data.value);
-      }
-    };
-
-    fetchHeroVideoUrl();
-  }, []);
 
   // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
@@ -109,44 +87,30 @@ export default function Index() {
 
       <main className="relative z-10 grid place-items-center min-h-screen w-full text-center p-4">
         <div>
-            {/* New Hero Section */}
+            {/* Hero Section */}
             <section className="w-full max-w-4xl">
-              {heroVideoUrl ? (
-                <AspectRatio ratio={16 / 9} className="bg-muted">
-                  <video
-                    src={heroVideoUrl}
-                    autoPlay
-                    muted
-                    loop
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </AspectRatio>
-              ) : (
-                <>
-                  <div className="relative inline-block">
-                    <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
-                    <h1 className="relative text-6xl font-bold text-dark-purple">
-                      Afroverse
-                    </h1>
-                  </div>
-                  <p className="mt-4 text-2xl font-semibold text-gray-100">
-                    Create Afrobeats with AI. Earn while you play.
-                  </p>
-                  <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
-                    Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
-                  </p>
-                </>
-              )}
+              <div className="relative inline-block">
+                <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
+                <h1 className="relative text-6xl font-bold text-dark-purple">
+                  Afroverse
+                </h1>
+              </div>
+              <p className="mt-4 text-2xl font-semibold text-gray-100">
+                Create Afrobeats with AI. Earn while you play.
+              </p>
+              <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
+                Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
+              </p>
+
               <div className="mt-10 flex justify-center">
                 <button
-                  onClick={() => navigate('/contest')}
+                  onClick={() => setShowConfirmModal(true)}
                   className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
                 >
-                  Earn
+                  Claim Early Access
                 </button>
               </div>
             </section>
-            <ContestWinnerBanner />
         </div>
       </main>
 

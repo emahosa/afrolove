@@ -69,7 +69,3 @@ verify_jwt = false
 
 [functions.payment-webhook]
 verify_jwt = false
-
-[functions.select-contest-winner]
-cron = "0 * * * *"
-verify_jwt = false
