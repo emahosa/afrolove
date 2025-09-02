@@ -11,8 +11,7 @@ import {
   Trophy, 
   User, 
   CreditCard, 
-  HelpCircle,
-  Briefcase,
+  HelpCircle, 
   Menu,
   Folder,
   Lock
@@ -41,36 +40,18 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
   { href: "/billing", label: "Billing", icon: CreditCard, paths: ["/subscribe"] },
   { href: "/support", label: "Support", icon: HelpCircle, isProtected: true },
-  { href: "/reproduce-track", label: "Humanize AI Track", icon: Music },
-  { href: "/become-producer", label: "Producer Monetization", icon: Briefcase },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, isSubscriber, hasRole } = useAuth();
+  const { user, isAdmin, isSubscriber } = useAuth();
 
   const isUserSubscribed = isSubscriber();
   const isUserAdmin = isAdmin();
-  const isProducer = hasRole('producer');
-
-  // Dynamically build the nav items based on role
-  let finalNavItems = [...navItems];
-
-  if (isProducer) {
-    // Add the producer dashboard link
-    finalNavItems.push({
-      href: "/producer/dashboard",
-      label: "Producer Dashboard",
-      icon: Briefcase,
-    });
-    // Remove the "Become a Producer" link if they already are one
-    finalNavItems = finalNavItems.filter(item => item.href !== '/become-producer');
-  }
-
 
   // Filter items - completely hide admin items for non-admins
-  const roleFilteredNavItems = finalNavItems.filter(item => {
+  const roleFilteredNavItems = navItems.filter(item => {
     if (item.adminOnly && !isUserAdmin) return false;
     return true;
   });
