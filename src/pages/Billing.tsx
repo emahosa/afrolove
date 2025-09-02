@@ -14,7 +14,6 @@ import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
-import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
 
@@ -144,35 +143,47 @@ const Billing: React.FC = () => {
     setPaymentProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey) {
-          toast.error("Paystack public key not found. Cannot proceed with payment.");
-          setPaymentProcessing(false);
+        console.log('🔄 Starting Paystack subscription process for plan:', plan.name);
+
+        try {
+          const { data, error } = await supabase.functions.invoke('create-subscription', {
+            body: {
+              paystackPlanCode: plan.paystack_plan_code,
+              priceId: plan.stripePriceId,
+              planId: plan.id,
+              planName: plan.name,
+              amount: Math.round(plan.price * 100),
+              credits: plan.credits_per_month,
+            }
+          });
+
+          if (error) {
+            console.error('💥 Subscription creation error:', error);
+            throw new Error(error.message || 'Failed to create subscription session.');
+          }
+
+          if (!data?.url) {
+            console.error('💥 No checkout URL returned:', data);
+            throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration.');
+          }
+
+          console.log('✅ Subscription session created, redirecting to:', data.url);
+
+          await trackActivity('subscription_page_visit', {
+            plan_id: plan.id,
+            plan_name: plan.name,
+            amount: plan.price
+          });
+
+          window.location.href = data.url;
+
+        } catch (subscriptionError: any) {
+          console.error('💥 Subscription process failed:', subscriptionError);
+          toast.error("Subscription failed", {
+            description: subscriptionError.message || "There was an error processing your subscription. Please try again.",
+          });
           return;
         }
-        const reference = `txn_sub_${user.id}_${Date.now()}`;
-        await startPaystackPayment({
-          publicKey: publicKeys.paystackPublicKey,
-          email: user.email!,
-          amount: plan.price,
-          reference: reference,
-          metadata: {
-            user_id: user.id,
-            type: 'subscription',
-            plan_id: plan.id,
-            credits: plan.credits_per_month,
-          },
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying subscription...", {
-              description: `Reference: ${ref}. Your plan will be updated shortly.`
-            });
-            await supabase.functions.invoke('verify-paystack', {
-              body: { reference: ref, type: 'subscription', planId: plan.id }
-            });
-          },
-          onCancel: () => {
-            toast.info("Payment canceled.");
-          },
-        });
 
       } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
         console.log('🔄 Starting Stripe subscription process for plan:', plan.name);
@@ -245,35 +256,42 @@ const Billing: React.FC = () => {
     setProcessing(true);
     try {
       if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
-        if (!publicKeys?.paystackPublicKey) {
-          toast.error("Paystack public key not found. Cannot proceed with payment.");
-          setProcessing(false);
+        console.log('🔄 Starting Paystack credit purchase process for package:', selectedPackage);
+        trackActivity('credit_purchase_start');
+
+        try {
+          const { data, error } = await supabase.functions.invoke('create-payment', {
+            body: {
+              amount: Math.round(selectedPackage.amount * 100),
+              credits: selectedPackage.credits,
+              description: `Purchase of ${selectedPackage.credits} credits`,
+              packId: `credits_${selectedPackage.credits}`,
+            }
+          });
+
+          if (error) {
+            console.error('💥 Payment creation error:', error);
+            throw new Error(error.message || 'Failed to create payment session.');
+          }
+
+          if (!data?.url) {
+            console.error('💥 No checkout URL returned:', data);
+            throw new Error('Payment processor did not return a valid checkout URL. Please check your payment gateway configuration.');
+          }
+
+          console.log('✅ Payment session created, redirecting to:', data.url);
+          await trackActivity('credit_purchase_redirect');
+          window.location.href = data.url;
+          setPaymentDialogOpen(false);
+
+        } catch (paymentError: any) {
+          console.error('💥 Payment process failed:', paymentError);
+          toast.error("Purchase failed", {
+            description: paymentError.message || "There was an error processing your payment. Please try again.",
+          });
+          trackActivity('credit_purchase_failed');
           return;
         }
-        const reference = `txn_credits_${user.id}_${Date.now()}`;
-        await startPaystackPayment({
-          publicKey: publicKeys.paystackPublicKey,
-          email: user.email!,
-          amount: selectedPackage.amount,
-          reference: reference,
-          metadata: {
-            user_id: user.id,
-            type: 'credits',
-            credits: selectedPackage.credits,
-          },
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying...", {
-              description: `Reference: ${ref}. Credits will be added shortly.`
-            });
-            await supabase.functions.invoke('verify-paystack', {
-              body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
-            });
-          },
-          onCancel: () => {
-            toast.info("Payment canceled.");
-          },
-        });
-        setPaymentDialogOpen(false);
 
       } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
         console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
