@@ -141,7 +141,7 @@ const Contest = () => {
       toast.info('Please log in to unlock the contest.');
       return;
     }
-    await unlockContest(contest.id, contest.entry_fee);
+    await unlockContest(contest.id, Number(contest.entry_fee));
   };
 
   const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
