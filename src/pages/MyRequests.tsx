@@ -17,7 +17,7 @@ const fetchUserRequests = async (userId: string) => {
       created_at,
       status,
       price_in_credits,
-      producer:profiles!reproduction_requests_producer_id_fkey(full_name)
+      producer:profiles!producer_id(full_name)
     `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
