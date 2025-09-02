@@ -40,7 +40,7 @@ const fetchProducerApplications = async (): Promise<ProducerApplication[]> => {
       status,
       social_media_links,
       id_document_url,
-      profiles (
+      profiles:user_id (
         full_name,
         email
       )

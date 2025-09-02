@@ -15,10 +15,10 @@ const fetchDisputes = async () => {
       created_at,
       status,
       rejection_reason,
-      request:request_id (
+      reproduction_requests (
         id,
-        user:user_id ( full_name, email ),
-        producer:producer_id ( full_name, email )
+        user:profiles!reproduction_requests_user_id_fkey( full_name, email ),
+        producer:profiles!reproduction_requests_producer_id_fkey( full_name, email )
       )
     `)
     .eq('status', 'open');
@@ -66,9 +66,9 @@ export const DisputeManagement: React.FC = () => {
         {disputes && disputes.length > 0 ? (
           disputes.map(d => (
             <TableRow key={d.id}>
-              <TableCell className="font-mono text-xs">{d.request.id}</TableCell>
-              <TableCell>{d.request.user.full_name}</TableCell>
-              <TableCell>{d.request.producer.full_name}</TableCell>
+              <TableCell className="font-mono text-xs">{d.reproduction_requests.id}</TableCell>
+              <TableCell>{d.reproduction_requests.user.full_name}</TableCell>
+              <TableCell>{d.reproduction_requests.producer.full_name}</TableCell>
               <TableCell className="max-w-xs truncate">{d.rejection_reason}</TableCell>
               <TableCell>
                 <div className="flex gap-2">
