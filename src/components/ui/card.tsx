@@ -1,20 +1,25 @@
 import * as React from "react"
+import { useClickPop } from "@/hooks/use-click-pop"
 
 import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const clickPopRef = useClickPop<HTMLDivElement>()
+
+  return (
+    <div
+      ref={clickPopRef}
+      className={cn(
+        "rounded-lg border bg-card text-card-foreground shadow-sm hover-lift hover-shadow",
+        className
+      )}
+      {...props}
+    />
+  )
+})
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<
