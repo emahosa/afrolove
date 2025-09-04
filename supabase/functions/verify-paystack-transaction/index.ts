@@ -89,7 +89,11 @@ serve(async (req) => {
       if (!planId) throw new Error('Plan ID is required for subscriptions.');
 
       const subscriptionCode = verificationData.data.subscription_code;
-      const customerCode = verificationData.data.customer.customer_code;
+      const customerCode = verificationData.data.customer?.customer_code;
+
+      if (!subscriptionCode || !customerCode) {
+        throw new Error('Transaction data from Paystack is missing the required subscription or customer code.');
+      }
 
       const { error: subError } = await supabaseAdmin
         .from('user_subscriptions')
@@ -102,6 +106,37 @@ serve(async (req) => {
         }, { onConflict: 'user_id' });
 
       if (subError) throw subError;
+
+      // Check for and award initial credits associated with the plan
+      const { data: planData, error: planError } = await supabaseAdmin
+        .from('plans')
+        .select('initial_credits')
+        .eq('id', planId)
+        .single();
+
+      if (planError) {
+        console.warn(`Could not fetch plan details for planId ${planId} to check for initial credits.`, planError);
+      }
+
+      if (planData?.initial_credits && planData.initial_credits > 0) {
+        console.log(`Awarding ${planData.initial_credits} initial credits for plan ${planId} to user ${userId}.`);
+
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .select('credits')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) throw profileError;
+
+        const newCredits = (profile.credits || 0) + planData.initial_credits;
+        const { error: updateError } = await supabaseAdmin
+          .from('profiles')
+          .update({ credits: newCredits })
+          .eq('id', userId);
+
+        if (updateError) throw updateError;
+      }
     }
 
     await supabaseAdmin.from('transactions').insert({
