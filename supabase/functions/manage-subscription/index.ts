@@ -63,9 +63,130 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Payment system is disabled.' }), { status: 400, headers: corsHeaders });
     }
 
-    // --- Paystack Flow (Not implemented for management yet) ---
+    // --- Paystack Flow ---
     if (settings.activeGateway === 'paystack') {
-        return new Response(JSON.stringify({ error: 'Subscription management for Paystack is not yet supported.' }), { status: 501, headers: corsHeaders });
+      const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+      if (!paystackSecretKey) {
+        throw new Error('PAYSTACK_SECRET_KEY is not set in environment variables.');
+      }
+
+      switch (action) {
+        case 'downgrade': {
+          if (!newPlanId) {
+            return new Response(JSON.stringify({ error: 'Missing newPlanId for downgrade' }), { status: 400, headers: corsHeaders });
+          }
+
+          // 1. Get current subscription from DB
+          const { data: currentSub, error: dbError } = await supabaseService
+            .from('user_subscriptions')
+            .select('paystack_subscription_code, paystack_customer_code')
+            .eq('user_id', user.id)
+            .eq('subscription_status', 'active')
+            .single();
+
+          if (dbError || !currentSub || !currentSub.paystack_subscription_code) {
+            throw new Error('Could not find an active Paystack subscription for the user.');
+          }
+
+          const { paystack_subscription_code, paystack_customer_code } = currentSub;
+
+          // 2. Get the new plan's code from the plans table
+          const { data: newPlanData, error: planError } = await supabaseService
+            .from('plans')
+            .select('paystack_plan_code')
+            .eq('id', newPlanId)
+            .single();
+
+          if (planError || !newPlanData) {
+            throw new Error(`Could not find plan with ID ${newPlanId}`);
+          }
+          const newPaystackPlanCode = newPlanData.paystack_plan_code;
+
+          // 3. Fetch current subscription from Paystack to get next_payment_date and email_token
+          const fetchSubRes = await fetch(`https://api.paystack.co/subscription/${paystack_subscription_code}`, {
+            headers: { Authorization: `Bearer ${paystackSecretKey}` },
+          });
+
+          if (!fetchSubRes.ok) {
+            const errorBody = await fetchSubRes.text();
+            console.error('Paystack fetch error:', errorBody);
+            throw new Error('Failed to fetch subscription details from Paystack.');
+          }
+          const oldSubData = await fetchSubRes.json();
+          const { next_payment_date, email_token } = oldSubData.data;
+
+          // 4. Disable the old subscription on Paystack
+          const disableRes = await fetch('https://api.paystack.co/subscription/disable', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${paystackSecretKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ code: paystack_subscription_code, token: email_token }),
+          });
+
+          if (!disableRes.ok) {
+            const errorBody = await disableRes.text();
+            console.error('Paystack disable error:', errorBody);
+            throw new Error('Failed to disable current subscription on Paystack.');
+          }
+          console.log(`Successfully disabled Paystack subscription ${paystack_subscription_code}`);
+
+          // 5. Create a new subscription scheduled to start on the next payment date
+          const createSubRes = await fetch('https://api.paystack.co/subscription', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${paystackSecretKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              customer: paystack_customer_code,
+              plan: newPaystackPlanCode,
+              start_date: next_payment_date,
+            }),
+          });
+
+          if (!createSubRes.ok) {
+             const errorBody = await createSubRes.text();
+             console.error('Paystack create error:', errorBody);
+            // Attempt to re-enable the old subscription as a rollback
+            await fetch('https://api.paystack.co/subscription/enable', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${paystackSecretKey}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: paystack_subscription_code, token: email_token }),
+            });
+            throw new Error('Failed to create new subscription on Paystack. Old subscription has been re-enabled.');
+          }
+          const newSubData = await createSubRes.json();
+          const newSubscriptionCode = newSubData.data.subscription_code;
+          console.log(`Successfully created new Paystack subscription ${newSubscriptionCode}`);
+
+          // 6. Update the user_subscriptions table in the database
+          const { error: updateError } = await supabaseService
+            .from('user_subscriptions')
+            .update({
+              subscription_type: newPlanId,
+              paystack_subscription_code: newSubscriptionCode,
+              updated_at: new Date().toISOString(),
+              // The status remains 'active' as the transition is seamless
+            })
+            .eq('user_id', user.id);
+
+          if (updateError) {
+            // This is a critical error. The user has a new sub on Paystack but not in our DB.
+            // Requires manual intervention, but we should log it clearly.
+            console.error('CRITICAL: Failed to update DB after creating new Paystack subscription.', updateError);
+            throw new Error('Downgrade was processed by Paystack, but failed to update our database. Please contact support.');
+          }
+
+          return new Response(JSON.stringify({ success: true, message: 'Downgrade scheduled successfully.' }), { headers: corsHeaders });
+        }
+        case 'cancel':
+          // TODO: Implement cancellation for Paystack
+          return new Response(JSON.stringify({ error: 'Cancellation for Paystack is not yet supported.' }), { status: 501, headers: corsHeaders });
+        default:
+          return new Response(JSON.stringify({ error: 'Invalid action for Paystack' }), { status: 400, headers: corsHeaders });
+      }
     }
 
     // --- Stripe Flow ---
