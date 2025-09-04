@@ -34,7 +34,13 @@ export const usePaymentPublicKeys = () => {
       }
 
       if (data?.value) {
-        const settings = data.value as PaymentGatewayKeys;
+        let settings: PaymentGatewayKeys;
+        if (typeof data.value === 'string') {
+          settings = JSON.parse(data.value);
+        } else {
+          settings = data.value as PaymentGatewayKeys;
+        }
+
         const mode = settings.mode || 'test';
 
         return {

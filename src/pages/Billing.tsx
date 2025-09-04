@@ -159,15 +159,14 @@ const Billing: React.FC = () => {
             user_id: user.id,
             type: 'subscription',
             plan_id: plan.id,
+            plan_name: plan.name,
             credits: plan.credits_per_month,
           },
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying subscription...", {
-              description: `Reference: ${ref}. Your plan will be updated shortly.`
+          onSuccess: (ref: string) => {
+            toast.success("Payment successful!", {
+              description: `Reference: ${ref}. Your account will be updated shortly.`
             });
-            await supabase.functions.invoke('verify-paystack', {
-              body: { reference: ref, type: 'subscription', planId: plan.id }
-            });
+            // Fulfillment is handled by the webhook.
           },
           onCancel: () => {
             toast.info("Payment canceled.");
@@ -261,13 +260,11 @@ const Billing: React.FC = () => {
             type: 'credits',
             credits: selectedPackage.credits,
           },
-          onSuccess: async (ref: string) => {
-            toast.success("Payment successful! Verifying...", {
-              description: `Reference: ${ref}. Credits will be added shortly.`
+          onSuccess: (ref: string) => {
+            toast.success("Payment successful!", {
+              description: `Reference: ${ref}. Your credits will be added shortly.`
             });
-            await supabase.functions.invoke('verify-paystack', {
-              body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
-            });
+            // Fulfillment is handled by the webhook.
           },
           onCancel: () => {
             toast.info("Payment canceled.");
