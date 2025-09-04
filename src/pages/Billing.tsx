@@ -59,13 +59,36 @@ const Billing: React.FC = () => {
 
     const fetchPlans = async () => {
       setLoadingPlans(true);
-      const { data, error } = await supabase.from("plans").select("*").order('rank', { ascending: true });
-      if (error) {
-        console.error("Error fetching plans:", error);
-        toast.error("Could not load subscription plans.");
-      } else {
-        setPlans(data || []);
-      }
+      // Mock plans since plans table doesn't exist yet
+      const mockPlans = [
+        {
+          id: 'basic',
+          name: 'Basic',
+          price: 9.99,
+          currency: 'USD',
+          interval: 'month',
+          description: 'Basic plan for casual users',
+          paystack_plan_code: 'PLN_basic',
+          credits_per_month: 100,
+          features: ['100 credits per month', 'Basic support'],
+          rank: 1,
+          stripePriceId: 'price_basic'
+        },
+        {
+          id: 'premium',
+          name: 'Premium',
+          price: 19.99,
+          currency: 'USD',
+          interval: 'month',
+          description: 'Premium plan for regular users',
+          paystack_plan_code: 'PLN_premium',
+          credits_per_month: 500,
+          features: ['500 credits per month', 'Priority support', 'Advanced features'],
+          rank: 2,
+          stripePriceId: 'price_premium'
+        }
+      ];
+      setPlans(mockPlans);
       setLoadingPlans(false);
     };
 

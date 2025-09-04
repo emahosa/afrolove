@@ -21,10 +21,6 @@ import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
-import ReproduceTrack from "./pages/ReproduceTrack";
-import ProducerDashboard from "./pages/ProducerDashboard";
-import RequestDetails from "./pages/RequestDetails";
-import MyRequests from "./pages/MyRequests";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -68,17 +64,9 @@ const App = () => {
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
-                    <Route path="/reproduce-track" element={<ReproduceTrack />} />
-                    <Route path="/requests/:id" element={<RequestDetails />} />
-                    <Route path="/my-requests" element={<MyRequests />} />
                   </Route>
                 </Route>
 
-                <Route element={<ProtectedRoute allowedRoles={['producer']} />}>
-                  <Route element={<AppLayout />}>
-                    <Route path="/producer/dashboard" element={<ProducerDashboard />} />
-                  </Route>
-                </Route>
 
                 <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
                   <Route element={<AdminLayout />}>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Music, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import ContestWinnerBanner from "@/components/contest/ContestWinnerBanner";
+
 import { supabase } from "@/integrations/supabase/client";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
@@ -146,7 +146,7 @@ export default function Index() {
                 </button>
               </div>
             </section>
-            <ContestWinnerBanner />
+            
         </div>
       </main>
 

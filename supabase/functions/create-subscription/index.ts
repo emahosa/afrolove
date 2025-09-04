@@ -136,7 +136,7 @@ serve(async (req) => {
       // The `initTransaction` function in `paystack.ts` handles this, but it's better to be explicit.
       const tx = await paystack.initTransaction({
         email: user.email,
-        plan: paystackPlanCode, // For subscriptions, we use the plan code.
+        plan: paystackPlanCode,
         callback_url: `${req.headers.get("origin")}/billing?subscription=success`,
         metadata: {
           type: 'subscription',
