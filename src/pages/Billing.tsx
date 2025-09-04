@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Coins, DollarSign, Zap, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentDialog from '@/components/payment/PaymentDialog';
-import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
+
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,7 +42,7 @@ const Billing: React.FC = () => {
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
-  const { trackActivity } = useAffiliateTracking();
+  
 
   // State for subscriptions
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -170,11 +170,6 @@ const Billing: React.FC = () => {
           
           console.log('✅ Subscription session created, redirecting to:', data.url);
           
-          await trackActivity('subscription_page_visit', {
-            plan_id: plan.id,
-            plan_name: plan.name,
-            amount: plan.price
-          });
           
           window.location.href = data.url;
           
@@ -215,7 +210,7 @@ const Billing: React.FC = () => {
     try {
       if (paymentSettings?.enabled) {
         console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
-        trackActivity('credit_purchase_start');
+        
 
         try {
           const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -238,7 +233,7 @@ const Billing: React.FC = () => {
           }
 
           console.log('✅ Payment session created, redirecting to:', data.url);
-          await trackActivity('credit_purchase_redirect');
+          
           window.location.href = data.url;
           setPaymentDialogOpen(false);
           
@@ -247,7 +242,6 @@ const Billing: React.FC = () => {
           toast.error("Purchase failed", {
             description: paymentError.message || "There was an error processing your payment. Please try again.",
           });
-          trackActivity('credit_purchase_failed');
           return; // Don't proceed if payment creation failed
         }
 
@@ -261,7 +255,7 @@ const Billing: React.FC = () => {
       toast.error("Purchase failed", {
         description: error.message || "There was an error processing your payment. Please try again.",
       });
-      trackActivity('credit_purchase_failed');
+      
     } finally {
       setProcessing(false);
     }

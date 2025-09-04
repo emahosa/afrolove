@@ -18,10 +18,6 @@ import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
-import { SiteSettingsManagement } from "@/components/admin/SiteSettingsManagement";
-import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
-import { ProducerApplications } from "@/components/admin/ProducerApplications";
-import { DisputeManagement } from "@/components/admin/DisputeManagement";
 
 interface AdminProps {
   tab?: string;
@@ -138,9 +134,6 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
-              <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
-              <TabsTrigger value="producer-apps">Producer Apps</TabsTrigger>
-              <TabsTrigger value="disputes">Disputes</TabsTrigger>
             </TabsList>
           </div>
 
@@ -379,46 +372,10 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <SettingsManagement />
-                <SiteSettingsManagement />
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="affiliates" className="space-y-4">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Affiliate Management</CardTitle>
-                <CardDescription>Manage affiliate programs and commissions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AffiliateManagementTab />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="producer-apps" className="space-y-4">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Producer Applications</CardTitle>
-                <CardDescription>Review and approve or reject producer applications.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ProducerApplications />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="disputes" className="space-y-4">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Dispute Management</CardTitle>
-                <CardDescription>Review and resolve user-producer disputes.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DisputeManagement />
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
