@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
+import AffiliatePage from "./pages/Affiliate";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -64,9 +65,9 @@ const App = () => {
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
+                    <Route path="/affiliate" element={<AffiliatePage />} />
                   </Route>
                 </Route>
-
 
                 <Route element={<ProtectedRoute allowedRoles={['admin', 'super_admin']} />}>
                   <Route element={<AdminLayout />}>

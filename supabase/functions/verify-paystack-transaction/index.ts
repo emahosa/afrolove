@@ -1,24 +1,6 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
-import { PaystackClient } from '../_shared/paystack.ts';
-
-// Define interfaces for settings for type safety
-interface ApiKeys {
-  publicKey: string;
-  secretKey: string;
-}
-interface GatewayConfig {
-  test: ApiKeys;
-  live: ApiKeys;
-}
-interface PaymentGatewaySettings {
-  enabled: boolean;
-  mode: 'test' | 'live';
-  activeGateway: 'stripe' | 'paystack';
-  stripe: GatewayConfig;
-  paystack: GatewayConfig;
-}
 
 serve(async (req) => {
   console.log("🔎 Incoming request:", {
@@ -38,44 +20,32 @@ serve(async (req) => {
       throw new Error('Missing required fields: reference and type are required.');
     }
 
+    const secretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
+    if (!secretKey) {
+      throw new Error('Paystack secret key is not set in environment variables.');
+    }
+
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to verify transaction with Paystack.');
+    }
+
+    const verificationData = await response.json();
+
+    if (!verificationData.status || verificationData.data.status !== 'success') {
+      throw new Error('Transaction was not successful.');
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    const { data: settingsData, error: settingsError } = await supabaseAdmin
-      .from('system_settings')
-      .select('value')
-      .eq('key', 'payment_gateway_settings')
-      .single();
-
-    if (settingsError) {
-      console.error("Error loading payment settings:", settingsError);
-      throw new Error('Could not load system payment settings.');
-    }
-    if (!settingsData?.value) {
-      throw new Error('Payment settings are not configured in the system.');
-    }
-
-    let settings: PaymentGatewaySettings;
-    if (typeof settingsData.value === 'string') {
-      settings = JSON.parse(settingsData.value);
-    } else {
-      settings = settingsData.value as PaymentGatewaySettings;
-    }
-
-    const paystackKeys = settings.mode === 'live' ? settings.paystack.live : settings.paystack.test;
-    if (!paystackKeys?.secretKey) {
-      throw new Error(`Paystack secret key for ${settings.mode} mode is not configured.`);
-    }
-
-    const paystack = new PaystackClient(paystackKeys.secretKey);
-    const verificationData = await paystack.verifyTransaction(reference);
-
-    if (verificationData.status !== 'success') {
-      throw new Error('Transaction was not successful.');
-    }
 
     const { data: existingTx, error: txCheckError } = await supabaseAdmin
       .from('transactions')
@@ -91,7 +61,7 @@ serve(async (req) => {
       });
     }
 
-    const userId = verificationData.metadata?.user_id;
+    const userId = verificationData.data.metadata?.user_id;
     if (!userId) {
       throw new Error('User ID not found in transaction metadata.');
     }
@@ -118,8 +88,8 @@ serve(async (req) => {
     } else if (type === 'subscription') {
       if (!planId) throw new Error('Plan ID is required for subscriptions.');
 
-      const subscriptionCode = verificationData.subscription_code;
-      const customerCode = verificationData.customer.customer_code;
+      const subscriptionCode = verificationData.data.subscription_code;
+      const customerCode = verificationData.data.customer.customer_code;
 
       const { error: subError } = await supabaseAdmin
         .from('user_subscriptions')
@@ -138,7 +108,7 @@ serve(async (req) => {
       reference: reference,
       provider: 'paystack',
       user_id: userId,
-      metadata: verificationData,
+      metadata: verificationData.data,
     });
 
     return new Response(JSON.stringify({ success: true }), {

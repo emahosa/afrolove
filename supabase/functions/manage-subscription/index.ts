@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from "https://esm.sh/stripe@14.21.0"
-import { corsHeaders } from '../_shared/cors.ts'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -30,77 +34,88 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing action parameter' }), { status: 400, headers: corsHeaders });
     }
 
-    // Retrieve the user's current active subscription
-    const { data: currentSub, error: dbError } = await supabaseService
-      .from('user_subscriptions')
-      .select('stripe_subscription_id, payment_provider')
-      .eq('user_id', user.id)
-      .eq('subscription_status', 'active')
+    // Check payment gateway settings
+    const { data: settingsData } = await supabaseService
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'payment_gateway_settings')
       .single();
+    
+    const settings = settingsData?.value as { enabled?: boolean; activeGateway?: string } | undefined;
 
-    if (dbError || !currentSub) {
-      // This handles cases where the user has no active subscription.
-      // It also covers the "Non-Gateway Flow" where a subscription might exist but isn't managed by a gateway.
+    // --- Non-Gateway Flow ---
+    if (!settings?.enabled) {
+      // This flow is for when payment gateways are disabled entirely.
+      // It only supports instant downgrade.
       if (action === 'downgrade') {
         if (!newPlanId) {
           return new Response(JSON.stringify({ error: 'Missing newPlanId for downgrade' }), { status: 400, headers: corsHeaders });
         }
-        // This is the legacy/non-gateway instant downgrade.
-        // The user story suggests this is wrong, but changing it requires a larger architectural discussion (e.g., cron jobs).
-        // For now, we keep the logic but ensure it's only hit when no payment provider is found.
         const { error: updateError } = await supabaseService
           .from('user_subscriptions')
           .update({ subscription_type: newPlanId, updated_at: new Date().toISOString() })
           .eq('user_id', user.id)
           .eq('subscription_status', 'active');
 
-        if (updateError) throw new Error('Failed to downgrade subscription in DB: ' + updateError.message);
+        if (updateError) throw new Error('Failed to downgrade subscription in DB.');
         return new Response(JSON.stringify({ success: true, message: 'Downgrade successful.' }), { headers: corsHeaders });
       }
-      return new Response(JSON.stringify({ error: 'No active subscription found to manage.' }), { status: 404, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Payment system is disabled.' }), { status: 400, headers: corsHeaders });
     }
 
-    // --- Paystack Flow ---
-    if (currentSub.payment_provider === 'paystack') {
-      return new Response(JSON.stringify({ error: 'Subscription management for Paystack is not yet supported.' }), { status: 501, headers: corsHeaders });
+    // --- Paystack Flow (Not implemented for management yet) ---
+    if (settings.activeGateway === 'paystack') {
+        return new Response(JSON.stringify({ error: 'Subscription management for Paystack is not yet supported.' }), { status: 501, headers: corsHeaders });
     }
 
     // --- Stripe Flow ---
-    if (currentSub.stripe_subscription_id) {
-      const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', { apiVersion: "2023-10-16" });
+    if (settings.activeGateway === 'stripe') {
+        const { data: currentSub, error: dbError } = await supabaseService
+        .from('user_subscriptions')
+        .select('stripe_subscription_id')
+        .eq('user_id', user.id)
+        .eq('subscription_status', 'active')
+        .single();
 
-      switch (action) {
+        if (dbError || !currentSub || !currentSub.stripe_subscription_id) {
+            throw new Error('Could not find an active Stripe subscription for the user.');
+        }
+
+        const stripeSubscriptionId = currentSub.stripe_subscription_id;
+        const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', { apiVersion: "2023-10-16" });
+
+        switch (action) {
         case 'downgrade':
-          if (!newStripePriceId) {
-            return new Response(JSON.stringify({ error: 'Missing newStripePriceId for downgrade' }), { status: 400, headers: corsHeaders });
-          }
-          const subscription = await stripe.subscriptions.retrieve(currentSub.stripe_subscription_id);
-          if (!subscription) {
-            throw new Error('Could not find subscription in Stripe');
-          }
-          await stripe.subscriptions.update(currentSub.stripe_subscription_id, {
-            items: [{ id: subscription.items.data[0].id, price: newStripePriceId }],
-            proration_behavior: 'none',
-          });
-          console.log(`Downgrade for subscription ${currentSub.stripe_subscription_id} scheduled successfully.`);
-          return new Response(JSON.stringify({ success: true, message: 'Downgrade scheduled successfully' }), { headers: corsHeaders });
+            if (!newStripePriceId) {
+                return new Response(JSON.stringify({ error: 'Missing newStripePriceId for downgrade' }), { status: 400, headers: corsHeaders });
+            }
+            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            if (!subscription) {
+                throw new Error('Could not find subscription in Stripe');
+            }
+            await stripe.subscriptions.update(stripeSubscriptionId, {
+                items: [{ id: subscription.items.data[0].id, price: newStripePriceId }],
+                proration_behavior: 'none',
+            });
+            console.log(`Downgrade for subscription ${stripeSubscriptionId} scheduled successfully.`);
+            return new Response(JSON.stringify({ success: true, message: 'Downgrade scheduled successfully' }), { headers: corsHeaders });
 
         case 'cancel':
-          await stripe.subscriptions.cancel(currentSub.stripe_subscription_id);
-          await supabaseService
-            .from('user_subscriptions')
-            .update({ subscription_status: 'inactive' })
-            .eq('stripe_subscription_id', currentSub.stripe_subscription_id);
-          console.log(`Subscription ${currentSub.stripe_subscription_id} cancelled successfully.`);
-          return new Response(JSON.stringify({ success: true, message: 'Subscription cancelled successfully' }), { headers: corsHeaders });
+            await stripe.subscriptions.cancel(stripeSubscriptionId);
+            await supabaseService
+                .from('user_subscriptions')
+                .update({ subscription_status: 'inactive' })
+                .eq('stripe_subscription_id', stripeSubscriptionId);
+            console.log(`Subscription ${stripeSubscriptionId} cancelled successfully.`);
+            return new Response(JSON.stringify({ success: true, message: 'Subscription cancelled successfully' }), { headers: corsHeaders });
 
         default:
-          return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400, headers: corsHeaders });
-      }
+            return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400, headers: corsHeaders });
+        }
     }
 
-    // Fallback for any other cases
-    return new Response(JSON.stringify({ error: 'Subscription provider not recognized or supported.' }), { status: 500, headers: corsHeaders });
+    // Default case if no active gateway matches
+    return new Response(JSON.stringify({ error: 'No active payment gateway configured or supported.' }), { status: 500, headers: corsHeaders });
 
   } catch (error) {
     console.error('Error managing subscription:', error);

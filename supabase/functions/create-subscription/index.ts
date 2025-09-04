@@ -71,10 +71,10 @@ serve(async (req) => {
       settings = settingsData.value as PaymentGatewaySettings;
     }
 
-    const { priceId, planId, planName, paystackPlanCode, credits } = await req.json();
+    const { priceId, planId, planName, amount, paystackPlanCode, credits } = await req.json();
 
-    if (!planId || !planName) {
-      throw new Error("Missing required subscription fields: planId and planName are required.");
+    if (!planId || !planName || !amount) {
+      throw new Error("Missing required subscription fields.");
     }
 
     if (!settings?.enabled) {
@@ -131,11 +131,9 @@ serve(async (req) => {
       }
 
       const paystack = new PaystackClient(paystackKeys.secretKey);
-
-      // We should not be sending both amount and plan to Paystack.
-      // The `initTransaction` function in `paystack.ts` handles this, but it's better to be explicit.
       const tx = await paystack.initTransaction({
         email: user.email,
+        amount: amount,
         plan: paystackPlanCode,
         callback_url: `${req.headers.get("origin")}/billing?subscription=success`,
         metadata: {

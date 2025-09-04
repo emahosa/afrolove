@@ -18,6 +18,7 @@ import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
+import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
 
 interface AdminProps {
   tab?: string;
@@ -134,6 +135,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             </TabsList>
           </div>
 
@@ -370,12 +372,23 @@ const Admin = ({ tab }: AdminProps) => {
                 <CardTitle>System Settings</CardTitle>
                 <CardDescription>Configure system-wide settings and preferences</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <SettingsManagement />
               </CardContent>
             </Card>
           </TabsContent>
 
+          <TabsContent value="affiliates" className="space-y-4">
+            <Card className="bg-card">
+              <CardHeader>
+                <CardTitle>Affiliate Management</CardTitle>
+                <CardDescription>Manage affiliate programs and commissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AffiliateManagementTab />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

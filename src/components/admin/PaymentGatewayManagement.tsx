@@ -118,8 +118,9 @@ export const PaymentGatewayManagement = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       const { error: upsertError } = await supabase.from('system_settings').upsert({
+        id: data?.id,
         key: 'payment_gateway_settings',
-        value: settingsToSave as any,
+        value: settingsToSave,
         category: 'payment',
         description: 'Configuration for payment gateways (Stripe, Paystack)',
         updated_by: user.id,

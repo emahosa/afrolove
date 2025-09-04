@@ -134,7 +134,7 @@ serve(async (req) => {
       const tx = await paystack.initTransaction({
         email: user.email,
         amount: amount,
-        currency: 'NGN',
+        currency: 'USD',
         callback_url: `${req.headers.get("origin")}/billing?payment=success`,
         metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email }
       });

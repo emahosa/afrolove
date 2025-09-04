@@ -154,6 +154,20 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           }
 
+          // Only add payment_provider if the column exists
+          try {
+            const { error: schemaCheckError } = await supabaseClient
+              .from('user_subscriptions')
+              .select('payment_provider')
+              .limit(1);
+
+            if (!schemaCheckError) {
+              subscriptionData.payment_provider = 'stripe';
+            }
+          } catch (schemaError) {
+            console.log('payment_provider column not available, proceeding without it');
+          }
+
           console.log('💾 Upserting subscription record:', subscriptionData)
           const { error: subError } = await supabaseClient
             .from('user_subscriptions')

@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Coins, DollarSign, Zap, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentDialog from '@/components/payment/PaymentDialog';
-
+import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
+import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
 
@@ -42,7 +43,7 @@ const Billing: React.FC = () => {
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
-  
+  const { trackActivity } = useAffiliateTracking();
 
   // State for subscriptions
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -59,36 +60,13 @@ const Billing: React.FC = () => {
 
     const fetchPlans = async () => {
       setLoadingPlans(true);
-      // Mock plans since plans table doesn't exist yet
-      const mockPlans = [
-        {
-          id: 'basic',
-          name: 'Basic',
-          price: 9.99,
-          currency: 'USD',
-          interval: 'month',
-          description: 'Basic plan for casual users',
-          paystack_plan_code: 'PLN_basic',
-          credits_per_month: 100,
-          features: ['100 credits per month', 'Basic support'],
-          rank: 1,
-          stripePriceId: 'price_basic'
-        },
-        {
-          id: 'premium',
-          name: 'Premium',
-          price: 19.99,
-          currency: 'USD',
-          interval: 'month',
-          description: 'Premium plan for regular users',
-          paystack_plan_code: 'PLN_premium',
-          credits_per_month: 500,
-          features: ['500 credits per month', 'Priority support', 'Advanced features'],
-          rank: 2,
-          stripePriceId: 'price_premium'
-        }
-      ];
-      setPlans(mockPlans);
+      const { data, error } = await supabase.from("plans").select("*").order('rank', { ascending: true });
+      if (error) {
+        console.error("Error fetching plans:", error);
+        toast.error("Could not load subscription plans.");
+      } else {
+        setPlans(data || []);
+      }
       setLoadingPlans(false);
     };
 
@@ -125,7 +103,6 @@ const Billing: React.FC = () => {
       setDowngradeConfirmationOpen(true);
     } else {
       // This handles new subscriptions and upgrades
-      setSelectedPlanId(planId);
       setDialogOpen(true);
     }
   };
@@ -166,7 +143,38 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      if (paymentSettings?.enabled) {
+      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
+          setPaymentProcessing(false);
+          return;
+        }
+        const reference = `txn_sub_${user.id}_${Date.now()}`;
+        await startPaystackPayment({
+          publicKey: publicKeys.paystackPublicKey,
+          email: user.email!,
+          amount: plan.price,
+          reference: reference,
+          metadata: {
+            user_id: user.id,
+            type: 'subscription',
+            plan_id: plan.id,
+            credits: plan.credits_per_month,
+          },
+          onSuccess: async (ref: string) => {
+            toast.success("Payment successful! Verifying subscription...", {
+              description: `Reference: ${ref}. Your plan will be updated shortly.`
+            });
+            await supabase.functions.invoke('verify-paystack', {
+              body: { reference: ref, type: 'subscription', planId: plan.id }
+            });
+          },
+          onCancel: () => {
+            toast.info("Payment canceled.");
+          },
+        });
+
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
         console.log('🔄 Starting Stripe subscription process for plan:', plan.name);
         
         try {
@@ -193,6 +201,11 @@ const Billing: React.FC = () => {
           
           console.log('✅ Subscription session created, redirecting to:', data.url);
           
+          await trackActivity('subscription_page_visit', {
+            plan_id: plan.id,
+            plan_name: plan.name,
+            amount: plan.price
+          });
           
           window.location.href = data.url;
           
@@ -231,9 +244,40 @@ const Billing: React.FC = () => {
 
     setProcessing(true);
     try {
-      if (paymentSettings?.enabled) {
+      if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'paystack') {
+        if (!publicKeys?.paystackPublicKey) {
+          toast.error("Paystack public key not found. Cannot proceed with payment.");
+          setProcessing(false);
+          return;
+        }
+        const reference = `txn_credits_${user.id}_${Date.now()}`;
+        await startPaystackPayment({
+          publicKey: publicKeys.paystackPublicKey,
+          email: user.email!,
+          amount: selectedPackage.amount,
+          reference: reference,
+          metadata: {
+            user_id: user.id,
+            type: 'credits',
+            credits: selectedPackage.credits,
+          },
+          onSuccess: async (ref: string) => {
+            toast.success("Payment successful! Verifying...", {
+              description: `Reference: ${ref}. Credits will be added shortly.`
+            });
+            await supabase.functions.invoke('verify-paystack', {
+              body: { reference: ref, type: 'credits', credits: selectedPackage.credits }
+            });
+          },
+          onCancel: () => {
+            toast.info("Payment canceled.");
+          },
+        });
+        setPaymentDialogOpen(false);
+
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'stripe') {
         console.log('🔄 Starting Stripe credit purchase process for package:', selectedPackage);
-        
+        trackActivity('credit_purchase_start');
 
         try {
           const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -256,7 +300,7 @@ const Billing: React.FC = () => {
           }
 
           console.log('✅ Payment session created, redirecting to:', data.url);
-          
+          await trackActivity('credit_purchase_redirect');
           window.location.href = data.url;
           setPaymentDialogOpen(false);
           
@@ -265,6 +309,7 @@ const Billing: React.FC = () => {
           toast.error("Purchase failed", {
             description: paymentError.message || "There was an error processing your payment. Please try again.",
           });
+          trackActivity('credit_purchase_failed');
           return; // Don't proceed if payment creation failed
         }
 
@@ -278,7 +323,7 @@ const Billing: React.FC = () => {
       toast.error("Purchase failed", {
         description: error.message || "There was an error processing your payment. Please try again.",
       });
-      
+      trackActivity('credit_purchase_failed');
     } finally {
       setProcessing(false);
     }
@@ -296,7 +341,8 @@ const Billing: React.FC = () => {
     if (!currentUserPlan) return 'Subscribe Now';
     if (plan.id === currentUserPlan.id) return 'Current Plan';
     if (plan.rank > currentUserPlan.rank) {
-      return 'Upgrade';
+      const gateway = paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe';
+      return `Upgrade with ${gateway}`;
     }
     return 'Downgrade';
   };
@@ -384,7 +430,7 @@ const Billing: React.FC = () => {
                       ? 'Loading...'
                       : !paymentReady
                       ? 'Payments Disabled'
-                      : 'Purchase'}
+                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
                   </Button>
                 </CardContent>
               </Card>
@@ -410,7 +456,7 @@ const Billing: React.FC = () => {
                     ? 'Loading...'
                     : !paymentReady
                     ? 'Payments Disabled'
-                    : 'Purchase'}
+                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
                 </Button>
               </div>
             </CardContent>
