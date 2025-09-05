@@ -98,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         </nav>
       </ScrollArea>
       {user && (
-        <div className="mt-auto p-2 border-t border-purple-700/30 flex-shrink-0">
+        <div className="mt-auto p-2 flex-shrink-0">
            <Button variant="ghost" className="w-full justify-start text-gray-300 hover:text-purple-400" onClick={() => navigate('/profile')}>
              <User className="mr-3 h-5 w-5 flex-shrink-0" />
              <span className="truncate">{user.email?.split('@')[0] || user.id}</span>
