@@ -58,9 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
   return (
     <aside className={cn("h-full w-60 flex flex-col", className)}>
-      <h1 className="text-purple-400 font-bold text-2xl mb-8 p-4">🎵 Afroverse</h1>
       <ScrollArea className="flex-1 px-4 py-4">
-        <nav className="flex flex-col space-y-4">
+        <nav className="flex flex-col space-y-4 pt-8">
           {roleFilteredNavItems.map(item => {
             const needsSubscription = item.isProtected && !isUserAdmin && !isUserSubscribed;
             const effectiveLabel = item.label === "Credits & Plans" && isUserSubscribed ? "Manage Plan" : item.label;
