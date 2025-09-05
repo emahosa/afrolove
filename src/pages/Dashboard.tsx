@@ -11,7 +11,7 @@ export default function Dashboard() {
   return (
     <div className="relative">
       {/* Floating Notes */}
-      {["🎵", "🎶", "🎼"].map((note, i) => (
+      {["🎵", "🎶", "🎼", "🎵", "🎶", "🎼"].map((note, i) => (
         <span
           key={i}
           className="absolute text-purple-400 text-3xl animate-float"
