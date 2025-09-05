@@ -1,4 +1,5 @@
 import React from 'react';
+import Navbar from '@/components/Navbar';
 
 // Helper component for the floating icons
 const FloatingIcon = ({
@@ -48,7 +49,7 @@ const AuthPageLayout = ({ children }: { children: React.ReactNode }) => {
           </FloatingIcon>
         ))}
       </div>
-
+      <Navbar onMenuClick={() => {}} />
       <main className="relative z-10 grid place-items-center min-h-screen w-full p-4">
         {children}
       </main>
