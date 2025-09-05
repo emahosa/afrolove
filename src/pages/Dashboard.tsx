@@ -1,100 +1,104 @@
-import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGenreTemplates } from "@/hooks/use-genre-templates";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { templates, loading: templatesLoading } = useGenreTemplates();
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Hero Section */}
-      <section className="relative h-[35vh] w-full overflow-hidden flex items-center justify-start rounded-b-3xl">
-        <video
-          autoPlay
-          loop
-          playsInline
-          className="absolute top-0 left-0 w-full h-full object-cover"
+    <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white flex relative overflow-hidden">
+      {/* Floating Notes */}
+      {["🎵", "🎶", "🎼"].map((note, i) => (
+        <span
+          key={i}
+          className="absolute text-purple-400 text-3xl animate-float"
+          style={{
+            top: `${Math.random() * 90}%`,
+            left: `${Math.random() * 90}%`,
+            animationDuration: `${6 + i * 3}s`,
+          }}
         >
-          <source src="/media/afroverse-hero.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-black/50" />
+          {note}
+        </span>
+      ))}
 
-        <div className="relative z-10 text-left px-10">
-          <motion.h1
-            className="text-5xl font-extrabold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            Create Your Afrobeats with A.I
-          </motion.h1>
-
-          <motion.p
-            className="mt-4 text-lg text-gray-200"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-          >
-            Turn your ideas into music with Afroverse’s AI-powered templates
-          </motion.p>
-
-          <motion.p
-            className="mt-2 text-md text-gray-400"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2 }}
-          >
-            Welcome back, {user?.user_metadata?.full_name || 'User'}!
-          </motion.p>
-
-          <div className="mt-6 flex gap-4 justify-start">
-            <a
-              href="/create"
-              className="bg-purple-600 hover:bg-purple-700 rounded-xl px-4 py-2 text-base font-semibold shadow-lg transition"
+      {/* Sidebar */}
+      <aside className="w-60 bg-black/70 border-r border-purple-700/30 flex flex-col p-4 z-10">
+        <h1 className="text-purple-400 font-bold text-2xl mb-8">🎵 Afroverse</h1>
+        <nav className="space-y-4">
+          {["Home", "Create", "Library", "Contest", "Profile", "Billing", "Support"].map((item) => (
+            <Link
+              key={item}
+              to={`/${item.toLowerCase()}`}
+              className="flex items-center text-gray-300 hover:text-purple-400 transition-all duration-300 ease-in-out transform hover:scale-105"
             >
-              Start Creating
-            </a>
-            <a
-              href="/contest"
-              className="border border-white text-white rounded-xl px-4 py-2 text-base font-semibold hover:bg-white/10 transition"
-            >
-              Earn Now
-            </a>
-          </div>
-        </div>
-      </section>
+              {item}
+            </Link>
+          ))}
+        </nav>
+      </aside>
 
-      {/* Genres Section */}
-      <section className="px-10 py-16">
-        <h2 className="text-3xl font-bold mb-8">Available Genres</h2>
-        {templatesLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto z-10">
+        {/* Hero Section */}
+        <section className="relative h-80 flex flex-col items-center justify-center text-center">
+          <div className="relative z-10">
+            <h2 className="text-4xl font-bold mb-2">Unleash Your Sound</h2>
+            <p className="text-gray-300 mb-6">Every Beat. Every Emotion. All in Your Control.</p>
+            <div className="flex gap-4 justify-center">
+              <Link to="/create">
+                <Button
+                  className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
+                >
+                  Create Song
+                </Button>
+              </Link>
+              <Link to="/contest">
+                <Button
+                  className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
+                >
+                  Earn
+                </Button>
+              </Link>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template, i) => (
-              <GenreTemplateCard key={template.id} template={template} index={i} />
-            ))}
-          </div>
-        )}
-      </section>
+        </section>
 
-      {/* Contest Banner */}
-      <section className="bg-gradient-to-r from-purple-800 to-pink-600 text-center py-10 mt-10 rounded-2xl mx-10 shadow-lg">
-        <h3 className="text-2xl font-bold">🎤 Join the Afroverse Contest!</h3>
-        <p className="mt-2 text-gray-200">
-          Win beats, prizes, and exposure for your music.
-        </p>
-        <a
-          href="/contest"
-          className="mt-4 inline-block bg-black hover:bg-gray-900 text-white rounded-2xl px-6 py-3 font-semibold transition"
-        >
-          Enter Now
-        </a>
-      </section>
+        {/* Welcome Back */}
+        <section className="p-8">
+          <h3 className="text-lg text-gray-200 mb-6">
+            Welcome back, {user?.user_metadata?.full_name || 'fret'}! Here’s what’s happening in your music journey
+          </h3>
+
+          {/* Available Genres */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templatesLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
+              </div>
+            ) : (
+              templates.map((template) => (
+                <GenreTemplateCard key={template.id} template={template} />
+              ))
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Floating Notes Animation Style */}
+      <style jsx>{`
+        @keyframes float {
+          0% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
+          50% { transform: translateY(-30px) rotate(10deg); opacity: 1; }
+          100% { transform: translateY(0) rotate(-10deg); opacity: 0.7; }
+        }
+        .animate-float {
+          animation: float infinite ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }
