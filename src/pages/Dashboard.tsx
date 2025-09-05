@@ -10,7 +10,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
-      <section className="relative h-[50vh] w-full overflow-hidden flex items-center justify-center rounded-b-3xl">
+      <section className="relative h-[35vh] w-full overflow-hidden flex items-center justify-start rounded-b-3xl">
         <video
           autoPlay
           loop
@@ -21,7 +21,7 @@ export default function Dashboard() {
         </video>
         <div className="absolute inset-0 bg-black/50" />
 
-        <div className="relative z-10 text-center px-6">
+        <div className="relative z-10 text-left px-10">
           <motion.h1
             className="text-5xl font-extrabold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent"
             initial={{ opacity: 0, y: 40 }}
@@ -49,16 +49,16 @@ export default function Dashboard() {
             Welcome back, {user?.user_metadata?.full_name || 'User'}!
           </motion.p>
 
-          <div className="mt-6 flex gap-4 justify-center">
+          <div className="mt-6 flex gap-4 justify-start">
             <a
               href="/create"
-              className="bg-purple-600 hover:bg-purple-700 rounded-2xl px-6 py-3 text-lg font-semibold shadow-lg transition"
+              className="bg-purple-600 hover:bg-purple-700 rounded-xl px-4 py-2 text-base font-semibold shadow-lg transition"
             >
               Start Creating
             </a>
             <a
               href="/contest"
-              className="border border-white text-white rounded-2xl px-6 py-3 text-lg font-semibold hover:bg-white/10 transition"
+              className="border border-white text-white rounded-xl px-4 py-2 text-base font-semibold hover:bg-white/10 transition"
             >
               Earn Now
             </a>

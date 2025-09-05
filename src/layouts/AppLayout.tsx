@@ -11,7 +11,7 @@ const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-b from-midnight to-black text-white font-sans">
+    <div className="h-screen flex flex-col bg-gradient-to-b from-midnight to-black text-white font-sans">
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
       {/* Mobile Sidebar */}
