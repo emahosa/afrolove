@@ -27,10 +27,6 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden text-white/80 hover:bg-white/10 hover:text-white">
             <Menu className="h-5 w-5" />
           </Button>
-          <Link to="/dashboard" className="flex items-center gap-2 hover-scale">
-            <Music className="h-6 w-6 text-dark-purple" />
-            <span className="font-poppins font-bold text-xl text-white">Afroverse</span>
-          </Link>
         </div>
         
         <div className="flex items-center gap-2">
