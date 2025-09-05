@@ -10,7 +10,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
-      <section className="relative h-[70vh] w-full overflow-hidden flex items-center justify-center rounded-b-3xl">
+      <section className="relative h-[40vh] w-full overflow-hidden flex items-end justify-start p-10 rounded-b-3xl">
         <video
           autoPlay
           loop
@@ -19,12 +19,12 @@ export default function Dashboard() {
         >
           <source src="/media/afroverse-hero.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-        <div className="relative z-10 text-center px-6">
+        <div className="relative z-10 text-left">
           <motion.h1
-            className="text-5xl font-extrabold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: 40 }}
+            className="text-4xl font-extrabold text-white"
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
@@ -32,33 +32,24 @@ export default function Dashboard() {
           </motion.h1>
 
           <motion.p
-            className="mt-4 text-lg text-gray-200"
+            className="mt-2 text-md text-gray-300 max-w-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
           >
-            Turn your ideas into music with Afroverse’s AI-powered templates
+            Turn your ideas into music with Afroverse’s AI-powered templates. Welcome back, {user?.user_metadata?.full_name || 'User'}!
           </motion.p>
 
-          <motion.p
-            className="mt-2 text-md text-gray-400"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2 }}
-          >
-            Welcome back, {user?.user_metadata?.full_name || 'User'}!
-          </motion.p>
-
-          <div className="mt-6 flex gap-4 justify-center">
+          <div className="mt-4 flex gap-3">
             <a
               href="/create"
-              className="bg-purple-600 hover:bg-purple-700 rounded-2xl px-6 py-3 text-lg font-semibold shadow-lg transition"
+              className="bg-purple-600 hover:bg-purple-700 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-md transition"
             >
               Start Creating
             </a>
             <a
               href="/contest"
-              className="border border-white text-white rounded-2xl px-6 py-3 text-lg font-semibold hover:bg-white/10 transition"
+              className="border border-white/50 text-white rounded-lg px-5 py-2.5 text-sm font-semibold hover:bg-white/10 transition"
             >
               Earn Now
             </a>

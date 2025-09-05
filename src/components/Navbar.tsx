@@ -48,13 +48,13 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             </div>
           </Link>
           
-          <Button variant="ghost" size="icon" className="text-white/80 hover:bg-white/10 hover:text-white rounded-full hover-scale">
+          <Button variant="ghost" size="icon" className="text-white/80 hover:bg-white/10 hover:text-white rounded-full">
             <Bell className="h-5 w-5" />
           </Button>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full hover-scale">
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user?.avatar || ""} />
                   <AvatarFallback className="text-sm bg-dark-purple text-white">{user?.name?.charAt(0) || "U"}</AvatarFallback>
@@ -63,12 +63,12 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-black/50 border-white/10 text-white backdrop-blur-lg">
               <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover-scale">
+                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400 hover-scale">
+              <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
