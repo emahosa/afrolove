@@ -28,11 +28,11 @@ export default function Dashboard() {
 
       <div className="relative z-10">
         {/* Hero Section */}
-        <section className="relative h-80 flex flex-col items-center justify-center text-center">
+        <section className="relative h-80 flex flex-col items-start justify-center text-left px-10">
           <div className="relative z-10">
             <h2 className="text-4xl font-bold mb-2">Unleash Your Sound</h2>
             <p className="text-gray-300 mb-6">Every Beat. Every Emotion. All in Your Control.</p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-start">
               <Link to="/create">
                 <Button
                   className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
