@@ -9,7 +9,7 @@ export default function Dashboard() {
   const { templates, loading: templatesLoading } = useGenreTemplates();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white flex relative overflow-hidden">
+    <div className="relative">
       {/* Floating Notes */}
       {["🎵", "🎶", "🎼"].map((note, i) => (
         <span
@@ -19,30 +19,14 @@ export default function Dashboard() {
             top: `${Math.random() * 90}%`,
             left: `${Math.random() * 90}%`,
             animationDuration: `${6 + i * 3}s`,
+            zIndex: 0,
           }}
         >
           {note}
         </span>
       ))}
 
-      {/* Sidebar */}
-      <aside className="w-60 bg-black/70 border-r border-purple-700/30 flex flex-col p-4 z-10">
-        <h1 className="text-purple-400 font-bold text-2xl mb-8">🎵 Afroverse</h1>
-        <nav className="space-y-4">
-          {["Home", "Create", "Library", "Contest", "Profile", "Billing", "Support"].map((item) => (
-            <Link
-              key={item}
-              to={`/${item.toLowerCase()}`}
-              className="flex items-center text-gray-300 hover:text-purple-400 transition-all duration-300 ease-in-out transform hover:scale-105"
-            >
-              {item}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto z-10">
+      <div className="relative z-10">
         {/* Hero Section */}
         <section className="relative h-80 flex flex-col items-center justify-center text-center">
           <div className="relative z-10">
@@ -67,13 +51,12 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Welcome Back */}
+        {/* Welcome Back & Genres Section */}
         <section className="p-8">
           <h3 className="text-lg text-gray-200 mb-6">
-            Welcome back, {user?.user_metadata?.full_name || 'fret'}! Here’s what’s happening in your music journey
+            Welcome back, {user?.user_metadata?.full_name || 'User'}! Here’s what’s happening in your music journey
           </h3>
 
-          {/* Available Genres */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {templatesLoading ? (
               <div className="flex justify-center items-center py-8">
@@ -86,10 +69,25 @@ export default function Dashboard() {
             )}
           </div>
         </section>
-      </main>
+
+        {/* Contest Banner */}
+        <section className="bg-gradient-to-r from-purple-800 to-pink-600 text-center py-10 mt-10 rounded-2xl mx-8 shadow-lg">
+          <h3 className="text-2xl font-bold">🎤 Join the Afroverse Contest!</h3>
+          <p className="mt-2 text-gray-200">
+            Win beats, prizes, and exposure for your music.
+          </p>
+          <Link to="/contest">
+            <Button
+              className="mt-4 backdrop-blur-xl bg-black/20 border border-white/30 text-white hover:bg-white/30 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-white/50"
+            >
+              Enter Now
+            </Button>
+          </Link>
+        </section>
+      </div>
 
       {/* Floating Notes Animation Style */}
-      <style jsx>{`
+      <style>{`
         @keyframes float {
           0% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
           50% { transform: translateY(-30px) rotate(10deg); opacity: 1; }
