@@ -19,6 +19,7 @@ import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
+import { HeroVideoManagement } from "@/components/admin/HeroVideoManagement";
 
 interface AdminProps {
   tab?: string;
@@ -136,6 +137,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
               <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
+              <TabsTrigger value="hero-videos">Hero Videos</TabsTrigger>
             </TabsList>
           </div>
 
@@ -386,6 +388,18 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent>
                 <AffiliateManagementTab />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="hero-videos" className="space-y-4">
+            <Card className="bg-card">
+              <CardHeader>
+                <CardTitle>Hero Video Management</CardTitle>
+                <CardDescription>Upload and manage hero videos for the user homepage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HeroVideoManagement />
               </CardContent>
             </Card>
           </TabsContent>
