@@ -16,7 +16,7 @@ const AppLayoutContent = () => {
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-60 p-0 flex flex-col bg-black border-r border-white/10">
+        <SheetContent side="left" className="w-60 p-0 flex flex-col bg-black">
           <Sidebar />
         </SheetContent>
       </Sheet>
@@ -24,7 +24,7 @@ const AppLayoutContent = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
         <div className="hidden md:block flex-shrink-0">
-          <Sidebar className="bg-black border-r border-white/10" />
+          <Sidebar className="bg-black" />
         </div>
         <main className="flex-1 flex flex-col overflow-y-auto" style={{ paddingBottom: '120px' }}>
           <Outlet />
