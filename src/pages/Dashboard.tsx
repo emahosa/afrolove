@@ -10,7 +10,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Hero Section */}
-      <section className="relative h-[70vh] w-full overflow-hidden flex items-center justify-center rounded-b-3xl">
+      <section className="relative h-[50vh] w-full overflow-hidden flex items-center justify-center rounded-b-3xl">
         <video
           autoPlay
           loop
