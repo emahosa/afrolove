@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu, Bell, Music, LogOut, User, Star, Crown } from "lucide-react";
+import { Menu, Bell, Music, LogOut, User, Star, Crown, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,15 +10,20 @@ interface NavbarProps {
 }
 
 const Navbar = ({ onMenuClick }: NavbarProps) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login', { replace: true });
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const isSubscribed = user?.subscription?.status === 'active';
+  const showAdminLink = isAdmin() || isSuperAdmin();
 
   return (
     <header className="bg-black sticky top-0 z-30">
@@ -48,30 +53,39 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             <Bell className="h-5 w-5" />
           </Button>
           
-          <div className="relative">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full hover-scale">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar || ""} />
-                    <AvatarFallback className="text-sm bg-dark-purple text-white">{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-black/50 border-white/10 text-white backdrop-blur-lg">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full hover-scale">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.avatar || ""} />
+                  <AvatarFallback className="text-sm bg-dark-purple text-white">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-black/90 border-white/10 text-white backdrop-blur-lg min-w-[200px]">
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 transition-colors">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              {showAdminLink && (
                 <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover-scale">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
+                  <Link to="/admin" className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 transition-colors">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Admin Panel</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400 hover-scale">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+              )}
+              <DropdownMenuItem 
+                onClick={handleLogout} 
+                className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 text-red-400 focus:text-red-400 transition-colors"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
