@@ -58,24 +58,24 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
 
   return (
     <Card
-      className="bg-gray-800/40 backdrop-blur-xl border border-purple-500/20 hover:border-purple-400 transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-xl hover:shadow-purple-500/30 flex flex-col"
+      className="bg-gray-800/40 backdrop-blur-xl transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-xl hover:shadow-purple-500/30 flex flex-col"
     >
       <img src={template.cover_image_url || '/placeholder.svg'} alt={template.template_name} className="w-full h-40 object-cover rounded-t-xl flex-shrink-0" />
-      <CardContent className="p-4 flex-grow">
+      <CardContent className="p-4">
         <h4 className="text-xl font-semibold mb-2">{template.template_name}</h4>
         <p className="text-sm text-gray-400 mb-4">{template.genres?.name || 'Template'}</p>
       </CardContent>
-      <div className="p-3 border-t border-purple-500/20">
+      <div className="p-3 mt-auto">
         <div className="flex gap-3">
           <Button
             onClick={handleAudioPlay}
-            className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
+            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
           >
             <Play size={16} /> {isPlaying ? "Pause" : "Preview"}
           </Button>
           <Button
             onClick={handleCreateMusic}
-            className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
+            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
           >
             Use Template
           </Button>
