@@ -52,28 +52,30 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             <Bell className="h-5 w-5" />
           </Button>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full hover-scale">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar || ""} />
-                  <AvatarFallback className="text-sm bg-dark-purple text-white">{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-black/50 border-white/10 text-white backdrop-blur-lg">
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover-scale">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400 hover-scale">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full hover-scale">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.avatar || ""} />
+                    <AvatarFallback className="text-sm bg-dark-purple text-white">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-black/50 border-white/10 text-white backdrop-blur-lg">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover-scale">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400 hover-scale">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
