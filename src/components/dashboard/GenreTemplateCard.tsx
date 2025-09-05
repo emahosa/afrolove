@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion } from "framer-motion";
 import { GenreTemplate } from '@/hooks/use-genre-templates';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Play } from "lucide-react";
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
-  index: number;
 }
 
-export const GenreTemplateCard = ({ template, index }: GenreTemplateCardProps) => {
+export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const navigate = useNavigate();
@@ -56,41 +57,28 @@ export const GenreTemplateCard = ({ template, index }: GenreTemplateCardProps) =
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.05 }}
-      className="bg-white/5 rounded-lg overflow-hidden group"
+    <Card
+      className="bg-gray-800/40 backdrop-blur-xl border border-purple-500/20 hover:border-purple-400 transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-xl hover:shadow-purple-500/30"
     >
-      <div className="relative h-40">
-        <img
-          src={template.cover_image_url || '/placeholder.svg'}
-          alt={template.template_name}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-3">
-          <h3 className="font-bold text-white text-lg">{template.template_name}</h3>
-          <p className="text-gray-300 text-sm">{template.genres?.name || "Template"}</p>
-        </div>
-      </div>
-      <div className="p-3 bg-[#1a0b2e]">
-        <div className="flex gap-2">
-          <button
+      <img src={template.cover_image_url || '/placeholder.svg'} alt={template.template_name} className="w-full h-40 object-cover rounded-t-xl" />
+      <CardContent className="p-4">
+        <h4 className="text-xl font-semibold mb-2">{template.template_name}</h4>
+        <p className="text-sm text-gray-400 mb-4">{template.genres?.name || 'Template'}</p>
+        <div className="flex gap-3">
+          <Button
             onClick={handleAudioPlay}
-            className="flex-1 bg-white/10 text-white text-sm rounded-md py-2 hover:bg-white/20 transition-colors"
+            className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105"
           >
-            {isPlaying ? 'Pause' : 'Preview'}
-          </button>
-          <button
+            <Play size={16} /> {isPlaying ? "Pause" : "Preview"}
+          </Button>
+          <Button
             onClick={handleCreateMusic}
-            className="flex-1 bg-purple-600 text-white text-sm rounded-md py-2 hover:bg-purple-700 transition-colors"
+            className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-4 py-2 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105"
           >
-            Create Music
-          </button>
+            Use Template
+          </Button>
         </div>
-      </div>
-    </motion.div>
+      </CardContent>
+    </Card>
   );
 };
