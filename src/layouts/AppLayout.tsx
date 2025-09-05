@@ -23,7 +23,7 @@ const AppLayoutContent = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <div className="hidden md:block flex-shrink-0">
+        <div className="hidden md:block flex-shrink-0 border-r border-gray-800">
           <Sidebar className="bg-black" />
         </div>
         <main className="flex-1 flex flex-col overflow-y-auto" style={{ paddingBottom: '120px' }}>
