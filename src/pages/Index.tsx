@@ -85,27 +85,26 @@ export default function Index() {
         ))}
       </div>
 
-      <main className="relative z-10 grid place-items-center min-h-screen w-full text-center p-4">
-        <div>
+      <main className="relative z-10 flex items-center justify-center min-h-screen w-full p-8 md:p-16">
+        <div className="w-full text-center">
             {/* Hero Section */}
-            <section className="w-full max-w-4xl">
-              <div className="relative inline-block">
-                <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
-                <h1 className="relative text-6xl font-bold text-dark-purple">
+            <section>
+              <div className="inline-block">
+                <h1 className="text-6xl md:text-7xl font-bold text-purple-400">
                   Afroverse
                 </h1>
               </div>
               <p className="mt-4 text-2xl font-semibold text-gray-100">
                 Create Afrobeats with AI. Earn while you play.
               </p>
-              <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
+              <p className="mt-6 max-w-2xl mx-auto text-gray-300 font-light">
                 Afroverse lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
               </p>
 
               <div className="mt-10 flex justify-center">
                 <button
                   onClick={() => setShowConfirmModal(true)}
-                  className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
+                  className="glass-btn px-8 py-4 text-lg"
                 >
                   Claim Early Access
                 </button>
@@ -116,22 +115,22 @@ export default function Index() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
-          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full text-center">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center px-4 z-50">
+          <div className="glass-card rounded-2xl p-8 max-w-md w-full text-center">
             <h3 className="text-xl font-bold text-white">This service costs $5</h3>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-gray-300 text-sm mt-2">
               Do you want to proceed?
             </p>
             <div className="mt-6 flex justify-center gap-4">
               <button
                 onClick={() => navigate('/login')}
-                className="px-6 py-2 bg-dark-purple rounded-lg hover:bg-opacity-90 font-semibold text-white transition"
+                className="glass-btn px-6 py-2"
               >
                 Yes
               </button>
               <button
                 onClick={handleNoConfirm}
-                className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 font-semibold text-white transition"
+                className="glass-btn px-6 py-2 bg-red-500/20 hover:bg-red-500/30"
               >
                 No
               </button>
