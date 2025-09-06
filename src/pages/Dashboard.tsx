@@ -16,11 +16,11 @@ const DashboardHero = () => {
         loop
         muted
         playsInline
-        className="absolute z-0 w-auto min-w-full min-h-full max-w-none"
+        className="absolute z-0 w-auto min-w-full min-h-full max-w-none left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
         src="/hero.mp4"
       />
       {/* Overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-l from-black/80 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-l from-black/80 via-black/60 to-transparent" />
 
       {/* Hero Content (Right Aligned) */}
       <motion.div
@@ -54,7 +54,7 @@ const Dashboard = () => {
       <DashboardHero />
 
       <div className="glass-surface">
-        <div>
+        <div className="mb-6">
           <h2 className="text-2xl font-semibold text-white">Available Genres</h2>
           <p className="text-white/70">Choose from these genre templates to create your music</p>
         </div>
@@ -65,7 +65,7 @@ const Dashboard = () => {
           </div>
         ) : (
           <div
-            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6"
+            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
             style={{ perspective: "1000px" }}
           >
             {templates.map((template) => (

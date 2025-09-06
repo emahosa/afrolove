@@ -5,7 +5,7 @@
 @layer components {
   /* Glassmorphic Button Style */
   .glass-btn {
-    @apply px-6 py-2 rounded-full border border-white/10 bg-black/75 text-[#f8f8f8] backdrop-blur-md transition-transform duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.985];
+    @apply px-6 py-2 rounded-full border border-white/20 bg-black/85 text-[#f8f8f8] backdrop-blur-md transition-transform duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.03] active:scale-[0.985];
   }
 
   /* Glassmorphic Surface for Panels/Sidebars */
