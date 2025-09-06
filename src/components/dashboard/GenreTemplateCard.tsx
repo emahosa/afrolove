@@ -1,10 +1,10 @@
-
 import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { GenreTemplate } from '@/hooks/use-genre-templates';
 import { useNavigate } from 'react-router-dom';
+import { GlassCard } from '@/components/ui/GlassCard';
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
@@ -26,11 +26,11 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
     };
   }, []);
 
-  const handleAudioPlay = async () => {
+  const handleAudioPlay = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection animation
     if (!template.audio_url) return;
 
     try {
-      // Stop any currently playing audio first
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -43,36 +43,31 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
 
       setIsLoading(true);
       
-      // Create new audio instance
       const audio = new Audio(template.audio_url);
       audioRef.current = audio;
 
       audio.onloadstart = () => setIsLoading(true);
       audio.oncanplay = () => setIsLoading(false);
-      
       audio.onplay = () => {
         setIsPlaying(true);
         setIsLoading(false);
       };
-      
       audio.onpause = () => setIsPlaying(false);
       audio.onended = () => setIsPlaying(false);
-      
       audio.onerror = () => {
-        console.error('Audio playback error');
         setIsPlaying(false);
         setIsLoading(false);
       };
 
       await audio.play();
     } catch (error) {
-      console.error('Error playing audio:', error);
       setIsPlaying(false);
       setIsLoading(false);
     }
   };
 
-  const handleCreateMusic = () => {
+  const handleCreateMusic = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection animation
     navigate('/create', { 
       state: { 
         selectedGenre: template.genre_id,
@@ -82,12 +77,12 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   };
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
+    <GlassCard onClick={handleCreateMusic}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <CardTitle className="text-white text-lg font-bold">{template.template_name}</CardTitle>
-            <CardDescription className="text-gray-400 text-sm">
+            <CardDescription className="text-white/70 text-sm">
               {template.genres?.name} Template
             </CardDescription>
           </div>
@@ -103,7 +98,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
       
       <CardContent className="space-y-4">
         {template.user_prompt_guide && (
-          <p className="text-sm text-gray-400 leading-relaxed h-20 overflow-hidden">
+          <p className="text-sm text-white/70 leading-relaxed h-20 overflow-hidden">
             {template.user_prompt_guide}
           </p>
         )}
@@ -115,7 +110,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
               size="sm" 
               onClick={handleAudioPlay}
               disabled={isLoading}
-              className="flex-1 bg-transparent border-white/30 hover:bg-white/10 text-white"
+              className="flex-1"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -131,13 +126,13 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
           <Button 
             onClick={handleCreateMusic}
             size="sm"
-            className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold text-white"
+            className="flex-1 font-bold"
           >
             <Music className="h-4 w-4 mr-2" />
             Create Music
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </GlassCard>
   );
 };

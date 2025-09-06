@@ -31,13 +31,13 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <div className="space-y-6">
+    <div className="p-4 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      <div className="space-y-6 glass-surface">
         <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen} className="w-full">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex items-center justify-between">
             <div className="text-left">
               <h2 className="text-xl font-bold">Create a New Song</h2>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-white/70 text-sm">
                 Use AI to generate music in any style
               </p>
             </div>
@@ -49,19 +49,15 @@ const Create = () => {
             </CollapsibleTrigger>
           </div>
 
-          <CollapsibleContent>
-            <Card className="mt-4">
-              <CardContent className="pt-6">
-                <MusicGenerationWorkflow
-                  preSelectedGenre={selectedGenre}
-                  initialPrompt={initialPrompt}
-                />
-              </CardContent>
-            </Card>
+          <CollapsibleContent className="mt-4">
+            <MusicGenerationWorkflow
+              preSelectedGenre={selectedGenre}
+              initialPrompt={initialPrompt}
+            />
           </CollapsibleContent>
         </Collapsible>
       </div>
-      <div className="lg:mt-0">
+      <div className="lg:mt-0 glass-surface">
         <SongLibrary />
       </div>
     </div>
