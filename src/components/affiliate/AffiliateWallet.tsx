@@ -140,7 +140,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -151,7 +151,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Earned</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -162,7 +162,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Withdrawn</CardTitle>
             <Banknote className="h-4 w-4 text-muted-foreground" />
@@ -174,7 +174,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
         </Card>
       </div>
 
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle>Request Withdrawal</CardTitle>
         </CardHeader>
@@ -187,6 +187,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
               value={usdtAddress}
               onChange={(e) => setUsdtAddress(e.target.value)}
               disabled={!!wallet?.usdt_wallet_address}
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
             {wallet?.usdt_wallet_address && (
               <p className="text-xs text-muted-foreground">
@@ -197,11 +198,11 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
           
           <Dialog>
             <DialogTrigger asChild>
-              <Button disabled={balance < 50} className="w-full">
+              <Button variant="glass" disabled={balance < 50} className="w-full">
                 Request Withdrawal
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
               <DialogHeader>
                 <DialogTitle>Request Withdrawal</DialogTitle>
               </DialogHeader>
@@ -215,14 +216,15 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
                     onChange={(e) => setWithdrawalAmount(e.target.value)}
                     max={balance}
                     min={50}
+                    className="bg-black/20 border-white/20 text-white placeholder-gray-500"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Minimum withdrawal: $50.00 | Available: ${balance.toFixed(2)}
                   </p>
                 </div>
                 
-                <div className="bg-yellow-50 p-3 rounded-lg">
-                  <p className="text-sm text-yellow-800">
+                <div className="bg-purple-500/20 p-3 rounded-lg border border-purple-500/50">
+                  <p className="text-sm text-purple-300">
                     <strong>Note:</strong> A 10% processing fee will be deducted from your withdrawal.
                   </p>
                 </div>
@@ -230,6 +232,7 @@ const AffiliateWalletComponent: React.FC<AffiliateWalletProps> = ({ affiliateId 
                 <Button 
                   onClick={handleWithdrawal} 
                   disabled={isWithdrawing || !withdrawalAmount || !usdtAddress}
+                  variant="glass"
                   className="w-full"
                 >
                   {isWithdrawing ? 'Processing...' : 'Confirm Withdrawal'}

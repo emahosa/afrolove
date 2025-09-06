@@ -57,9 +57,7 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   };
 
   return (
-    <Card
-      className="bg-gray-800/40 backdrop-blur-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/20"
-    >
+    <Card variant="glass">
       <img src={template.cover_image_url || '/placeholder.svg'} alt={template.template_name} className="w-full h-32 object-cover rounded-t-xl flex-shrink-0" />
       <CardContent className="p-3">
         <h4 className="text-lg font-semibold mb-1">{template.template_name}</h4>
@@ -67,15 +65,17 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
         <div className="flex gap-2 pt-2">
           <Button
             onClick={handleAudioPlay}
+            variant="glass"
             size="sm"
-            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 flex items-center gap-1.5 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
+            className="w-full justify-center"
           >
             <Play size={14} /> {isPlaying ? "Pause" : "Preview"}
           </Button>
           <Button
             onClick={handleCreateMusic}
+            variant="glass"
             size="sm"
-            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
+            className="w-full justify-center"
           >
             Use Template
           </Button>

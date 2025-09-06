@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Music, Coins } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Helper component for the floating icons
 const FloatingIcon = ({
@@ -103,12 +104,14 @@ export default function Index() {
               </p>
 
               <div className="mt-10 flex justify-center">
-                <button
+                <Button
                   onClick={() => setShowConfirmModal(true)}
-                  className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
+                  variant="glass"
+                  size="lg"
+                  className="font-bold"
                 >
                   Claim Early Access
-                </button>
+                </Button>
               </div>
             </section>
         </div>
@@ -117,26 +120,30 @@ export default function Index() {
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
-          <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full text-center">
-            <h3 className="text-xl font-bold text-white">This service costs $5</h3>
-            <p className="text-gray-400 text-sm mt-2">
-              Do you want to proceed?
-            </p>
-            <div className="mt-6 flex justify-center gap-4">
-              <button
-                onClick={() => navigate('/login')}
-                className="px-6 py-2 bg-dark-purple rounded-lg hover:bg-opacity-90 font-semibold text-white transition"
-              >
-                Yes
-              </button>
-              <button
-                onClick={handleNoConfirm}
-                className="px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 font-semibold text-white transition"
-              >
-                No
-              </button>
-            </div>
-          </div>
+          <Card variant="glass" className="max-w-md w-full text-center">
+            <CardContent className="p-8">
+              <h3 className="text-xl font-bold text-white">This service costs $5</h3>
+              <p className="text-gray-400 text-sm mt-2">
+                Do you want to proceed?
+              </p>
+              <div className="mt-6 flex justify-center gap-4">
+                <Button
+                  onClick={() => navigate('/login')}
+                  variant="glass"
+                  className="font-semibold"
+                >
+                  Yes
+                </Button>
+                <Button
+                  onClick={handleNoConfirm}
+                  variant="glass"
+                  className="font-semibold bg-red-500/10 hover:bg-red-500/20"
+                >
+                  No
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

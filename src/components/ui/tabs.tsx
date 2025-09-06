@@ -13,8 +13,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-12 items-center justify-center rounded-lg bg-card/50 backdrop-blur-sm p-1 text-muted-foreground border border-border/20 shadow-sm",
-      "transition-all duration-300 ease-in-out",
+      "inline-flex h-auto items-center justify-center rounded-2xl bg-white/10 backdrop-blur-xl p-1 text-purple-300 border border-purple-400/30",
       className
     )}
     {...props}
@@ -29,19 +28,13 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-medium",
-      "ring-offset-background transition-all duration-300 ease-in-out",
+      "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium",
+      "transition-all duration-300 ease-in-out transform hover:scale-105",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       "disabled:pointer-events-none disabled:opacity-50",
-      "hover:bg-accent/50 hover:text-accent-foreground hover:scale-105",
-      "data-[state=active]:bg-melody-primary data-[state=active]:text-white data-[state=active]:shadow-md",
-      "data-[state=active]:border data-[state=active]:border-melody-primary/20",
-      "text-foreground/70 hover:text-foreground",
-      "transform hover:translate-y-[-1px] active:translate-y-0",
-      "relative overflow-hidden",
-      "before:absolute before:inset-0 before:bg-gradient-to-r before:from-melody-primary/10 before:to-melody-secondary/10",
-      "before:opacity-0 before:transition-opacity before:duration-300",
-      "data-[state=active]:before:opacity-100",
+      "hover:bg-purple-400/10 hover:text-white",
+      "data-[state=active]:bg-purple-500/30 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/50",
+      "text-gray-300 hover:text-white",
       className
     )}
     {...props}

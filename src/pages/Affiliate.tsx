@@ -68,7 +68,7 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
 
   if (applicationStatus === 'pending') {
     return (
-      <Card className="mt-6">
+      <Card variant="glass" className="mt-6">
         <CardHeader>
           <CardTitle>Application Pending</CardTitle>
           <CardDescription>Your affiliate application is currently under review. We'll notify you once a decision has been made.</CardDescription>
@@ -88,7 +88,7 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
 
   if (applicationStatus === 'approved') {
     return (
-      <Card className="mt-6">
+      <Card variant="glass" className="mt-6">
         <CardHeader>
           <CardTitle>You are an Approved Affiliate!</CardTitle>
           <CardDescription>Welcome to the affiliate program. You can now access your dashboard.</CardDescription>
@@ -108,7 +108,7 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
 
   if (applicationStatus === 'rejected') {
     return (
-      <Card className="mt-6">
+      <Card variant="glass" className="mt-6">
         <CardHeader>
           <CardTitle>Application Status</CardTitle>
         </CardHeader>
@@ -132,43 +132,43 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
         <p className="text-xl text-muted-foreground">Join our program and earn by referring new users.</p>
       </div>
       <div className="grid gap-8 md:grid-cols-3 mb-8">
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+        <Card variant="glass">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center mb-4">
-              <DollarSign className="h-12 w-12 text-violet-400" />
+              <DollarSign className="h-12 w-12 text-purple-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Earn 30% Commission</h3>
+            <h3 className="text-lg font-semibold text-center mb-2">Earn 30% Commission</h3>
             <p className="text-sm text-muted-foreground text-center">
               Get 30% commission on every subscription from your referrals
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+        <Card variant="glass">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center mb-4">
-              <Users className="h-12 w-12 text-violet-400" />
+              <Users className="h-12 w-12 text-purple-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Growing Community</h3>
+            <h3 className="text-lg font-semibold text-center mb-2">Growing Community</h3>
             <p className="text-sm text-muted-foreground text-center">
               Join our rapidly expanding community of music creators
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-gray-700">
+        <Card variant="glass">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center mb-4">
-              <Star className="h-12 w-12 text-violet-400" />
+              <Star className="h-12 w-12 text-purple-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white text-center mb-2">Premium Support</h3>
+            <h3 className="text-lg font-semibold text-center mb-2">Premium Support</h3>
             <p className="text-sm text-muted-foreground text-center">
               Get dedicated support and marketing materials
             </p>
           </CardContent>
         </Card>
       </div>
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle>Affiliate Application</CardTitle>
           <CardDescription>Fill out this form to apply.</CardDescription>
@@ -177,28 +177,28 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="full_name" className="text-white">Full Name</Label>
+                <Label htmlFor="full_name">Full Name</Label>
                 <Input
                   id="full_name"
                   value={user?.user_metadata?.full_name || user?.email || ''}
                   readOnly
-                  className="bg-gray-800 border-gray-700 text-gray-400"
+                  className="bg-black/30 border-white/10 text-gray-400"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-white">Email Address</Label>
+                <Label htmlFor="email">Email Address</Label>
                 <Input
                   id="email"
                   value={user?.email || ''}
                   readOnly
-                  className="bg-gray-800 border-gray-700 text-gray-400"
+                  className="bg-black/30 border-white/10 text-gray-400"
                 />
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-white">
+                <Label htmlFor="phone">
                   Phone Number <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -207,24 +207,24 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
                   placeholder="+1 (555) 123-4567"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="bg-gray-800 border-gray-700 text-white"
+                  className="bg-black/20 border-white/20 text-white placeholder-gray-500"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="social_media_url" className="text-white">Social Media Profile URL</Label>
+                <Label htmlFor="social_media_url">Social Media Profile URL</Label>
                 <Input
                   id="social_media_url"
                   type="url"
                   placeholder="https://twitter.com/yourusername"
                   value={formData.social_media_url}
                   onChange={(e) => setFormData(prev => ({ ...prev, social_media_url: e.target.value }))}
-                  className="bg-gray-800 border-gray-700 text-white"
+                  className="bg-black/20 border-white/20 text-white placeholder-gray-500"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="usdt_wallet_address" className="text-white">
+              <Label htmlFor="usdt_wallet_address">
                 USDT Wallet Address <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -232,12 +232,12 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
                 placeholder="Your USDT wallet address for payments"
                 value={formData.usdt_wallet_address}
                 onChange={(e) => setFormData(prev => ({ ...prev, usdt_wallet_address: e.target.value }))}
-                className="bg-gray-800 border-gray-700 text-white"
+                className="bg-black/20 border-white/20 text-white placeholder-gray-500"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason_to_join" className="text-white">
+              <Label htmlFor="reason_to_join">
                 Why do you want to join our affiliate program? <span className="text-red-500">*</span>
               </Label>
               <Textarea
@@ -245,15 +245,16 @@ const BecomeAffiliateTab = ({ onApplicationSubmitted, applicationStatus }) => {
                 placeholder="Tell us about your motivation, experience, and how you plan to promote our platform..."
                 value={formData.reason_to_join}
                 onChange={(e) => setFormData(prev => ({ ...prev, reason_to_join: e.target.value }))}
-                className="bg-gray-800 border-gray-700 text-white min-h-[120px]"
+                className="bg-black/20 border-white/20 text-white placeholder-gray-500 min-h-[120px]"
               />
             </div>
 
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+              variant="glass"
               size="lg"
+              className="w-full"
             >
               {isSubmitting ? (
                 <>
@@ -342,7 +343,7 @@ const AffiliateDashboardTab = () => {
         </div>
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -353,7 +354,7 @@ const AffiliateDashboardTab = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -364,7 +365,7 @@ const AffiliateDashboardTab = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -375,7 +376,7 @@ const AffiliateDashboardTab = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
             <ExternalLink className="h-4 w-4 text-muted-foreground" />

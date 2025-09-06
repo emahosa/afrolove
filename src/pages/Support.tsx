@@ -12,9 +12,9 @@ const Support = () => {
       </div>
       
       <Tabs defaultValue="new-request" className="text-white flex flex-col flex-grow mt-6">
-        <TabsList className="bg-black/30 border border-white/10 flex-shrink-0">
-          <TabsTrigger value="new-request" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">New Request</TabsTrigger>
-          <TabsTrigger value="my-tickets" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">My Tickets</TabsTrigger>
+        <TabsList className="flex-shrink-0">
+          <TabsTrigger value="new-request">New Request</TabsTrigger>
+          <TabsTrigger value="my-tickets">My Tickets</TabsTrigger>
         </TabsList>
         
         <div className="flex-grow mt-6 overflow-y-auto">

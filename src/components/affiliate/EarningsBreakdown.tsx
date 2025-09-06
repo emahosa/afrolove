@@ -103,48 +103,48 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
   if (loading) {
     return (
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5" /> Earnings Breakdown</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center items-center p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader>
         <CardTitle className="flex items-center"><TrendingUp className="mr-2 h-5 w-5" /> Earnings Breakdown</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-green-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-600">Free Referrals</h3>
-            <p className="text-xl font-bold text-green-600">
+          <Card variant="glass" className="p-4 bg-green-500/10">
+            <h3 className="text-sm font-medium text-gray-300">Free Referrals</h3>
+            <p className="text-xl font-bold text-green-400">
               {summary.free_referrals.count} referrals
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               ${summary.free_referrals.total.toFixed(2)} earned
             </p>
-          </div>
-          <div className="p-4 bg-blue-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-600">Subscription Commissions</h3>
-            <p className="text-xl font-bold text-blue-600">
+          </Card>
+          <Card variant="glass" className="p-4 bg-blue-500/10">
+            <h3 className="text-sm font-medium text-gray-300">Subscription Commissions</h3>
+            <p className="text-xl font-bold text-blue-400">
               {summary.commissions.count} commissions
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               ${summary.commissions.total.toFixed(2)} earned
             </p>
-          </div>
+          </Card>
         </div>
 
         {/* Earnings Table */}
         {earnings.length > 0 ? (
-          <div>
+          <div className="p-4 rounded-lg bg-black/20">
             <h3 className="text-lg font-semibold mb-4">Recent Earnings</h3>
             <Table>
               <TableHeader>
@@ -166,7 +166,7 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
                       {earning.profile?.full_name || earning.profile?.username || 'Unknown User'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={earning.earning_type === 'free_referral' ? 'outline' : 'default'}>
+                      <Badge variant="glass" className={earning.earning_type === 'free_referral' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'}>
                         {earning.earning_type === 'free_referral' ? 'Free Referral' : 'Commission'}
                       </Badge>
                     </TableCell>
@@ -174,7 +174,7 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
                       ${earning.amount.toFixed(2)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={earning.status === 'pending' ? 'outline' : 'default'}>
+                      <Badge variant="glass" className={earning.status === 'pending' ? 'bg-yellow-500/20 text-yellow-300' : 'bg-green-500/20 text-green-300'}>
                         {earning.status}
                       </Badge>
                     </TableCell>

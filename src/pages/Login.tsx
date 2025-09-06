@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
-import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -204,101 +204,109 @@ const Login = () => {
   if (showMFAVerification && factorId && challengeId) {
     return (
       <AuthPageLayout>
-        <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm text-center">
-            <h2 className="text-xl font-bold mb-4">Enter Verification Code</h2>
+        <Card variant="glass" className="w-full max-w-md text-center">
+          <CardHeader>
+            <CardTitle>Enter Verification Code</CardTitle>
+          </CardHeader>
+          <CardContent>
             <OTPVerification
-            factorId={factorId}
-            challengeId={challengeId}
-            onVerified={handleMFAVerified}
-            onCancel={handleCancelMFA}
+              factorId={factorId}
+              challengeId={challengeId}
+              onVerified={handleMFAVerified}
+              onCancel={handleCancelMFA}
             />
-        </div>
+          </CardContent>
+        </Card>
       </AuthPageLayout>
     );
   }
 
   return (
     <AuthPageLayout>
-      <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Welcome Back</h2>
-          <p className="text-gray-400">Sign in to continue to Afroverse</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
-          </div>
-          <div>
-            <div className="flex justify-between mb-1">
-              <Label htmlFor="password"  className="text-gray-300">Password</Label>
-              <Link to="/forgot-password" className="text-sm text-dark-purple hover:underline">
-                Forgot password?
-              </Link>
+      <Card variant="glass" className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl">Welcome Back</CardTitle>
+          <CardDescription>
+            Sign in to continue to Afroverse
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              />
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
+            <div>
+              <div className="flex justify-between mb-1">
+                <Label htmlFor="password"  className="text-gray-300">Password</Label>
+                <Link to="/forgot-password" className="text-sm text-purple-400 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="glass"
+              className="w-full font-bold"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/20"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full backdrop-blur-sm">
+                OR CONTINUE WITH
+              </span>
+            </div>
           </div>
+
           <Button
-            type="submit"
-            className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
-            disabled={loading}
+            variant="glass"
+            className="w-full"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            <FaGoogle className="mr-2" />
+            {googleLoading ? "Signing in..." : "Google"}
           </Button>
-        </form>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/20"></div>
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
-              OR CONTINUE WITH
-            </span>
-          </div>
-        </div>
+          <p className="text-center mt-6 text-sm text-gray-400">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-purple-400 hover:underline font-medium">
+              Sign up
+            </Link>
+          </p>
 
-        <Button 
-          variant="outline"
-          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
-          onClick={handleGoogleLogin}
-          disabled={googleLoading}
-        >
-          <FaGoogle className="mr-2" />
-          {googleLoading ? "Signing in..." : "Google"}
-        </Button>
-
-        <p className="text-center mt-6 text-sm text-gray-400">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-dark-purple hover:underline font-medium">
-            Sign up
-          </Link>
-        </p>
-
-        <p className="text-center mt-4 text-xs text-gray-500">
-          Admin users should use the{" "}
-          <Link to="/admin/login" className="text-dark-purple hover:underline">
-            dedicated admin login
-          </Link>
-        </p>
-      </div>
+          <p className="text-center mt-4 text-xs text-gray-500">
+            Admin users should use the{" "}
+            <Link to="/admin/login" className="text-purple-400 hover:underline">
+              dedicated admin login
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
     </AuthPageLayout>
   );
 };

@@ -148,13 +148,13 @@ const SongLibrary = () => {
 
   if (songs.length === 0) {
     return (
-      <Card className="p-4 bg-white/5 border-white/10 text-white">
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5 text-dark-purple" />
+            <Music className="h-5 w-5 text-purple-400" />
             Completed Songs
           </CardTitle>
-          <CardDescription className="text-gray-400">
+          <CardDescription>
             Your completed songs will appear here.
           </CardDescription>
         </CardHeader>
@@ -167,102 +167,104 @@ const SongLibrary = () => {
   }
 
   return (
-    <Card className="p-4 bg-white/5 border-white/10 text-white backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Music className="h-6 w-6 text-dark-purple" />
-          Completed Songs
-        </h2>
-        <Badge className="bg-dark-purple text-white">{songs.length} songs</Badge>
-      </div>
-
-      <div className="space-y-2">
-        {currentSongs.map((song) => (
-          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handlePlay(song)}
-              disabled={!song.audio_url}
-              className="mr-2 text-gray-300 hover:text-white"
-            >
-              {currentTrack?.id === song.id && isPlaying ? (
-                <Pause className="h-5 w-5 text-dark-purple" />
-              ) : (
-                <Play className="h-5 w-5" />
-              )}
-            </Button>
-            <div className="flex-grow min-w-0">
-              <p className="font-semibold text-sm truncate text-white">{song.title}</p>
-              <p className="text-xs text-gray-400">
-                {new Date(song.created_at).toLocaleDateString()}
-                {song.genre && ` • ${song.genre.name}`}
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
+    <Card variant="glass">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Music className="h-6 w-6 text-purple-400" />
+            Completed Songs
+          </CardTitle>
+          <Badge variant="glass">{songs.length} songs</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {currentSongs.map((song) => (
+            <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors">
               <Button
-                variant="ghost"
+                variant="glass"
                 size="icon"
-                onClick={() => handleDownload(song)}
+                onClick={() => handlePlay(song)}
                 disabled={!song.audio_url}
-                className="text-gray-300 hover:text-white"
+                className="mr-2"
               >
-                <Download className="h-4 w-4" />
+                {currentTrack?.id === song.id && isPlaying ? (
+                  <Pause className="h-5 w-5 text-purple-300" />
+                ) : (
+                  <Play className="h-5 w-5" />
+                )}
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleDelete(song.id)}
-                className="text-red-500/80 hover:text-red-500"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex-grow min-w-0">
+                <p className="font-semibold text-sm truncate">{song.title}</p>
+                <p className="text-xs text-gray-400">
+                  {new Date(song.created_at).toLocaleDateString()}
+                  {song.genre && ` • ${song.genre.name}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="glass"
+                  size="icon"
+                  onClick={() => handleDownload(song)}
+                  disabled={!song.audio_url}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="glass"
+                  size="icon"
+                  onClick={() => handleDelete(song.id)}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {totalPages > 1 && (
-        <Pagination className="mt-4">
-          <PaginationContent className="text-gray-300">
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePageChange(currentPage - 1);
-                }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
-              />
-            </PaginationItem>
-            {[...Array(totalPages)].map((_, i) => (
-              <PaginationItem key={i}>
-                <PaginationLink
+        {totalPages > 1 && (
+          <Pagination className="mt-4">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    handlePageChange(i + 1);
+                    handlePageChange(currentPage - 1);
                   }}
-                  isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
-                >
-                  {i + 1}
-                </PaginationLink>
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-purple-500/20"}
+                />
               </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePageChange(currentPage + 1);
-                }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+              {[...Array(totalPages)].map((_, i) => (
+                <PaginationItem key={i}>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePageChange(i + 1);
+                    }}
+                    isActive={currentPage === i + 1}
+                    className="hover:bg-purple-500/20 data-[active=true]:bg-purple-500/30"
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handlePageChange(currentPage + 1);
+                  }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-purple-500/20"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
+      </CardContent>
     </Card>
   );
 };

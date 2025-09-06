@@ -95,7 +95,7 @@ export const UserSupportTickets = () => {
       <h3 className="text-lg font-semibold">Your Support Tickets</h3>
       
       {tickets.length === 0 ? (
-        <Card className="bg-white/5 border-white/10">
+        <Card variant="glass">
           <CardContent className="text-center py-8">
             <MessageSquare className="h-12 w-12 mx-auto text-gray-500 mb-4" />
             <p className="text-gray-400">No support tickets found</p>
@@ -103,15 +103,15 @@ export const UserSupportTickets = () => {
         </Card>
       ) : (
         tickets.map((ticket) => (
-          <Card key={ticket.id} className="cursor-pointer bg-white/5 border-white/10 hover:bg-white/10 transition-colors" onClick={() => handleOpenTicket(ticket)}>
+          <Card key={ticket.id} variant="glass" className="cursor-pointer" onClick={() => handleOpenTicket(ticket)}>
             <CardContent className="p-4">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-medium text-white">{ticket.subject}</h4>
+                <h4 className="font-medium">{ticket.subject}</h4>
                 <div className="flex gap-2">
-                  <Badge variant="outline" className={getPriorityColor(ticket.priority)}>
+                  <Badge variant="glass" className={getPriorityColor(ticket.priority)}>
                     {ticket.priority}
                   </Badge>
-                  <Badge variant="outline" className={getStatusColor(ticket.status)}>
+                  <Badge variant="glass" className={getStatusColor(ticket.status)}>
                     {getStatusIcon(ticket.status)}
                     <span className="ml-1">{ticket.status}</span>
                   </Badge>
@@ -130,7 +130,7 @@ export const UserSupportTickets = () => {
 
       {/* Ticket Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl bg-gray-900 border-white/10 text-white">
+        <DialogContent className="max-w-3xl bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
           <DialogHeader>
             <DialogTitle>
               Ticket #{selectedTicket?.id.slice(-8)}: {selectedTicket?.subject}
@@ -143,12 +143,12 @@ export const UserSupportTickets = () => {
                 key={message.id}
                 className={`p-3 rounded-lg ${
                   message.sender_type === 'admin'
-                    ? 'bg-dark-purple/20 ml-8'
-                    : 'bg-white/5 mr-8'
+                    ? 'bg-purple-500/20 ml-8'
+                    : 'bg-white/10 mr-8'
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">
-                  <span className="font-medium text-white">
+                  <span className="font-medium">
                     {message.sender_type === 'admin' ? 'Support Agent' : 'You'}
                   </span>
                   <span className="text-xs text-gray-400">
@@ -161,7 +161,7 @@ export const UserSupportTickets = () => {
           </div>
           
           {selectedTicket?.status !== 'closed' && selectedTicket?.status !== 'completed' && (
-            <div className="space-y-4 pt-4 border-t border-white/10">
+            <div className="space-y-4 pt-4 border-t border-purple-400/30">
               <div>
                 <label className="text-sm font-medium text-gray-300 mb-1 block">Reply</label>
                 <Textarea
@@ -175,7 +175,7 @@ export const UserSupportTickets = () => {
               <Button 
                 onClick={handleSendReply}
                 disabled={!replyText.trim() || isSending}
-                className="bg-dark-purple hover:bg-opacity-90 font-bold"
+                variant="glass"
               >
                 {isSending ? 'Sending...' : 'Send Reply'}
               </Button>

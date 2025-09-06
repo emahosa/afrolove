@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -80,16 +81,12 @@ export default function Dashboard() {
             <p className="text-gray-300 mb-6">Every Beat. Every Emotion. All in Your Control.</p>
             <div className="flex gap-4 justify-start">
               <Link to="/create">
-                <Button
-                  className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
-                >
+                <Button variant="glass" size="lg">
                   Create Song
                 </Button>
               </Link>
               <Link to="/contest">
-                <Button
-                  className="backdrop-blur-xl bg-white/10 border border-purple-400/30 text-purple-300 hover:bg-purple-400/20 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-purple-500/50"
-                >
+                <Button variant="glass" size="lg">
                   Earn
                 </Button>
               </Link>
@@ -117,19 +114,19 @@ export default function Dashboard() {
         </section>
 
         {/* Contest Banner */}
-        <section className="bg-gradient-to-r from-purple-800 to-pink-600 text-center py-10 mt-10 rounded-2xl mx-8 shadow-lg">
-          <h3 className="text-2xl font-bold">🎤 Join the Afroverse Contest!</h3>
-          <p className="mt-2 text-gray-200">
-            Win beats, prizes, and exposure for your music.
-          </p>
-          <Link to="/contest">
-            <Button
-              className="mt-4 backdrop-blur-xl bg-black/20 border border-white/30 text-white hover:bg-white/30 px-6 py-3 rounded-2xl transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:shadow-white/50"
-            >
-              Enter Now
-            </Button>
-          </Link>
-        </section>
+        <Card variant="glass" className="text-center mt-10 mx-8 shadow-lg bg-gradient-to-r from-purple-800/20 to-pink-600/20">
+          <CardContent className="py-10">
+            <h3 className="text-2xl font-bold">🎤 Join the Afroverse Contest!</h3>
+            <p className="mt-2 text-gray-200">
+              Win beats, prizes, and exposure for your music.
+            </p>
+            <Link to="/contest">
+              <Button variant="glass" className="mt-4">
+                Enter Now
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Floating Notes Animation Style */}

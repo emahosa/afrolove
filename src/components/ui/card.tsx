@@ -1,25 +1,41 @@
 import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 import { useClickPop } from "@/hooks/use-click-pop"
 
 import { cn } from "@/lib/utils"
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const clickPopRef = useClickPop<HTMLDivElement>()
+const cardVariants = cva(
+  "rounded-xl transition-all duration-300",
+  {
+    variants: {
+      variant: {
+        default: "border bg-card text-card-foreground shadow-sm hover-lift hover-shadow",
+        glass: "bg-gray-800/40 backdrop-blur-xl border border-purple-500/20 text-white transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/20",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-  return (
-    <div
-      ref={clickPopRef}
-      className={cn(
-        "rounded-lg border bg-card text-card-foreground shadow-sm hover-lift hover-shadow",
-        className
-      )}
-      {...props}
-    />
-  )
-})
+export interface CardProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof cardVariants> {}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant, ...props }, ref) => {
+    const clickPopRef = useClickPop<HTMLDivElement>()
+
+    return (
+      <div
+        ref={clickPopRef}
+        className={cn(cardVariants({ variant, className }))}
+        {...props}
+      />
+    )
+  }
+)
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<

@@ -37,10 +37,10 @@ export const SupportRequestForm = () => {
   };
 
   return (
-    <Card className="bg-white/5 border-white/10 backdrop-blur-sm text-white">
+    <Card variant="glass">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-dark-purple" />
+          <MessageSquare className="h-5 w-5 text-purple-400" />
           Submit Support Request
         </CardTitle>
       </CardHeader>
@@ -64,9 +64,9 @@ export const SupportRequestForm = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-white/20 text-white">
-                <SelectItem value="low" className="focus:bg-dark-purple">Low</SelectItem>
-                <SelectItem value="medium" className="focus:bg-dark-purple">Medium</SelectItem>
-                <SelectItem value="high" className="focus:bg-dark-purple">High</SelectItem>
+                <SelectItem value="low" className="focus:bg-purple-500/50">Low</SelectItem>
+                <SelectItem value="medium" className="focus:bg-purple-500/50">Medium</SelectItem>
+                <SelectItem value="high" className="focus:bg-purple-500/50">High</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -83,7 +83,7 @@ export const SupportRequestForm = () => {
             />
           </div>
           
-          <Button type="submit" disabled={isSubmitting} className="w-full bg-dark-purple hover:bg-opacity-90 font-bold">
+          <Button variant="glass" type="submit" disabled={isSubmitting} className="w-full font-bold">
             {isSubmitting ? 'Submitting...' : 'Submit Request'}
           </Button>
         </form>

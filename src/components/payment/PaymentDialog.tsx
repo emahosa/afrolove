@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Button } from "../ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +64,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-gray-900 border-white/10 text-white">
+      <AlertDialogContent className="bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2 text-gray-400">
@@ -79,13 +80,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={processing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">Cancel</AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm} 
-            disabled={processing || isLoadingSettings || !isGatewayEnabled}
-            className="bg-dark-purple hover:bg-opacity-90 font-bold"
-          >
-            {getButtonText()}
+          <AlertDialogCancel asChild>
+            <Button variant="glass" disabled={processing} className="bg-red-500/10 hover:bg-red-500/20 text-red-400">Cancel</Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button
+              onClick={onConfirm}
+              disabled={processing || isLoadingSettings || !isGatewayEnabled}
+              variant="glass"
+            >
+              {getButtonText()}
+            </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

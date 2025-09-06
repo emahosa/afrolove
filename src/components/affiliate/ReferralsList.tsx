@@ -119,12 +119,12 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
 
   if (loading && !referredUsers.length) {
     return (
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> My Referrals</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center items-center p-10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
             <span className="ml-2">Loading your referrals...</span>
         </CardContent>
       </Card>
@@ -133,11 +133,11 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
 
   if (error) {
     return (
-       <Card>
+       <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> My Referrals</CardTitle>
         </CardHeader>
-        <CardContent className="text-red-600 p-4 bg-red-100 border border-red-300 rounded-md flex items-center">
+        <CardContent className="text-red-400 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center">
             <AlertCircle className="h-5 w-5 mr-2" />Error: {error}
         </CardContent>
       </Card>
@@ -146,7 +146,7 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
 
   if (referredUsers.length === 0) {
     return (
-       <Card>
+       <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> My Referrals</CardTitle>
         </CardHeader>
@@ -158,39 +158,41 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
   }
 
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader>
         <CardTitle className="flex items-center"><Users className="mr-2 h-5 w-5" /> My Referrals ({totalItems})</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User Name</TableHead>
-              <TableHead>Email/Username</TableHead>
-              <TableHead>Registration Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {referredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.full_name || 'N/A'}</TableCell>
-                <TableCell>{user.username || 'N/A'}</TableCell>
-                <TableCell>{format(parseISO(user.created_at), 'MMM d, yyyy')}</TableCell>
-                <TableCell>
-                  <Badge variant={user.status === "Subscriber" ? "default" : "outline"}>
-                    {user.status}
-                  </Badge>
-                </TableCell>
+        <div className="bg-black/20 rounded-lg p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User Name</TableHead>
+                <TableHead>Email/Username</TableHead>
+                <TableHead>Registration Date</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {referredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.full_name || 'N/A'}</TableCell>
+                  <TableCell>{user.username || 'N/A'}</TableCell>
+                  <TableCell>{format(parseISO(user.created_at), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>
+                    <Badge variant="glass" className={user.status === "Subscriber" ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}>
+                      {user.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
         {totalPages > 1 && (
           <div className="flex items-center justify-end space-x-2 py-4">
             <Button
-              variant="outline"
+              variant="glass"
               size="sm"
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
               disabled={currentPage === 1 || loading}
@@ -201,7 +203,7 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
               Page {currentPage} of {totalPages}
             </span>
             <Button
-              variant="outline"
+              variant="glass"
               size="sm"
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages || loading}

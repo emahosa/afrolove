@@ -133,14 +133,14 @@ const Profile = () => {
   return (
     <div className="h-full flex flex-col p-4 md:p-8 text-white">
       <div className="flex items-center gap-4 mb-6 flex-shrink-0">
-        <Avatar className="h-20 w-20 border-2 border-dark-purple">
+        <Avatar className="h-20 w-20 border-2 border-purple-400">
           <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
           <AvatarFallback className="bg-black/20">
-            <User className="h-10 w-10 text-dark-purple" />
+            <User className="h-10 w-10 text-purple-400" />
           </AvatarFallback>
         </Avatar>
         <div>
-          <h1 className="text-3xl font-semibold text-white">{formData.full_name || 'User Profile'}</h1>
+          <h1 className="text-3xl font-semibold">{formData.full_name || 'User Profile'}</h1>
           <p className="text-gray-400">Manage your account settings</p>
         </div>
       </div>
@@ -148,13 +148,13 @@ const Profile = () => {
       <div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Profile Information */}
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+          <Card variant="glass">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <User className="h-5 w-5 text-dark-purple" />
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5 text-purple-400" />
                 Profile Information
               </CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardDescription>
                 Update your personal information and profile picture
               </CardDescription>
             </CardHeader>
@@ -163,10 +163,10 @@ const Profile = () => {
                 <div className="space-y-2">
                   <Label htmlFor="avatar" className="text-gray-300">Profile Picture</Label>
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-dark-purple/50">
+                    <Avatar className="h-16 w-16 border-2 border-purple-400/50">
                       <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
                       <AvatarFallback className="bg-black/20">
-                        <User className="h-8 w-8 text-dark-purple" />
+                        <User className="h-8 w-8 text-purple-400" />
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -179,11 +179,10 @@ const Profile = () => {
                       />
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="glass"
                         size="sm"
                         onClick={() => document.getElementById('avatar-upload')?.click()}
                         disabled={uploading}
-                        className="bg-transparent border-white/30 hover:bg-white/10 text-white"
                       >
                         {uploading ? (
                           <>
@@ -227,7 +226,7 @@ const Profile = () => {
                   </p>
                 </div>
 
-                <Button type="submit" disabled={loading} className="w-full bg-dark-purple hover:bg-opacity-90 font-bold">
+                <Button variant="glass" type="submit" disabled={loading} className="w-full font-bold">
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -243,22 +242,22 @@ const Profile = () => {
 
           {/* Account Status */}
           <div className="space-y-6">
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <Card variant="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Mail className="h-5 w-5 text-dark-purple" />
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-purple-400" />
                   Account Status
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-gray-300">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Role:</span>
-                  <Badge className="bg-dark-purple text-white">{getUserRoleDisplay()}</Badge>
+                  <Badge variant="glass">{getUserRoleDisplay()}</Badge>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Credits:</span>
-                  <Badge variant="outline" className="border-white/20 text-gray-300">{user.credits || 0}</Badge>
+                  <Badge variant="glass">{user.credits || 0}</Badge>
                 </div>
 
                 <Separator className="bg-white/10" />
@@ -267,7 +266,7 @@ const Profile = () => {
                   <span className="text-sm font-medium">User Roles:</span>
                   <div className="flex flex-wrap gap-2">
                     {userRoles.map((role) => (
-                      <Badge key={role} variant="outline" className="text-xs border-white/20 text-gray-300">
+                      <Badge key={role} variant="glass" className="text-xs">
                         {role}
                       </Badge>
                     ))}
@@ -277,10 +276,10 @@ const Profile = () => {
             </Card>
 
             {/* Subscription Status */}
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+            <Card variant="glass">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <CreditCard className="h-5 w-5 text-dark-purple" />
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-purple-400" />
                   Subscription Status
                 </CardTitle>
               </CardHeader>
@@ -289,7 +288,8 @@ const Profile = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Status:</span>
                     <Badge
-                      className={user.subscription?.status === 'active' ? 'bg-green-500/80 text-white' : 'bg-gray-500/80 text-white'}
+                      variant="glass"
+                      className={user.subscription?.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'}
                     >
                       {getSubscriptionStatus()}
                     </Badge>

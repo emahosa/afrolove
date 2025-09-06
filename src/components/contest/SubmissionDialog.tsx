@@ -72,7 +72,7 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-white/10 text-white">
+      <DialogContent className="sm:max-w-[425px] bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
         <DialogHeader>
           <DialogTitle>Submit to Contest</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -88,10 +88,10 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
               <SelectTrigger className="col-span-3 bg-black/20 border-white/20">
                 <SelectValue placeholder="Select a song" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-900 border-white/20 text-white">
                 {songs.length > 0 ? (
                   songs.map((song) => (
-                    <SelectItem key={song.id} value={song.id}>
+                    <SelectItem key={song.id} value={song.id} className="focus:bg-purple-500/50">
                       {song.title}
                     </SelectItem>
                   ))
@@ -117,10 +117,10 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="bg-transparent border-white/30 hover:bg-white/10">
+          <Button variant="glass" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="bg-red-500/10 hover:bg-red-500/20 text-red-400">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedSong} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+          <Button variant="glass" onClick={handleSubmit} disabled={isSubmitting || !selectedSong}>
             {isSubmitting ? 'Submitting...' : 'Submit Entry'}
           </Button>
         </DialogFooter>

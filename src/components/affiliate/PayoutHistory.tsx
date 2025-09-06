@@ -67,12 +67,12 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
   if (loading && !payoutRequests.length) {
      return (
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Gift className="mr-2 h-5 w-5" /> Payout History</CardTitle>
         </CardHeader>
         <CardContent className="flex justify-center items-center p-10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
             <span className="ml-2">Loading payout history...</span>
         </CardContent>
       </Card>
@@ -81,11 +81,11 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
   if (error) {
     return (
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Gift className="mr-2 h-5 w-5" /> Payout History</CardTitle>
         </CardHeader>
-        <CardContent className="text-red-600 p-4 bg-red-100 border border-red-300 rounded-md flex items-center">
+        <CardContent className="text-red-400 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center">
             <AlertCircle className="h-5 w-5 mr-2" />Error: {error}
         </CardContent>
       </Card>
@@ -94,7 +94,7 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
 
   if (payoutRequests.length === 0) {
     return (
-      <Card>
+      <Card variant="glass">
         <CardHeader>
           <CardTitle className="flex items-center"><Gift className="mr-2 h-5 w-5" /> Payout History</CardTitle>
         </CardHeader>
@@ -106,46 +106,48 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   }
 
   return (
-    <Card>
+    <Card variant="glass">
       <CardHeader>
         <CardTitle className="flex items-center"><Gift className="mr-2 h-5 w-5" /> Payout History</CardTitle>
         <CardDescription>View the status and details of your payout requests.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Requested Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Requested Date</TableHead>
-              <TableHead>Processed Date</TableHead>
-              <TableHead>Admin Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payoutRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell>{formatCurrency(Number(request.requested_amount))}</TableCell>
-                <TableCell>
-                  <Badge variant={
-                    request.status === 'paid' || request.status === 'approved' ? 'default' :
-                    request.status === 'rejected' ? 'destructive' :
-                    'outline'
-                  }>
-                    {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                  </Badge>
-                </TableCell>
-                <TableCell>{format(parseISO(request.requested_at), 'MMM d, yyyy HH:mm')}</TableCell>
-                <TableCell>
-                  {request.processed_at ? format(parseISO(request.processed_at), 'MMM d, yyyy HH:mm') : 'N/A'}
-                </TableCell>
-                <TableCell className="max-w-xs truncate" title={request.admin_notes || undefined}>
-                  {request.admin_notes || 'N/A'}
-                </TableCell>
+        <div className="bg-black/20 rounded-lg p-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Requested Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Requested Date</TableHead>
+                <TableHead>Processed Date</TableHead>
+                <TableHead>Admin Notes</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {payoutRequests.map((request) => (
+                <TableRow key={request.id}>
+                  <TableCell>{formatCurrency(Number(request.requested_amount))}</TableCell>
+                  <TableCell>
+                    <Badge variant="glass" className={
+                      request.status === 'paid' || request.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                      request.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                      'bg-yellow-500/20 text-yellow-300'
+                    }>
+                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{format(parseISO(request.requested_at), 'MMM d, yyyy HH:mm')}</TableCell>
+                  <TableCell>
+                    {request.processed_at ? format(parseISO(request.processed_at), 'MMM d, yyyy HH:mm') : 'N/A'}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate" title={request.admin_notes || undefined}>
+                    {request.admin_notes || 'N/A'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

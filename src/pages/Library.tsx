@@ -8,6 +8,7 @@ import LibraryFilters from "@/components/library/LibraryFilters";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
 import VoterLockScreen from "@/components/VoterLockScreen";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export interface Song {
   id: string;
@@ -222,7 +223,7 @@ const Library = () => {
           <h1 className="text-3xl font-semibold text-white">My Library</h1>
           <p className="text-gray-400">All your completed songs</p>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
+        <Button onClick={handleRefresh} variant="glass" size="sm" disabled={isRefreshing}>
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -249,26 +250,30 @@ const Library = () => {
               </div>
             </div>
           ) : (
-            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-              <Music className="mx-auto h-12 w-12" />
-              <h3 className="mt-4 text-lg font-medium text-white">No matching songs</h3>
-              <p className="mt-1 text-sm">Try a different search or filter.</p>
-            </div>
+            <Card variant="glass" className="text-center">
+              <CardContent className="py-16">
+                <Music className="mx-auto h-12 w-12 text-gray-500" />
+                <h3 className="mt-4 text-lg font-medium">No matching songs</h3>
+                <p className="mt-1 text-sm text-gray-400">Try a different search or filter.</p>
+              </CardContent>
+            </Card>
           )
         ) : (
           !isLoading && (
-            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-              <Music className="mx-auto h-12 w-12" />
-              <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
-              <p className="mt-1 text-sm">Create your first song to see it here.</p>
-            </div>
+            <Card variant="glass" className="text-center">
+              <CardContent className="py-16">
+                <Music className="mx-auto h-12 w-12 text-gray-500" />
+                <h3 className="mt-4 text-lg font-medium">No songs yet</h3>
+                <p className="mt-1 text-sm text-gray-400">Create your first song to see it here.</p>
+              </CardContent>
+            </Card>
           )
         )}
       </div>
 
       {totalPages > 1 && (
         <Pagination className="mt-8 flex-shrink-0">
-          <PaginationContent className="text-gray-300">
+          <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -276,7 +281,7 @@ const Library = () => {
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-purple-500/20"}
               />
             </PaginationItem>
             {[...Array(totalPages)].map((_, i) => (
@@ -288,7 +293,7 @@ const Library = () => {
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
+                  className="hover:bg-purple-500/20 data-[active=true]:bg-purple-500/30"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -301,7 +306,7 @@ const Library = () => {
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-purple-500/20"}
               />
             </PaginationItem>
           </PaginationContent>

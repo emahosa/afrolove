@@ -170,10 +170,10 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
   return (
     <div className="space-y-6 text-white">
       {templateData && (
-        <Card className="border-dark-purple bg-white/5">
+        <Card variant="glass">
           <CardHeader>
-            <CardTitle className="text-lg text-white">Using Template: {templateData.template_name}</CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardTitle className="text-lg">Using Template: {templateData.template_name}</CardTitle>
+            <CardDescription>
               Genre: {templateData.genres?.name}
             </CardDescription>
           </CardHeader>
@@ -195,7 +195,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-white/20 text-white">
                 {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id} className="focus:bg-dark-purple">
+                  <SelectItem key={genre.id} value={genre.id} className="focus:bg-purple-500/50">
                     {genre.name}
                   </SelectItem>
                 ))}
@@ -213,7 +213,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           </SelectTrigger>
           <SelectContent className="bg-gray-900 border-white/20 text-white">
             {availableModels.map(model => (
-              <SelectItem key={model.value} value={model.value} className="focus:bg-dark-purple">
+              <SelectItem key={model.value} value={model.value} className="focus:bg-purple-500/50">
                 {model.label}
               </SelectItem>
             ))}
@@ -224,14 +224,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
         <div>
           <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
-          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
+          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-2xl border border-purple-400/30 bg-white/10 p-4 hover:bg-purple-400/20 peer-data-[state=checked]:border-purple-400 [&:has([data-state=checked])]:border-purple-400 cursor-pointer transition-colors">
             Prompt Mode
             <span className="text-xs font-normal text-gray-400">Simple description</span>
           </Label>
         </div>
         <div>
           <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
-          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
+          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-2xl border border-purple-400/30 bg-white/10 p-4 hover:bg-purple-400/20 peer-data-[state=checked]:border-purple-400 [&:has([data-state=checked])]:border-purple-400 cursor-pointer transition-colors">
             Lyrics Mode
             <span className="text-xs font-normal text-gray-400">Use your own lyrics</span>
           </Label>
@@ -268,15 +268,16 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       </div>
 
       <div className="flex items-center space-x-2">
-        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} className="data-[state=checked]:bg-dark-purple" />
+        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} className="data-[state=checked]:bg-purple-500" />
         <Label htmlFor="instrumental" className="text-gray-300">Generate instrumental only</Label>
       </div>
 
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-        className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
+        variant="glass"
         size="lg"
+        className="w-full font-bold"
       >
         {isGenerating ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

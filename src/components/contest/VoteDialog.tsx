@@ -75,7 +75,7 @@ export const VoteDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-white/10 text-white">
+      <DialogContent className="sm:max-w-[425px] bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
         <DialogHeader>
           <DialogTitle>Vote for "{entryTitle}"</DialogTitle>
           <DialogDescription className="text-gray-400">
@@ -97,7 +97,7 @@ export const VoteDialog = ({
             />
           </div>
 
-          <Alert className="bg-dark-purple/20 border-dark-purple/50 text-purple-300">
+          <Alert className="bg-purple-500/20 border-purple-500/50 text-purple-300">
             <Info className="h-4 w-4 text-purple-300" />
             <AlertDescription>
               {userHasFreeVote && (
@@ -116,9 +116,9 @@ export const VoteDialog = ({
               <span>Total Votes:</span>
               <span>{votes}</span>
             </div>
-            <div className="flex justify-between font-semibold text-white">
+            <div className="flex justify-between font-semibold">
               <span>Credit Cost:</span>
-              <span className={!canAfford ? 'text-red-500' : ''}>
+              <span className={!canAfford ? 'text-red-400' : 'text-white'}>
                 {cost} credits
               </span>
             </div>
@@ -128,16 +128,16 @@ export const VoteDialog = ({
             </div>
           </div>
           {!canAfford && (
-            <p className="text-center text-red-500 text-sm">
+            <p className="text-center text-red-400 text-sm">
               You don't have enough credits.
             </p>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10">
+          <Button variant="glass" onClick={() => onOpenChange(false)} disabled={isVoting} className="bg-red-500/10 hover:bg-red-500/20 text-red-400">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isVoting || !canAfford || votes < 1} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+          <Button variant="glass" onClick={handleSubmit} disabled={isVoting || !canAfford || votes < 1}>
             {isVoting ? 'Casting Vote...' : `Cast ${votes} Vote${votes > 1 ? 's' : ''}`}
           </Button>
         </DialogFooter>

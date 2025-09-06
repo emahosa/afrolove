@@ -375,32 +375,33 @@ const Billing: React.FC = () => {
   return (
     <div className="container mx-auto py-8 px-4 md:px-6 text-white">
       <Tabs defaultValue="plans" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10">
-          <TabsTrigger value="plans" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Subscription Plans</TabsTrigger>
-          <TabsTrigger value="credits" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Buy Credits</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
+          <TabsTrigger value="credits">Buy Credits</TabsTrigger>
         </TabsList>
         <TabsContent value="plans" className="mt-6">
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+          <Card variant="glass">
             <CardHeader>
-                <CardTitle className="text-white">Plans</CardTitle>
-                <CardDescription className="text-gray-400">Choose a plan that fits your needs.</CardDescription>
+                <CardTitle>Plans</CardTitle>
+                <CardDescription>Choose a plan that fits your needs.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {loadingPlans ? (
                 <p className="text-center col-span-3">Loading plans...</p>
               ) : (
               plans.map((plan) => (
-                <Card key={plan.id} className="flex flex-col bg-black/20 border-white/10 hover:border-dark-purple transition-colors duration-300">
+                <Card key={plan.id} variant="glass" className="flex flex-col">
                   <CardHeader>
-                    <CardTitle className="text-white">{plan.name}</CardTitle>
-                    <CardDescription className="text-dark-purple">{plan.description}</CardDescription>
+                    <CardTitle>{plan.name}</CardTitle>
+                    <CardDescription className="text-purple-400">{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                    <ul className="space-y-2 text-sm text-gray-300">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-dark-purple flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
+                    <ul className="space-y-2 text-sm text-gray-300">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-purple-400 flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
                   </CardContent>
                   <CardFooter>
                     <Button
-                      className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
+                      variant="glass"
+                      className="w-full font-bold"
                       onClick={() => {
                         setSelectedPlanId(plan.id);
                         handleSubscriptionChange(plan.id);
@@ -417,38 +418,38 @@ const Billing: React.FC = () => {
         </TabsContent>
         <TabsContent value="credits" className="mt-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight mb-2 text-white">Buy Credits</h1>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">Buy Credits</h1>
             <p className="text-gray-400">Purchase credits to generate amazing songs with AI</p>
           </div>
-          <Card className="mb-8 bg-white/5 border-white/10 backdrop-blur-sm">
+          <Card variant="glass" className="mb-8">
             <CardHeader>
-              <CardTitle className="flex items-center text-white"><Coins className="mr-2 h-5 w-5 text-dark-purple" />Your Credits</CardTitle>
-              <CardDescription className="text-gray-400">Use credits to generate songs, create custom tracks, and more</CardDescription>
+              <CardTitle className="flex items-center"><Coins className="mr-2 h-5 w-5 text-purple-400" />Your Credits</CardTitle>
+              <CardDescription>Use credits to generate songs, create custom tracks, and more</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="text-3xl font-bold text-dark-purple">{userProfile?.credits || 0}</div>
+                  <div className="text-3xl font-bold text-purple-400">{userProfile?.credits || 0}</div>
                   <div className="text-sm text-gray-400">credits available</div>
                 </div>
-                <Badge variant="outline" className="text-sm border-white/20 text-gray-300">20 credits = 1 song generation</Badge>
+                <Badge variant="glass">20 credits = 1 song generation</Badge>
               </div>
             </CardContent>
           </Card>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {creditPackages.map((pkg, index) => (
-              <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
-                {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
+              <Card key={index} variant="glass" className={`relative ${pkg.popular ? 'border-purple-400 shadow-lg shadow-purple-500/20' : ''}`}>
+                {pkg.popular && <Badge variant="glass" className="absolute -top-2 left-1/2 transform -translate-x-1/2">Most Popular</Badge>}
                 <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
-                  <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
+                  <CardTitle className="flex items-center justify-center"><Zap className="mr-2 h-5 w-5 text-purple-400" />{pkg.credits} Credits</CardTitle>
+                  <CardDescription><span className="text-2xl font-bold text-purple-400">${pkg.amount}</span></CardDescription>
                 </CardHeader>
                 <CardContent className="text-center">
                   <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
                   <Button
                     onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
                     className="w-full"
-                    variant={pkg.popular ? "default" : "outline"}
+                    variant="glass"
                     disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   >
                     {isLoadingPaymentSettings || isLoadingPublicKeys
@@ -461,10 +462,10 @@ const Billing: React.FC = () => {
               </Card>
             ))}
           </div>
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+          <Card variant="glass">
             <CardHeader>
-              <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
-              <CardDescription className="text-gray-400">Purchase any amount of credits (1 USD = 1 Credit)</CardDescription>
+              <CardTitle className="flex items-center"><DollarSign className="mr-2 h-5 w-5 text-purple-400" />Custom Amount</CardTitle>
+              <CardDescription>Purchase any amount of credits (1 USD = 1 Credit)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
@@ -475,7 +476,7 @@ const Billing: React.FC = () => {
                 <Button
                   onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
                   disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                  className="bg-dark-purple hover:bg-opacity-90 font-bold"
+                  variant="glass"
                 >
                   {isLoadingPaymentSettings || isLoadingPublicKeys
                     ? 'Loading...'
@@ -505,7 +506,7 @@ const Billing: React.FC = () => {
       />
 
       <AlertDialog open={downgradeConfirmationOpen} onOpenChange={setDowngradeConfirmationOpen}>
-        <AlertDialogContent className="bg-gray-900 border-white/10 text-white">
+        <AlertDialogContent className="bg-gray-800/40 backdrop-blur-xl border-purple-500/20 text-white">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Downgrade</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
@@ -513,9 +514,13 @@ const Billing: React.FC = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-white/30 hover:bg-white/10">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDowngrade} disabled={paymentProcessing} className="bg-dark-purple hover:bg-opacity-90 font-bold">
-              {paymentProcessing ? "Processing..." : "Confirm"}
+            <AlertDialogCancel asChild>
+              <Button variant="glass" className="bg-red-500/10 hover:bg-red-500/20 text-red-400">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="glass" onClick={confirmDowngrade} disabled={paymentProcessing}>
+                {paymentProcessing ? "Processing..." : "Confirm"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
