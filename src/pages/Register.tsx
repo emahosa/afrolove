@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
-import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
@@ -28,33 +26,27 @@ const Register = () => {
       toast.error("All fields are required");
       return;
     }
-
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
-
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters long");
       return;
     }
 
     setLoading(true);
-    
     try {
-      console.log("Register: Attempting to register user with:", { name, email });
-      
       const success = await register(name, email, password);
-      console.log("Register: success status:", success);
-      
       if (success) {
-        toast.success("Registration successful! Welcome to MelodyVerse!");
+        toast.success("Registration successful! Welcome to Afroverse!");
         navigate("/dashboard");
       } else {
-        toast.error("Registration failed. Please try again.");
+        // The register function in AuthContext should handle specific error toasts.
+        // A generic fallback.
+        toast.error("Registration failed. An account with this email may already exist.");
       }
     } catch (error: any) {
-      console.error("Registration error:", error);
       toast.error(error.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -64,20 +56,12 @@ const Register = () => {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      console.log("Attempting Google signup...");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+        options: { redirectTo: `${window.location.origin}/dashboard` }
       });
-
-      if (error) {
-        console.error("Google signup error:", error);
-        toast.error("Failed to sign up with Google: " + error.message);
-      }
+      if (error) toast.error("Failed to sign up with Google: " + error.message);
     } catch (error: any) {
-      console.error("Google signup error:", error);
       toast.error("An unexpected error occurred during Google signup");
     } finally {
       setGoogleLoading(false);
@@ -86,100 +70,54 @@ const Register = () => {
 
   return (
     <AuthPageLayout>
-      <div className="glass-card w-full max-w-md p-8 rounded-2xl">
-        <div className="flex items-center justify-center mb-6">
-            <Music className="h-8 w-8 text-purple-400" />
-            <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
+      <div className="glass-surface w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white">Create Your Account</h1>
+          <p className="text-white/70 mt-2">Join Afroverse and start creating music</p>
         </div>
 
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
-          <p className="text-gray-300">Join Afroverse and start creating music</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name" className="text-gray-300 text-left block mb-1">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="name" className="text-white/70">Full Name</Label>
+            <Input id="name" type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
-          <div>
-            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-white/70">Email</Label>
+            <Input id="email" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          <div>
-            <Label htmlFor="password" className="text-gray-300 text-left block mb-1">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-white/70">Password</Label>
+            <Input id="password" type="password" placeholder="•••••••• (min. 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <div>
-            <Label htmlFor="confirmPassword" className="text-gray-300 text-left block mb-1">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="text-white/70">Confirm Password</Label>
+            <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
           </div>
-          <Button
-            type="submit"
-            className="w-full glass-btn text-lg py-3"
-            disabled={loading}
-          >
-            {loading ? "Creating account..." : "Sign Up"}
-          </Button>
+          <button type="submit" className="w-full glass-btn text-lg py-3" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Account"}
+          </button>
         </form>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/20"></div>
+            <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full backdrop-blur-sm">
-              OR CONTINUE WITH
+            <span className="px-2 bg-black/50 text-white/70 rounded-full backdrop-blur-sm">
+              OR
             </span>
           </div>
         </div>
 
-        <Button 
-          variant="outline"
-          className="w-full glass-btn"
-          onClick={handleGoogleLogin}
-          disabled={googleLoading}
-        >
+        <button className="w-full glass-btn" onClick={handleGoogleLogin} disabled={googleLoading}>
           <FaGoogle className="mr-2" />
-          {googleLoading ? "Signing up..." : "Google"}
-        </Button>
+          {googleLoading ? "Signing up..." : "Continue with Google"}
+        </button>
 
-        <p className="text-center mt-6 text-sm text-gray-400">
+        <p className="text-center mt-6 text-sm text-white/70">
           Already have an account?{" "}
-          <Link to="/login" className="text-purple-400 hover:underline font-medium">
-            Sign in
+          <Link to="/login" className="text-white hover:underline font-medium">
+            Sign In
           </Link>
         </p>
       </div>

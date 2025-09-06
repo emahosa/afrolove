@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -53,28 +52,6 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				},
-				// Custom theme colors
-				melody: {
-					primary: '#583D72',
-					secondary: '#9F5F80',
-					accent: '#FFCBDD',
-					light: '#F1F1F1',
-					dark: '#1A1A1A',
-				},
-				"melody-bright-violet": "#bb86fc",
-        // New colors for Afroverse landing page
-        midnight: '#0c0a24',
-        'dark-purple': '#4A006D',
 			},
 			fontFamily: {
 				montserrat: ['Montserrat', 'sans-serif'],
@@ -102,27 +79,12 @@ export default {
 					'0%, 100%': { opacity: 1 },
 					'50%': { opacity: 0.8 },
 				},
-				'wave': {
-					'0%': { transform: 'scaleY(0.3)' },
-					'50%': { transform: 'scaleY(1)' },
-					'100%': { transform: 'scaleY(0.3)' },
-				},
-        // Floating animation for background icons
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-20px)' },
-        }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'fade-in': 'fade-in 0.3s ease-in-out',
 				'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
-				'wave1': 'wave 1.2s linear infinite',
-				'wave2': 'wave 1.2s linear 0.3s infinite',
-				'wave3': 'wave 1.2s linear 0.6s infinite',
-				'wave4': 'wave 1.2s linear 0.9s infinite',
-        'float': 'float 6s ease-in-out infinite',
 			}
 		}
 	},

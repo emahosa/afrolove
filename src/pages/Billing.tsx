@@ -345,27 +345,27 @@ const Billing: React.FC = () => {
   };
 
   return (
-    <Layout active="Billing">
+    <div className="space-y-8">
       <Tabs defaultValue="plans" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-white/10 rounded-xl">
-          <TabsTrigger value="plans" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Subscription Plans</TabsTrigger>
-          <TabsTrigger value="credits" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Buy Credits</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
+          <TabsTrigger value="credits">Buy Credits</TabsTrigger>
         </TabsList>
         <TabsContent value="plans" className="mt-6">
-          <div className="glass-card p-6 rounded-2xl">
+          <div className="glass-surface !p-6">
             <h2 className="text-2xl font-bold mb-2 text-white">Plans</h2>
-            <p className="text-gray-400 mb-6">Choose a plan that fits your needs.</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <p className="text-white/70 mb-6">Choose a plan that fits your needs.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8" style={{perspective: '1000px'}}>
               {loadingPlans ? (
                 <p className="text-center col-span-3">Loading plans...</p>
               ) : (
               plans.map((plan) => (
-                <div key={plan.id} className="flex flex-col glass-card p-6 rounded-2xl hover:border-purple-500/50 transition-colors duration-300">
+                <div key={plan.id} className="flex flex-col glass-card p-6 rounded-2xl">
                   <h3 className="text-xl font-bold text-white">{plan.name}</h3>
-                  <p className="text-purple-400 mb-4">{plan.description}</p>
-                  <ul className="space-y-2 text-sm text-gray-300 flex-grow">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-purple-400 flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
+                  <p className="text-white/70 mb-4">{plan.description}</p>
+                  <ul className="space-y-2 text-sm text-white/80 flex-grow">{plan.features.map(f => <li key={f} className="flex items-start"><CheckCircle className="h-5 w-5 mr-2 text-green-400 flex-shrink-0 mt-0.5" /><span>{f}</span></li>)}</ul>
                   <Button
-                    className="w-full glass-btn mt-6"
+                    className="w-full mt-6"
                     onClick={() => {
                       setSelectedPlanId(plan.id);
                       handleSubscriptionChange(plan.id);
@@ -382,62 +382,53 @@ const Billing: React.FC = () => {
         <TabsContent value="credits" className="mt-6">
           <div className="mb-8">
             <h1 className="text-3xl font-bold tracking-tight mb-2 text-white">Buy Credits</h1>
-            <p className="text-gray-400">Purchase credits to generate amazing songs with AI</p>
+            <p className="text-white/70">Purchase credits to generate amazing songs with AI</p>
           </div>
-          <div className="glass-card p-6 rounded-2xl mb-8">
-            <h3 className="flex items-center text-xl font-bold text-white"><Coins className="mr-2 h-5 w-5 text-purple-400" />Your Credits</h3>
-            <p className="text-gray-400 mb-4">Use credits to generate songs, create custom tracks, and more</p>
+          <div className="glass-surface p-6 mb-8">
+            <h3 className="flex items-center text-xl font-bold text-white"><Coins className="mr-2 h-5 w-5" />Your Credits</h3>
+            <p className="text-white/70 mb-4">Use credits to generate songs, create custom tracks, and more</p>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="text-3xl font-bold text-purple-400">{userProfile?.credits || 0}</div>
-                <div className="text-sm text-gray-400">credits available</div>
+                <div className="text-3xl font-bold">{userProfile?.credits || 0}</div>
+                <div className="text-sm text-white/70">credits available</div>
               </div>
-              <Badge variant="outline" className="text-sm border-purple-500/30 bg-purple-500/10 text-purple-300">20 credits = 1 song generation</Badge>
+              <Badge variant="secondary">20 credits = 1 song generation</Badge>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {creditPackages.map((pkg, index) => (
-              <div key={index} className={`relative glass-card p-6 rounded-2xl ${pkg.popular ? 'border-purple-500/50 shadow-lg' : ''}`}>
-                {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-purple-600/80 text-white border-purple-500/50">Most Popular</Badge>}
+              <div key={index} className={`relative glass-card p-6 rounded-2xl ${pkg.popular ? 'border-white/20' : ''}`}>
+                {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2">Most Popular</Badge>}
                 <div className="text-center">
-                  <h4 className="flex items-center justify-center text-xl font-bold text-white"><Zap className="mr-2 h-5 w-5 text-purple-400" />{pkg.credits} Credits</h4>
-                  <p><span className="text-2xl font-bold text-purple-400">${pkg.amount}</span></p>
+                  <h4 className="flex items-center justify-center text-xl font-bold text-white"><Zap className="mr-2 h-5 w-5" />{pkg.credits} Credits</h4>
+                  <p><span className="text-2xl font-bold">${pkg.amount}</span></p>
                 </div>
                 <div className="text-center">
-                  <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
+                  <div className="text-sm text-white/70 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
                   <Button
                     onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
-                    className="w-full glass-btn"
+                    className="w-full"
                     disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   >
-                    {isLoadingPaymentSettings || isLoadingPublicKeys
-                      ? 'Loading...'
-                      : !paymentReady
-                      ? 'Payments Disabled'
-                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                    Purchase
                   </Button>
                 </div>
               </div>
             ))}
           </div>
-          <div className="glass-card p-6 rounded-2xl">
-            <h4 className="flex items-center text-xl font-bold text-white"><DollarSign className="mr-2 h-5 w-5 text-purple-400" />Custom Amount</h4>
-            <p className="text-gray-400 mb-4">Purchase any amount of credits (1 USD = 1 Credit)</p>
+          <div className="glass-surface p-6">
+            <h4 className="flex items-center text-xl font-bold text-white"><DollarSign className="mr-2 h-5 w-5" />Custom Amount</h4>
+            <p className="text-white/70 mb-4">Purchase any amount of credits (1 USD = 1 Credit)</p>
             <div className="flex items-center space-x-4">
               <div className="flex-1">
-                <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
-                <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+                <Label htmlFor="custom-amount">Amount (USD)</Label>
+                <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1"/>
               </div>
               <Button
                 onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
                 disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                className="glass-btn"
               >
-                {isLoadingPaymentSettings || isLoadingPublicKeys
-                  ? 'Loading...'
-                  : !paymentReady
-                  ? 'Payments Disabled'
-                  : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                Purchase
               </Button>
             </div>
           </div>
@@ -460,16 +451,16 @@ const Billing: React.FC = () => {
       />
 
       <AlertDialog open={downgradeConfirmationOpen} onOpenChange={setDowngradeConfirmationOpen}>
-        <AlertDialogContent className="glass-card rounded-2xl">
+        <AlertDialogContent className="glass-surface">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Downgrade</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300">
+            <AlertDialogDescription>
               Your subscription will be changed to the {selectedPlanDetails?.name} plan at the end of your current billing cycle. You will not be charged today.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="glass-btn bg-transparent hover:bg-white/10">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDowngrade} disabled={paymentProcessing} className="glass-btn bg-purple-600/40 hover:bg-purple-600/60">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDowngrade} disabled={paymentProcessing}>
               {paymentProcessing ? "Processing..." : "Confirm"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -487,7 +478,7 @@ const Billing: React.FC = () => {
         processing={processing}
         type="credits"
       />
-    </Layout>
+    </div>
   );
 };
 

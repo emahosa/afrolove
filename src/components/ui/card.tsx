@@ -1,26 +1,24 @@
 import * as React from "react"
-import { useClickPop } from "@/hooks/use-click-pop"
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const clickPopRef = useClickPop<HTMLDivElement>()
-
-  return (
-    <div
-      ref={clickPopRef}
-      className={cn(
-        "rounded-lg border bg-card text-card-foreground shadow-sm hover-lift hover-shadow",
-        className
-      )}
-      {...props}
-    />
-  )
-})
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "glass-card", // Using the global glass-card style
+      className
+    )}
+    {...props}
+  />
+));
 Card.displayName = "Card"
+
+const MotionCard = motion(Card);
 
 const CardHeader = React.forwardRef<
   HTMLDivElement,
@@ -41,7 +39,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-2xl font-semibold leading-none tracking-tight text-white",
       className
     )}
     {...props}
@@ -55,7 +53,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-white/70", className)}
     {...props}
   />
 ))
@@ -81,4 +79,4 @@ const CardFooter = React.forwardRef<
 ))
 CardFooter.displayName = "CardFooter"
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+export { Card, MotionCard, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }

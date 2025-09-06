@@ -47,7 +47,6 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
       if (error) throw error;
       setSongs(data || []);
     } catch (error: any) {
-      console.error('Error fetching songs:', error);
       toast.error('Failed to load your songs.');
     }
   };
@@ -57,35 +56,27 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
       toast.error('Please select a song to submit.');
       return;
     }
-    try {
-      await submitEntry({
-        contestId,
-        songId: selectedSong,
-        description,
-      });
-      onSubmissionSuccess();
-      onOpenChange(false);
-    } catch (error) {
-      // Error toast is handled in the hook
-    }
+    await submitEntry({ contestId, songId: selectedSong, description });
+    onSubmissionSuccess();
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-white/10 text-white">
+      <DialogContent className="glass-surface">
         <DialogHeader>
           <DialogTitle>Submit to Contest</DialogTitle>
-          <DialogDescription className="text-gray-400">
-            Choose a song and add a description for your entry.
+          <DialogDescription>
+            Choose one of your completed songs to enter.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="song" className="text-right text-gray-300">
+            <Label htmlFor="song" className="text-right">
               Song
             </Label>
             <Select value={selectedSong} onValueChange={setSelectedSong}>
-              <SelectTrigger className="col-span-3 bg-black/20 border-white/20">
+              <SelectTrigger className="col-span-3">
                 <SelectValue placeholder="Select a song" />
               </SelectTrigger>
               <SelectContent>
@@ -104,23 +95,23 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right text-gray-300">
+            <Label htmlFor="description" className="text-right">
               Description
             </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3 bg-black/20 border-white/20"
+              className="col-span-3"
               placeholder="Tell us about your entry (optional)"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="bg-transparent border-white/30 hover:bg-white/10">
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedSong} className="bg-dark-purple hover:bg-opacity-90 font-bold">
+          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedSong}>
             {isSubmitting ? 'Submitting...' : 'Submit Entry'}
           </Button>
         </DialogFooter>

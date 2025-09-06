@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
-import { Music } from "lucide-react";
 import { OTPVerification } from "@/components/auth/OTPVerification";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +14,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  // MFA verification state
   const [factorId, setFactorId] = useState<string | null>(null);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [showMFAVerification, setShowMFAVerification] = useState(false);
@@ -25,20 +22,12 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to dashboard if already logged in (but check if admin first)
   useEffect(() => {
     if (user) {
-      console.log("Login: User already logged in, checking admin status");
-      
-      // If user is admin, redirect them to admin login
       if (isAdmin() || isSuperAdmin()) {
-        console.log("Login: Admin user detected, redirecting to admin login");
-        toast.error("Admin users must use the dedicated admin login page");
         navigate("/admin/login", { replace: true });
         return;
       }
-      
-      console.log("Login: Regular user logged in, redirecting to dashboard");
       const from = location.state?.from?.pathname || "/dashboard";
       navigate(from, { replace: true });
     }
@@ -47,17 +36,11 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim()) {
-      toast.error("Email cannot be empty");
+    if (!email.trim() || !password.trim()) {
+      toast.error("Email and password cannot be empty");
       return;
     }
 
-    if (!password.trim()) {
-      toast.error("Password cannot be empty");
-      return;
-    }
-
-    // Check if this is an admin email before attempting login
     const { data: profileData } = await supabase
       .from('profiles')
       .select('id')
@@ -65,7 +48,6 @@ const Login = () => {
       .single();
 
     if (profileData) {
-      // Check if this user has admin roles
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
@@ -81,8 +63,6 @@ const Login = () => {
     
     setLoading(true);
     try {
-      console.log("Login: Attempting regular user login with:", { email });
-      
       const { data, error } = await login(email, password);
       
       if (error) {
@@ -91,12 +71,9 @@ const Login = () => {
         return;
       }
       
-      // Double-check after login to ensure no admin got through
       if (data.session) {
-        // Wait a moment for auth context to update
         setTimeout(() => {
           if (isAdmin() || isSuperAdmin()) {
-            console.log("Login: Admin detected after login, logging out and redirecting");
             supabase.auth.signOut();
             toast.error("Admin users must use the dedicated admin login page");
             navigate("/admin/login");
@@ -104,55 +81,37 @@ const Login = () => {
           }
           
           toast.success("Login successful!");
-          let destination = "/dashboard";
-          if (location.state?.from?.pathname) {
-            destination = location.state.from.pathname;
-          }
-          console.log("Login: Regular user login successful, redirecting to:", destination);
+          let destination = location.state?.from?.pathname || "/dashboard";
           navigate(destination, { replace: true });
         }, 100);
       }
       
-      // MFA handling logic
       if (data.session === null && data.user !== null) {
-        // This means MFA is required - check for enrolled factors
         const { data: factorData, error: factorError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-        
         if (factorError) throw factorError;
         
         if (factorData.currentLevel === 'aal1' && factorData.nextLevel === 'aal2') {
-          // User has MFA enabled, get all enrolled factors
           const { data: enrolledFactors, error: enrolledError } = await supabase.auth.mfa.listFactors();
-          
           if (enrolledError) throw enrolledError;
           
           if (enrolledFactors.totp && enrolledFactors.totp.length > 0) {
-            // TOTP factor exists, create a challenge
             const factor = enrolledFactors.totp[0];
-            
-            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-              factorId: factor.id
-            });
-            
+            const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
             if (challengeError) throw challengeError;
             
-            // Store factor and challenge IDs and show MFA verification
             setFactorId(factor.id);
             setChallengeId(challengeData.id);
             setShowMFAVerification(true);
-            setLoading(false);
-            return;
           }
         }
       }
       
       if (!data.session && !showMFAVerification) {
         toast.error("Login failed. Please try again.");
-        setLoading(false);
       }
     } catch (error: any) {
-      console.error("Login: Error in component:", error);
       toast.error(error.message || "An unexpected error occurred during login");
+    } finally {
       setLoading(false);
     }
   };
@@ -160,20 +119,12 @@ const Login = () => {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      console.log("Attempting Google login...");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+        options: { redirectTo: `${window.location.origin}/dashboard` }
       });
-
-      if (error) {
-        console.error("Google login error:", error);
-        toast.error("Failed to login with Google: " + error.message);
-      }
+      if (error) toast.error("Failed to login with Google: " + error.message);
     } catch (error: any) {
-      console.error("Google login error:", error);
       toast.error("An unexpected error occurred during Google login");
     } finally {
       setGoogleLoading(false);
@@ -183,37 +134,26 @@ const Login = () => {
   const handleMFAVerified = () => {
     setShowMFAVerification(false);
     toast.success("Login successful!");
-    
-    // After MFA is verified, the session is active and context is updated via onAuthStateChange.
-    // We can now navigate.
-    let destination = "/dashboard"; // Default to user dashboard
-    if (location.state?.from?.pathname) {
-      destination = location.state.from.pathname;
-    }
+    let destination = location.state?.from?.pathname || "/dashboard";
     navigate(destination, { replace: true });
   };
 
   const handleCancelMFA = () => {
     setShowMFAVerification(false);
-    // Sign out the incomplete session
     supabase.auth.signOut();
   };
 
-  // Show MFA verification screen if needed
   if (showMFAVerification && factorId && challengeId) {
     return (
       <AuthPageLayout>
-        <div className="glass-card w-full max-w-md p-8 rounded-2xl text-center">
-            <div className="flex items-center justify-center mb-6">
-                <Music className="h-8 w-8 text-purple-400" />
-                <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
-            </div>
-            <h2 className="text-xl font-bold mb-4">Enter Verification Code</h2>
+        <div className="glass-surface w-full max-w-md p-8 text-center">
+            <h1 className="text-2xl font-bold mb-2 text-white">Enter Verification Code</h1>
+            <p className="text-white/70 mb-6">A code has been sent to your authenticator app.</p>
             <OTPVerification
-            factorId={factorId}
-            challengeId={challengeId}
-            onVerified={handleMFAVerified}
-            onCancel={handleCancelMFA}
+              factorId={factorId}
+              challengeId={challengeId}
+              onVerified={handleMFAVerified}
+              onCancel={handleCancelMFA}
             />
         </div>
       </AuthPageLayout>
@@ -222,88 +162,51 @@ const Login = () => {
 
   return (
     <AuthPageLayout>
-      <div className="glass-card w-full max-w-md p-8 rounded-2xl">
-        <div className="flex items-center justify-center mb-6">
-            <Music className="h-8 w-8 text-purple-400" />
-            <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
+      <div className="glass-surface w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white">Welcome Back</h1>
+          <p className="text-white/70 mt-2">Sign in to continue to Afroverse</p>
         </div>
 
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Welcome Back</h2>
-          <p className="text-gray-300">Sign in to continue to Afroverse</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-white/70">Email</Label>
+            <Input id="email" type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          <div>
-            <div className="flex justify-between mb-1">
-              <Label htmlFor="password"  className="text-gray-300">Password</Label>
-              <Link to="/forgot-password" className="text-sm text-purple-400 hover:underline">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="password" className="text-white/70">Password</Label>
+              <Link to="/forgot-password" className="text-sm text-white/70 hover:text-white">
                 Forgot password?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+            <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <Button
-            type="submit"
-            className="w-full glass-btn text-lg py-3"
-            disabled={loading}
-          >
+          <button type="submit" className="w-full glass-btn text-lg py-3" disabled={loading}>
             {loading ? "Signing in..." : "Sign In"}
-          </Button>
+          </button>
         </form>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/20"></div>
+            <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full backdrop-blur-sm">
-              OR CONTINUE WITH
+            <span className="px-2 bg-black/50 text-white/70 rounded-full backdrop-blur-sm">
+              OR
             </span>
           </div>
         </div>
 
-        <Button 
-          variant="outline"
-          className="w-full glass-btn"
-          onClick={handleGoogleLogin}
-          disabled={googleLoading}
-        >
+        <button className="w-full glass-btn" onClick={handleGoogleLogin} disabled={googleLoading}>
           <FaGoogle className="mr-2" />
-          {googleLoading ? "Signing in..." : "Google"}
-        </Button>
+          {googleLoading ? "Signing in..." : "Continue with Google"}
+        </button>
 
-        <p className="text-center mt-6 text-sm text-gray-400">
+        <p className="text-center mt-6 text-sm text-white/70">
           Don't have an account?{" "}
-          <Link to="/register" className="text-purple-400 hover:underline font-medium">
+          <Link to="/register" className="text-white hover:underline font-medium">
             Sign up
-          </Link>
-        </p>
-
-        <p className="text-center mt-4 text-xs text-gray-500">
-          Admin users should use the{" "}
-          <Link to="/admin/login" className="text-purple-400 hover:underline">
-            dedicated admin login
           </Link>
         </p>
       </div>

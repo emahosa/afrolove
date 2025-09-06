@@ -1,26 +1,28 @@
-import re
 from playwright.sync_api import sync_playwright, Page, expect
+import time
 
-def run(playwright):
-    browser = playwright.chromium.launch(headless=True)
-    context = browser.new_context()
-    page = context.new_page()
-
-    # Increase timeout
-    page.set_default_timeout(10000)
-
-    # Public pages
+def verify_pages(page: Page):
+    # Homepage
     page.goto("http://127.0.0.1:8080/")
-    page.screenshot(path="jules-scratch/verification/index_page.png")
+    time.sleep(2) # Wait for video to load
+    page.screenshot(path="jules-scratch/verification/homepage.png")
 
+    # Login page
     page.goto("http://127.0.0.1:8080/login")
-    page.screenshot(path="jules-scratch/verification/login_page.png")
+    expect(page.get_by_role("heading", name="Welcome Back")).to_be_visible()
+    page.screenshot(path="jules-scratch/verification/loginpage.png")
 
+    # Register page
     page.goto("http://127.0.0.1:8080/register")
-    page.screenshot(path="jules-scratch/verification/register_page.png")
+    expect(page.get_by_role("heading", name="Create Your Account")).to_be_visible()
+    page.screenshot(path="jules-scratch/verification/registerpage.png")
 
-    context.close()
-    browser.close()
+def main():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        verify_pages(page)
+        browser.close()
 
-with sync_playwright() as playwright:
-    run(playwright)
+if __name__ == "__main__":
+    main()

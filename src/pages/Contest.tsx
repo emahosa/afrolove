@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "../components/ui/input";
-import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Trophy, Calendar, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,9 +11,7 @@ import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useContest } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
-import Layout from "@/components/Layout";
 
-// Contest component main interface
 interface Contest {
   id: string;
   title: string;
@@ -27,7 +20,7 @@ interface Contest {
   end_date: string;
   prize: string;
   entry_fee: number;
-  status: string;
+  is_unlocked?: boolean;
 }
 
 interface ContestEntry {
@@ -50,14 +43,8 @@ interface ContestEntry {
   } | null;
 }
 
-interface Song {
-  id: string;
-  title: string;
-  status: string;
-}
-
-const Contest = () => {
-  const { user, isVoter, isSubscriber, userRoles, loading: authLoading } = useAuth();
+const ContestPage = () => {
+  const { user, loading: authLoading } = useAuth();
   const {
     upcomingContests,
     activeContests,
@@ -73,14 +60,11 @@ const Contest = () => {
     setCurrentContest,
   } = useContest();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
-  const [selectedSong, setSelectedSong] = useState<string>("");
-  const [description, setDescription] = useState("");
-  const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+
   const [voteDialogOpen, setVoteDialogOpen] = useState(false);
+  const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
+  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [userHasFreeVote, setUserHasFreeVote] = useState(true);
   const [activeContestTab, setActiveContestTab] = useState<string | undefined>(activeContests[0]?.id);
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,9 +77,7 @@ const Contest = () => {
 
   useEffect(() => {
     const contest = activeContests.find(c => c.id === activeContestTab);
-    if (contest) {
-      setCurrentContest(contest);
-    }
+    if (contest) setCurrentContest(contest);
   }, [activeContestTab, activeContests, setCurrentContest]);
 
   useEffect(() => {
@@ -104,282 +86,109 @@ const Contest = () => {
     }
   }, [user, selectedEntry, checkHasFreeVote]);
 
-  useEffect(() => {
-    if (user) {
-      fetchUserSongs();
-    }
-  }, [user]);
-
-  const fetchUserSongs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('songs')
-        .select('id, title, status')
-        .eq('user_id', user?.id)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setSongs(data || []);
-    } catch (error: any) {
-      console.error('Error fetching songs:', error);
-    }
-  };
-
   const handlePlay = (song: ContestEntry['songs']) => {
-    if (!song) return;
-    if (currentTrack?.id === song.id && isPlaying) {
+    if (!song?.audio_url) return;
+    if (currentTrack?.id === song.id) {
       togglePlayPause();
-    } else if (song.audio_url) {
-      playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url
-      });
+    } else {
+      playTrack({ id: song.id, title: song.title, audio_url: song.audio_url });
     }
-  };
-
-  const openSubmissionDialog = (contest: Contest) => {
-    setSelectedContest(contest);
-    setSubmissionDialogOpen(true);
   };
 
   const handleVoteClick = (entry: ContestEntry) => {
-    if (!user) {
-      toast.info('Please log in or register to vote.');
-      return;
-    }
-    if (entry.user_id === user.id) {
-      toast.error('You cannot vote on your own entry.');
-      return;
-    }
+    if (!user) return toast.info('Please log in or register to vote.');
+    if (entry.user_id === user.id) return toast.error('You cannot vote on your own entry.');
     setSelectedEntry(entry);
     setVoteDialogOpen(true);
   };
 
-  const handleVoteSubmit = async (votes: number) => {
-    if (!selectedEntry) return;
-
-    await castVote(selectedEntry.id, selectedEntry.contest_id, votes);
-    setVoteDialogOpen(false);
-    setSelectedEntry(null);
-  };
-
-  const handleUnlockContest = async (contest: Contest) => {
-    if (!user) {
-      toast.info('Please log in to unlock the contest.');
-      return;
-    }
-    await unlockContest(contest.id, contest.entry_fee);
-  };
-
-  const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
-
-  const Countdown = ({ to }: { to: string }) => {
-    const [timeLeft, setTimeLeft] = useState('');
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        const target = new Date(to).getTime();
-        const now = new Date().getTime();
-        const difference = target - now;
-
-        if (difference < 0) {
-          setTimeLeft('Contest is live!');
-          clearInterval(interval);
-          return;
-        }
-
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-        setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }, [to]);
-
-    return <span className="text-sm font-mono">{timeLeft}</span>;
-  };
-
   if (authLoading || contestLoading) {
-    return (
-      <Layout active="Contest">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-          <span className="ml-2">Loading...</span>
-        </div>
-      </Layout>
-    );
+    return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div></div>;
   }
 
+  const renderContestCard = (contest: Contest, type: 'active' | 'upcoming' | 'past') => (
+    <Card key={contest.id} className="flex items-center p-4">
+      <div className="flex-grow mx-4 min-w-0">
+        <p className="font-semibold truncate">{contest.title}</p>
+        <p className="text-sm text-white/70 line-clamp-1">{contest.description}</p>
+        <div className="flex items-center gap-4 mt-1 text-xs text-white/70">
+          <div className="flex items-center gap-1.5"><Trophy size={14} /><span>Prize: {contest.prize}</span></div>
+          <div className="flex items-center gap-1.5"><Calendar size={14} />
+            <span>
+              {type === 'upcoming' && `Starts: ${new Date(contest.start_date).toLocaleDateString()}`}
+              {type === 'active' && `Ends: ${new Date(contest.end_date).toLocaleDateString()}`}
+              {type === 'past' && `Ended: ${new Date(contest.end_date).toLocaleDateString()}`}
+            </span>
+          </div>
+        </div>
+      </div>
+      {type === 'active' && (
+        <div className="flex items-center gap-4">
+          {contest.is_unlocked ? (
+            <Button size="sm" onClick={() => { setSelectedContest(contest); setSubmissionDialogOpen(true); }}>Submit Entry</Button>
+          ) : (
+            <Button size="sm" onClick={() => unlockContest(contest.id, contest.entry_fee)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
+              {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
+            </Button>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+
   return (
-    <Layout active="Contest">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-semibold mb-2 text-white">Music Contests</h1>
-        <p className="text-gray-400">
-          Showcase your talent and win amazing prizes!
-        </p>
-        {user && (
-          <p className="text-sm text-gray-300 mt-2">
-            Your Credits: <span className="font-bold text-purple-400">{user?.credits ?? 'Loading...'}</span>
-          </p>
-        )}
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold">Music Contests</h1>
+        <p className="text-white/70 mt-2">Showcase your talent and win amazing prizes!</p>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-black/30 border border-white/10 rounded-xl">
-          <TabsTrigger value="active" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Active</TabsTrigger>
-          <TabsTrigger value="upcoming" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Upcoming</TabsTrigger>
-          <TabsTrigger value="past" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Past</TabsTrigger>
-          <TabsTrigger value="entries" className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">Entries</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="past">Past</TabsTrigger>
+          <TabsTrigger value="entries">Entries</TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
           <TabsContent value="active" className="space-y-4">
-            {activeContests.length === 0 ? (
-              <div className="text-center py-12 glass-card rounded-2xl">
-                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
-                <p className="text-gray-400">Check back later for new contests.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {activeContests.map((contest) => (
-                  <div key={contest.id} className="flex items-center p-4 rounded-2xl glass-card hover:border-purple-500/50 transition-colors">
-                    <div className="flex-grow mx-4 min-w-0">
-                      <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                        <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-purple-400" /><span>Prize: {contest.prize}</span></div>
-                        <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {contest.is_unlocked ? (
-                        <Button size="sm" className="glass-btn" onClick={() => openSubmissionDialog(contest)}>
-                          Submit Entry
-                        </Button>
-                      ) : (
-                        <Button size="sm" className="glass-btn" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
-                          {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {activeContests.length > 0 ? activeContests.map(c => renderContestCard(c, 'active')) : <p className="text-center text-white/70 py-10">No active contests.</p>}
           </TabsContent>
-
           <TabsContent value="upcoming" className="space-y-4">
-            {upcomingContests.length === 0 ? (
-               <div className="text-center py-12 glass-card rounded-2xl">
-                 <Calendar className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                 <h3 className="text-lg font-semibold mb-2 text-white">No Upcoming Contests</h3>
-                 <p className="text-gray-400">New contests are announced periodically. Stay tuned!</p>
-               </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingContests.map((contest) => (
-                  <div key={contest.id} className="flex items-center p-4 rounded-2xl glass-card hover:border-purple-500/50 transition-colors">
-                    <div className="flex-grow mx-4 min-w-0">
-                      <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                         <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-purple-400" /><span>Prize: {contest.prize}</span></div>
-                         <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Starts: <Countdown to={contest.start_date} /></span></div>
-                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {upcomingContests.length > 0 ? upcomingContests.map(c => renderContestCard(c, 'upcoming')) : <p className="text-center text-white/70 py-10">No upcoming contests.</p>}
           </TabsContent>
-
           <TabsContent value="past" className="space-y-4">
-            {pastContests.length === 0 ? (
-              <div className="text-center py-12 glass-card rounded-2xl">
-                <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Past Contests</h3>
-                <p className="text-gray-400">View results from previous contests here.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {pastContests.map((contest) => (
-                   <div key={contest.id} className="flex items-center p-4 rounded-2xl glass-card opacity-70">
-                     <div className="flex-grow mx-4 min-w-0">
-                       <p className="font-semibold truncate text-gray-400">{contest.title}</p>
-                       <p className="text-sm text-gray-500 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                         <div className="flex items-center gap-1"><Trophy className="h-4 w-4" /><span>Prize: {contest.prize}</span></div>
-                         <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ended: {new Date(contest.end_date).toLocaleDateString()}</span></div>
-                       </div>
-                     </div>
-                   </div>
-                ))}
-              </div>
-            )}
+            {pastContests.length > 0 ? pastContests.map(c => renderContestCard(c, 'past')) : <p className="text-center text-white/70 py-10">No past contests.</p>}
           </TabsContent>
-
           <TabsContent value="entries" className="space-y-4">
             {activeContests.length === 0 ? (
-              <div className="text-center py-12 glass-card rounded-2xl">
-                <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
-                <p className="text-gray-400">There are no active contests to show entries for.</p>
-              </div>
+              <p className="text-center text-white/70 py-10">No active contests to show entries for.</p>
             ) : (
               <Tabs value={activeContestTab} onValueChange={setActiveContestTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-black/20 rounded-xl">
-                  {activeContests.map(c => (
-                    <TabsTrigger key={c.id} value={c.id} className="data-[state=active]:bg-purple-600/40 data-[state=active]:text-white rounded-lg">
-                      {c.title}
-                    </TabsTrigger>
-                  ))}
+                <TabsList className={`grid w-full grid-cols-${activeContests.length}`}>
+                  {activeContests.map(c => <TabsTrigger key={c.id} value={c.id}>{c.title}</TabsTrigger>)}
                 </TabsList>
                 {activeContests.map(c => (
                   <TabsContent key={c.id} value={c.id} className="mt-4">
-                    <div className="mb-4">
-                      <Input
-                        type="search"
-                        placeholder="Search for a contestant..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                    <Input type="search" placeholder="Search for a contestant..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full mb-4" />
+                    <div className="space-y-3">
+                      {contestEntries.filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map((entry) => (
+                        <Card key={entry.id} className="flex items-center p-3">
+                          <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)}>
+                            {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause /> : <Play />}
+                          </Button>
+                          <div className="flex-grow mx-4 min-w-0">
+                            <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                            <p className="text-sm text-white/70">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2 text-sm"><Vote size={16} /><span>{entry.vote_count}</span></div>
+                            <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting}>Vote</Button>
+                          </div>
+                        </Card>
+                      ))}
                     </div>
-                    {entriesLoading ? (
-                      <div className="flex justify-center items-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-                    ) : contestEntries.filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
-                      <div className="text-center py-10">
-                        <p>No entries found for this contest {searchTerm && 'matching your search'}.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {contestEntries
-                          .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
-                          .map((entry) => (
-                            <div key={entry.id} className="flex items-center p-3 rounded-xl glass-card hover:border-purple-500/50 transition-colors">
-                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
-                                {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5 text-purple-400" /> : <Play className="h-5 w-5" />}
-                              </Button>
-                              <div className="flex-grow mx-4 min-w-0">
-                                <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
-                                <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-purple-400" /><span>{entry.vote_count}</span></div>
-                                <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="glass-btn">
-                                  Vote
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
                   </TabsContent>
                 ))}
               </Tabs>
@@ -389,30 +198,13 @@ const Contest = () => {
       </Tabs>
 
       {selectedEntry && (
-        <VoteDialog
-          open={voteDialogOpen}
-          onOpenChange={setVoteDialogOpen}
-          onVoteSubmit={handleVoteSubmit}
-          entryTitle={selectedEntry.songs?.title || 'this entry'}
-          userHasFreeVote={userHasFreeVote}
-          userCredits={user?.credits ?? 0}
-          isVoting={isVoting}
-        />
+        <VoteDialog open={voteDialogOpen} onOpenChange={setVoteDialogOpen} onVoteSubmit={(votes) => castVote(selectedEntry.id, selectedEntry.contest_id, votes).then(() => setVoteDialogOpen(false))} entryTitle={selectedEntry.songs?.title || 'this entry'} userHasFreeVote={userHasFreeVote} userCredits={user?.credits ?? 0} isVoting={isVoting} />
       )}
-
       {selectedContest && (
-        <SubmissionDialog
-          open={submissionDialogOpen}
-          onOpenChange={setSubmissionDialogOpen}
-          contestId={selectedContest.id}
-          onSubmissionSuccess={() => {
-            toast.success('Your entry has been submitted for review.');
-            refreshEntries();
-          }}
-        />
+        <SubmissionDialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen} contestId={selectedContest.id} onSubmissionSuccess={() => { toast.success('Your entry has been submitted for review.'); refreshEntries(); }} />
       )}
-    </Layout>
+    </div>
   );
 };
 
-export default Contest;
+export default ContestPage;

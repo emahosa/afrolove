@@ -1,80 +1,78 @@
-// src/pages/Dashboard.tsx
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Star, Bell } from "lucide-react";
+import { Star, Bell, Music, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Layout from "@/components/Layout";
+import { MotionCard, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
-type CardProps = {
-  title: string;
-  category: string;
-  image: string;
-};
+const Dashboard: React.FC = () => {
+  const { user } = useAuth();
 
-const cards: CardProps[] = [
-  { title: "Afro-Rnb Epic", category: "Afro-RnB", image: "/images/afro-rnb.jpg" },
-  { title: "South African Amapiano", category: "Afrobeats", image: "/images/amapiano.jpg" },
-  { title: "Sad Afro-Rnb", category: "Afrobeats", image: "/images/sad-rnb.jpg" },
-];
+  const cardVariants = {
+    hover: {
+      y: -5,
+      scale: 1.03,
+      transition: { type: "spring", stiffness: 300, damping: 20 },
+    },
+  };
 
-export default function Dashboard() {
-  const [activeCard, setActiveCard] = useState<number | null>(null);
+  const templates = [
+    { title: "Afro-RnB Epic", category: "Afro-RnB", image: "/placeholder.svg" },
+    { title: "South African Amapiano", category: "Afrobeats", image: "/placeholder.svg" },
+    { title: "Sad Afro-RnB", category: "Afrobeats", image: "/placeholder.svg" },
+  ];
 
   return (
-    <Layout active="Home">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold">Unleash Your Sound</h2>
-          <p className="text-gray-400">Every Beat. Every Emotion. All in Your Control.</p>
+          <h1 className="text-4xl font-bold">Unleash Your Sound</h1>
+          <p className="text-white/70 mt-2">Welcome back, {user?.user_metadata?.name || 'artist'}! Here’s what’s happening in your music journey.</p>
         </div>
         <div className="flex items-center gap-4">
-          <Button className="glass-btn">Manage Plan</Button>
-          <div className="flex items-center gap-2">
-            <Star className="text-yellow-400" /> <span>299</span>
-          </div>
-          <Bell className="text-gray-400" />
-          <div className="bg-green-600 rounded-full w-8 h-8 flex items-center justify-center">
-            FR
+          <Button variant="ghost" size="icon"><Bell /></Button>
+          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+            {user?.user_metadata?.name?.charAt(0) || 'A'}
           </div>
         </div>
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-4 mb-10">
-        <Button className="glass-btn">Create Song</Button>
-        <Button className="glass-btn">Earn</Button>
+      {/* Quick Actions */}
+      <div className="flex gap-4">
+        <Button asChild size="lg"><Link to="/create"><Music className="mr-2" /> Create Song</Link></Button>
+        <Button asChild size="lg" variant="secondary"><Link to="/billing"><DollarSign className="mr-2" /> Earn</Link></Button>
       </div>
 
-      {/* Cards */}
-      <h3 className="text-lg text-gray-400 mb-4">
-        Welcome back, fret! Here’s what’s happening in your music journey
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {cards.map((card, idx) => (
-          <motion.div
-            key={idx}
-            onClick={() => setActiveCard(idx === activeCard ? null : idx)}
-            className="relative rounded-2xl overflow-hidden cursor-pointer glass-card"
-            layout
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -5, scale: 1.05 }}
-            whileTap={{ scale: 0.95, zIndex: 10 }}
-          >
-            <img src={card.image} alt={card.title} className="w-full h-48 object-cover" />
-            <div className="p-4">
-              <h4 className="font-semibold">{card.title}</h4>
-              <p className="text-sm text-gray-400">{card.category}</p>
-              <div className="flex gap-2 mt-3">
-                <Button className="glass-btn px-3 py-1">Preview</Button>
-                <Button className="glass-btn px-3 py-1">Use Template</Button>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+      {/* Templates Section */}
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">Start with a Template</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ perspective: "1000px" }}>
+          {templates.map((template, idx) => (
+            <MotionCard
+              key={idx}
+              variants={cardVariants}
+              whileHover="hover"
+              className="overflow-hidden cursor-pointer"
+            >
+              <img src={template.image} alt={template.title} className="w-full h-48 object-cover" />
+              <CardHeader>
+                <CardTitle className="text-xl">{template.title}</CardTitle>
+                <CardDescription>{template.category}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  <Button size="sm">Preview</Button>
+                  <Button size="sm" variant="secondary">Use Template</Button>
+                </div>
+              </CardContent>
+            </MotionCard>
+          ))}
+        </div>
       </div>
-    </Layout>
+    </div>
   );
-}
+};
+
+export default Dashboard;
