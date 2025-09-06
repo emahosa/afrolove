@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGenreTemplates } from "@/hooks/use-genre-templates";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
+import HeroSection from "@/components/dashboard/HeroSection";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -9,6 +10,7 @@ const Dashboard = () => {
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8">
+      <HeroSection />
       <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h1 className="text-3xl font-semibold text-white">Welcome back, {user?.user_metadata?.full_name || 'User'}!</h1>
