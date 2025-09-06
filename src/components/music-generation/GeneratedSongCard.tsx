@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Play, Pause, Music, Clock, Zap, FileText, Loader2 } from "lucide-react";
@@ -10,6 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { GlassCard } from "@/components/ui/GlassCard";
 
 interface GeneratedSongCardProps {
   song: {
@@ -27,10 +28,10 @@ interface GeneratedSongCardProps {
 
 const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
 
-  const handlePlay = () => {
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!song.audio_url) {
       toast.error("Audio not available for this song");
       return;
@@ -50,7 +51,8 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!song.audio_url) {
       toast.error("Download not available for this song");
       return;
@@ -59,41 +61,21 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
     setIsDownloading(true);
     
     try {
-      console.log('Downloading song:', song.title);
-      
-      // Fetch the audio file
       const response = await fetch(song.audio_url);
-      if (!response.ok) {
-        throw new Error('Failed to download audio file');
-      }
-      
+      if (!response.ok) throw new Error('Failed to download audio file');
       const blob = await response.blob();
-      
-      // Create download link with proper filename using song title
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
-      // Use song title for filename, clean it up for file system
-      const cleanTitle = song.title
-        .replace(/[^a-zA-Z0-9\s-_]/g, '') // Remove special characters
-        .replace(/\s+/g, '_') // Replace spaces with underscores
-        .toLowerCase();
-      
+      const cleanTitle = song.title.replace(/[^a-zA-Z0-9\s-_]/g, '').replace(/\s+/g, '_').toLowerCase();
       const fileExtension = song.audio_url.includes('.wav') ? '.wav' : '.mp3';
       link.download = `${cleanTitle}${fileExtension}`;
-      
-      // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // Clean up
       window.URL.revokeObjectURL(url);
-      
       toast.success(`Downloaded: ${song.title}`);
     } catch (error) {
-      console.error('Download error:', error);
       toast.error('Failed to download song');
     } finally {
       setIsDownloading(false);
@@ -125,7 +107,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const isCurrentlyPlaying = currentTrack?.id === song.id && isPlaying;
 
   return (
-    <Card className="group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full">
+    <GlassCard className="flex flex-col h-full">
       <CardHeader className="p-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -140,7 +122,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
                 {song.status}
               </Badge>
               {song.genre && (
-                <Badge variant="outline" className="border-white/20 text-gray-300 text-xs px-1.5 py-0.5">
+                <Badge variant="outline" className="border-white/20 text-white/70 text-xs px-1.5 py-0.5">
                   {song.genre}
                 </Badge>
               )}
@@ -151,7 +133,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
 
       <CardContent className="p-3 space-y-2 flex-grow flex flex-col">
         <div className="flex-grow space-y-1">
-            <div className="flex items-center justify-between text-xs text-gray-400">
+            <div className="flex items-center justify-between text-xs text-white/70">
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>{formatDuration(song.duration)}</span>
@@ -162,7 +144,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
                 </div>
             </div>
 
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-white/50">
                 Created: {new Date(song.created_at).toLocaleDateString()}
             </div>
         </div>
@@ -170,14 +152,14 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         {song.lyrics && (
           <Collapsible>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" size="xs" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
+              <Button variant="outline" size="xs" className="w-full mt-2 text-xs">
                 <FileText className="h-3 w-3 mr-1" />
                 Lyrics
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
-              <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
-                <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
+              <div className="p-2 bg-black/50 rounded-md max-h-24 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-xs font-mono text-white/80">
                   {song.lyrics}
                 </pre>
               </div>
@@ -190,7 +172,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             <Button
               onClick={handlePlay}
               size="sm"
-              className="flex-1 bg-dark-purple hover:bg-opacity-90 font-semibold text-xs h-8"
+              className="flex-1 font-semibold text-xs h-8"
             >
               {isCurrentlyPlaying ? (
                 <Pause className="h-4 w-4 mr-1" />
@@ -205,7 +187,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               variant="outline"
               size="icon"
               disabled={isDownloading}
-              className="bg-transparent border-white/20 hover:bg-white/10 h-8 w-8"
+              className="h-8 w-8"
             >
               {isDownloading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -215,12 +197,12 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             </Button>
           </div>
         ) : (
-            <div className="text-center py-4 text-sm text-gray-400">
+            <div className="text-center py-4 text-sm text-white/70">
                 {song.status === 'processing' ? 'Generating song...' : 'Audio not available'}
             </div>
         )}
       </CardContent>
-    </Card>
+    </GlassCard>
   );
 };
 
