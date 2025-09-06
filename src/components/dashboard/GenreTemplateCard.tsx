@@ -1,6 +1,5 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { GenreTemplate } from '@/hooks/use-genre-templates';
@@ -82,14 +81,14 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   };
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
-      <CardHeader className="pb-3">
+    <div className="p-4">
+      <div className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-white text-lg font-bold">{template.template_name}</CardTitle>
-            <CardDescription className="text-gray-400 text-sm">
+            <h4 className="text-white text-lg font-bold">{template.template_name}</h4>
+            <p className="text-gray-400 text-sm">
               {template.genres?.name} Template
-            </CardDescription>
+            </p>
           </div>
           {template.cover_image_url && (
             <img 
@@ -99,9 +98,9 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
             />
           )}
         </div>
-      </CardHeader>
+      </div>
       
-      <CardContent className="space-y-4">
+      <div className="space-y-4">
         {template.user_prompt_guide && (
           <p className="text-sm text-gray-400 leading-relaxed h-20 overflow-hidden">
             {template.user_prompt_guide}
@@ -111,11 +110,10 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
         <div className="flex gap-2 pt-2">
           {template.audio_url && (
             <Button 
-              variant="outline" 
               size="sm" 
               onClick={handleAudioPlay}
               disabled={isLoading}
-              className="flex-1 bg-transparent border-white/30 hover:bg-white/10 text-white"
+              className="glass-btn flex-1"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -131,13 +129,13 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
           <Button 
             onClick={handleCreateMusic}
             size="sm"
-            className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold text-white"
+            className="glass-btn flex-1"
           >
             <Music className="h-4 w-4 mr-2" />
             Create Music
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
