@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music, Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -169,12 +170,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
   return (
     <div className="space-y-6 text-white">
       {templateData && (
-        <div className="border-purple-500/30 bg-purple-500/10 p-4 rounded-lg">
-          <h3 className="text-lg text-white font-semibold">Using Template: {templateData.template_name}</h3>
-          <p className="text-gray-300">
-            Genre: {templateData.genres?.name}
-          </p>
-        </div>
+        <Card className="border-dark-purple bg-white/5">
+          <CardHeader>
+            <CardTitle className="text-lg text-white">Using Template: {templateData.template_name}</CardTitle>
+            <CardDescription className="text-gray-400">
+              Genre: {templateData.genres?.name}
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
 
       {!templateData && (
@@ -187,12 +190,12 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
             </div>
           ) : (
             <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-              <SelectTrigger id="genre" className="glass-btn w-full">
+              <SelectTrigger id="genre" className="bg-black/20 border-white/20">
                 <SelectValue placeholder="Select a genre" />
               </SelectTrigger>
-              <SelectContent className="glass-card">
+              <SelectContent className="bg-gray-900 border-white/20 text-white">
                 {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id} className="hover:bg-purple-500/20 focus:bg-purple-500/20">
+                  <SelectItem key={genre.id} value={genre.id} className="focus:bg-dark-purple">
                     {genre.name}
                   </SelectItem>
                 ))}
@@ -205,12 +208,12 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       <div className="space-y-2">
         <Label htmlFor="model" className="text-gray-300">AI Model</Label>
         <Select value={selectedModel} onValueChange={setSelectedModel}>
-          <SelectTrigger id="model" className="glass-btn w-full">
+          <SelectTrigger id="model" className="bg-black/20 border-white/20">
             <SelectValue placeholder="Select an AI model" />
           </SelectTrigger>
-          <SelectContent className="glass-card">
+          <SelectContent className="bg-gray-900 border-white/20 text-white">
             {availableModels.map(model => (
-              <SelectItem key={model.value} value={model.value} className="hover:bg-purple-500/20 focus:bg-purple-500/20">
+              <SelectItem key={model.value} value={model.value} className="focus:bg-dark-purple">
                 {model.label}
               </SelectItem>
             ))}
@@ -221,14 +224,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
         <div>
           <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
-          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-xl border-2 border-white/10 bg-black/40 p-4 hover:bg-purple-500/20 peer-data-[state=checked]:border-purple-500 [&:has([data-state=checked])]:border-purple-500 cursor-pointer transition">
+          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
             Prompt Mode
             <span className="text-xs font-normal text-gray-400">Simple description</span>
           </Label>
         </div>
         <div>
           <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
-          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-xl border-2 border-white/10 bg-black/40 p-4 hover:bg-purple-500/20 peer-data-[state=checked]:border-purple-500 [&:has([data-state=checked])]:border-purple-500 cursor-pointer transition">
+          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
             Lyrics Mode
             <span className="text-xs font-normal text-gray-400">Use your own lyrics</span>
           </Label>
@@ -238,7 +241,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       {creationMode === 'lyrics' && (
         <div className="space-y-2">
           <Label htmlFor="title" className="text-gray-300">Song Title <span className="text-red-500">*</span></Label>
-          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-black/20 border-white/20 text-white placeholder-gray-500" />
         </div>
       )}
 
@@ -256,7 +259,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="min-h-[120px] bg-black/20 border-white/20 text-white placeholder-gray-500"
           maxLength={creationMode === 'prompt' ? 99 : undefined}
         />
         {creationMode === 'prompt' && (
@@ -265,14 +268,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       </div>
 
       <div className="flex items-center space-x-2">
-        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} />
+        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} className="data-[state=checked]:bg-dark-purple" />
         <Label htmlFor="instrumental" className="text-gray-300">Generate instrumental only</Label>
       </div>
 
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-        className="glass-btn w-full py-3 text-lg"
+        className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
         size="lg"
       >
         {isGenerating ? (

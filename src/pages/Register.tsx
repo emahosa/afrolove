@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,6 @@ const Register = () => {
       console.log("Register: Attempting to register user with:", { name, email });
       
       const success = await register(name, email, password);
-      console.log("Register: success status:", success);
       
       if (success) {
         toast.success("Registration successful! Welcome to MelodyVerse!");
@@ -86,15 +86,15 @@ const Register = () => {
 
   return (
     <AuthPageLayout>
-      <div className="glass-card w-full max-w-md p-8 rounded-2xl">
+      <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center justify-center mb-6">
-            <Music className="h-8 w-8 text-purple-400" />
+            <Music className="h-8 w-8 text-dark-purple" />
             <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
         </div>
 
         <div className="text-center mb-6">
           <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
-          <p className="text-gray-300">Join Afroverse and start creating music</p>
+          <p className="text-gray-400">Join Afroverse and start creating music</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -107,7 +107,7 @@ const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
@@ -119,7 +119,7 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
@@ -131,7 +131,7 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
@@ -143,12 +143,12 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full p-3 rounded-xl bg-black/40 border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <Button
             type="submit"
-            className="w-full glass-btn text-lg py-3"
+            className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
             disabled={loading}
           >
             {loading ? "Creating account..." : "Sign Up"}
@@ -160,7 +160,7 @@ const Register = () => {
             <div className="w-full border-t border-white/20"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full backdrop-blur-sm">
+            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
               OR CONTINUE WITH
             </span>
           </div>
@@ -168,7 +168,7 @@ const Register = () => {
 
         <Button 
           variant="outline"
-          className="w-full glass-btn"
+          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
           onClick={handleGoogleLogin}
           disabled={googleLoading}
         >
@@ -178,7 +178,7 @@ const Register = () => {
 
         <p className="text-center mt-6 text-sm text-gray-400">
           Already have an account?{" "}
-          <Link to="/login" className="text-purple-400 hover:underline font-medium">
+          <Link to="/login" className="text-dark-purple hover:underline font-medium">
             Sign in
           </Link>
         </p>

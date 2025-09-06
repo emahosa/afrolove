@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, Download, Trash2, Music } from "lucide-react";
@@ -139,7 +140,7 @@ const SongLibrary = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
         <span className="ml-3">Loading your songs...</span>
       </div>
     );
@@ -147,44 +148,46 @@ const SongLibrary = () => {
 
   if (songs.length === 0) {
     return (
-      <div>
-        <div className="flex items-center gap-2">
-          <Music className="h-5 w-5 text-purple-400" />
-          <h3 className="text-xl font-semibold">Completed Songs</h3>
-        </div>
-        <p className="text-gray-400 mb-4">
-          Your completed songs will appear here.
-        </p>
-        <div className="text-center py-8 border-2 border-dashed border-white/10 rounded-xl">
+      <Card className="p-4 bg-white/5 border-white/10 text-white">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Music className="h-5 w-5 text-dark-purple" />
+            Completed Songs
+          </CardTitle>
+          <CardDescription className="text-gray-400">
+            Your completed songs will appear here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-center py-8">
           <Music className="h-12 w-12 mx-auto text-gray-500 mb-4" />
           <p className="text-gray-500">No completed songs yet.</p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div>
+    <Card className="p-4 bg-white/5 border-white/10 text-white backdrop-blur-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <Music className="h-6 w-6 text-purple-400" />
+          <Music className="h-6 w-6 text-dark-purple" />
           Completed Songs
         </h2>
-        <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">{songs.length} songs</Badge>
+        <Badge className="bg-dark-purple text-white">{songs.length} songs</Badge>
       </div>
 
       <div className="space-y-2">
         {currentSongs.map((song) => (
-          <div key={song.id} className="flex items-center p-3 rounded-xl bg-black/30 border border-white/10 hover:bg-purple-600/20 transition-all cursor-pointer group">
+          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => handlePlay(song)}
               disabled={!song.audio_url}
-              className="mr-3 text-gray-400 group-hover:text-white"
+              className="mr-2 text-gray-300 hover:text-white"
             >
               {currentTrack?.id === song.id && isPlaying ? (
-                <Pause className="h-5 w-5 text-purple-400" />
+                <Pause className="h-5 w-5 text-dark-purple" />
               ) : (
                 <Play className="h-5 w-5" />
               )}
@@ -202,7 +205,7 @@ const SongLibrary = () => {
                 size="icon"
                 onClick={() => handleDownload(song)}
                 disabled={!song.audio_url}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-300 hover:text-white"
               >
                 <Download className="h-4 w-4" />
               </Button>
@@ -229,7 +232,7 @@ const SongLibrary = () => {
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={`${currentPage === 1 ? "pointer-events-none opacity-50" : ""} glass-btn`}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
               />
             </PaginationItem>
             {[...Array(totalPages)].map((_, i) => (
@@ -241,7 +244,7 @@ const SongLibrary = () => {
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="glass-btn data-[active=true]:bg-purple-600/40 data-[active=true]:text-white"
+                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -254,13 +257,13 @@ const SongLibrary = () => {
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={`${currentPage === totalPages ? "pointer-events-none opacity-50" : ""} glass-btn`}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
               />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
       )}
-    </div>
+    </Card>
   );
 };
 

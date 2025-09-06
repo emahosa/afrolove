@@ -8,8 +8,6 @@ import LibraryFilters from "@/components/library/LibraryFilters";
 import GeneratedSongCard from "@/components/music-generation/GeneratedSongCard";
 import VoterLockScreen from "@/components/VoterLockScreen";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import Layout from "@/components/Layout";
-import { motion } from "framer-motion";
 
 export interface Song {
   id: string;
@@ -46,20 +44,47 @@ const Library = () => {
       if (showRefreshingIndicator) setIsRefreshing(true);
       else setIsLoading(true);
       
+      console.log('🔍 Library: Fetching songs for user:', user.id);
+      
       const { data, error } = await supabase
         .from('songs')
         .select('*')
         .eq('user_id', user.id)
         .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false });
+      
+      console.log('📊 Library: Raw songs data from database:', data);
+      console.log('❌ Library: Database error (if any):', error);
         
       if (error) {
+        console.error('❌ Library: Error fetching songs:', error);
         toast.error('Failed to load songs: ' + error.message);
         return;
       }
       
+      console.log('✅ Library: Songs fetched successfully:', data?.length || 0, 'songs');
+      
+      // Enhanced logging for each song
+      data?.forEach((song, index) => {
+        console.log(`🎵 Library: Song ${index + 1}:`, {
+          id: song.id,
+          title: song.title,
+          status: song.status,
+          audio_url: song.audio_url,
+          url_length: song.audio_url?.length,
+          url_starts_with_http: song.audio_url?.startsWith('http'),
+          url_contains_suno: song.audio_url?.includes('suno'),
+          url_contains_cdn: song.audio_url?.includes('cdn'),
+          created_at: song.created_at,
+          prompt: song.prompt?.substring(0, 50) + '...',
+          credits_used: song.credits_used,
+          duration: song.duration
+        });
+      });
+      
       setSongs(data || []);
     } catch (error) {
+      console.error('💥 Library: Error in fetchSongs:', error);
       toast.error('Failed to load songs');
     } finally {
       setIsLoading(false);
@@ -69,8 +94,10 @@ const Library = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('👤 Library: User found, fetching songs');
       fetchSongs();
     } else {
+      console.log('👤 Library: No user found');
       setIsLoading(false);
     }
   }, [user, fetchSongs]);
@@ -79,20 +106,26 @@ const Library = () => {
   useEffect(() => {
     if (!user?.id) return;
 
+    console.log('🔄 Library: Setting up realtime subscription for user:', user.id);
+
     const channel = supabase
       .channel('songs-library-page-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
         (payload) => {
+          console.log('🔄 Library: Realtime update received!', payload);
+          
           if (payload.eventType === 'INSERT') {
             const newSong = payload.new as Song;
+            console.log('➕ Library: New song added via realtime:', newSong);
             setSongs(currentSongs => [newSong, ...currentSongs]);
             if (newSong.status === 'completed') {
               toast.success(`🎵 "${newSong.title}" is ready!`);
             }
           } else if (payload.eventType === 'UPDATE') {
             const updatedSong = payload.new as Song;
+            console.log('🔄 Library: Song updated via realtime:', updatedSong);
             setSongs(currentSongs =>
               currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
             );
@@ -103,6 +136,7 @@ const Library = () => {
               toast.error(`❌ "${updatedSong.title}" failed to generate.`);
             }
           } else if (payload.eventType === 'DELETE') {
+            console.log('🗑️ Library: Song deleted via realtime:', payload.old);
             setSongs(currentSongs => 
               currentSongs.filter(song => song.id !== payload.old.id)
             );
@@ -112,18 +146,17 @@ const Library = () => {
       .subscribe();
 
     return () => {
+      console.log('🔄 Library: Cleaning up realtime subscription');
       supabase.removeChannel(channel);
     };
   }, [user?.id]);
 
   if (loading) {
     return (
-      <Layout active="Library">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-          <span className="ml-2">Loading...</span>
-        </div>
-      </Layout>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-2">Loading...</span>
+      </div>
     );
   }
 
@@ -132,26 +165,23 @@ const Library = () => {
   }
   
   const handleRefresh = () => {
+    console.log('🔄 Library: Manual refresh triggered');
     fetchSongs(true);
   };
   
   if (isLoading) {
+    console.log('⏳ Library: Loading state');
     return (
-      <Layout active="Library">
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="ml-2">Loading your library...</span>
-        </div>
-      </Layout>
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading your library...</span>
+      </div>
     );
   }
 
   if (!user) {
-    return (
-      <Layout active="Library">
-        <p className="text-gray-400">Please log in to view your songs.</p>
-      </Layout>
-    );
+    console.log('👤 Library: No user, showing login message');
+    return <p className="text-gray-400">Please log in to view your songs.</p>
   }
 
   const filteredSongs = songs.filter(song => {
@@ -180,20 +210,25 @@ const Library = () => {
     setCurrentPage(page);
   };
 
+  console.log('📊 Library: Song counts:', {
+    total: songs.length,
+    filtered: filteredSongs.length
+  });
+
   return (
-    <Layout active="Library">
-      <div className="flex items-center justify-between mb-8">
+    <div className="h-full flex flex-col p-4 md:p-8">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-3xl font-semibold text-white">My Library</h1>
           <p className="text-gray-400">All your completed songs</p>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="glass-btn">
+        <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      <div className="mb-6">
+      <div className="mt-8 mb-6">
         <LibraryFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -202,20 +237,14 @@ const Library = () => {
         />
       </div>
 
-      <div>
+      <div className="mt-6">
         {songs.length > 0 ? (
           filteredSongs.length > 0 ? (
             <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {currentSongs.map((song, i) => (
-                  <motion.div
-                    key={song.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: i * 0.05 }}
-                  >
-                    <GeneratedSongCard song={song} />
-                  </motion.div>
+                {currentSongs.map((song) => (
+                  <GeneratedSongCard key={song.id} song={song} />
                 ))}
               </div>
             </div>
@@ -238,7 +267,7 @@ const Library = () => {
       </div>
 
       {totalPages > 1 && (
-        <Pagination className="mt-8">
+        <Pagination className="mt-8 flex-shrink-0">
           <PaginationContent className="text-gray-300">
             <PaginationItem>
               <PaginationPrevious
@@ -247,7 +276,7 @@ const Library = () => {
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10 rounded-lg"}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
               />
             </PaginationItem>
             {[...Array(totalPages)].map((_, i) => (
@@ -259,7 +288,7 @@ const Library = () => {
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 rounded-lg data-[active=true]:bg-purple-600/40 data-[active=true]:text-white"
+                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -272,13 +301,13 @@ const Library = () => {
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10 rounded-lg"}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
               />
             </PaginationItem>
           </PaginationContent>
         </Pagination>
       )}
-    </Layout>
+    </div>
   );
 };
 
