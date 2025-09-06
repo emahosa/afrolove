@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
-import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
@@ -29,32 +27,25 @@ const Register = () => {
       toast.error("All fields are required");
       return;
     }
-
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
-
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters long");
       return;
     }
 
     setLoading(true);
-    
     try {
-      console.log("Register: Attempting to register user with:", { name, email });
-      
       const success = await register(name, email, password);
-      
       if (success) {
-        toast.success("Registration successful! Welcome to MelodyVerse!");
+        toast.success("Registration successful! Welcome!");
         navigate("/dashboard");
       } else {
-        toast.error("Registration failed. Please try again.");
+        throw new Error("Registration failed. The email might already be in use.");
       }
     } catch (error: any) {
-      console.error("Registration error:", error);
       toast.error(error.message || "An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -64,21 +55,10 @@ const Register = () => {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      console.log("Attempting Google signup...");
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-
-      if (error) {
-        console.error("Google signup error:", error);
-        toast.error("Failed to sign up with Google: " + error.message);
-      }
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/dashboard` }});
+      if (error) throw error;
     } catch (error: any) {
-      console.error("Google signup error:", error);
-      toast.error("An unexpected error occurred during Google signup");
+      toast.error("Failed to sign up with Google: " + error.message);
     } finally {
       setGoogleLoading(false);
     }
@@ -86,20 +66,15 @@ const Register = () => {
 
   return (
     <AuthPageLayout>
-      <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
-        <div className="flex items-center justify-center mb-6">
-            <Music className="h-8 w-8 text-dark-purple" />
-            <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
-        </div>
-
+      <div className="w-full max-w-md glass-surface p-8">
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
-          <p className="text-gray-400">Join Afroverse and start creating music</p>
+          <h2 className="text-3xl font-semibold mb-2">Create Account</h2>
+          <p className="text-white/70">Join and start creating</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name" className="text-gray-300 text-left block mb-1">Full Name</Label>
+            <Label htmlFor="name" className="text-left block mb-1 text-white/70">Full Name</Label>
             <Input
               id="name"
               type="text"
@@ -107,11 +82,11 @@ const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              className="bg-black/20 border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-white/20"
             />
           </div>
           <div>
-            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
+            <Label htmlFor="email" className="text-left block mb-1 text-white/70">Email</Label>
             <Input
               id="email"
               type="email"
@@ -119,23 +94,23 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              className="bg-black/20 border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-white/20"
             />
           </div>
           <div>
-            <Label htmlFor="password" className="text-gray-300 text-left block mb-1">Password</Label>
+            <Label htmlFor="password" className="text-left block mb-1 text-white/70">Password</Label>
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="•••••••• (min. 6 characters)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              className="bg-black/20 border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-white/20"
             />
           </div>
           <div>
-            <Label htmlFor="confirmPassword" className="text-gray-300 text-left block mb-1">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-left block mb-1 text-white/70">Confirm Password</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -143,14 +118,10 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
+              className="bg-black/20 border-white/10 text-white placeholder-white/40 focus:border-white/30 focus:ring-white/20"
             />
           </div>
-          <Button
-            type="submit"
-            className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
-            disabled={loading}
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating account..." : "Sign Up"}
           </Button>
         </form>
@@ -160,15 +131,14 @@ const Register = () => {
             <div className="w-full border-t border-white/20"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
+            <span className="px-2 bg-black/50 text-white/70 rounded-full">
               OR CONTINUE WITH
             </span>
           </div>
         </div>
 
         <Button 
-          variant="outline"
-          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
+          className="w-full"
           onClick={handleGoogleLogin}
           disabled={googleLoading}
         >
@@ -176,9 +146,9 @@ const Register = () => {
           {googleLoading ? "Signing up..." : "Google"}
         </Button>
 
-        <p className="text-center mt-6 text-sm text-gray-400">
+        <p className="text-center mt-6 text-sm text-white/70">
           Already have an account?{" "}
-          <Link to="/login" className="text-dark-purple hover:underline font-medium">
+          <Link to="/login" className="text-white hover:underline font-medium">
             Sign in
           </Link>
         </p>
