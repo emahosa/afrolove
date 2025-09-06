@@ -58,19 +58,24 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
   return (
     <aside className={cn("h-full w-60 flex flex-col", className)}>
-      <ScrollArea className="flex-1 px-4 py-4">
-        <nav className="flex flex-col space-y-4 pt-8">
+      <div className="flex items-center h-16 px-4 border-b border-white/10 flex-shrink-0">
+        <Music className="h-6 w-6 text-dark-purple mr-2" />
+        <p className="font-sans font-bold text-xl text-white">Afroverse</p>
+      </div>
+      <ScrollArea className="flex-1 px-2 py-4">
+        <div className="flex flex-col space-y-1">
           {roleFilteredNavItems.map(item => {
             const needsSubscription = item.isProtected && !isUserAdmin && !isUserSubscribed;
             const effectiveLabel = item.label === "Credits & Plans" && isUserSubscribed ? "Manage Plan" : item.label;
             const isActive = item.href === location.pathname || (item.paths && item.paths.includes(location.pathname));
 
             return (
-              <button
+              <Button
                 key={item.href}
+                variant="ghost"
                 className={cn(
-                  "flex items-center text-gray-300 hover:text-purple-400 transition-all duration-300 ease-in-out transform hover:scale-105",
-                  isActive && "font-semibold text-purple-400"
+                  "w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white relative",
+                  isActive && "font-semibold bg-dark-purple text-white hover:bg-dark-purple/90"
                 )}
                 onClick={() => {
                   if (needsSubscription) {
@@ -81,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 }}
                 title={needsSubscription ? `${item.label} (Subscription required)` : item.label}
               >
-                <item.icon className={cn("mr-3 h-5 w-5 flex-shrink-0", isActive && "text-purple-400")} />
+                <item.icon className={cn("mr-3 h-5 w-5 flex-shrink-0", isActive && "text-white")} />
                 <span className="flex-grow text-left truncate">{effectiveLabel}</span>
                 {item.tag && !needsSubscription && (
                   <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center border-dark-purple text-dark-purple">
@@ -91,14 +96,14 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 {needsSubscription && (
                   <Lock className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0 self-center" />
                 )}
-              </button>
+              </Button>
             );
           })}
-        </nav>
+        </div>
       </ScrollArea>
       {user && (
-        <div className="mt-auto p-2 flex-shrink-0">
-           <Button variant="ghost" className="w-full justify-start text-gray-300 hover:text-purple-400" onClick={() => navigate('/profile')}>
+        <div className="mt-auto p-2 border-t border-white/10 flex-shrink-0">
+           <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white" onClick={() => navigate('/profile')}>
              <User className="mr-3 h-5 w-5 flex-shrink-0" />
              <span className="truncate">{user.email?.split('@')[0] || user.id}</span>
            </Button>

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu, Bell, Music, LogOut, User, Star, Crown, Settings } from "lucide-react";
+import { Menu, Bell, Music, LogOut, User, Star, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -10,30 +10,26 @@ interface NavbarProps {
 }
 
 const Navbar = ({ onMenuClick }: NavbarProps) => {
-  const { user, logout, isAdmin, isSuperAdmin } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const isSubscribed = user?.subscription?.status === 'active';
-  const showAdminLink = isAdmin() || isSuperAdmin();
 
   return (
-    <header className="bg-black sticky top-0 z-30">
+    <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm sticky top-0 z-30">
       <div className="px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden text-white/80 hover:bg-white/10 hover:text-white">
             <Menu className="h-5 w-5" />
           </Button>
-          <Link to="/dashboard">
-            <h1 className="text-purple-400 font-bold text-2xl">🎵 Afroverse</h1>
+          <Link to="/dashboard" className="flex items-center gap-2 hover-scale">
+            <Music className="h-6 w-6 text-dark-purple" />
+            <span className="font-poppins font-bold text-xl text-white">Afroverse</span>
           </Link>
         </div>
         
@@ -65,25 +61,14 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-black/90 border-white/10 text-white backdrop-blur-lg min-w-[200px]">
+            <DropdownMenuContent align="end" className="bg-black/50 border-white/10 text-white backdrop-blur-lg">
               <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 transition-colors">
+                <Link to="/profile" className="flex items-center cursor-pointer focus:bg-white/10 hover-scale">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
-              {showAdminLink && (
-                <DropdownMenuItem asChild>
-                  <Link to="/admin" className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 transition-colors">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Admin Panel</span>
-                  </Link>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem 
-                onClick={handleLogout} 
-                className="flex items-center cursor-pointer focus:bg-white/10 hover:bg-white/10 text-red-400 focus:text-red-400 transition-colors"
-              >
+              <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer focus:bg-white/10 text-red-400 focus:text-red-400 hover-scale">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

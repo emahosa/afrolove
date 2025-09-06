@@ -114,49 +114,21 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      console.log('🔄 Starting downgrade process for plan:', plan.name);
-      
-      // For now, we'll handle downgrade by updating the subscription directly
-      // In a production environment, you'd want to schedule this for the end of the billing cycle
-      const { error: updateError } = await supabase
-        .from('user_subscriptions')
-        .update({
-          subscription_type: plan.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user?.id)
-        .eq('subscription_status', 'active');
+      const { error } = await supabase.functions.invoke('manage-subscription', {
+        body: {
+          action: 'downgrade',
+          newPlanId: plan.id,
+          newStripePriceId: plan.stripePriceId,
+        }
+      });
 
-      if (updateError) {
-        console.error('Error updating subscription:', updateError);
-        throw new Error(updateError.message);
-      }
-
-      // Update user role if needed
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .upsert({ 
-          user_id: user?.id, 
-          role: 'subscriber' 
-        }, { 
-          onConflict: 'user_id,role' 
-        });
-
-      if (roleError) {
-        console.error('Error updating user role:', roleError);
-      }
+      if (error) throw new Error(error.message);
 
       toast.success("Downgrade Scheduled", {
         description: `Your subscription will be changed to the ${plan.name} plan at the end of your current billing cycle.`
       });
-      
-      // Refresh user data to show the change
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
+      // Optionally, refresh user data here to show the pending change
     } catch (error: any) {
-      console.error('Downgrade error:', error);
       toast.error("Failed to schedule downgrade", { description: error.message });
     } finally {
       setPaymentProcessing(false);

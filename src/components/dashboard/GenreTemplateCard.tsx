@@ -1,9 +1,10 @@
+
 import { useState, useRef, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { GenreTemplate } from '@/hooks/use-genre-templates';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
@@ -11,9 +12,11 @@ interface GenreTemplateCardProps {
 
 export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const navigate = useNavigate();
 
+  // Cleanup audio when component unmounts
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -23,28 +26,50 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
     };
   }, []);
 
-  const handleAudioPlay = () => {
+  const handleAudioPlay = async () => {
     if (!template.audio_url) return;
 
-    if (audioRef.current) {
-      if (isPlaying) {
+    try {
+      // Stop any currently playing audio first
+      if (audioRef.current) {
         audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current.play();
-        setIsPlaying(true);
+        audioRef.current.currentTime = 0;
       }
-      return;
-    }
 
-    const audio = new Audio(template.audio_url);
-    audioRef.current = audio;
-    audio.play();
-    setIsPlaying(true);
+      if (isPlaying) {
+        setIsPlaying(false);
+        return;
+      }
 
-    audio.onended = () => {
+      setIsLoading(true);
+      
+      // Create new audio instance
+      const audio = new Audio(template.audio_url);
+      audioRef.current = audio;
+
+      audio.onloadstart = () => setIsLoading(true);
+      audio.oncanplay = () => setIsLoading(false);
+      
+      audio.onplay = () => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      };
+      
+      audio.onpause = () => setIsPlaying(false);
+      audio.onended = () => setIsPlaying(false);
+      
+      audio.onerror = () => {
+        console.error('Audio playback error');
+        setIsPlaying(false);
+        setIsLoading(false);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
       setIsPlaying(false);
-    };
+      setIsLoading(false);
+    }
   };
 
   const handleCreateMusic = () => {
@@ -57,27 +82,59 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
   };
 
   return (
-    <Card
-      className="bg-gray-800/40 backdrop-blur-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg hover:shadow-purple-500/20"
-    >
-      <img src={template.cover_image_url || '/placeholder.svg'} alt={template.template_name} className="w-full h-32 object-cover rounded-t-xl flex-shrink-0" />
-      <CardContent className="p-3">
-        <h4 className="text-lg font-semibold mb-1">{template.template_name}</h4>
-        <p className="text-xs text-gray-400 mb-3">{template.genres?.name || 'Template'}</p>
+    <Card className="group hover:shadow-lg transition-all duration-300 bg-white/5 border-white/10 backdrop-blur-sm overflow-hidden">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-white text-lg font-bold">{template.template_name}</CardTitle>
+            <CardDescription className="text-gray-400 text-sm">
+              {template.genres?.name} Template
+            </CardDescription>
+          </div>
+          {template.cover_image_url && (
+            <img 
+              src={template.cover_image_url} 
+              alt={template.template_name}
+              className="w-12 h-12 rounded-lg object-cover border-2 border-white/10"
+            />
+          )}
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {template.user_prompt_guide && (
+          <p className="text-sm text-gray-400 leading-relaxed h-20 overflow-hidden">
+            {template.user_prompt_guide}
+          </p>
+        )}
+
         <div className="flex gap-2 pt-2">
-          <Button
-            onClick={handleAudioPlay}
-            size="sm"
-            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 flex items-center gap-1.5 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
-          >
-            <Play size={14} /> {isPlaying ? "Pause" : "Preview"}
-          </Button>
-          <Button
+          {template.audio_url && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleAudioPlay}
+              disabled={isLoading}
+              className="flex-1 bg-transparent border-white/30 hover:bg-white/10 text-white"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : isPlaying ? (
+                <Pause className="h-4 w-4 mr-2" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              {isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Preview'}
+            </Button>
+          )}
+          
+          <Button 
             onClick={handleCreateMusic}
             size="sm"
-            className="backdrop-blur-xl bg-white/10 text-purple-300 hover:bg-purple-400/20 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 w-full justify-center"
+            className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold text-white"
           >
-            Use Template
+            <Music className="h-4 w-4 mr-2" />
+            Create Music
           </Button>
         </div>
       </CardContent>
