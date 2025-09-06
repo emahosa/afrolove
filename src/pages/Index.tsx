@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AnimatedBackground from "@/components/ui/AnimatedBackground";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 export default function Index() {
   const navigate = useNavigate();
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
@@ -21,6 +23,11 @@ export default function Index() {
       }
     }
   }, [user, loading, navigate, isAdmin, isSuperAdmin]);
+
+  const handleNoConfirm = () => {
+    setShowConfirmModal(false);
+    toast.error("Sorry, this feature is not available yet. Please check back later.");
+  }
 
   // Show loading state while checking authentication
   if (loading) {
@@ -50,11 +57,40 @@ export default function Index() {
             Create, share, and explore the future of Afrobeat music.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button onClick={() => navigate('/register')} size="lg">Get Started</Button>
+            <Button onClick={() => setShowConfirmModal(true)} size="lg">Get Started</Button>
             <Button onClick={() => navigate('/#about')} variant="secondary" size="lg">Learn More</Button>
           </div>
         </motion.div>
       </main>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-surface max-w-md w-full text-center"
+          >
+            <h3 className="text-xl font-bold text-white">This service costs $5</h3>
+            <p className="text-white/70 text-sm mt-2">
+              Do you want to proceed?
+            </p>
+            <div className="mt-6 flex justify-center gap-4">
+              <Button
+                onClick={() => navigate('/login')}
+              >
+                Yes
+              </Button>
+              <Button
+                onClick={handleNoConfirm}
+                variant="secondary"
+              >
+                No
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
