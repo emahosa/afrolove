@@ -11,7 +11,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Landing from "./pages/Landing";
 import AdminRegister from "./pages/AdminRegister";
 import AdminLoginPage from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
@@ -31,7 +30,6 @@ import AdminLayout from "./layouts/AdminLayout";
 
 // Protected Routes
 import ProtectedRoute from "./components/ProtectedRoute";
-import { SoundwaveBackground } from './components/SoundwaveBackground';
 
 import { ensureStorageBuckets } from './utils/storageSetup';
 
@@ -47,10 +45,8 @@ const App = () => {
           <PaymentVerificationProvider>
             <TooltipProvider>
               <Toaster />
-              <SoundwaveBackground />
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/landing" element={<Landing />} />
                 
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
