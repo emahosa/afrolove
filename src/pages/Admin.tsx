@@ -16,6 +16,7 @@ import { ContestManagement } from "@/components/admin/ContestManagement";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
+import HeroUploader from "@/components/admin/HeroUploader";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
@@ -319,6 +320,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">
+            <HeroUploader />
             <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Content Management</CardTitle>
