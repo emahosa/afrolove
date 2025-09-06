@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,13 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
   const [selectedSong, setSelectedSong] = useState<string>('');
   const [description, setDescription] = useState('');
 
-  const fetchUserSongs = useCallback(async () => {
+  useEffect(() => {
+    if (user && open) {
+      fetchUserSongs();
+    }
+  }, [user, open]);
+
+  const fetchUserSongs = async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
@@ -40,20 +46,11 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
 
       if (error) throw error;
       setSongs(data || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error('Failed to load your songs: ' + error.message);
-      } else {
-        toast.error('An unknown error occurred while fetching songs.');
-      }
+    } catch (error: any) {
+      console.error('Error fetching songs:', error);
+      toast.error('Failed to load your songs.');
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (user && open) {
-      fetchUserSongs();
-    }
-  }, [user, open, fetchUserSongs]);
+  };
 
   const handleSubmit = async () => {
     if (!selectedSong) {
@@ -75,20 +72,20 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-gray-900 border-white/10 text-white">
         <DialogHeader>
           <DialogTitle>Submit to Contest</DialogTitle>
-          <DialogDescription className="text-white/70">
+          <DialogDescription className="text-gray-400">
             Choose a song and add a description for your entry.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="song" className="text-right text-white/80">
+            <Label htmlFor="song" className="text-right text-gray-300">
               Song
             </Label>
             <Select value={selectedSong} onValueChange={setSelectedSong}>
-              <SelectTrigger className="col-span-3">
+              <SelectTrigger className="col-span-3 bg-black/20 border-white/20">
                 <SelectValue placeholder="Select a song" />
               </SelectTrigger>
               <SelectContent>
@@ -107,23 +104,23 @@ export const SubmissionDialog = ({ open, onOpenChange, contestId, onSubmissionSu
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right text-white/80">
+            <Label htmlFor="description" className="text-right text-gray-300">
               Description
             </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3"
+              className="col-span-3 bg-black/20 border-white/20"
               placeholder="Tell us about your entry (optional)"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting} className="bg-transparent border-white/30 hover:bg-white/10">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedSong}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedSong} className="bg-dark-purple hover:bg-opacity-90 font-bold">
             {isSubmitting ? 'Submitting...' : 'Submit Entry'}
           </Button>
         </DialogFooter>

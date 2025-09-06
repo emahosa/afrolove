@@ -7,7 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useSupportTickets, SupportTicket } from '@/hooks/useSupportTickets';
 import { formatDistanceToNow } from 'date-fns';
-import { GlassCard } from '@/components/ui/GlassCard';
 
 export const UserSupportTickets = () => {
   const { tickets, messages, loading, fetchMessages, createMessage } = useSupportTickets();
@@ -18,32 +17,48 @@ export const UserSupportTickets = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'new': return <Clock className="h-4 w-4" />;
-      case 'active': return <MessageSquare className="h-4 w-4" />;
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'closed': return <XCircle className="h-4 w-4" />;
-      default: return <MessageSquare className="h-4 w-4" />;
+      case 'new':
+        return <Clock className="h-4 w-4" />;
+      case 'active':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'pending':
+        return <Clock className="h-4 w-4" />;
+      case 'completed':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'closed':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <MessageSquare className="h-4 w-4" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new': return 'bg-white/15 text-white border-white/20';
-      case 'active': return 'bg-white/20 text-white border-white/30';
-      case 'pending': return 'bg-white/10 text-white/80 border-white/15';
-      case 'completed': return 'bg-white/5 text-white/70 border-white/10';
-      case 'closed': return 'bg-black/20 text-white/50 border-white/5';
-      default: return 'bg-black/20 text-white/50 border-white/5';
+      case 'new':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'active':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'pending':
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'completed':
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'closed':
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'border-white/40 text-white font-bold';
-      case 'medium': return 'border-white/20 text-white/80';
-      case 'low': return 'border-white/10 text-white/60';
-      default: return 'border-white/10 text-white/60';
+      case 'high':
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'medium':
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'low':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
@@ -70,7 +85,7 @@ export const UserSupportTickets = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/50"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
       </div>
     );
   }
@@ -80,14 +95,16 @@ export const UserSupportTickets = () => {
       <h3 className="text-lg font-semibold">Your Support Tickets</h3>
       
       {tickets.length === 0 ? (
-        <div className="glass-surface text-center py-8">
-          <MessageSquare className="h-12 w-12 mx-auto text-white/50 mb-4" />
-          <p className="text-white/70">No support tickets found</p>
-        </div>
+        <Card className="bg-white/5 border-white/10">
+          <CardContent className="text-center py-8">
+            <MessageSquare className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+            <p className="text-gray-400">No support tickets found</p>
+          </CardContent>
+        </Card>
       ) : (
         tickets.map((ticket) => (
-          <GlassCard key={ticket.id} onClick={() => handleOpenTicket(ticket)}>
-            <div className="p-4">
+          <Card key={ticket.id} className="cursor-pointer bg-white/5 border-white/10 hover:bg-white/10 transition-colors" onClick={() => handleOpenTicket(ticket)}>
+            <CardContent className="p-4">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium text-white">{ticket.subject}</h4>
                 <div className="flex gap-2">
@@ -100,20 +117,20 @@ export const UserSupportTickets = () => {
                   </Badge>
                 </div>
               </div>
-              <p className="text-sm text-white/70 mb-2 line-clamp-2">
+              <p className="text-sm text-gray-400 mb-2 line-clamp-2">
                 {ticket.message}
               </p>
-              <p className="text-xs text-white/50">
+              <p className="text-xs text-gray-500">
                 Created {formatDistanceToNow(new Date(ticket.created_at))} ago
               </p>
-            </div>
-          </GlassCard>
+            </CardContent>
+          </Card>
         ))
       )}
 
       {/* Ticket Detail Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl bg-gray-900 border-white/10 text-white">
           <DialogHeader>
             <DialogTitle>
               Ticket #{selectedTicket?.id.slice(-8)}: {selectedTicket?.subject}
@@ -126,19 +143,19 @@ export const UserSupportTickets = () => {
                 key={message.id}
                 className={`p-3 rounded-lg ${
                   message.sender_type === 'admin'
-                    ? 'bg-white/10 ml-8'
-                    : 'bg-black/20 mr-8'
+                    ? 'bg-dark-purple/20 ml-8'
+                    : 'bg-white/5 mr-8'
                 }`}
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-medium text-white">
                     {message.sender_type === 'admin' ? 'Support Agent' : 'You'}
                   </span>
-                  <span className="text-xs text-white/70">
+                  <span className="text-xs text-gray-400">
                     {formatDistanceToNow(new Date(message.created_at))} ago
                   </span>
                 </div>
-                <div className="text-sm text-white/80">{message.content}</div>
+                <div className="text-sm text-gray-300">{message.content}</div>
               </div>
             ))}
           </div>
@@ -146,17 +163,19 @@ export const UserSupportTickets = () => {
           {selectedTicket?.status !== 'closed' && selectedTicket?.status !== 'completed' && (
             <div className="space-y-4 pt-4 border-t border-white/10">
               <div>
-                <label className="text-sm font-medium text-white/80 mb-1 block">Reply</label>
+                <label className="text-sm font-medium text-gray-300 mb-1 block">Reply</label>
                 <Textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Type your response here..."
                   rows={3}
+                  className="bg-black/20 border-white/20 text-white placeholder-gray-500"
                 />
               </div>
               <Button 
                 onClick={handleSendReply}
                 disabled={!replyText.trim() || isSending}
+                className="bg-dark-purple hover:bg-opacity-90 font-bold"
               >
                 {isSending ? 'Sending...' : 'Send Reply'}
               </Button>

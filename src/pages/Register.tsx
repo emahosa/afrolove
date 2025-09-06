@@ -86,20 +86,20 @@ const Register = () => {
 
   return (
     <AuthPageLayout>
-      <div className="w-full max-w-md glass-surface">
+      <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center justify-center mb-6">
-            <Music className="h-8 w-8 text-white" />
+            <Music className="h-8 w-8 text-dark-purple" />
             <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
         </div>
 
         <div className="text-center mb-6">
           <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
-          <p className="text-white/70">Join Afroverse and start creating music</p>
+          <p className="text-gray-400">Join Afroverse and start creating music</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="name" className="text-white/80 text-left block mb-1">Full Name</Label>
+            <Label htmlFor="name" className="text-gray-300 text-left block mb-1">Full Name</Label>
             <Input
               id="name"
               type="text"
@@ -107,10 +107,11 @@ const Register = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
-            <Label htmlFor="email" className="text-white/80 text-left block mb-1">Email</Label>
+            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
             <Input
               id="email"
               type="email"
@@ -118,10 +119,11 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
-            <Label htmlFor="password" className="text-white/80 text-left block mb-1">Password</Label>
+            <Label htmlFor="password" className="text-gray-300 text-left block mb-1">Password</Label>
             <Input
               id="password"
               type="password"
@@ -129,10 +131,11 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <div>
-            <Label htmlFor="confirmPassword" className="text-white/80 text-left block mb-1">Confirm Password</Label>
+            <Label htmlFor="confirmPassword" className="text-gray-300 text-left block mb-1">Confirm Password</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -140,11 +143,12 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
+              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
           <Button
             type="submit"
-            className="w-full font-bold"
+            className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
             disabled={loading}
           >
             {loading ? "Creating account..." : "Sign Up"}
@@ -156,7 +160,7 @@ const Register = () => {
             <div className="w-full border-t border-white/20"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-black/50 text-white/70 rounded-full">
+            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
               OR CONTINUE WITH
             </span>
           </div>
@@ -164,7 +168,7 @@ const Register = () => {
 
         <Button 
           variant="outline"
-          className="w-full"
+          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
           onClick={handleGoogleLogin}
           disabled={googleLoading}
         >
@@ -172,9 +176,9 @@ const Register = () => {
           {googleLoading ? "Signing up..." : "Google"}
         </Button>
 
-        <p className="text-center mt-6 text-sm text-white/70">
+        <p className="text-center mt-6 text-sm text-gray-400">
           Already have an account?{" "}
-          <Link to="/login" className="text-white hover:underline font-medium">
+          <Link to="/login" className="text-dark-purple hover:underline font-medium">
             Sign in
           </Link>
         </p>

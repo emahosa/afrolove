@@ -14,7 +14,6 @@ import { GenreManagement } from "@/components/admin/GenreManagement";
 import { SunoApiManagement } from "@/components/admin/SunoApiManagement";
 import { ContestManagement } from "@/components/admin/ContestManagement";
 import { ContentManagement } from "@/components/admin/ContentManagement";
-import HeroUploader from "@/components/admin/HeroUploader";
 import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
@@ -325,8 +324,7 @@ const Admin = ({ tab }: AdminProps) => {
                 <CardTitle>Content Management</CardTitle>
                 <CardDescription>Manage content moderation and flags</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8">
-                <HeroUploader />
+              <CardContent>
                 <ContentManagement />
               </CardContent>
             </Card>

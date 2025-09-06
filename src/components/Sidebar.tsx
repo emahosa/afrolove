@@ -59,7 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   return (
     <aside className={cn("h-full w-60 flex flex-col", className)}>
       <div className="flex items-center h-16 px-4 border-b border-white/10 flex-shrink-0">
-        <Music className="h-6 w-6 text-white mr-2" />
+        <Music className="h-6 w-6 text-dark-purple mr-2" />
         <p className="font-sans font-bold text-xl text-white">Afroverse</p>
       </div>
       <ScrollArea className="flex-1 px-2 py-4">
@@ -74,8 +74,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 key={item.href}
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start text-white/70 hover:bg-white/10 hover:text-white relative rounded-lg",
-                  isActive && "font-semibold bg-white/10 text-white"
+                  "w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white relative",
+                  isActive && "font-semibold bg-dark-purple text-white hover:bg-dark-purple/90"
                 )}
                 onClick={() => {
                   if (needsSubscription) {
@@ -89,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 <item.icon className={cn("mr-3 h-5 w-5 flex-shrink-0", isActive && "text-white")} />
                 <span className="flex-grow text-left truncate">{effectiveLabel}</span>
                 {item.tag && !needsSubscription && (
-                  <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center border-white/50 text-white/80">
+                  <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center border-dark-purple text-dark-purple">
                     {item.tag}
                   </Badge>
                 )}

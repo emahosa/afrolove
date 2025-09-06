@@ -228,7 +228,7 @@ const Library = () => {
         </Button>
       </div>
 
-      <div className="mt-8 mb-6 glass-surface">
+      <div className="mt-8 mb-6">
         <LibraryFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -237,22 +237,19 @@ const Library = () => {
         />
       </div>
 
-      <div className="mt-6 glass-surface flex-grow">
+      <div className="mt-6">
         {songs.length > 0 ? (
           filteredSongs.length > 0 ? (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
-              <div
-                className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                style={{ perspective: "1000px" }}
-              >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {currentSongs.map((song) => (
                   <GeneratedSongCard key={song.id} song={song} />
                 ))}
               </div>
             </div>
           ) : (
-            <div className="text-center py-16 text-white/50">
+            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
               <Music className="mx-auto h-12 w-12" />
               <h3 className="mt-4 text-lg font-medium text-white">No matching songs</h3>
               <p className="mt-1 text-sm">Try a different search or filter.</p>
@@ -260,7 +257,7 @@ const Library = () => {
           )
         ) : (
           !isLoading && (
-            <div className="text-center py-16 text-white/50">
+            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
               <Music className="mx-auto h-12 w-12" />
               <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
               <p className="mt-1 text-sm">Create your first song to see it here.</p>
@@ -271,7 +268,7 @@ const Library = () => {
 
       {totalPages > 1 && (
         <Pagination className="mt-8 flex-shrink-0">
-          <PaginationContent className="text-white/70">
+          <PaginationContent className="text-gray-300">
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -291,7 +288,7 @@ const Library = () => {
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 data-[active=true]:bg-white/20 data-[active=true]:text-white"
+                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
                 >
                   {i + 1}
                 </PaginationLink>

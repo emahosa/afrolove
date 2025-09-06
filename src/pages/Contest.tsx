@@ -27,7 +27,6 @@ interface Contest {
   prize: string;
   entry_fee: number;
   status: string;
-  is_unlocked?: boolean;
 }
 
 interface ContestEntry {
@@ -76,6 +75,8 @@ const Contest = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [selectedSong, setSelectedSong] = useState<string>("");
+  const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
   const [voteDialogOpen, setVoteDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
@@ -171,6 +172,8 @@ const Contest = () => {
     await unlockContest(contest.id, contest.entry_fee);
   };
 
+  const canParticipate = isVoter() || isSubscriber() || userRoles.includes('admin') || userRoles.includes('super_admin');
+
   const Countdown = ({ to }: { to: string }) => {
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -203,7 +206,7 @@ const Contest = () => {
   if (authLoading || contestLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/50"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
         <span className="ml-2">Loading...</span>
       </div>
     );
@@ -213,42 +216,49 @@ const Contest = () => {
     <div className="h-full flex flex-col p-4 md:p-8 text-white">
       <div className="text-center flex-shrink-0">
         <h1 className="text-3xl font-semibold mb-2 text-white">Music Contests</h1>
-        <p className="text-white/70">
+        <p className="text-gray-400">
           Showcase your talent and win amazing prizes!
         </p>
+        {user && (
+          <p className="text-sm text-gray-300 mt-2">
+            Your Credits: <span className="font-bold text-dark-purple">{user?.credits ?? 'Loading...'}</span>
+          </p>
+        )}
       </div>
 
       <Tabs defaultValue="active" className="w-full flex flex-col flex-grow mt-6">
-        <TabsList className="grid w-full grid-cols-4 flex-shrink-0">
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="past">Past</TabsTrigger>
-          <TabsTrigger value="entries">Entries</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 bg-black/30 border border-white/10 flex-shrink-0">
+          <TabsTrigger value="active" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active</TabsTrigger>
+          <TabsTrigger value="upcoming" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Upcoming</TabsTrigger>
+          <TabsTrigger value="past" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Past</TabsTrigger>
+          <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
         </TabsList>
 
-        <div className="flex-grow overflow-y-auto mt-6 glass-surface">
+        <div className="flex-grow overflow-y-auto mt-6">
           <TabsContent value="active" className="space-y-4">
             {activeContests.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="h-12 w-12 mx-auto text-white/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
-                <p className="text-white/70">Check back later for new contests.</p>
-              </div>
+              <Card className="text-center py-12 bg-white/5 border-white/10">
+                <CardContent>
+                  <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
+                  <p className="text-gray-400">Check back later for new contests.</p>
+                </CardContent>
+              </Card>
             ) : (
               <div className="space-y-3">
                 {activeContests.map((contest) => (
                   <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                     <div className="flex-grow mx-4 min-w-0">
                       <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-white/70 line-clamp-1">{contest.description}</p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-white/70">
-                        <div className="flex items-center gap-1"><Trophy className="h-4 w-4" /><span>Prize: {contest.prize}</span></div>
+                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                        <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
                         <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       {contest.is_unlocked ? (
-                        <Button size="sm" onClick={() => openSubmissionDialog(contest)}>
+                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
                           Submit Entry
                         </Button>
                       ) : (
@@ -265,20 +275,22 @@ const Contest = () => {
 
           <TabsContent value="upcoming" className="space-y-4">
             {upcomingContests.length === 0 ? (
-               <div className="text-center py-12">
-                 <Calendar className="h-12 w-12 mx-auto text-white/50 mb-4" />
-                 <h3 className="text-lg font-semibold mb-2 text-white">No Upcoming Contests</h3>
-                 <p className="text-white/70">New contests are announced periodically. Stay tuned!</p>
-               </div>
+               <Card className="text-center py-12 bg-white/5 border-white/10">
+                 <CardContent>
+                   <Calendar className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                   <h3 className="text-lg font-semibold mb-2 text-white">No Upcoming Contests</h3>
+                   <p className="text-gray-400">New contests are announced periodically. Stay tuned!</p>
+                 </CardContent>
+               </Card>
             ) : (
               <div className="space-y-3">
                 {upcomingContests.map((contest) => (
                   <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                     <div className="flex-grow mx-4 min-w-0">
                       <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-white/70 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-white/70">
-                         <div className="flex items-center gap-1"><Trophy className="h-4 w-4" /><span>Prize: {contest.prize}</span></div>
+                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
+                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                         <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
                          <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Starts: <Countdown to={contest.start_date} /></span></div>
                        </div>
                     </div>
@@ -290,19 +302,21 @@ const Contest = () => {
 
           <TabsContent value="past" className="space-y-4">
             {pastContests.length === 0 ? (
-              <div className="text-center py-12">
-                <Trophy className="h-12 w-12 mx-auto text-white/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Past Contests</h3>
-                <p className="text-white/70">View results from previous contests here.</p>
-              </div>
+              <Card className="text-center py-12 bg-white/5 border-white/10">
+                <CardContent>
+                  <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Past Contests</h3>
+                  <p className="text-gray-400">View results from previous contests here.</p>
+                </CardContent>
+              </Card>
             ) : (
               <div className="space-y-3">
                 {pastContests.map((contest) => (
-                   <div key={contest.id} className="flex items-center p-3 rounded-lg bg-black/20 opacity-70">
+                   <div key={contest.id} className="flex items-center p-3 rounded-lg bg-gray-800/30 opacity-70">
                      <div className="flex-grow mx-4 min-w-0">
-                       <p className="font-semibold truncate text-white/70">{contest.title}</p>
-                       <p className="text-sm text-white/50 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-white/50">
+                       <p className="font-semibold truncate text-gray-400">{contest.title}</p>
+                       <p className="text-sm text-gray-500 line-clamp-1">{contest.description}</p>
+                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
                          <div className="flex items-center gap-1"><Trophy className="h-4 w-4" /><span>Prize: {contest.prize}</span></div>
                          <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ended: {new Date(contest.end_date).toLocaleDateString()}</span></div>
                        </div>
@@ -315,16 +329,18 @@ const Contest = () => {
 
           <TabsContent value="entries" className="space-y-4">
             {activeContests.length === 0 ? (
-              <div className="text-center py-12">
-                <Vote className="h-12 w-12 mx-auto text-white/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
-                <p className="text-white/70">There are no active contests to show entries for.</p>
-              </div>
+              <Card className="text-center py-12 bg-white/5 border-white/10">
+                <CardContent>
+                  <Vote className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Active Contests</h3>
+                  <p className="text-gray-400">There are no active contests to show entries for.</p>
+                </CardContent>
+              </Card>
             ) : (
               <Tabs value={activeContestTab} onValueChange={setActiveContestTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-3 bg-black/20">
                   {activeContests.map(c => (
-                    <TabsTrigger key={c.id} value={c.id}>
+                    <TabsTrigger key={c.id} value={c.id} className="data-[state=active]:bg-dark-purple/70 data-[state=active]:text-white">
                       {c.title}
                     </TabsTrigger>
                   ))}
@@ -337,10 +353,11 @@ const Contest = () => {
                         placeholder="Search for a contestant..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-white/5 border-white/20 placeholder:text-gray-400"
                       />
                     </div>
                     {entriesLoading ? (
-                      <div className="flex justify-center items-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/50"></div></div>
+                      <div className="flex justify-center items-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div></div>
                     ) : contestEntries.filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 ? (
                       <div className="text-center py-10">
                         <p>No entries found for this contest {searchTerm && 'matching your search'}.</p>
@@ -351,16 +368,16 @@ const Contest = () => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)}>
-                                {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
+                                {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                               </Button>
                               <div className="flex-grow mx-4 min-w-0">
                                 <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
-                                <p className="text-sm text-white/70">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
+                                <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4" /><span>{entry.vote_count}</span></div>
-                                <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting}>
+                                <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-dark-purple" /><span>{entry.vote_count}</span></div>
+                                <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
                                   Vote
                                 </Button>
                               </div>

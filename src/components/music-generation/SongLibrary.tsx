@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +29,13 @@ const SongLibrary = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const songsPerPage = 10;
 
-  const fetchSongs = useCallback(async () => {
-    if (!user) return;
+  useEffect(() => {
+    if (user) {
+      fetchSongs();
+    }
+  }, [user]);
+
+  const fetchSongs = async () => {
     try {
       const { data, error } = await supabase
         .from('songs')
@@ -43,28 +49,19 @@ const SongLibrary = () => {
           prompt,
           genre:genres(name)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSongs(data || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error('Failed to load songs: ' + error.message);
-      } else {
-        toast.error('An unknown error occurred while fetching songs.');
-      }
+    } catch (error: any) {
+      console.error('Error fetching songs:', error);
+      toast.error('Failed to load songs');
     } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchSongs();
-    }
-  }, [user, fetchSongs]);
+  };
 
   const handlePlay = (song: Song) => {
     if (currentTrack?.id === song.id && isPlaying) {
@@ -106,6 +103,7 @@ const SongLibrary = () => {
       
       toast.success(`Downloaded: ${filename}`);
     } catch (error) {
+      console.error('Download error:', error);
       toast.error('Failed to download song');
     }
   };
@@ -123,12 +121,9 @@ const SongLibrary = () => {
       
       setSongs(songs.filter(song => song.id !== songId));
       toast.success('Song deleted successfully');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error('Failed to delete song: ' + error.message);
-      } else {
-        toast.error('An unknown error occurred while deleting the song.');
-      }
+    } catch (error: any) {
+      console.error('Error deleting song:', error);
+      toast.error('Failed to delete song');
     }
   };
 
@@ -145,7 +140,7 @@ const SongLibrary = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white/50"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
         <span className="ml-3">Loading your songs...</span>
       </div>
     );
@@ -153,32 +148,32 @@ const SongLibrary = () => {
 
   if (songs.length === 0) {
     return (
-      <div>
+      <Card className="p-4 bg-white/5 border-white/10 text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5" />
+            <Music className="h-5 w-5 text-dark-purple" />
             Completed Songs
           </CardTitle>
-          <CardDescription className="text-white/70">
+          <CardDescription className="text-gray-400">
             Your completed songs will appear here.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-8">
-          <Music className="h-12 w-12 mx-auto text-white/50 mb-4" />
-          <p className="text-white/50">No completed songs yet.</p>
+          <Music className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+          <p className="text-gray-500">No completed songs yet.</p>
         </CardContent>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div>
+    <Card className="p-4 bg-white/5 border-white/10 text-white backdrop-blur-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <Music className="h-6 w-6" />
+          <Music className="h-6 w-6 text-dark-purple" />
           Completed Songs
         </h2>
-        <Badge variant="secondary">{songs.length} songs</Badge>
+        <Badge className="bg-dark-purple text-white">{songs.length} songs</Badge>
       </div>
 
       <div className="space-y-2">
@@ -189,17 +184,17 @@ const SongLibrary = () => {
               size="icon"
               onClick={() => handlePlay(song)}
               disabled={!song.audio_url}
-              className="mr-2 text-white/70 hover:text-white"
+              className="mr-2 text-gray-300 hover:text-white"
             >
               {currentTrack?.id === song.id && isPlaying ? (
-                <Pause className="h-5 w-5 text-white" />
+                <Pause className="h-5 w-5 text-dark-purple" />
               ) : (
                 <Play className="h-5 w-5" />
               )}
             </Button>
             <div className="flex-grow min-w-0">
               <p className="font-semibold text-sm truncate text-white">{song.title}</p>
-              <p className="text-xs text-white/70">
+              <p className="text-xs text-gray-400">
                 {new Date(song.created_at).toLocaleDateString()}
                 {song.genre && ` • ${song.genre.name}`}
               </p>
@@ -210,7 +205,7 @@ const SongLibrary = () => {
                 size="icon"
                 onClick={() => handleDownload(song)}
                 disabled={!song.audio_url}
-                className="text-white/70 hover:text-white"
+                className="text-gray-300 hover:text-white"
               >
                 <Download className="h-4 w-4" />
               </Button>
@@ -229,7 +224,7 @@ const SongLibrary = () => {
 
       {totalPages > 1 && (
         <Pagination className="mt-4">
-          <PaginationContent className="text-white/70">
+          <PaginationContent className="text-gray-300">
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -249,7 +244,7 @@ const SongLibrary = () => {
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 data-[active=true]:bg-white/20 data-[active=true]:text-white"
+                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -268,7 +263,7 @@ const SongLibrary = () => {
           </PaginationContent>
         </Pagination>
       )}
-    </div>
+    </Card>
   );
 };
 
