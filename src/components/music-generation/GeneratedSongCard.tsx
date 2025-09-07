@@ -125,7 +125,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   const isCurrentlyPlaying = currentTrack?.id === song.id && isPlaying;
 
   return (
-    <Card className="group glass text-white flex flex-col h-full">
+    <Card className="group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full">
       <CardHeader className="p-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">

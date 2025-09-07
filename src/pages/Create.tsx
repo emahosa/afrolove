@@ -50,7 +50,7 @@ const Create = () => {
           </div>
 
           <CollapsibleContent>
-            <Card className="mt-4 glass">
+            <Card className="mt-4">
               <CardContent className="pt-6">
                 <MusicGenerationWorkflow
                   preSelectedGenre={selectedGenre}
