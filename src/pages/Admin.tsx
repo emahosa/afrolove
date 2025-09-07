@@ -19,6 +19,7 @@ import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
+import { HeroVideoUploadForm } from "@/components/admin/HeroVideoUploadForm";
 
 interface AdminProps {
   tab?: string;
@@ -135,6 +136,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
               <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             </TabsList>
           </div>
@@ -374,6 +376,18 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent>
                 <SettingsManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="site-settings" className="space-y-4">
+            <Card className="bg-card">
+              <CardHeader>
+                <CardTitle>Site Settings</CardTitle>
+                <CardDescription>Manage site-wide settings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HeroVideoUploadForm />
               </CardContent>
             </Card>
           </TabsContent>
