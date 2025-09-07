@@ -1,45 +1,18 @@
 import { useEffect, useState } from "react";
+import { getSetting } from "@/utils/settingsOperations";
 
 export default function HeroSection() {
-  const [status, setStatus] = useState("upcoming"); // upcoming | live | ended
-  const [timeLeft, setTimeLeft] = useState(0);
-
-  // Example contest dates
-  const contestStart = new Date("2025-09-10T18:00:00").getTime();
-  const contestEnd = new Date("2025-09-20T18:00:00").getTime();
-  const winnerReveal = new Date("2025-09-25T18:00:00").getTime();
+  const [heroVideoUrl, setHeroVideoUrl] = useState('/hero-video.mp4');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-
-      if (now < contestStart) {
-        setStatus("upcoming");
-        setTimeLeft(contestStart - now);
-      } else if (now >= contestStart && now < contestEnd) {
-        setStatus("live");
-        setTimeLeft(contestEnd - now);
-      } else if (now >= contestEnd && now < winnerReveal) {
-        setStatus("ended");
-        setTimeLeft(winnerReveal - now);
-      } else {
-        setStatus("finished");
-        setTimeLeft(0);
+    const fetchHeroVideo = async () => {
+      const url = await getSetting('heroVideoUrl');
+      if (url) {
+        setHeroVideoUrl(url);
       }
-    }, 1000);
-
-    return () => clearInterval(interval);
+    };
+    fetchHeroVideo();
   }, []);
-
-  const formatTime = (ms) => {
-    if (ms <= 0) return "00:00:00";
-    const totalSeconds = Math.floor(ms / 1000);
-    const days = Math.floor(totalSeconds / (3600 * 24));
-    const hours = Math.floor((totalSeconds % (3600 * 24)) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  };
 
   return (
     <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-lg mb-6">
@@ -49,8 +22,9 @@ export default function HeroSection() {
         autoPlay
         loop
         muted
+        key={heroVideoUrl}
       >
-        <source src="/hero-video.mp4" type="video/mp4" />
+        <source src={heroVideoUrl} type="video/mp4" />
       </video>
 
       {/* Overlay */}
@@ -64,20 +38,6 @@ export default function HeroSection() {
         <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-semibold shadow-lg">
           Join Contest
         </button>
-      </div>
-
-      {/* Countdown badge on edge */}
-      <div className="absolute top-6 right-6 bg-white/90 text-gray-900 px-4 py-2 rounded-xl shadow-md text-sm font-semibold">
-        {status === "upcoming" && (
-          <p>Contest starts in: {formatTime(timeLeft)}</p>
-        )}
-        {status === "live" && (
-          <p>Contest ends in: {formatTime(timeLeft)}</p>
-        )}
-        {status === "ended" && (
-          <p>Winner announced in: {formatTime(timeLeft)}</p>
-        )}
-        {status === "finished" && <p>Contest finished 🎉</p>}
       </div>
     </div>
   );
