@@ -19,7 +19,6 @@ import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
-import { HeroVideoUploadForm } from "@/components/admin/HeroVideoUploadForm";
 
 interface AdminProps {
   tab?: string;
@@ -320,7 +319,6 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">
-            <HeroVideoUploadForm />
             <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Content Management</CardTitle>

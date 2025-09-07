@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Pencil, Trash, Eye } from "lucide-react";
+import { HeroVideoUploadForm } from './HeroVideoUploadForm';
 
 const mockContentItems = [
   { 
@@ -137,6 +138,7 @@ export const ContentManagement = () => {
           <TabsTrigger value="all">All Content</TabsTrigger>
           <TabsTrigger value="published">Published</TabsTrigger>
           <TabsTrigger value="draft">Drafts</TabsTrigger>
+          <TabsTrigger value="settings">Site Settings</TabsTrigger>
         </TabsList>
         
         <TabsContent value={activeTab} className="mt-6">
@@ -220,6 +222,9 @@ export const ContentManagement = () => {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="settings" className="mt-6">
+          <HeroVideoUploadForm />
         </TabsContent>
       </Tabs>
       

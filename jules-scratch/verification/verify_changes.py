@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright, expect
 
 async def main():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False, timeout=120000)
         page = await browser.new_page()
 
         # Verify Hero Section
@@ -15,7 +15,9 @@ async def main():
 
         # Verify Admin Page
         await page.goto("http://127.0.0.1:8080/admin")
+        await page.pause()
         await page.wait_for_load_state("networkidle")
+        await page.get_by_role("tab", name="Content").click()
         await page.get_by_role("tab", name="Site Settings").click()
         await expect(page.get_by_text("Hero Section Video")).to_be_visible()
         await page.screenshot(path="jules-scratch/verification/admin_video_upload.png")
