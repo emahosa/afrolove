@@ -13,7 +13,7 @@ export default function HeroSection() {
     title: string;
     description: string;
   } | null>(null);
-  const [heroVideoUrl, setHeroVideoUrl] = useState('/hero-video.mp4');
+  const [heroVideoUrl, setHeroVideoUrl] = useState('');
 
   useEffect(() => {
     const fetchHeroVideo = async () => {
@@ -94,16 +94,18 @@ export default function HeroSection() {
   return (
     <div className="relative w-full h-[60vh]">
       {/* Background video */}
-      <video
-        className="absolute top-0 left-0 w-full h-full object-cover"
-        autoPlay
-        loop
-        muted
-        playsInline
-        key={heroVideoUrl} // Add key to force re-render when URL changes
-      >
-        <source src={heroVideoUrl} type="video/mp4" />
-      </video>
+      {heroVideoUrl && (
+        <video
+          className="absolute top-0 left-0 w-full h-full object-cover"
+          autoPlay
+          loop
+          muted
+          playsInline
+          key={heroVideoUrl} // Add key to force re-render when URL changes
+        >
+          <source src={heroVideoUrl} type="video/mp4" />
+        </video>
+      )}
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40" />
