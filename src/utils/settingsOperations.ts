@@ -16,7 +16,19 @@ export const getSetting = async (key: string): Promise<string | null> => {
       return null;
     }
 
-    return data ? (data as any).value : null;
+    const rawValue = data ? (data as any).value : null;
+
+    if (rawValue && typeof rawValue === 'string') {
+      try {
+        // The value might be a JSON string (e.g., "\"https://url.com\""), so parse it.
+        return JSON.parse(rawValue);
+      } catch (e) {
+        // If parsing fails, it's probably not a JSON string, so return it as is.
+        return rawValue;
+      }
+    }
+
+    return rawValue;
   } catch (error) {
     console.error(`Error in getSetting for ${key}:`, error);
     return null;
