@@ -17,7 +17,7 @@ export default function HeroSection() {
 
   useEffect(() => {
     const fetchHeroVideo = async () => {
-      const url = await getSetting('heroVideoUrl');
+      const url = await getSetting('homepage_hero_video_url');
       if (url) {
         setHeroVideoUrl(url);
       }

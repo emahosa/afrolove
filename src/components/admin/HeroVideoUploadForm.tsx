@@ -48,7 +48,7 @@ export const HeroVideoUploadForm = () => {
         throw new Error('Could not get public URL for the uploaded video.');
       }
 
-      const success = await updateSetting('heroVideoUrl', publicUrlData.publicUrl, 'homepage');
+      const success = await updateSetting('homepage_hero_video_url', publicUrlData.publicUrl, 'homepage');
 
       if (success) {
         toast.success('Hero video uploaded and setting updated successfully!');
