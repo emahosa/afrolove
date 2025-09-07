@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useContest } from "@/hooks/use-contest";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { getSetting } from "@/utils/settingsOperations";
 
 export default function HeroSection() {
   const { activeContests, upcomingContests } = useContest();
@@ -13,35 +13,15 @@ export default function HeroSection() {
     title: string;
     description: string;
   } | null>(null);
-  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
+  const [heroVideoUrl, setHeroVideoUrl] = useState('/hero-video.mp4');
 
   useEffect(() => {
     const fetchHeroVideo = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('system_settings')
-          .select('value')
-          .eq('key', 'hero_video_url')
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching hero video:', error);
-          return;
-        }
-
-        if (data?.value) {
-          console.log('Hero video URL found:', data.value);
-          setHeroVideoUrl(data.value);
-        } else {
-          console.log('No hero video URL found, using default');
-          // Use a default video or null
-          setHeroVideoUrl(null);
-        }
-      } catch (error) {
-        console.error('Error fetching hero video:', error);
+      const url = await getSetting('heroVideoUrl');
+      if (url) {
+        setHeroVideoUrl(url);
       }
     };
-    
     fetchHeroVideo();
 
     const featuredContest = activeContests[0] || upcomingContests[0];
@@ -114,22 +94,16 @@ export default function HeroSection() {
   return (
     <div className="relative w-full h-[60vh]">
       {/* Background video */}
-      {heroVideoUrl ? (
-        <video
-          className="absolute top-0 left-0 w-full h-full object-cover"
-          autoPlay
-          loop
-          muted
-          playsInline
-          key={heroVideoUrl}
-        >
-          <source src={heroVideoUrl} type="video/mp4" />
-          <source src={heroVideoUrl} type="video/webm" />
-          Your browser does not support the video tag.
-        </video>
-      ) : (
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-dark-purple via-purple-900 to-black" />
-      )}
+      <video
+        className="absolute top-0 left-0 w-full h-full object-cover"
+        autoPlay
+        loop
+        muted
+        playsInline
+        key={heroVideoUrl} // Add key to force re-render when URL changes
+      >
+        <source src={heroVideoUrl} type="video/mp4" />
+      </video>
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40" />

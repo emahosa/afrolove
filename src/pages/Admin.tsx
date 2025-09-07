@@ -19,7 +19,8 @@ import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
-import { HeroVideoManagement } from "@/components/admin/HeroVideoManagement";
+import { getSetting } from "@/utils/settingsOperations";
+import { HeroVideoUploadForm } from "@/components/admin/HeroVideoUploadForm";
 
 interface AdminProps {
   tab?: string;
@@ -28,6 +29,7 @@ interface AdminProps {
 const Admin = ({ tab }: AdminProps) => {
   const { user, logout, isAdmin, isSuperAdmin, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState(tab || "overview");
+  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(null);
   const [adminStats, setAdminStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -60,6 +62,16 @@ const Admin = ({ tab }: AdminProps) => {
     }
   }, [user, isAdmin, isSuperAdmin]);
 
+  useEffect(() => {
+    const fetchHeroVideo = async () => {
+      const url = await getSetting('heroVideoUrl');
+      setHeroVideoUrl(url);
+    };
+
+    if (activeTab === 'site-settings') {
+      fetchHeroVideo();
+    }
+  }, [activeTab]);
 
   const handleLogout = async () => {
     await logout();
@@ -137,7 +149,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
-              <TabsTrigger value="hero-videos">Hero Videos</TabsTrigger>
+              <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
               <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             </TabsList>
           </div>
@@ -381,14 +393,24 @@ const Admin = ({ tab }: AdminProps) => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="hero-videos" className="space-y-4">
+          <TabsContent value="site-settings" className="space-y-4">
             <Card className="bg-card">
               <CardHeader>
-                <CardTitle>Hero Video Management</CardTitle>
-                <CardDescription>Manage the background video for the homepage hero section</CardDescription>
+                <CardTitle>Site Settings</CardTitle>
+                <CardDescription>Manage site-wide settings</CardDescription>
               </CardHeader>
               <CardContent>
-                <HeroVideoManagement />
+                {heroVideoUrl ? (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-2">Current Hero Video</h3>
+                    <video key={heroVideoUrl} controls src={heroVideoUrl} className="w-full rounded-lg" />
+                  </div>
+                ) : (
+                  <div className="mb-6 p-4 text-center bg-muted rounded-lg">
+                    <p className="text-muted-foreground">No hero video has been uploaded yet.</p>
+                  </div>
+                )}
+                <HeroVideoUploadForm />
               </CardContent>
             </Card>
           </TabsContent>
