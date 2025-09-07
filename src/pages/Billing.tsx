@@ -114,21 +114,56 @@ const Billing: React.FC = () => {
 
     setPaymentProcessing(true);
     try {
-      const { error } = await supabase.functions.invoke('manage-subscription', {
-        body: {
-          action: 'downgrade',
-          newPlanId: plan.id,
-          newStripePriceId: plan.stripePriceId,
-        }
-      });
+      // Direct database update for downgrade
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
 
-      if (error) throw new Error(error.message);
+      // Update subscription in database
+      const { error: subError } = await supabase
+        .from('user_subscriptions')
+        .update({
+          subscription_type: plan.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', currentUser.id)
+        .eq('subscription_status', 'active');
+
+      if (subError) {
+        throw new Error('Failed to update subscription: ' + subError.message);
+      }
+
+      // Update user role if downgrading to a lower tier
+      if (plan.rank === 1) { // Assuming rank 1 is the lowest tier
+        // Remove subscriber role and add voter role
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .eq('role', 'subscriber');
+          
+        await supabase
+          .from('user_roles')
+          .upsert({ 
+            user_id: currentUser.id, 
+            role: 'voter' 
+          }, { 
+            onConflict: 'user_id,role' 
+          });
+      }
 
       toast.success("Downgrade Scheduled", {
         description: `Your subscription will be changed to the ${plan.name} plan at the end of your current billing cycle.`
       });
-      // Optionally, refresh user data here to show the pending change
+      
+      // Refresh the page to show changes
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
     } catch (error: any) {
+      console.error('Downgrade error:', error);
       toast.error("Failed to schedule downgrade", { description: error.message });
     } finally {
       setPaymentProcessing(false);
