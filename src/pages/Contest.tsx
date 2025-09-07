@@ -13,9 +13,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { useContest } from "@/hooks/use-contest";
+import { useContest, Contest as ContestType, ContestEntry } from "@/hooks/use-contest";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
+import { WinnerCard } from "@/components/contest/WinnerCard";
 
 // Contest component main interface
 interface Contest {
@@ -212,6 +213,70 @@ const Contest = () => {
     );
   }
 
+const PastContestCard = ({ contest }: { contest: ContestType }) => {
+  const { getWinner } = useContest();
+  const [winner, setWinner] = useState<ContestEntry | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWinner = async () => {
+      setIsLoading(true);
+      const contestWinner = await getWinner(contest);
+      setWinner(contestWinner);
+      setIsLoading(false);
+    };
+
+    fetchWinner();
+  }, [contest, getWinner]);
+
+  const renderWinnerSection = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-24">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-dark-purple"></div>
+        </div>
+      );
+    }
+
+    if (winner) {
+      return <WinnerCard winner={winner} />;
+    }
+
+    const now = new Date();
+    const announcementDate = new Date(contest.winner_announced_at);
+    if (now < announcementDate) {
+      return (
+        <div className="text-center py-6 text-gray-400">
+          <p>Winner will be announced on {announcementDate.toLocaleDateString()}.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-center py-6 text-gray-400">
+        <p>No winner was declared for this contest.</p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-white">{contest.title}</p>
+          <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
+        </div>
+        <div className="text-xs text-gray-400">
+          Ended: {new Date(contest.end_date).toLocaleDateString()}
+        </div>
+      </div>
+      <div className="mt-4">
+        {renderWinnerSection()}
+      </div>
+    </div>
+  );
+};
+
   return (
     <div className="h-full flex flex-col p-4 md:p-8 text-white">
       <div className="text-center flex-shrink-0">
@@ -310,18 +375,9 @@ const Contest = () => {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {pastContests.map((contest) => (
-                   <div key={contest.id} className="flex items-center p-3 rounded-lg bg-gray-800/30 opacity-70">
-                     <div className="flex-grow mx-4 min-w-0">
-                       <p className="font-semibold truncate text-gray-400">{contest.title}</p>
-                       <p className="text-sm text-gray-500 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                         <div className="flex items-center gap-1"><Trophy className="h-4 w-4" /><span>Prize: {contest.prize}</span></div>
-                         <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ended: {new Date(contest.end_date).toLocaleDateString()}</span></div>
-                       </div>
-                     </div>
-                   </div>
+                  <PastContestCard key={contest.id} contest={contest} />
                 ))}
               </div>
             )}
