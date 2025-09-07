@@ -11,17 +11,37 @@ export const ensureStorageBuckets = async () => {
       return;
     }
 
-    const contestBucketExists = buckets?.some(bucket => bucket.name === 'contest-videos');
-    
-    if (!contestBucketExists) {
-      const { error: createError } = await supabase.storage.createBucket('contest-videos', {
-        public: true,
-        allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
-        fileSizeLimit: 50 * 1024 * 1024 // 50MB
-      });
-      
-      if (createError) {
-        console.error('Error creating contest-videos bucket:', createError);
+    const requiredBuckets = [
+      {
+        name: 'contest-videos',
+        options: {
+          public: true,
+          allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
+          fileSizeLimit: 50 * 1024 * 1024 // 50MB
+        }
+      },
+      {
+        name: 'site-content',
+        options: {
+          public: true,
+          fileSizeLimit: 50 * 1024 * 1024 // 50MB
+        }
+      }
+    ];
+
+    for (const bucket of requiredBuckets) {
+      const bucketExists = buckets?.some(b => b.name === bucket.name);
+      if (!bucketExists) {
+        const { error: createError } = await supabase.storage.createBucket(bucket.name, bucket.options);
+        if (createError) {
+          // In a concurrent environment, another instance might have created the bucket.
+          // We can safely ignore this specific error.
+          if (createError.message.includes('The resource already exists')) {
+             console.log(`Bucket ${bucket.name} already exists. No action needed.`);
+          } else {
+            console.error(`Error creating ${bucket.name} bucket:`, createError);
+          }
+        }
       }
     }
   } catch (error) {
