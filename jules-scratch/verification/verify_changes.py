@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright, expect
 
 async def main():
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=False, timeout=120000)
         page = await browser.new_page()
 
         # Verify Hero Section
@@ -13,19 +13,14 @@ async def main():
         await expect(h1_locator).to_be_visible()
         await page.screenshot(path="jules-scratch/verification/hero_section.png")
 
-        # Verify Winner Card
-        await page.goto("http://127.0.0.1:8080/contest")
+        # Verify Admin Page
+        await page.goto("http://127.0.0.1:8080/admin")
+        await page.pause()
         await page.wait_for_load_state("networkidle")
-        await expect(page.get_by_role("tablist")).to_be_visible(timeout=10000)
-        await page.get_by_role("tab", name="Past").click()
-
-        winner_card = page.locator(".bg-gradient-to-br")
-        is_winner_visible = await winner_card.is_visible()
-
-        if is_winner_visible:
-            await expect(winner_card).to_be_visible()
-
-        await page.screenshot(path="jules-scratch/verification/winner_card.png")
+        await page.get_by_role("tab", name="Content").click()
+        await page.get_by_role("tab", name="Site Settings").click()
+        await expect(page.get_by_text("Hero Section Video")).to_be_visible()
+        await page.screenshot(path="jules-scratch/verification/admin_video_upload.png")
 
         await browser.close()
 
