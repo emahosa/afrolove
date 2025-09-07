@@ -1,30 +1,46 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
-export const ensureStorageBuckets = async () => {
-  try {
-    // Check if contest-videos bucket exists
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
-    if (listError) {
-      console.error('Error listing buckets:', listError);
-      return;
-    }
+let setupPromise: Promise<void> | null = null;
 
-    const contestBucketExists = buckets?.some(bucket => bucket.name === 'contest-videos');
-    
-    if (!contestBucketExists) {
-      const { error: createError } = await supabase.storage.createBucket('contest-videos', {
-        public: true,
-        allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
-        fileSizeLimit: 50 * 1024 * 1024 // 50MB
-      });
-      
-      if (createError) {
-        console.error('Error creating contest-videos bucket:', createError);
+export const ensureStorageBuckets = (): Promise<void> => {
+  if (!setupPromise) {
+    setupPromise = (async () => {
+      try {
+        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+
+        if (listError) {
+          console.error('Error listing buckets:', listError);
+          setupPromise = null; // Reset promise to allow retry
+          throw listError;
+        }
+
+        const contestBucketExists = buckets?.some(bucket => bucket.name === 'contest-videos');
+
+        if (!contestBucketExists) {
+          const { error: createError } = await supabase.storage.createBucket('contest-videos', {
+            public: true,
+            allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
+            fileSizeLimit: 50 * 1024 * 1024 // 50MB
+          });
+
+          if (createError) {
+            // If the error is that the bucket already exists, we can consider it a success
+            if (createError.message.includes('BucketAlreadyExists')) {
+              console.warn('Bucket "contest-videos" already exists, but setup was triggered. Race condition likely occurred, but handled.');
+              return;
+            }
+            console.error('Error creating contest-videos bucket:', createError);
+            setupPromise = null; // Reset promise to allow retry
+            throw createError;
+          }
+        }
+      } catch (error) {
+        console.error('Error in ensureStorageBuckets:', error);
+        setupPromise = null; // Reset promise to allow retry
+        throw error; // Re-throw to let the caller know it failed
       }
-    }
-  } catch (error) {
-    console.error('Error in ensureStorageBuckets:', error);
+    })();
   }
+
+  return setupPromise;
 };
