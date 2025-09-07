@@ -1,13 +1,20 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
+let storageSetupCompleted = false;
+
 export const ensureStorageBuckets = async () => {
+  if (storageSetupCompleted) {
+    return;
+  }
+  storageSetupCompleted = true;
+
   try {
     // Check if contest-videos bucket exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
     if (listError) {
       console.error('Error listing buckets:', listError);
+      storageSetupCompleted = false; // Allow retry on error
       return;
     }
 
@@ -22,9 +29,11 @@ export const ensureStorageBuckets = async () => {
       
       if (createError) {
         console.error('Error creating contest-videos bucket:', createError);
+        storageSetupCompleted = false; // Allow retry on error
       }
     }
   } catch (error) {
     console.error('Error in ensureStorageBuckets:', error);
+    storageSetupCompleted = false; // Allow retry on error
   }
 };
