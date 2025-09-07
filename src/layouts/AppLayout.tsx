@@ -11,12 +11,12 @@ const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-b from-midnight to-black text-white font-sans">
+    <div className="h-screen flex flex-col overflow-hidden bg-black text-white font-sans">
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-60 p-0 flex flex-col bg-black/80 backdrop-blur-sm border-r border-white/10">
+        <SheetContent side="left" className="w-48 p-0 flex flex-col bg-black/80 backdrop-blur-sm border-r border-white/10">
           <Sidebar />
         </SheetContent>
       </Sheet>

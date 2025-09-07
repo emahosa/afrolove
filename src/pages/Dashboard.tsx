@@ -12,18 +12,10 @@ const Dashboard = () => {
     <div className="h-full flex flex-col">
       <HeroSection />
       <div className="p-4 md:p-8">
-        <div className="flex justify-between items-center flex-shrink-0">
-          <div>
-            <h1 className="text-3xl font-semibold text-white">Welcome back, {user?.user_metadata?.full_name || 'User'}!</h1>
-            <p className="text-gray-400">Here's what's happening with your music journey</p>
-          </div>
-        </div>
-
         <div className="flex-grow overflow-y-auto mt-6">
           <div className="space-y-4">
             <div>
-              <h2 className="text-2xl font-semibold text-white">Available Genres</h2>
-              <p className="text-gray-400">Choose from these genre templates to create your music</p>
+              <h2 className="text-2xl font-semibold text-white">Browse Templates</h2>
             </div>
 
             {templatesLoading ? (

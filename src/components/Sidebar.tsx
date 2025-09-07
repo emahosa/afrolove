@@ -57,11 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   });
 
   return (
-    <aside className={cn("h-full w-60 flex flex-col", className)}>
-      <div className="flex items-center h-16 px-4 border-b border-white/10 flex-shrink-0">
-        <Music className="h-6 w-6 text-dark-purple mr-2" />
-        <p className="font-sans font-bold text-xl text-white">Afroverse</p>
-      </div>
+    <aside className={cn("h-full w-48 flex flex-col", className)}>
       <ScrollArea className="flex-1 px-2 py-4">
         <div className="flex flex-col space-y-1">
           {roleFilteredNavItems.map(item => {
