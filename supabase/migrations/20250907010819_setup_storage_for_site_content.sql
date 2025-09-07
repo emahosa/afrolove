@@ -10,6 +10,12 @@ ON storage.buckets FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow authenticated users to list buckets" ON storage.buckets;
+CREATE POLICY "Allow authenticated users to list buckets"
+ON storage.buckets FOR SELECT
+TO authenticated
+USING (true);
+
 -- RLS policies for site-content bucket objects
 DROP POLICY IF EXISTS "Allow admin uploads to site-content" ON storage.objects;
 CREATE POLICY "Allow admin uploads to site-content"
