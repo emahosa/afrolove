@@ -35,7 +35,7 @@ export const ensureStorageBuckets = (): Promise<void> => {
           const { error: createError } = await supabase.storage.createBucket('site-content', {
             public: true,
             allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'image/jpeg', 'image/png', 'image/webp'],
-            fileSizeLimit: 100 * 1024 * 1024 // 100MB for hero videos
+            fileSizeLimit: 50 * 1024 * 1024 // 50MB for hero videos
           });
 
           if (createError && !createError.message.includes('already exists')) {

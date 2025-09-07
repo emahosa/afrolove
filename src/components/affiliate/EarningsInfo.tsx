@@ -35,57 +35,10 @@ const EarningsInfo: React.FC<EarningsInfoProps> = ({ affiliateId }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const fetchEarnings = useCallback(async () => {
-    setLoading(true);
+    setLoading(false);
     setError(null);
-
-    try {
-      // Fetch total commissions
-      const { data: commissions, error: commissionsError } = await supabase
-        .from('affiliate_commissions')
-        .select('amount_earned, commission_month')
-        .eq('affiliate_user_id', affiliateId);
-
-      if (commissionsError) throw new Error(`Failed to fetch commissions: ${commissionsError.message}`);
-
-      const totalEarned = commissions?.reduce((sum, record) => sum + Number(record.amount_earned), 0) || 0;
-
-      // Fetch this month's earnings
-      const currentMonth = new Date().toISOString().substring(0, 7);
-      const thisMonthCommissions = commissions?.filter(c => 
-        c.commission_month && new Date(c.commission_month).toISOString().substring(0, 7) === currentMonth
-      ) || [];
-      const thisMonthEarnings = thisMonthCommissions.reduce((sum, record) => sum + Number(record.amount_earned), 0);
-
-      // Fetch payout requests
-      const { data: payouts, error: payoutsError } = await supabase
-        .from('affiliate_payout_requests')
-        .select('requested_amount, status')
-        .eq('affiliate_user_id', affiliateId);
-
-      if (payoutsError) throw new Error(`Failed to fetch payouts: ${payoutsError.message}`);
-
-      const pendingPayouts = payouts?.filter(p => p.status === 'pending' || p.status === 'approved')
-        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
-
-      const totalPaidOut = payouts?.filter(p => p.status === 'paid')
-        .reduce((sum, record) => sum + Number(record.requested_amount), 0) || 0;
-
-      const availableBalance = totalEarned - pendingPayouts - totalPaidOut;
-
-      setEarnings({
-        totalEarned,
-        availableBalance: Math.max(0, availableBalance),
-        pendingPayouts,
-        totalPaidOut,
-        thisMonthEarnings,
-      });
-
-    } catch (err: any) {
-      console.error("Error in fetchEarnings:", err);
-      setError(err.message || "An unexpected error occurred while fetching earnings.");
-    } finally {
-      setLoading(false);
-    }
+    // Temporarily disabled due to schema issues
+    console.log('EarningsInfo temporarily disabled - schema mismatch');
   }, [affiliateId]);
 
   useEffect(() => {

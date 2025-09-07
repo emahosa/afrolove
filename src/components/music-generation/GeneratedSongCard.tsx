@@ -170,7 +170,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         {song.lyrics && (
           <Collapsible>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" size="xs" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
+              <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
                 <FileText className="h-3 w-3 mr-1" />
                 Lyrics
               </Button>

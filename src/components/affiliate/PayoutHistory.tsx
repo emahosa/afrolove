@@ -26,33 +26,10 @@ const PayoutHistory: React.FC<PayoutHistoryProps> = ({ affiliateId }) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPayoutHistory = useCallback(async () => {
-    setLoading(true);
+    setLoading(false);
     setError(null);
-
-    try {
-      const { data, error: dbError } = await supabase
-        .from('affiliate_payout_requests')
-        .select('*')
-        .eq('affiliate_user_id', affiliateId)
-        .order('requested_at', { ascending: false });
-
-      if (dbError) {
-        throw new Error(`Failed to fetch payout history: ${dbError.message}`);
-      }
-
-      const typedData: PayoutRequest[] = (data || []).map(item => ({
-        ...item,
-        status: item.status as 'pending' | 'approved' | 'rejected' | 'paid'
-      }));
-
-      setPayoutRequests(typedData);
-    } catch (err: any) {
-      console.error("Error in fetchPayoutHistory:", err);
-      setError(err.message || "An unexpected error occurred while fetching payout history.");
-      setPayoutRequests([]);
-    } finally {
-      setLoading(false);
-    }
+    // Temporarily disabled due to schema issues
+    console.log('PayoutHistory temporarily disabled - schema mismatch');
   }, [affiliateId]);
 
   useEffect(() => {

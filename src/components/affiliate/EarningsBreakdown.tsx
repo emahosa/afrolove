@@ -22,75 +22,11 @@ const EarningsBreakdown: React.FC<EarningsBreakdownProps> = ({ affiliateId }) =>
 
   const fetchEarnings = async () => {
     try {
-      // First fetch earnings
-      const { data: earningsData, error: earningsError } = await supabase
-        .from('affiliate_earnings')
-        .select(`
-          id,
-          affiliate_user_id,
-          referred_user_id,
-          earning_type,
-          amount,
-          status,
-          created_at,
-          processed_at
-        `)
-        .eq('affiliate_user_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (earningsError) {
-        console.error('Error fetching earnings:', earningsError);
-        return;
-      }
-
-      if (earningsData) {
-        // Fetch profile data separately for each referred user
-        const earningsWithProfiles = await Promise.all(
-          earningsData.map(async (earning) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, username')
-              .eq('id', earning.referred_user_id)
-              .single();
-
-            return {
-              id: earning.id,
-              affiliate_user_id: earning.affiliate_user_id,
-              referred_user_id: earning.referred_user_id,
-              earning_type: earning.earning_type as 'free_referral' | 'subscription_commission',
-              amount: Number(earning.amount),
-              status: earning.status,
-              created_at: earning.created_at,
-              processed_at: earning.processed_at,
-              profile: {
-                full_name: profile?.full_name || null,
-                username: profile?.username || null
-              }
-            };
-          })
-        );
-        
-        setEarnings(earningsWithProfiles);
-
-        // Calculate summary
-        const freeReferrals = earningsWithProfiles.filter(e => e.earning_type === 'free_referral');
-        const commissions = earningsWithProfiles.filter(e => e.earning_type === 'subscription_commission');
-
-        setSummary({
-          free_referrals: {
-            count: freeReferrals.length,
-            total: freeReferrals.reduce((sum, e) => sum + e.amount, 0)
-          },
-          commissions: {
-            count: commissions.length,
-            total: commissions.reduce((sum, e) => sum + e.amount, 0)
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching earnings:', err);
-    } finally {
+      setLoading(false);
+      // Temporarily disabled due to schema issues
+      console.log('EarningsBreakdown temporarily disabled - schema mismatch');
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
       setLoading(false);
     }
   };

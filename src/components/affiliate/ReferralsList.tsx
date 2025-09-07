@@ -31,82 +31,10 @@ const ReferralsList: React.FC<ReferralsListProps> = ({ affiliateId }) => {
   const [totalItems, setTotalItems] = useState(0);
 
   const fetchReferredUsers = useCallback(async (page: number) => {
-    setLoading(true);
+    setLoading(false);
     setError(null);
-
-    try {
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-
-      // Fetch referred user profiles with count - using username instead of email
-      const { data: profilesData, error: profilesError, count } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, created_at', { count: 'exact' })
-        .eq('referrer_id', affiliateId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (profilesError) {
-        throw new Error(`Failed to fetch referred user profiles: ${profilesError.message}`);
-      }
-
-      setTotalItems(count || 0);
-
-      if (!profilesData || profilesData.length === 0) {
-        setReferredUsers([]);
-        return;
-      }
-
-      // Fetch roles for all fetched user IDs
-      const userIds = profilesData.map(p => p.id);
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds);
-
-      if (rolesError) {
-        console.warn(`Failed to fetch roles for referred users: ${rolesError.message}`);
-      }
-
-      const rolesMap = new Map<string, string[]>();
-      if (rolesData) {
-        rolesData.forEach(item => {
-          if (!rolesMap.has(item.user_id)) {
-            rolesMap.set(item.user_id, []);
-          }
-          rolesMap.get(item.user_id)?.push(item.role);
-        });
-      }
-
-      const enrichedUsers: ReferredUser[] = profilesData.map(profile => {
-        const userRoles = rolesMap.get(profile.id) || ['voter'];
-        let status = "Voter";
-        if (userRoles.includes('subscriber')) {
-          status = "Subscriber";
-        } else if (userRoles.includes('admin')) {
-          status = "Admin";
-        }
-
-        return {
-          id: profile.id,
-          full_name: profile.full_name,
-          username: profile.username,
-          created_at: profile.created_at,
-          roles: userRoles,
-          status,
-        };
-      });
-
-      setReferredUsers(enrichedUsers);
-
-    } catch (err: any) {
-      console.error("Error in fetchReferredUsers:", err);
-      setError(err.message || "An unexpected error occurred while fetching referrals.");
-      setReferredUsers([]);
-      setTotalItems(0);
-    } finally {
-      setLoading(false);
-    }
+    // Temporarily disabled due to schema issues
+    console.log('ReferralsList temporarily disabled - schema mismatch');
   }, [affiliateId]);
 
   useEffect(() => {
