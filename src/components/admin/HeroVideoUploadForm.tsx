@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { updateSetting } from '@/utils/settingsOperations';
+import { ensureStorageBuckets } from '@/utils/storageSetup';
 
 export const HeroVideoUploadForm = () => {
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -25,6 +26,9 @@ export const HeroVideoUploadForm = () => {
 
     setUploading(true);
     try {
+      // Ensure storage buckets exist
+      await ensureStorageBuckets();
+      
       const filePath = `public/hero-video.mp4`;
       const { error: uploadError } = await supabase.storage
         .from('site-content')

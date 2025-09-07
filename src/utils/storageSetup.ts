@@ -15,6 +15,7 @@ export const ensureStorageBuckets = (): Promise<void> => {
         }
 
         const contestBucketExists = buckets?.some(bucket => bucket.name === 'contest-videos');
+        const siteContentBucketExists = buckets?.some(bucket => bucket.name === 'site-content');
 
         if (!contestBucketExists) {
           const { error: createError } = await supabase.storage.createBucket('contest-videos', {
@@ -27,11 +28,30 @@ export const ensureStorageBuckets = (): Promise<void> => {
             // If the error is that the bucket already exists, we can consider it a success
             if (createError.message.includes('BucketAlreadyExists')) {
               console.warn('Bucket "contest-videos" already exists, but setup was triggered. Race condition likely occurred, but handled.');
-              return;
+            } else {
+              console.error('Error creating contest-videos bucket:', createError);
+              setupPromise = null; // Reset promise to allow retry
+              throw createError;
             }
-            console.error('Error creating contest-videos bucket:', createError);
-            setupPromise = null; // Reset promise to allow retry
-            throw createError;
+          }
+        }
+
+        if (!siteContentBucketExists) {
+          const { error: createError } = await supabase.storage.createBucket('site-content', {
+            public: true,
+            allowedMimeTypes: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'image/jpeg', 'image/png', 'image/webp'],
+            fileSizeLimit: 100 * 1024 * 1024 // 100MB for hero videos
+          });
+
+          if (createError) {
+            // If the error is that the bucket already exists, we can consider it a success
+            if (createError.message.includes('BucketAlreadyExists')) {
+              console.warn('Bucket "site-content" already exists, but setup was triggered. Race condition likely occurred, but handled.');
+            } else {
+              console.error('Error creating site-content bucket:', createError);
+              setupPromise = null; // Reset promise to allow retry
+              throw createError;
+            }
           }
         }
       } catch (error) {
