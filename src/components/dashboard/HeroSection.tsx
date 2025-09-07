@@ -15,6 +15,7 @@ export default function HeroSection() {
   } | null>(null);
   const [heroVideoUrl, setHeroVideoUrl] = useState('/hero-video.mp4');
 
+  // Fetch the hero video URL when the component mounts
   useEffect(() => {
     const fetchHeroVideo = async () => {
       const url = await getSetting('heroVideoUrl');
@@ -23,7 +24,9 @@ export default function HeroSection() {
       }
     };
     fetchHeroVideo();
+  }, []);
 
+  useEffect(() => {
     const featuredContest = activeContests[0] || upcomingContests[0];
     if (!featuredContest) {
       setContestStatus(null);
