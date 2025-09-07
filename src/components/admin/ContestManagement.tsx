@@ -884,7 +884,7 @@ export const ContestManagement = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Start Date *</Label>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -905,7 +905,7 @@ export const ContestManagement = () => {
                     <Calendar
                       mode="single"
                       selected={contestForm.start_date || undefined}
-                      onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
+                      onSelect={(date) => setContestForm({ ...contestForm, start_date: date || null })}
                       initialFocus
                     />
                   </PopoverContent>
@@ -913,7 +913,7 @@ export const ContestManagement = () => {
               </div>
               <div>
                 <Label>End Date *</Label>
-                <Popover>
+                <Popover modal={true}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -934,7 +934,7 @@ export const ContestManagement = () => {
                     <Calendar
                       mode="single"
                       selected={contestForm.end_date || undefined}
-                      onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
+                      onSelect={(date) => setContestForm({ ...contestForm, end_date: date || null })}
                       initialFocus
                     />
                   </PopoverContent>
@@ -1081,7 +1081,7 @@ export const ContestManagement = () => {
                     <Calendar
                       mode="single"
                       selected={contestForm.start_date || undefined}
-                      onSelect={(date) => setContestForm({...contestForm, start_date: date || null})}
+                      onSelect={(date) => setContestForm({ ...contestForm, start_date: date || null })}
                       initialFocus
                     />
                   </PopoverContent>
@@ -1110,7 +1110,7 @@ export const ContestManagement = () => {
                     <Calendar
                       mode="single"
                       selected={contestForm.end_date || undefined}
-                      onSelect={(date) => setContestForm({...contestForm, end_date: date || null})}
+                      onSelect={(date) => setContestForm({ ...contestForm, end_date: date || null })}
                       initialFocus
                     />
                   </PopoverContent>
