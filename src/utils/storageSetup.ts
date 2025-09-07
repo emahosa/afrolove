@@ -24,15 +24,10 @@ export const ensureStorageBuckets = (): Promise<void> => {
             fileSizeLimit: 50 * 1024 * 1024 // 50MB
           });
 
-          if (createError) {
-            // If the error is that the bucket already exists, we can consider it a success
-            if (createError.message.includes('BucketAlreadyExists')) {
-              console.warn('Bucket "contest-videos" already exists, but setup was triggered. Race condition likely occurred, but handled.');
-            } else {
-              console.error('Error creating contest-videos bucket:', createError);
-              setupPromise = null; // Reset promise to allow retry
-              throw createError;
-            }
+          if (createError && !createError.message.includes('already exists')) {
+            console.error('Error creating contest-videos bucket:', createError);
+            setupPromise = null; // Reset promise to allow retry
+            throw createError;
           }
         }
 
@@ -43,15 +38,10 @@ export const ensureStorageBuckets = (): Promise<void> => {
             fileSizeLimit: 100 * 1024 * 1024 // 100MB for hero videos
           });
 
-          if (createError) {
-            // If the error is that the bucket already exists, we can consider it a success
-            if (createError.message.includes('BucketAlreadyExists')) {
-              console.warn('Bucket "site-content" already exists, but setup was triggered. Race condition likely occurred, but handled.');
-            } else {
-              console.error('Error creating site-content bucket:', createError);
-              setupPromise = null; // Reset promise to allow retry
-              throw createError;
-            }
+          if (createError && !createError.message.includes('already exists')) {
+            console.error('Error creating site-content bucket:', createError);
+            setupPromise = null; // Reset promise to allow retry
+            throw createError;
           }
         }
       } catch (error) {
