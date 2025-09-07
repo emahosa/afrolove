@@ -1,12 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useContest } from "@/hooks/use-contest";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { getSetting } from "@/utils/settingsOperations";
+import { Volume2, VolumeX } from "lucide-react";
 
 export default function HeroSection() {
   const { activeContests, upcomingContests } = useContest();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(true);
   const [contestStatus, setContestStatus] = useState<{
     status: string;
     timeLeft: number;
@@ -60,6 +63,14 @@ export default function HeroSection() {
     return () => clearInterval(interval);
   }, [activeContests, upcomingContests]);
 
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const currentlyMuted = videoRef.current.muted;
+      videoRef.current.muted = !currentlyMuted;
+      setIsMuted(!currentlyMuted);
+    }
+  };
+
   const formatTime = (ms: number) => {
     if (ms <= 0) return "Ended";
     const totalSeconds = Math.floor(ms / 1000);
@@ -96,12 +107,13 @@ export default function HeroSection() {
       {/* Background video */}
       {heroVideoUrl && (
         <video
+          ref={videoRef}
           className="absolute top-0 left-0 w-full h-full object-cover"
           autoPlay
           loop
           muted
           playsInline
-          key={heroVideoUrl} // Add key to force re-render when URL changes
+          key={heroVideoUrl}
         >
           <source src={heroVideoUrl} type="video/mp4" />
         </video>
@@ -109,6 +121,17 @@ export default function HeroSection() {
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-black/40" />
+
+      {/* Unmute Button */}
+      {heroVideoUrl && (
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/75 transition-colors z-10"
+          aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+        >
+          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+      )}
 
       {/* Content */}
       <motion.div
@@ -129,7 +152,7 @@ export default function HeroSection() {
         >
           {contestStatus?.description ||
             "Join the contest and showcase your talent to the world!"}
-        </motion.p>
+        </p>
         <motion.div variants={itemVariants}>
           <Link to="/contest">
             <Button size="lg" className="bg-dark-purple hover:bg-dark-purple/90 text-white font-bold text-lg px-8 py-6 rounded-xl shadow-lg">
