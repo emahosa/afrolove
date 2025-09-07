@@ -82,7 +82,7 @@ export default function HeroSection() {
   };
 
   return (
-    <div className="relative w-full h-screen min-h-[600px]">
+    <div className="relative w-full h-[60vh]">
       {/* Background video */}
       <video
         className="absolute top-0 left-0 w-full h-full object-cover"
