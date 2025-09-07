@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useContest } from "@/hooks/use-contest";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { getSetting } from "@/utils/settingsOperations";
 
 export default function HeroSection() {
   const { activeContests, upcomingContests } = useContest();
@@ -12,8 +13,17 @@ export default function HeroSection() {
     title: string;
     description: string;
   } | null>(null);
+  const [heroVideoUrl, setHeroVideoUrl] = useState('/hero-video.mp4');
 
   useEffect(() => {
+    const fetchHeroVideo = async () => {
+      const url = await getSetting('heroVideoUrl');
+      if (url) {
+        setHeroVideoUrl(url);
+      }
+    };
+    fetchHeroVideo();
+
     const featuredContest = activeContests[0] || upcomingContests[0];
     if (!featuredContest) {
       setContestStatus(null);
@@ -90,8 +100,9 @@ export default function HeroSection() {
         loop
         muted
         playsInline
+        key={heroVideoUrl} // Add key to force re-render when URL changes
       >
-        <source src="/hero-video.mp4" type="video/mp4" />
+        <source src={heroVideoUrl} type="video/mp4" />
       </video>
 
       {/* Overlay */}
