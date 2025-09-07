@@ -136,7 +136,6 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="support">Support</TabsTrigger>
               <TabsTrigger value="reports">Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
-              <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
               <TabsTrigger value="affiliates">Affiliates</TabsTrigger>
             </TabsList>
           </div>
@@ -321,6 +320,7 @@ const Admin = ({ tab }: AdminProps) => {
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">
+            <HeroVideoUploadForm />
             <Card className="bg-card">
               <CardHeader>
                 <CardTitle>Content Management</CardTitle>
@@ -376,18 +376,6 @@ const Admin = ({ tab }: AdminProps) => {
               </CardHeader>
               <CardContent>
                 <SettingsManagement />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="site-settings" className="space-y-4">
-            <Card className="bg-card">
-              <CardHeader>
-                <CardTitle>Site Settings</CardTitle>
-                <CardDescription>Manage site-wide settings</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <HeroVideoUploadForm />
               </CardContent>
             </Card>
           </TabsContent>
