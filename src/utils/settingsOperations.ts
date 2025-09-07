@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const getSetting = async (key: string): Promise<string | null> => {
   try {
     const { data, error } = await supabase
-      .from('settings')
+      .from('system_settings')
       .select('value')
       .eq('key', key)
       .single();
@@ -20,11 +20,11 @@ export const getSetting = async (key: string): Promise<string | null> => {
   }
 };
 
-export const updateSetting = async (key: string, value: string): Promise<boolean> => {
+export const updateSetting = async (key: string, value: string, category: string): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('settings')
-      .upsert({ key, value }, { onConflict: 'key' });
+      .from('system_settings')
+      .upsert({ key, value, category }, { onConflict: 'key' });
 
     if (error) {
       console.error(`Error updating setting ${key}:`, error);
