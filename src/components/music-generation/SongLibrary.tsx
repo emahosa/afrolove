@@ -3,13 +3,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal, Heart } from "lucide-react";
+import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Song {
   id: string;
@@ -17,28 +16,27 @@ interface Song {
   audio_url: string | null;
   status: string;
   created_at: string;
-  is_favorited: boolean;
   genre?: { name: string };
   lyrics?: string;
   prompt?: string;
 }
 
-interface SongLibraryProps {
-  onSongSelect: (song: Song) => void;
-  searchTerm: string;
-}
-
-const SongLibrary = ({ onSongSelect, searchTerm }: SongLibraryProps) => {
+const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const songsPerPage = 10;
 
-  const fetchSongs = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  useEffect(() => {
+    if (user) {
+      fetchSongs();
+    }
+  }, [user]);
+
+  const fetchSongs = async () => {
     try {
       const { data, error } = await supabase
         .from('songs')
@@ -48,27 +46,23 @@ const SongLibrary = ({ onSongSelect, searchTerm }: SongLibraryProps) => {
           audio_url,
           status,
           created_at,
-          is_favorited,
           lyrics,
           prompt,
           genre:genres(name)
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSongs(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching songs:', error);
       toast.error('Failed to load songs');
     } finally {
       setLoading(false);
     }
-  }, [user]);
-
-  useEffect(() => {
-    fetchSongs();
-  }, [fetchSongs]);
+  };
 
   const handlePlay = (song: Song) => {
     if (currentTrack?.id === song.id && isPlaying) {
@@ -128,29 +122,9 @@ const SongLibrary = ({ onSongSelect, searchTerm }: SongLibraryProps) => {
       
       setSongs(songs.filter(song => song.id !== songId));
       toast.success('Song deleted successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting song:', error);
       toast.error('Failed to delete song');
-    }
-  };
-
-  const handleToggleFavorite = async (song: Song) => {
-    try {
-      const newFavoriteStatus = !song.is_favorited;
-      const { data, error } = await supabase
-        .from('songs')
-        .update({ is_favorited: newFavoriteStatus })
-        .eq('id', song.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setSongs(songs.map(s => s.id === song.id ? { ...s, is_favorited: newFavoriteStatus } : s));
-      toast.success(newFavoriteStatus ? 'Added to favorites' : 'Removed from favorites');
-    } catch (error) {
-      console.error('Error updating favorite status:', error);
-      toast.error('Failed to update favorite status');
     }
   };
 
@@ -280,28 +254,22 @@ const SongLibrary = ({ onSongSelect, searchTerm }: SongLibraryProps) => {
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleToggleFavorite(song);
+                      // Add to favorites or other action
                     }}
                   >
-                    <Heart className={`h-4 w-4 ${song.is_favorited ? 'text-red-500 fill-current' : 'text-muted-foreground'}`} />
+                    <span className="text-muted-foreground">♡</span>
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleDownload(song)}>
-                        <Download className="mr-2 h-4 w-4" />
-                        <span>Download</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDelete(song.id)}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // More options
+                    }}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </>
               )}
             </div>
