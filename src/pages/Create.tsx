@@ -29,7 +29,6 @@ const Create = () => {
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const genreId = searchParams.get('genre');
@@ -57,7 +56,7 @@ const Create = () => {
         </div>
 
         {/* Right Sidebar - My Workspace, larger */}
-        <div className="w-2/3 bg-card p-6 flex flex-col">
+        <div className="w-2/3 bg-card p-6">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">
@@ -65,14 +64,10 @@ const Create = () => {
                 type="text"
                 placeholder="Search"
                 className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <SongLibrary onSongSelect={setSelectedSong} searchQuery={searchQuery} />
-          </div>
+          <SongLibrary onSongSelect={setSelectedSong} />
         </div>
       </div>
 
