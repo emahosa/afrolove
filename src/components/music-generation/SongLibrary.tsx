@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal } from "lucide-react";
+import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal, Heart } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,18 +17,18 @@ interface Song {
   audio_url: string | null;
   status: string;
   created_at: string;
+  is_favorite: boolean;
   genre?: { name: string };
   lyrics?: string;
   prompt?: string;
 }
 
-const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) => {
+const SongLibrary = ({ onSongSelect, searchTerm }: { onSongSelect: (song: Song) => void, searchTerm: string }) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
   const songsPerPage = 10;
 
   useEffect(() => {
@@ -46,6 +47,7 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
           audio_url,
           status,
           created_at,
+          is_favorite,
           lyrics,
           prompt,
           genre:genres(name)
@@ -106,6 +108,31 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download song');
+    }
+  };
+
+  const handleToggleFavorite = async (song: Song) => {
+    const newFavoriteStatus = !song.is_favorite;
+
+    const updatedSongs = songs.map(s =>
+      s.id === song.id ? { ...s, is_favorite: newFavoriteStatus } : s
+    );
+    setSongs(updatedSongs);
+
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .update({ is_favorite: newFavoriteStatus })
+        .eq('id', song.id);
+
+      if (error) {
+        setSongs(songs);
+        toast.error('Failed to update favorite status');
+        throw error;
+      }
+      toast.success(newFavoriteStatus ? 'Added to favorites' : 'Removed from favorites');
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -254,22 +281,32 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Add to favorites or other action
+                      handleToggleFavorite(song);
                     }}
                   >
-                    <span className="text-muted-foreground">♡</span>
+                    <Heart className={`h-4 w-4 ${song.is_favorite ? 'text-red-500 fill-current' : 'text-muted-foreground'}`} />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // More options
-                    }}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(song.id)}
+                        className="text-red-500"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               )}
             </div>
