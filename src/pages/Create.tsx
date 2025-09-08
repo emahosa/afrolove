@@ -47,18 +47,16 @@ const Create = () => {
     <div className="flex h-full bg-background">
       {/* Main Content Area */}
       <div className="flex-1 flex">
-        {/* Create Song Form - Centered */}
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="w-full max-w-2xl">
-            <MusicGenerationWorkflow
-              preSelectedGenre={selectedGenre}
-              initialPrompt={initialPrompt}
-            />
-          </div>
+        {/* Create Song Form - Left side, smaller */}
+        <div className="w-1/2 p-6 border-r border-border">
+          <MusicGenerationWorkflow
+            preSelectedGenre={selectedGenre}
+            initialPrompt={initialPrompt}
+          />
         </div>
 
-        {/* Right Sidebar - My Workspace */}
-        <div className="w-80 bg-card border-l border-border p-6 overflow-y-auto">
+        {/* Right Sidebar - My Workspace, larger */}
+        <div className="w-1/2 bg-card p-6 overflow-y-auto">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">

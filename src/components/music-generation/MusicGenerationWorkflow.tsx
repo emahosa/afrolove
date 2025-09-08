@@ -168,7 +168,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
     (selectedGenreId ? genres.find(g => g.id === selectedGenreId)?.name : "");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Mode Tabs */}
       <div className="flex justify-center">
         <div className="flex bg-muted rounded-lg p-1">
@@ -205,139 +205,147 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold mb-2">Describe your song</h2>
-          
-          <div className="space-y-4">
-            {/* Song Description/Lyrics Input */}
-            <Textarea
-              id="prompt-input"
-              placeholder={creationMode === 'prompt' ? "e.g., A vibrant Afrobeat track celebrating the joy of life" : "Paste your full lyrics here..."}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="min-h-[100px] bg-background border-border text-foreground placeholder-muted-foreground resize-none"
-              maxLength={creationMode === 'prompt' ? 99 : undefined}
-            />
-            {creationMode === 'prompt' && (
-              <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
+      {/* Main Heading */}
+      <div>
+        <h2 className="text-2xl font-bold mb-6">Describe your song</h2>
+        
+        {/* Song Description/Lyrics Input */}
+        <div className="space-y-2 mb-4">
+          <Label htmlFor="prompt-input" className="text-sm font-medium">
+            {creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}
+            {templateData && creationMode === 'prompt' && (
+              <span className="text-sm text-muted-foreground ml-2">
+                (Template suggestion provided)
+              </span>
             )}
-          </div>
-
-          {/* Additional Options Row */}
-          <div className="flex gap-4 mt-4">
-            <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg text-sm hover:bg-muted/80 transition-colors">
-              + Audio
-            </button>
-            <button 
-              onClick={() => setCreationMode('lyrics')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-                creationMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-              }`}
-            >
-              + Lyrics
-            </button>
-            <button 
-              onClick={() => setInstrumental(!instrumental)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-                instrumental ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-              }`}
-            >
-              + Instrumental
-            </button>
-          </div>
-
-          {/* Custom Mode Fields */}
-          {creationMode === 'lyrics' && (
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
-                <Label htmlFor="title" className="text-sm font-medium">Song Title *</Label>
-                <Input 
-                  id="title" 
-                  placeholder="e.g., Midnight Rain" 
-                  value={title} 
-                  onChange={(e) => setTitle(e.target.value)} 
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="model" className="text-sm font-medium">AI Model</Label>
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger id="model" className="mt-1">
-                    <SelectValue placeholder="Select an AI model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableModels.map(model => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {/* Genre Selection for non-template mode */}
-          {!templateData && (
-            <div className="mt-4">
-              <Label htmlFor="genre" className="text-sm font-medium">Genre *</Label>
-              {genresLoading ? (
-                <div className="flex items-center text-sm text-muted-foreground mt-1">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-                  Loading genres...
-                </div>
-              ) : (
-                <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-                  <SelectTrigger id="genre" className="mt-1">
-                    <SelectValue placeholder="Select a genre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {genres.map(genre => (
-                      <SelectItem key={genre.id} value={genre.id}>
-                        {genre.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+          </Label>
+          <Textarea
+            id="prompt-input"
+            placeholder={creationMode === 'prompt' ? "e.g., A vibrant Afrobeat track celebrating the joy of life" : "Paste your full lyrics here..."}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="min-h-[100px] resize-none"
+            maxLength={creationMode === 'prompt' ? 99 : undefined}
+          />
+          {creationMode === 'prompt' && (
+            <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
           )}
         </div>
 
-        {/* Inspiration Section */}
-        <div>
-          <h3 className="text-lg font-semibold mb-3">Inspiration</h3>
-          <div className="flex gap-2">
-            <span className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm">
-              Afro
-            </span>
-            <span className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm border border-border">
-              Chill
-            </span>
-          </div>
+        {/* Additional Options Row */}
+        <div className="flex gap-4 mb-6">
+          <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg text-sm hover:bg-muted/80 transition-colors">
+            + Audio
+          </button>
+          <button 
+            onClick={() => setCreationMode('lyrics')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              creationMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            + Lyrics
+          </button>
+          <button 
+            onClick={() => setInstrumental(!instrumental)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              instrumental ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+            }`}
+          >
+            + Instrumental
+          </button>
         </div>
-
-        {/* Generate Button */}
-        <Button
-          onClick={handleGenerate}
-          disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-          className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold text-lg py-6"
-          size="lg"
-        >
-          {isGenerating ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            <Music className="mr-2 h-5 w-5" />
-          )}
-          Create (20 Credits)
-        </Button>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Generation takes 1-2 minutes. Your song will appear in the Library.
-        </p>
       </div>
+
+      {/* Custom Mode Fields */}
+      {creationMode === 'lyrics' && (
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title" className="text-sm font-medium">Song Title <span className="text-red-500">*</span></Label>
+            <Input 
+              id="title" 
+              placeholder="e.g., Midnight Rain" 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)} 
+              className="mt-1"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Genre Selection for non-template mode */}
+      {!templateData && (
+        <div className="space-y-2">
+          <Label htmlFor="genre" className="text-sm font-medium">Genre <span className="text-red-500">*</span></Label>
+          {genresLoading ? (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+              Loading genres...
+            </div>
+          ) : (
+            <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
+              <SelectTrigger id="genre">
+                <SelectValue placeholder="Select a genre" />
+              </SelectTrigger>
+              <SelectContent>
+                {genres.map(genre => (
+                  <SelectItem key={genre.id} value={genre.id}>
+                    {genre.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
+
+      {/* AI Model Selection */}
+      <div className="space-y-2">
+        <Label htmlFor="model" className="text-sm font-medium">AI Model</Label>
+        <Select value={selectedModel} onValueChange={setSelectedModel}>
+          <SelectTrigger id="model">
+            <SelectValue placeholder="Select an AI model" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableModels.map(model => (
+              <SelectItem key={model.value} value={model.value}>
+                {model.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Inspiration Section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3">Inspiration</h3>
+        <div className="flex gap-2">
+          <span className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm">
+            Afro
+          </span>
+          <span className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm border border-border">
+            Chill
+          </span>
+        </div>
+      </div>
+
+      {/* Generate Button */}
+      <Button
+        onClick={handleGenerate}
+        disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
+        className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold text-lg py-6"
+        size="lg"
+      >
+        {isGenerating ? (
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        ) : (
+          <Music className="mr-2 h-5 w-5" />
+        )}
+        Create (20 Credits)
+      </Button>
+
+      <p className="text-xs text-muted-foreground text-center">
+        Generation takes 1-2 minutes. Your song will appear in the Library.
+      </p>
     </div>
   );
 };
