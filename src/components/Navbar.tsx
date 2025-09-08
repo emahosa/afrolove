@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Menu, Bell, Music, LogOut, User, Star, Crown } from "lucide-react";
+import { Menu, Bell, LogOut, User, Star, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import MusicLogo from "@/components/ui/MusicLogo";
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -28,7 +29,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             <Menu className="h-5 w-5" />
           </Button>
           <Link to="/dashboard" className="flex items-center gap-2 hover-scale">
-            <Music className="h-6 w-6 text-dark-purple" />
+            <MusicLogo size={28} />
             <span className="font-poppins font-bold text-xl text-white">Afroverse</span>
           </Link>
         </div>
