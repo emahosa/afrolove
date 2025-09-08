@@ -170,14 +170,12 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
   return (
     <div className="space-y-6 text-white">
       {templateData && (
-        <Card className="border-dark-purple bg-white/5">
-          <CardHeader>
-            <CardTitle className="text-lg text-white">Using Template: {templateData.template_name}</CardTitle>
-            <CardDescription className="text-gray-400">
-              Genre: {templateData.genres?.name}
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div>
+          <h3 className="text-lg font-bold text-white">Using Template: {templateData.template_name}</h3>
+          <p className="text-gray-400">
+            Genre: {templateData.genres?.name}
+          </p>
+        </div>
       )}
 
       {!templateData && (
