@@ -48,7 +48,7 @@ const Create = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex">
         {/* Create Song Form - Left side, smaller */}
-        <div className="w-1/2 p-6 border-r border-border">
+        <div className="w-1/3 p-6 border-r border-border">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
             initialPrompt={initialPrompt}
@@ -56,8 +56,8 @@ const Create = () => {
         </div>
 
         {/* Right Sidebar - My Workspace, larger */}
-        <div className="w-1/2 bg-card p-6 overflow-y-auto">
-          <div className="mb-6">
+        <div className="w-2/3 bg-card p-6 flex flex-col">
+          <div className="mb-6 flex-shrink-0">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">
               <input
@@ -67,7 +67,9 @@ const Create = () => {
               />
             </div>
           </div>
-          <SongLibrary onSongSelect={setSelectedSong} />
+          <div className="flex-grow overflow-y-auto">
+            <SongLibrary onSongSelect={setSelectedSong} />
+          </div>
         </div>
       </div>
 

@@ -233,26 +233,13 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
 
         {/* Additional Options Row */}
-        <div className="flex gap-4 mb-6">
-          <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg text-sm hover:bg-muted/80 transition-colors">
-            + Audio
-          </button>
-          <button 
-            onClick={() => setCreationMode('lyrics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-              creationMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-            }`}
-          >
-            + Lyrics
-          </button>
-          <button 
-            onClick={() => setInstrumental(!instrumental)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-              instrumental ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
-            }`}
-          >
-            + Instrumental
-          </button>
+        <div className="flex items-center space-x-2 mb-6">
+          <Switch
+            id="instrumental-switch"
+            checked={instrumental}
+            onCheckedChange={setInstrumental}
+          />
+          <Label htmlFor="instrumental-switch">Instrumental</Label>
         </div>
       </div>
 
@@ -313,19 +300,6 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Inspiration Section */}
-      <div>
-        <h3 className="text-lg font-semibold mb-3">Inspiration</h3>
-        <div className="flex gap-2">
-          <span className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm">
-            Afro
-          </span>
-          <span className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm border border-border">
-            Chill
-          </span>
-        </div>
       </div>
 
       {/* Generate Button */}
