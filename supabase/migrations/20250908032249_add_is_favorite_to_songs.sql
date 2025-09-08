@@ -1,2 +1,0 @@
-ALTER TABLE public.songs
-ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE;

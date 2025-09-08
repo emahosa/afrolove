@@ -3,13 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal, Heart } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -22,18 +16,18 @@ interface Song {
   audio_url: string | null;
   status: string;
   created_at: string;
-  is_favorite: boolean;
   genre?: { name: string };
   lyrics?: string;
   prompt?: string;
 }
 
-const SongLibrary = ({ onSongSelect, searchTerm }: { onSongSelect: (song: Song) => void, searchTerm: string }) => {
+const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const songsPerPage = 10;
 
   useEffect(() => {
@@ -54,10 +48,10 @@ const SongLibrary = ({ onSongSelect, searchTerm }: { onSongSelect: (song: Song) 
           created_at,
           lyrics,
           prompt,
-          is_favorite,
           genre:genres(name)
         `)
         .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -112,25 +106,6 @@ const SongLibrary = ({ onSongSelect, searchTerm }: { onSongSelect: (song: Song) 
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download song');
-    }
-  };
-
-  const handleToggleFavorite = async (songId: string, isFavorite: boolean) => {
-    try {
-      const { data, error } = await supabase
-        .from('songs')
-        .update({ is_favorite: !isFavorite })
-        .eq('id', songId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setSongs(songs.map(s => s.id === songId ? data : s));
-      toast.success(`Song ${!isFavorite ? 'added to' : 'removed from'} favorites`);
-    } catch (error: any) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorite status');
     }
   };
 
@@ -279,36 +254,22 @@ const SongLibrary = ({ onSongSelect, searchTerm }: { onSongSelect: (song: Song) 
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleToggleFavorite(song.id, song.is_favorite);
+                      // Add to favorites or other action
                     }}
                   >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        song.is_favorite ? "text-red-500 fill-red-500" : "text-muted-foreground"
-                      }`}
-                    />
+                    <span className="text-muted-foreground">♡</span>
                   </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(song.id)}
-                        className="text-red-500"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // More options
+                    }}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
                 </>
               )}
             </div>
