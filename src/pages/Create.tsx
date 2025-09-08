@@ -17,7 +17,6 @@ interface Song {
   audio_url: string | null;
   status: string;
   created_at: string;
-  is_favorite: boolean;
   genre?: { name: string };
   lyrics?: string;
   prompt?: string;
@@ -30,7 +29,6 @@ const Create = () => {
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const genreId = searchParams.get('genre');
@@ -58,22 +56,18 @@ const Create = () => {
         </div>
 
         {/* Right Sidebar - My Workspace, larger */}
-        <div className="w-2/3 bg-card p-6 flex flex-col">
-          <div className="mb-6 shrink-0">
+        <div className="w-2/3 bg-card p-6">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search"
                 className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div className="flex-grow overflow-y-auto">
-            <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
-          </div>
+          <SongLibrary onSongSelect={setSelectedSong} />
         </div>
       </div>
 
