@@ -21,12 +21,13 @@ interface Song {
   prompt?: string;
 }
 
-const SongLibrary = () => {
+const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
   const songsPerPage = 10;
 
   useEffect(() => {
@@ -127,10 +128,14 @@ const SongLibrary = () => {
     }
   };
 
-  const totalPages = Math.ceil(songs.length / songsPerPage);
+  const filteredSongs = songs.filter(song =>
+    song.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPages = Math.ceil(filteredSongs.length / songsPerPage);
   const indexOfLastSong = currentPage * songsPerPage;
   const indexOfFirstSong = indexOfLastSong - songsPerPage;
-  const currentSongs = songs.slice(indexOfFirstSong, indexOfLastSong);
+  const currentSongs = filteredSongs.slice(indexOfFirstSong, indexOfLastSong);
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -148,46 +153,48 @@ const SongLibrary = () => {
 
   if (songs.length === 0) {
     return (
-      <Card className="p-4 bg-white/5 border-white/10 text-white">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Music className="h-5 w-5 text-dark-purple" />
-            Completed Songs
-          </CardTitle>
-          <CardDescription className="text-gray-400">
-            Your completed songs will appear here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center py-8">
-          <Music className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-          <p className="text-gray-500">No completed songs yet.</p>
-        </CardContent>
-      </Card>
+      <div>
+        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+          <Music className="h-6 w-6" />
+          Completed Songs
+        </h2>
+        <p className="text-gray-500">No completed songs yet.</p>
+      </div>
     );
   }
 
   return (
-    <Card className="p-4 bg-white/5 border-white/10 text-white backdrop-blur-sm">
+    <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <Music className="h-6 w-6 text-dark-purple" />
+          <Music className="h-6 w-6" />
           Completed Songs
         </h2>
-        <Badge className="bg-dark-purple text-white">{songs.length} songs</Badge>
+        <Badge className="bg-transparent text-white">{songs.length} songs</Badge>
       </div>
+
+      <input
+        type="text"
+        placeholder="Search songs..."
+        className="w-full p-2 mb-4 bg-transparent border-b border-white/20 text-white focus:outline-none"
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
 
       <div className="space-y-2">
         {currentSongs.map((song) => (
-          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors">
+          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer" onClick={() => onSongSelect(song)}>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handlePlay(song)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePlay(song);
+              }}
               disabled={!song.audio_url}
               className="mr-2 text-gray-300 hover:text-white"
             >
               {currentTrack?.id === song.id && isPlaying ? (
-                <Pause className="h-5 w-5 text-dark-purple" />
+                <Pause className="h-5 w-5" />
               ) : (
                 <Play className="h-5 w-5" />
               )}
@@ -203,7 +210,10 @@ const SongLibrary = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleDownload(song)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(song)
+                }}
                 disabled={!song.audio_url}
                 className="text-gray-300 hover:text-white"
               >
@@ -212,7 +222,10 @@ const SongLibrary = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleDelete(song.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(song.id)
+                }}
                 className="text-red-500/80 hover:text-red-500"
               >
                 <Trash2 className="h-4 w-4" />
@@ -263,7 +276,7 @@ const SongLibrary = () => {
           </PaginationContent>
         </Pagination>
       )}
-    </Card>
+    </div>
   );
 };
 

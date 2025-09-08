@@ -9,15 +9,28 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
 
+import LyricsDisplay from "@/components/music-generation/LyricsDisplay";
+
+interface Song {
+  id: string;
+  title: string;
+  audio_url: string | null;
+  status: string;
+  created_at: string;
+  genre?: { name: string };
+  lyrics?: string;
+  prompt?: string;
+}
+
+
 const Create = () => {
   const [searchParams] = useSearchParams();
   const { genres } = useGenres();
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
-  const [isFormOpen, setIsFormOpen] = useState(true);
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
 
   useEffect(() => {
-    // Check for pre-selected genre from URL params
     const genreId = searchParams.get('genre');
     const promptParam = searchParams.get('prompt');
 
@@ -31,38 +44,24 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <div className="space-y-6">
-        <Collapsible open={isFormOpen} onOpenChange={setIsFormOpen} className="w-full">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="text-left">
-              <h2 className="text-xl font-bold">Create a New Song</h2>
-              <p className="text-muted-foreground text-sm">
-                Use AI to generate music in any style
-              </p>
-            </div>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <ChevronsUpDown className="h-4 w-4" />
-                <span className="sr-only">Toggle</span>
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-
-          <CollapsibleContent>
-            <Card className="mt-4">
-              <CardContent className="pt-6">
-                <MusicGenerationWorkflow
-                  preSelectedGenre={selectedGenre}
-                  initialPrompt={initialPrompt}
-                />
-              </CardContent>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8 h-full">
+      {/* Create Song Form */}
+      <div className="lg:col-span-1">
+        <h2 className="text-2xl font-bold mb-4">Create a New Song</h2>
+        <MusicGenerationWorkflow
+          preSelectedGenre={selectedGenre}
+          initialPrompt={initialPrompt}
+        />
       </div>
-      <div className="lg:mt-0">
-        <SongLibrary />
+
+      {/* Completed Songs */}
+      <div className="lg:col-span-1 h-full overflow-y-auto">
+        <SongLibrary onSongSelect={setSelectedSong} />
+      </div>
+
+      {/* Lyrics Display */}
+      <div className="lg:col-span-1 h-full overflow-y-auto">
+        <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
       </div>
     </div>
   );

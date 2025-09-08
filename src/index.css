@@ -7,11 +7,11 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
+    --background: 0 0% 0%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 0 0% 0%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 0 0% 0%;
     --popover-foreground: 210 40% 98%;
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
@@ -26,7 +26,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 262.1 83.3% 57.8%;
-    --radius: 0.5rem;
+    --radius: 1.5rem;
     --chart-1: 262.1 83.3% 57.8%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -47,81 +47,43 @@
     min-height: 100vh;
   }
 
-  /* Custom violet button styles */
-  .btn-violet {
-    @apply bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white border-0 shadow-lg transition-all duration-300 transform hover:scale-105;
+  .water-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
   }
 
-  /* Enhanced button styles */
-  .btn {
-    @apply btn-violet;
+  .water-button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%);
+    transform-origin: 50% 50%;
   }
 
-  /* Card enhancements */
-  .card-enhanced {
-    @apply bg-gradient-to-br from-card/50 to-card/80 backdrop-blur-sm border border-border/50 shadow-xl;
+  .water-button:focus:not(:active)::after {
+    animation: ripple 1s ease-out;
   }
 
-  /* Glassmorphism effect */
-  .glass {
-    @apply backdrop-blur-md bg-background/10 border border-white/10;
-  }
-
-  /* Audio player enhancements */
-  .audio-controls {
-    @apply flex items-center space-x-2 p-2 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-lg border border-violet-500/30;
-  }
-
-  /* Scroll enhancements */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-background/50 rounded-full;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-violet-500/50 rounded-full;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-violet-500/70;
-  }
-
-  /* Loading animations */
-  @keyframes pulse-violet {
-    0%, 100% {
+  @keyframes ripple {
+    0% {
+      transform: scale(0, 0);
       opacity: 1;
-      background-color: hsl(262.1, 83.3%, 57.8%);
     }
-    50% {
-      opacity: 0.5;
-      background-color: hsl(262.1, 83.3%, 67.8%);
+    20% {
+      transform: scale(25, 25);
+      opacity: 1;
     }
-  }
-
-  .loading-violet {
-    animation: pulse-violet 2s ease-in-out infinite;
-  }
-
-  /* Form enhancements */
-  .form-enhanced input, .form-enhanced textarea, .form-enhanced select {
-    @apply bg-background/50 border-violet-500/30 focus:border-violet-500 focus:ring-violet-500/20 transition-all duration-300;
-  }
-
-  /* Genre template card enhancements */
-  .genre-card {
-    @apply card-enhanced hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-500 group;
-  }
-
-  .genre-card:hover {
-    @apply scale-105 rotate-1;
-  }
-
-  /* Dashboard enhancements */
-  .dashboard-stat {
-    @apply bg-gradient-to-br from-violet-500/10 to-purple-500/10 border border-violet-500/20 rounded-xl p-6 hover:shadow-lg hover:shadow-violet-500/20 transition-all duration-300;
+    100% {
+      opacity: 0;
+      transform: scale(40, 40);
+    }
   }
 }
 
