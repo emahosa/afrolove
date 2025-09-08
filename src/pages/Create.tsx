@@ -44,25 +44,52 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-8 h-full">
-      {/* Create Song Form */}
-      <div className="lg:col-span-1">
-        <h2 className="text-2xl font-bold mb-4">Create a New Song</h2>
-        <MusicGenerationWorkflow
-          preSelectedGenre={selectedGenre}
-          initialPrompt={initialPrompt}
-        />
+    <div className="flex h-full bg-background">
+      {/* Main Content Area */}
+      <div className="flex-1 flex">
+        {/* Create Song Form - Centered */}
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="w-full max-w-2xl">
+            <MusicGenerationWorkflow
+              preSelectedGenre={selectedGenre}
+              initialPrompt={initialPrompt}
+            />
+          </div>
+        </div>
+
+        {/* Right Sidebar - My Workspace */}
+        <div className="w-80 bg-card border-l border-border p-6 overflow-y-auto">
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search"
+                className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
+              />
+            </div>
+          </div>
+          <SongLibrary onSongSelect={setSelectedSong} />
+        </div>
       </div>
 
-      {/* Completed Songs */}
-      <div className="lg:col-span-1 h-full overflow-y-auto">
-        <SongLibrary onSongSelect={setSelectedSong} />
-      </div>
-
-      {/* Lyrics Display */}
-      <div className="lg:col-span-1 h-full overflow-y-auto">
-        <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
-      </div>
+      {/* Lyrics Display Modal/Overlay - Only show when song is selected */}
+      {selectedSong && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
+              <button 
+                onClick={() => setSelectedSong(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ×
+              </button>
+            </div>
+            <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

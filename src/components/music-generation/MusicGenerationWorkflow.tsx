@@ -168,125 +168,176 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
     (selectedGenreId ? genres.find(g => g.id === selectedGenreId)?.name : "");
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-8">
+      {/* Mode Tabs */}
+      <div className="flex justify-center">
+        <div className="flex bg-muted rounded-lg p-1">
+          <button
+            onClick={() => setCreationMode('prompt')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              creationMode === 'prompt' 
+                ? 'bg-background text-foreground shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Simple
+          </button>
+          <button
+            onClick={() => setCreationMode('lyrics')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              creationMode === 'lyrics' 
+                ? 'bg-background text-foreground shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Custom
+          </button>
+        </div>
+      </div>
+
+      {/* Template Info */}
       {templateData && (
-        <div>
-          <h3 className="text-lg font-bold text-white">Using Template: {templateData.template_name}</h3>
-          <p className="text-gray-400">
+        <div className="text-center">
+          <h3 className="text-lg font-bold">Using Template: {templateData.template_name}</h3>
+          <p className="text-muted-foreground">
             Genre: {templateData.genres?.name}
           </p>
         </div>
       )}
 
-      {!templateData && (
-        <div className="space-y-2">
-          <Label htmlFor="genre" className="text-gray-300">Genre <span className="text-red-500">*</span></Label>
-          {genresLoading ? (
-            <div className="flex items-center text-sm text-gray-400">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
-              Loading genres...
+      {/* Main Content */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-2">Describe your song</h2>
+          
+          <div className="space-y-4">
+            {/* Song Description/Lyrics Input */}
+            <Textarea
+              id="prompt-input"
+              placeholder={creationMode === 'prompt' ? "e.g., A vibrant Afrobeat track celebrating the joy of life" : "Paste your full lyrics here..."}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="min-h-[100px] bg-background border-border text-foreground placeholder-muted-foreground resize-none"
+              maxLength={creationMode === 'prompt' ? 99 : undefined}
+            />
+            {creationMode === 'prompt' && (
+              <p className="text-xs text-muted-foreground text-right">{prompt.length}/99</p>
+            )}
+          </div>
+
+          {/* Additional Options Row */}
+          <div className="flex gap-4 mt-4">
+            <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-lg text-sm hover:bg-muted/80 transition-colors">
+              + Audio
+            </button>
+            <button 
+              onClick={() => setCreationMode('lyrics')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                creationMode === 'lyrics' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              + Lyrics
+            </button>
+            <button 
+              onClick={() => setInstrumental(!instrumental)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                instrumental ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
+              }`}
+            >
+              + Instrumental
+            </button>
+          </div>
+
+          {/* Custom Mode Fields */}
+          {creationMode === 'lyrics' && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <Label htmlFor="title" className="text-sm font-medium">Song Title *</Label>
+                <Input 
+                  id="title" 
+                  placeholder="e.g., Midnight Rain" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="model" className="text-sm font-medium">AI Model</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger id="model" className="mt-1">
+                    <SelectValue placeholder="Select an AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableModels.map(model => (
+                      <SelectItem key={model.value} value={model.value}>
+                        {model.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          ) : (
-            <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
-              <SelectTrigger id="genre" className="bg-black/20 border-white/20">
-                <SelectValue placeholder="Select a genre" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-white/20 text-white">
-                {genres.map(genre => (
-                  <SelectItem key={genre.id} value={genre.id} className="focus:bg-dark-purple">
-                    {genre.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          )}
+
+          {/* Genre Selection for non-template mode */}
+          {!templateData && (
+            <div className="mt-4">
+              <Label htmlFor="genre" className="text-sm font-medium">Genre *</Label>
+              {genresLoading ? (
+                <div className="flex items-center text-sm text-muted-foreground mt-1">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                  Loading genres...
+                </div>
+              ) : (
+                <Select value={selectedGenreId} onValueChange={setSelectedGenreId} disabled={genresLoading}>
+                  <SelectTrigger id="genre" className="mt-1">
+                    <SelectValue placeholder="Select a genre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {genres.map(genre => (
+                      <SelectItem key={genre.id} value={genre.id}>
+                        {genre.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           )}
         </div>
-      )}
 
-      <div className="space-y-2">
-        <Label htmlFor="model" className="text-gray-300">AI Model</Label>
-        <Select value={selectedModel} onValueChange={setSelectedModel}>
-          <SelectTrigger id="model" className="bg-black/20 border-white/20">
-            <SelectValue placeholder="Select an AI model" />
-          </SelectTrigger>
-          <SelectContent className="bg-gray-900 border-white/20 text-white">
-            {availableModels.map(model => (
-              <SelectItem key={model.value} value={model.value} className="focus:bg-dark-purple">
-                {model.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <RadioGroup value={creationMode} onValueChange={(v) => setCreationMode(v as CreationMode)} className="grid grid-cols-2 gap-4">
+        {/* Inspiration Section */}
         <div>
-          <RadioGroupItem value="prompt" id="prompt-mode" className="peer sr-only" />
-          <Label htmlFor="prompt-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
-            Prompt Mode
-            <span className="text-xs font-normal text-gray-400">Simple description</span>
-          </Label>
-        </div>
-        <div>
-          <RadioGroupItem value="lyrics" id="lyrics-mode" className="peer sr-only" />
-          <Label htmlFor="lyrics-mode" className="flex flex-col items-center justify-center rounded-md border-2 border-white/20 bg-black/20 p-4 hover:bg-white/10 peer-data-[state=checked]:border-dark-purple [&:has([data-state=checked])]:border-dark-purple cursor-pointer">
-            Lyrics Mode
-            <span className="text-xs font-normal text-gray-400">Use your own lyrics</span>
-          </Label>
-        </div>
-      </RadioGroup>
-
-      {creationMode === 'lyrics' && (
-        <div className="space-y-2">
-          <Label htmlFor="title" className="text-gray-300">Song Title <span className="text-red-500">*</span></Label>
-          <Input id="title" placeholder="e.g., Midnight Rain" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-black/20 border-white/20 text-white placeholder-gray-500" />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="prompt-input" className="text-gray-300">
-          {creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}
-          {templateData && creationMode === 'prompt' && (
-            <span className="text-sm text-gray-400 ml-2">
-              (Template suggestion provided)
+          <h3 className="text-lg font-semibold mb-3">Inspiration</h3>
+          <div className="flex gap-2">
+            <span className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm">
+              Afro
             </span>
+            <span className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm border border-border">
+              Chill
+            </span>
+          </div>
+        </div>
+
+        {/* Generate Button */}
+        <Button
+          onClick={handleGenerate}
+          disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
+          className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold text-lg py-6"
+          size="lg"
+        >
+          {isGenerating ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <Music className="mr-2 h-5 w-5" />
           )}
-        </Label>
-        <Textarea
-          id="prompt-input"
-          placeholder={creationMode === 'prompt' ? "e.g., a upbeat pop song about summer nights" : "Paste your full lyrics here..."}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          className="min-h-[120px] bg-black/20 border-white/20 text-white placeholder-gray-500"
-          maxLength={creationMode === 'prompt' ? 99 : undefined}
-        />
-        {creationMode === 'prompt' && (
-          <p className="text-xs text-gray-400 text-right">{prompt.length}/99</p>
-        )}
+          Create (20 Credits)
+        </Button>
+
+        <p className="text-xs text-muted-foreground text-center">
+          Generation takes 1-2 minutes. Your song will appear in the Library.
+        </p>
       </div>
-
-      <div className="flex items-center space-x-2">
-        <Switch id="instrumental" checked={instrumental} onCheckedChange={setInstrumental} className="data-[state=checked]:bg-dark-purple" />
-        <Label htmlFor="instrumental" className="text-gray-300">Generate instrumental only</Label>
-      </div>
-
-      <Button
-        onClick={handleGenerate}
-        disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-        className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
-        size="lg"
-      >
-        {isGenerating ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Music className="mr-2 h-4 w-4" />
-        )}
-        Generate Song (20 Credits)
-      </Button>
-
-      <p className="text-xs text-gray-400 text-center">
-        Generation takes 1-2 minutes. Your song will appear in the Library.
-      </p>
     </div>
   );
 };

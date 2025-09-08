@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Trash2, Music } from "lucide-react";
+import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
           genre:genres(name)
         `)
         .eq('user_id', user?.id)
-        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -142,102 +142,144 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
     setCurrentPage(page);
   };
 
+  const getSongThumbnail = (song: Song) => {
+    // Generate a simple gradient background based on the song title
+    const colors = [
+      'from-pink-500 to-purple-500',
+      'from-blue-500 to-teal-500', 
+      'from-orange-500 to-red-500',
+      'from-green-500 to-blue-500',
+      'from-purple-500 to-pink-500'
+    ];
+    const colorIndex = song.title.charCodeAt(0) % colors.length;
+    return colors[colorIndex];
+  };
+
+  const getStatusInfo = (song: Song) => {
+    if (song.status === 'completed' && song.audio_url) {
+      return { 
+        tags: [song.genre?.name, 'Instruments'].filter(Boolean),
+        canPlay: true,
+        showActions: true
+      };
+    } else if (song.status === 'pending' || song.status === 'approved') {
+      return { 
+        tags: ['Generating...'],
+        canPlay: false,
+        showActions: false
+      };
+    } else {
+      return { 
+        tags: ['Processing...'],
+        canPlay: false,
+        showActions: false
+      };
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
-        <span className="ml-3">Loading your songs...</span>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <span className="ml-3 text-muted-foreground">Loading your songs...</span>
       </div>
     );
   }
 
   if (songs.length === 0) {
     return (
-      <div>
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <Music className="h-6 w-6" />
-          Completed Songs
-        </h2>
-        <p className="text-gray-500">No completed songs yet.</p>
+      <div className="text-center py-8">
+        <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">No songs yet. Create your first song!</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Music className="h-6 w-6" />
-          Completed Songs
-        </h2>
-        <Badge className="bg-transparent text-white">{songs.length} songs</Badge>
-      </div>
-
-      <input
-        type="text"
-        placeholder="Search songs..."
-        className="w-full p-2 mb-4 bg-transparent border-b border-white/20 text-white focus:outline-none"
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-
-      <div className="space-y-2">
-        {currentSongs.map((song) => (
-          <div key={song.id} className="flex items-center p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer" onClick={() => onSongSelect(song)}>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePlay(song);
-              }}
-              disabled={!song.audio_url}
-              className="mr-2 text-gray-300 hover:text-white"
-            >
-              {currentTrack?.id === song.id && isPlaying ? (
-                <Pause className="h-5 w-5" />
+    <div className="space-y-4">
+      {currentSongs.map((song) => {
+        const statusInfo = getStatusInfo(song);
+        return (
+          <div key={song.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer" onClick={() => statusInfo.canPlay ? onSongSelect(song) : undefined}>
+            {/* Thumbnail */}
+            <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getSongThumbnail(song)} flex items-center justify-center flex-shrink-0`}>
+              {song.status === 'pending' || song.status === 'approved' ? (
+                <Loader2 className="h-5 w-5 text-white animate-spin" />
               ) : (
-                <Play className="h-5 w-5" />
+                <Music className="h-5 w-5 text-white" />
               )}
-            </Button>
-            <div className="flex-grow min-w-0">
-              <p className="font-semibold text-sm truncate text-white">{song.title}</p>
-              <p className="text-xs text-gray-400">
-                {new Date(song.created_at).toLocaleDateString()}
-                {song.genre && ` • ${song.genre.name}`}
-              </p>
             </div>
+            
+            {/* Song Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-sm truncate">{song.title}</h3>
+              <div className="flex gap-2 mt-1">
+                {statusInfo.tags.map((tag, index) => (
+                  <span key={index} className="text-xs text-muted-foreground">
+                    {tag}
+                    {index < statusInfo.tags.length - 1 && statusInfo.tags.length > 1 && (
+                      <span className="ml-2">•</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownload(song)
-                }}
-                disabled={!song.audio_url}
-                className="text-gray-300 hover:text-white"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(song.id)
-                }}
-                className="text-red-500/80 hover:text-red-500"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              {statusInfo.canPlay && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePlay(song);
+                  }}
+                  disabled={!song.audio_url}
+                >
+                  {currentTrack?.id === song.id && isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              
+              {statusInfo.showActions && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add to favorites or other action
+                    }}
+                  >
+                    <span className="text-muted-foreground">♡</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // More options
+                    }}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
 
       {totalPages > 1 && (
-        <Pagination className="mt-4">
-          <PaginationContent className="text-gray-300">
+        <Pagination className="mt-6">
+          <PaginationContent>
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -245,7 +287,7 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
                   e.preventDefault();
                   handlePageChange(currentPage - 1);
                 }}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
             {[...Array(totalPages)].map((_, i) => (
@@ -257,7 +299,6 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
                     handlePageChange(i + 1);
                   }}
                   isActive={currentPage === i + 1}
-                  className="hover:bg-white/10 data-[active=true]:bg-dark-purple data-[active=true]:text-white"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -270,7 +311,7 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
                   e.preventDefault();
                   handlePageChange(currentPage + 1);
                 }}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white/10"}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
           </PaginationContent>
