@@ -29,6 +29,7 @@ const Create = () => {
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const genreId = searchParams.get('genre');
@@ -44,11 +45,11 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-[calc(100vh-theme(spacing.16))] bg-background">
       {/* Main Content Area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Create Song Form - Left side, smaller */}
-        <div className="w-1/3 p-6 border-r border-border">
+        <div className="w-1/3 p-6 border-r border-border overflow-y-auto">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
             initialPrompt={initialPrompt}
@@ -56,7 +57,7 @@ const Create = () => {
         </div>
 
         {/* Right Sidebar - My Workspace, larger */}
-        <div className="w-2/3 bg-card p-6">
+        <div className="w-2/3 bg-card p-6 flex flex-col">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">
@@ -64,10 +65,14 @@ const Create = () => {
                 type="text"
                 placeholder="Search"
                 className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <SongLibrary onSongSelect={setSelectedSong} />
+          <div className="flex-1 overflow-y-auto">
+            <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
+          </div>
         </div>
       </div>
 
