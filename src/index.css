@@ -23,9 +23,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 0 0% 0%;
     --popover-foreground: 210 40% 98%;
-    --primary: 341 83% 52%;
-    --primary-gradient-from: #e91e63;
-    --primary-gradient-to: #ff9800;
+    --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -37,9 +35,9 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 341 83% 52%;
+    --ring: 262.1 83.3% 57.8%;
     --radius: 1.5rem;
-    --chart-1: 341 83% 52%;
+    --chart-1: 262.1 83.3% 57.8%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
@@ -109,24 +107,5 @@
     -webkit-text-fill-color: white !important;
     caret-color: white !important;
     transition: background-color 5000s ease-in-out 0s;
-  }
-  .btn-outline-primary {
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    position: relative;
-  }
-  .btn-outline-primary::before {
-    content: '';
-    position: absolute;
-    top: 0; right: 0; bottom: 0; left: 0;
-    z-index: -1;
-    margin: -2px;
-    border-radius: inherit;
-    background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-to));
-  }
-  .text-gradient-primary {
-    background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-to));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
   }
 }

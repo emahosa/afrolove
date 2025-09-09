@@ -310,8 +310,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
-          className="w-full"
-          variant="primary"
+          className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold"
         >
           {isGenerating ? (
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
