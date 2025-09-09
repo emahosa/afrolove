@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
 import { useGenres } from "@/hooks/use-genres";
+import { useIsMobile } from "@/hooks/use-mobile";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import LyricsDisplay from "@/components/music-generation/LyricsDisplay";
 import {
@@ -22,6 +23,7 @@ interface Song {
 }
 
 const Create = () => {
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const { genres } = useGenres();
   const [selectedGenre, setSelectedGenre] = useState<string>("");
@@ -44,11 +46,11 @@ const Create = () => {
 
   return (
     <ResizablePanelGroup
-      direction="horizontal"
+      direction={isMobile ? "vertical" : "horizontal"}
       className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
-      <ResizablePanel defaultSize={35}>
+      <ResizablePanel defaultSize={isMobile ? 30 : 35}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
@@ -56,10 +58,10 @@ const Create = () => {
           />
         </div>
       </ResizablePanel>
-      <ResizableHandle withHandle />
+      {!isMobile && <ResizableHandle withHandle />}
 
       {/* Middle Panel: Song Library */}
-      <ResizablePanel defaultSize={50}>
+      <ResizablePanel defaultSize={isMobile ? 40 : 50}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           <div className="pb-4">
               <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
@@ -76,10 +78,10 @@ const Create = () => {
           <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
         </div>
       </ResizablePanel>
-      <ResizableHandle withHandle />
+      {!isMobile && <ResizableHandle withHandle />}
 
       {/* Right Panel: Lyrics Display */}
-      <ResizablePanel defaultSize={15}>
+      <ResizablePanel defaultSize={isMobile ? 30 : 15}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           {selectedSong ? (
             <div>
