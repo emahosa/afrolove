@@ -50,7 +50,7 @@ const Create = () => {
       className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
-      <ResizablePanel defaultSize={isMobile ? 30 : 35}>
+      <ResizablePanel defaultSize={35}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
@@ -58,10 +58,10 @@ const Create = () => {
           />
         </div>
       </ResizablePanel>
-      {!isMobile && <ResizableHandle withHandle />}
+      <ResizableHandle withHandle />
 
       {/* Middle Panel: Song Library */}
-      <ResizablePanel defaultSize={isMobile ? 40 : 50}>
+      <ResizablePanel defaultSize={50}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           <div className="pb-4">
               <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
@@ -78,10 +78,10 @@ const Create = () => {
           <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
         </div>
       </ResizablePanel>
-      {!isMobile && <ResizableHandle withHandle />}
+      <ResizableHandle withHandle />
 
       {/* Right Panel: Lyrics Display */}
-      <ResizablePanel defaultSize={isMobile ? 30 : 15}>
+      <ResizablePanel defaultSize={15}>
         <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           {selectedSong ? (
             <div>
