@@ -45,11 +45,11 @@ const Create = () => {
   return (
     <ResizablePanelGroup
       direction="horizontal"
-      className="h-screen bg-zinc-900 text-white"
+      className="h-screen bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
       <ResizablePanel defaultSize={35}>
-        <div className="h-full p-4 bg-zinc-900 overflow-y-auto no-scrollbar">
+        <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
             initialPrompt={initialPrompt}
@@ -80,7 +80,7 @@ const Create = () => {
 
       {/* Right Panel: Lyrics Display */}
       <ResizablePanel defaultSize={15}>
-        <div className="h-full p-4 bg-zinc-950 overflow-y-auto no-scrollbar">
+        <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
           {selectedSong ? (
             <div>
               <div className="flex items-center justify-between mb-4">
