@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
 import { useGenres } from "@/hooks/use-genres";
+import { useIsMobile } from "@/hooks/use-mobile";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import LyricsDisplay from "@/components/music-generation/LyricsDisplay";
 import {
@@ -22,6 +23,7 @@ interface Song {
 }
 
 const Create = () => {
+  const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const { genres } = useGenres();
   const [selectedGenre, setSelectedGenre] = useState<string>("");
@@ -44,7 +46,7 @@ const Create = () => {
 
   return (
     <ResizablePanelGroup
-      direction="horizontal"
+      direction={isMobile ? "vertical" : "horizontal"}
       className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
