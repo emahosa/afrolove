@@ -20,7 +20,7 @@ export default {
 		},
 		extend: {
 			colors: {
-				'deep-orange': '#9A3412',
+				'deep-purple': '#4c1d95',
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

@@ -148,7 +148,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
                 : validationResult?.isValid 
                   ? validationResult.hasCredits
                     ? 'bg-green-50 border-green-200 text-green-800'
-                    : 'bg-orange-50 border-orange-200 text-orange-800'
+                    : 'bg-purple-50 border-purple-200 text-purple-800'
                   : 'bg-red-50 border-red-200 text-red-800'
             }`}>
               <div className="flex items-center gap-2">
@@ -172,7 +172,7 @@ export const SunoApiKeyForm = ({ onKeyUpdated }: SunoApiKeyFormProps) => {
                 <>
                   <p className="text-sm mt-1">{validationResult.message}</p>
                   {validationResult.isValid && !validationResult.hasCredits && (
-                    <p className="text-xs mt-2 text-orange-600">
+                    <p className="text-xs mt-2 text-purple-600">
                       ⚠️ Add credits to your Suno account to enable music generation
                     </p>
                   )}

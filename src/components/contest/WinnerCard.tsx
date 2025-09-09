@@ -10,7 +10,7 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
   if (!winner) return null;
 
   return (
-    <Card className="bg-gradient-to-br from-yellow-400/20 via-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/50 shadow-lg relative overflow-hidden">
+    <Card className="bg-gradient-to-br from-yellow-400/20 via-purple-500/20 to-purple-500/20 border-2 border-yellow-500/50 shadow-lg relative overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-yellow-300">
           Contest Winner

@@ -162,7 +162,7 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
     const colors = [
       'from-pink-500 to-purple-500',
       'from-blue-500 to-teal-500', 
-      'from-orange-500 to-red-500',
+      'from-purple-500 to-red-500',
       'from-green-500 to-blue-500',
       'from-purple-500 to-pink-500'
     ];
