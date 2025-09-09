@@ -168,7 +168,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
     (selectedGenreId ? genres.find(g => g.id === selectedGenreId)?.name : "");
 
   return (
-    <Card className="bg-white/5 border-white/10 backdrop-blur-sm h-full flex flex-col">
+    <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
       <CardHeader>
         <CardTitle className="text-2xl font-bold">
           {templateData ? `Template: ${templateData.template_name}` : "Create a new song"}
@@ -177,7 +177,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           {templateData ? `Genre: ${templateData.genres?.name}` : "Describe your song or provide lyrics"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6 flex-grow overflow-y-auto no-scrollbar">
+      <CardContent className="space-y-4">
         {/* Mode Tabs */}
         <div className="flex justify-center">
           <div className="flex bg-muted rounded-lg p-1">
