@@ -102,7 +102,7 @@ export const SunoApiManagement = () => {
       case 'missing':
         return <Badge variant="outline">Not Configured</Badge>;
       case 'no_credits':
-        return <Badge variant="destructive" className="bg-orange-500">Valid - No Credits</Badge>;
+        return <Badge variant="destructive" className="bg-purple-500">Valid - No Credits</Badge>;
       case 'error':
         return <Badge variant="destructive">Check Failed</Badge>;
       default:
@@ -117,7 +117,7 @@ export const SunoApiManagement = () => {
       case 'valid':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'no_credits':
-        return <AlertCircle className="h-5 w-5 text-orange-500" />;
+        return <AlertCircle className="h-5 w-5 text-purple-500" />;
       case 'invalid':
       case 'missing':
       case 'error':
@@ -171,20 +171,20 @@ export const SunoApiManagement = () => {
 
       {/* Critical Status Alert */}
       {keyStatus === 'no_credits' && (
-        <Card className="border-orange-200 bg-orange-50">
+        <Card className="border-purple-200 bg-purple-50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <AlertCircle className="h-5 w-5 text-purple-600" />
               <div>
-                <h4 className="font-medium text-orange-900">Suno Account Credits Exhausted</h4>
-                <p className="text-sm text-orange-700 mt-1">
+                <h4 className="font-medium text-purple-900">Suno Account Credits Exhausted</h4>
+                <p className="text-sm text-purple-700 mt-1">
                   Your Suno AI account has run out of credits. Users will not be able to generate songs until you top up your Suno account.
                 </p>
                 <a 
                   href="https://suno.com" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-sm text-orange-600 underline hover:text-orange-800 mt-2 inline-block"
+                  className="text-sm text-purple-600 underline hover:text-purple-800 mt-2 inline-block"
                 >
                   Visit Suno Dashboard to Add Credits →
                 </a>
@@ -277,7 +277,7 @@ export const SunoApiManagement = () => {
                 </ul>
               </div>
               <div>
-                <h4 className="font-medium mb-2 text-orange-600">💡 Credit Management</h4>
+                <h4 className="font-medium mb-2 text-purple-600">💡 Credit Management</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Each generation uses Suno account credits</li>
                   <li>• Monitor credit usage in your Suno dashboard</li>
