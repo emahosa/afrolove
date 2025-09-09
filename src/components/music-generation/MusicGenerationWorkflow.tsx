@@ -30,7 +30,14 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
   const [instrumental, setInstrumental] = useState(false);
   const [selectedGenreId, setSelectedGenreId] = useState<string>(preSelectedGenre || "");
   const [selectedModel, setSelectedModel] = useState<string>("Afro Model 3");
-  const [templateData, setTemplateData] = useState<any>(null);
+  const [templateData, setTemplateData] = useState<{
+    id: string;
+    template_name: string;
+    genre_id: string;
+    user_prompt_guide: string;
+    admin_prompt: string;
+    genres: { name: string };
+  } | null>(null);
   const [templatePrompt, setTemplatePrompt] = useState("");
 
   const { user } = useAuth();
@@ -45,40 +52,40 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
   // Load template data if templateId is provided
   useEffect(() => {
+    const loadTemplateData = async () => {
+      if (!templateId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('genre_templates')
+          .select(`
+            *,
+            genres(name)
+          `)
+          .eq('id', templateId)
+          .eq('is_active', true)
+          .single();
+
+        if (error) {
+          console.error('Error loading template:', error);
+          return;
+        }
+
+        if (data) {
+          setTemplateData(data);
+          setSelectedGenreId(data.genre_id);
+          setTemplatePrompt(data.user_prompt_guide || "");
+          setPrompt(data.user_prompt_guide || "");
+        }
+      } catch (error) {
+        console.error('Error loading template:', error);
+      }
+    };
+
     if (templateId) {
       loadTemplateData();
     }
   }, [templateId]);
-
-  const loadTemplateData = async () => {
-    if (!templateId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('genre_templates')
-        .select(`
-          *,
-          genres(name)
-        `)
-        .eq('id', templateId)
-        .eq('is_active', true)
-        .single();
-
-      if (error) {
-        console.error('Error loading template:', error);
-        return;
-      }
-
-      if (data) {
-        setTemplateData(data);
-        setSelectedGenreId(data.genre_id);
-        setTemplatePrompt(data.user_prompt_guide || "");
-        setPrompt(data.user_prompt_guide || "");
-      }
-    } catch (error) {
-      console.error('Error loading template:', error);
-    }
-  };
 
   // Set initial values when props change
   useEffect(() => {
@@ -169,17 +176,17 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
   return (
     <Card className="bg-white/5 border-white/10 backdrop-blur-sm h-full flex flex-col">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-2xl font-bold">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl font-bold">
           {templateData ? `Template: ${templateData.template_name}` : "Create a new song"}
         </CardTitle>
         <CardDescription>
           {templateData ? `Genre: ${templateData.genres?.name}` : "Describe your song or provide lyrics"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-0 flex-grow overflow-y-auto no-scrollbar">
+      <CardContent className="space-y-2 pt-0 flex-grow">
         {/* Mode Tabs */}
-        <div className="flex justify-center">
+        <div className="flex justify-center pt-1">
           <div className="flex bg-muted rounded-lg p-1">
             <button
               onClick={() => setCreationMode('prompt')}
@@ -205,7 +212,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
 
         {/* Song Description/Lyrics Input */}
-        <div className="space-y-2 mb-4">
+        <div className="space-y-1">
           <Label htmlFor="prompt-input" className="text-sm font-medium">
             {creationMode === 'prompt' ? 'Song Description (max 99 chars)' : 'Lyrics'}
             {templateData && creationMode === 'prompt' && (
@@ -229,7 +236,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
 
         {/* Additional Options Row */}
-        <div className="flex items-center space-x-2 mb-4">
+        <div className="flex items-center space-x-2">
           <Switch
             id="instrumental-switch"
             checked={instrumental}
@@ -240,7 +247,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
         {/* Custom Mode Fields */}
         {creationMode === 'lyrics' && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div>
               <Label htmlFor="title" className="text-sm font-medium">Song Title <span className="text-red-500">*</span></Label>
               <Input
@@ -256,7 +263,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
         {/* Genre Selection for non-template mode */}
         {!templateData && (
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="genre" className="text-sm font-medium">Genre <span className="text-red-500">*</span></Label>
             {genresLoading ? (
               <div className="flex items-center text-sm text-muted-foreground">
@@ -281,7 +288,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         )}
 
         {/* AI Model Selection */}
-        <div className="space-y-2">
+        <div className="space-y-1">
           <Label htmlFor="model" className="text-sm font-medium">AI Model</Label>
           <Select value={selectedModel} onValueChange={setSelectedModel}>
             <SelectTrigger id="model">
