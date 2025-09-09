@@ -45,7 +45,7 @@ const Create = () => {
   return (
     <ResizablePanelGroup
       direction="horizontal"
-      className="h-full bg-black text-white"
+      className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
       <ResizablePanel defaultSize={35}>
