@@ -169,7 +169,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
 
   return (
     <Card className="bg-white/5 border-white/10 backdrop-blur-sm h-full flex flex-col">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <CardTitle className="text-2xl font-bold">
           {templateData ? `Template: ${templateData.template_name}` : "Create a new song"}
         </CardTitle>
@@ -177,13 +177,13 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           {templateData ? `Genre: ${templateData.genres?.name}` : "Describe your song or provide lyrics"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6 flex-grow overflow-y-auto no-scrollbar">
+      <CardContent className="space-y-4 pt-0 flex-grow overflow-y-auto no-scrollbar">
         {/* Mode Tabs */}
         <div className="flex justify-center">
           <div className="flex bg-muted rounded-lg p-1">
             <button
               onClick={() => setCreationMode('prompt')}
-              className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                 creationMode === 'prompt'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -193,7 +193,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
             </button>
             <button
               onClick={() => setCreationMode('lyrics')}
-              className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
                 creationMode === 'lyrics'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -220,6 +220,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="resize-none"
+            rows={creationMode === 'prompt' ? 2 : 4}
             maxLength={creationMode === 'prompt' ? 99 : undefined}
           />
           {creationMode === 'prompt' && (
@@ -228,7 +229,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
 
         {/* Additional Options Row */}
-        <div className="flex items-center space-x-2 mb-6">
+        <div className="flex items-center space-x-2 mb-4">
           <Switch
             id="instrumental-switch"
             checked={instrumental}
@@ -297,13 +298,12 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
       </CardContent>
 
-      <div className="p-6 pt-0">
+      <div className="px-6 pt-0 pb-4">
         {/* Generate Button */}
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || genresLoading || (!selectedGenreId && !templateData)}
           className="w-full bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold"
-          size="lg"
         >
           {isGenerating ? (
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
