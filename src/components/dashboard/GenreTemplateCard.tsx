@@ -131,7 +131,8 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
           <Button 
             onClick={handleCreateMusic}
             size="sm"
-            className="flex-1 bg-dark-purple hover:bg-opacity-90 font-bold text-white"
+            variant="cta"
+            className="flex-1 font-bold"
           >
             <Music className="h-4 w-4 mr-2" />
             Create Music
