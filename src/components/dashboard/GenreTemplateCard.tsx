@@ -102,12 +102,6 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {template.user_prompt_guide && (
-          <p className="text-sm text-gray-400 leading-relaxed h-20 overflow-hidden">
-            {template.user_prompt_guide}
-          </p>
-        )}
-
         <div className="flex gap-2 pt-2">
           {template.audio_url && (
             <Button 
