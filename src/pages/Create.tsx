@@ -29,6 +29,7 @@ const Create = () => {
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     const genreId = searchParams.get('genre');
@@ -44,30 +45,34 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Main Content Area */}
-      <div className="flex-1 flex">
-        {/* Create Song Form - Left side, smaller */}
-        <div className="w-1/3 p-6 border-r border-border">
+      <div className="flex-1 flex h-full">
+        {/* Create Song Form - Left side, smaller - Fixed position */}
+        <div className="w-1/3 p-6 border-r border-border overflow-y-auto">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
             initialPrompt={initialPrompt}
           />
         </div>
 
-        {/* Right Sidebar - My Workspace, larger */}
-        <div className="w-2/3 bg-card p-6">
-          <div className="mb-6">
+        {/* Right Sidebar - My Workspace, larger - Independent scroll */}
+        <div className="w-2/3 bg-card flex flex-col h-full">
+          <div className="p-6 pb-4 border-b border-border">
             <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
               />
             </div>
           </div>
-          <SongLibrary onSongSelect={setSelectedSong} />
+          <div className="flex-1 p-6 pt-4 overflow-y-auto">
+            <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
+          </div>
         </div>
       </div>
 

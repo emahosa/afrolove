@@ -3,12 +3,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal } from "lucide-react";
+import { Play, Pause, Download, Trash2, Music, Loader2, MoreHorizontal, Heart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Song {
   id: string;
@@ -21,13 +22,13 @@ interface Song {
   prompt?: string;
 }
 
-const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) => {
+const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: Song) => void; searchTerm?: string }) => {
   const { user } = useAuth();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [favoriteSongs, setFavoriteSongs] = useState<Set<string>>(new Set());
   const songsPerPage = 10;
 
   useEffect(() => {
@@ -126,6 +127,20 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
       console.error('Error deleting song:', error);
       toast.error('Failed to delete song');
     }
+  };
+
+  const toggleFavorite = (songId: string) => {
+    setFavoriteSongs(prev => {
+      const newFavorites = new Set(prev);
+      if (newFavorites.has(songId)) {
+        newFavorites.delete(songId);
+        toast.success('Removed from favorites');
+      } else {
+        newFavorites.add(songId);
+        toast.success('Added to favorites');
+      }
+      return newFavorites;
+    });
   };
 
   const filteredSongs = songs.filter(song =>
@@ -254,22 +269,39 @@ const SongLibrary = ({ onSongSelect }: { onSongSelect: (song: Song) => void }) =
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Add to favorites or other action
+                      toggleFavorite(song.id);
                     }}
                   >
-                    <span className="text-muted-foreground">♡</span>
+                    <Heart 
+                      className={`h-4 w-4 ${favoriteSongs.has(song.id) ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`} 
+                    />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // More options
-                    }}
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(song.id);
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>
               )}
             </div>
