@@ -1,14 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
 import { useGenres } from "@/hooks/use-genres";
 import SongLibrary from "@/components/music-generation/SongLibrary";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
-import { ChevronsUpDown } from "lucide-react";
-
 import LyricsDisplay from "@/components/music-generation/LyricsDisplay";
 
 interface Song {
@@ -21,7 +15,6 @@ interface Song {
   lyrics?: string;
   prompt?: string;
 }
-
 
 const Create = () => {
   const [searchParams] = useSearchParams();
@@ -45,54 +38,53 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Main Content Area */}
-      <div className="flex-1 flex h-full">
-        {/* Create Song Form - Left side, smaller - Fixed position */}
-        <div className="w-1/3 p-6 border-r border-border overflow-y-auto">
-          <MusicGenerationWorkflow
-            preSelectedGenre={selectedGenre}
-            initialPrompt={initialPrompt}
-          />
-        </div>
+    <div className="flex h-screen bg-zinc-900 text-white overflow-hidden">
+      {/* Left Panel: Create Song Form */}
+      <div className="w-[20%] p-4 border-r border-gray-700/30 bg-zinc-900 overflow-y-auto">
+        <MusicGenerationWorkflow
+          preSelectedGenre={selectedGenre}
+          initialPrompt={initialPrompt}
+        />
+      </div>
 
-        {/* Right Sidebar - My Workspace, larger - Independent scroll */}
-        <div className="w-2/3 bg-card flex flex-col h-full">
-          <div className="p-6 pb-4 border-b border-border">
-            <h2 className="text-xl font-semibold text-foreground mb-4">My Workspace</h2>
+      {/* Middle Panel: Song Library */}
+      <div className="flex-1 p-4 border-r border-gray-700/30 bg-black overflow-y-auto">
+        <div className="pb-4">
+            <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-sm text-foreground placeholder-muted-foreground"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder-zinc-500"
               />
             </div>
-          </div>
-          <div className="flex-1 p-6 pt-4 overflow-y-auto">
-            <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
-          </div>
         </div>
+        <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
       </div>
 
-      {/* Lyrics Display Modal/Overlay - Only show when song is selected */}
-      {selectedSong && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      {/* Right Panel: Lyrics Display */}
+      <div className="w-[30%] p-4 bg-zinc-950 overflow-y-auto">
+        {selectedSong ? (
+          <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
-              <button 
-                onClick={() => setSelectedSong(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ×
-              </button>
+                <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
+                <button
+                    onClick={() => setSelectedSong(null)}
+                    className="text-zinc-500 hover:text-white"
+                >
+                    &times;
+                </button>
             </div>
             <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-zinc-500">Select a song to view lyrics.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
