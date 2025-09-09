@@ -258,20 +258,49 @@ const Contest = () => {
   }
 
 const PastContestCard = ({ contest }: { contest: ContestType }) => {
-  const { getWinner } = useContest();
   const [winner, setWinner] = useState<ContestEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchWinner = async () => {
       setIsLoading(true);
-      const contestWinner = await getWinner(contest);
-      setWinner(contestWinner);
-      setIsLoading(false);
+      try {
+        const { data, error } = await supabase
+          .from('contest_winners')
+          .select(`
+            contest_entries (
+              *,
+              profiles (
+                full_name,
+                username
+              )
+            )
+          `)
+          .eq('contest_id', contest.id)
+          .eq('rank', 1)
+          .single();
+
+        if (error) {
+          if (error.code !== 'PGRST116') { // Ignore 'exact one row not found'
+            throw error;
+          }
+        }
+
+        if (data) {
+          setWinner(data.contest_entries as ContestEntry);
+        } else {
+          setWinner(null);
+        }
+      } catch (error) {
+        console.error("Error fetching winner from contest_winners", error);
+        setWinner(null);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchWinner();
-  }, [contest, getWinner]);
+  }, [contest]);
 
   const renderWinnerSection = () => {
     if (isLoading) {

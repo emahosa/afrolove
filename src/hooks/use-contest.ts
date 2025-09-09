@@ -605,34 +605,6 @@ export const useContest = () => {
     }
   }, [currentContest]);
 
-  const getWinner = async (contest: Contest): Promise<ContestEntry | null> => {
-    try {
-      const now = new Date();
-      const announcementDate = new Date(contest.winner_announced_at);
-
-      if (now < announcementDate) {
-        return null; // It's not time to announce the winner yet
-      }
-
-      const { data, error } = await supabase
-        .from('contest_entries')
-        .select('*, profiles(full_name, username)')
-        .eq('contest_id', contest.id)
-        .order('vote_count', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error('Error fetching winner:', error);
-        return null;
-      }
-
-      return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-      console.error('Error in getWinner:', error);
-      return null;
-    }
-  };
-
   return {
     contests,
     activeContests,
@@ -652,7 +624,6 @@ export const useContest = () => {
     checkHasFreeVote,
     downloadInstrumental,
     unlockContest,
-    getWinner,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
     setCurrentContest
