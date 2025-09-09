@@ -332,6 +332,7 @@ export type Database = {
           title: string
           updated_at: string
           voting_enabled: boolean | null
+          winner_announced_at: string | null
           winner_id: string | null
         }
         Insert: {
@@ -354,6 +355,7 @@ export type Database = {
           title: string
           updated_at?: string
           voting_enabled?: boolean | null
+          winner_announced_at?: string | null
           winner_id?: string | null
         }
         Update: {
@@ -376,6 +378,7 @@ export type Database = {
           title?: string
           updated_at?: string
           voting_enabled?: boolean | null
+          winner_announced_at?: string | null
           winner_id?: string | null
         }
         Relationships: []
@@ -1493,6 +1496,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      winner_claim_details: {
+        Row: {
+          address: string
+          admin_notes: string | null
+          admin_reviewed: boolean | null
+          bank_account_details: string
+          contest_id: string
+          created_at: string
+          full_name: string
+          id: string
+          phone_number: string
+          prize_claimed: boolean | null
+          social_media_link: string | null
+          submitted_at: string
+          updated_at: string
+          user_id: string
+          winner_rank: number
+        }
+        Insert: {
+          address: string
+          admin_notes?: string | null
+          admin_reviewed?: boolean | null
+          bank_account_details: string
+          contest_id: string
+          created_at?: string
+          full_name: string
+          id?: string
+          phone_number: string
+          prize_claimed?: boolean | null
+          social_media_link?: string | null
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+          winner_rank?: number
+        }
+        Update: {
+          address?: string
+          admin_notes?: string | null
+          admin_reviewed?: boolean | null
+          bank_account_details?: string
+          contest_id?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          phone_number?: string
+          prize_claimed?: boolean | null
+          social_media_link?: string | null
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+          winner_rank?: number
+        }
+        Relationships: []
       }
     }
     Views: {

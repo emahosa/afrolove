@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { WinnerClaimManagement } from './WinnerClaimManagement';
 
 console.log("✅ ContestManagement component loaded - Using useContest hook");
 
@@ -96,6 +97,9 @@ export const ContestManagement = () => {
   const [isEndContestOpen, setIsEndContestOpen] = useState(false);
   const [isChooseWinnerOpen, setIsChooseWinnerOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ContestEntry | null>(null);
+  const [topEntries, setTopEntries] = useState<ContestEntry[]>([]);
+  const [selectedWinner, setSelectedWinner] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('contests');
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [instrumentalFile, setInstrumentalFile] = useState<File | null>(null);
   const [uploadingInstrumental, setUploadingInstrumental] = useState(false);
@@ -663,6 +667,8 @@ export const ContestManagement = () => {
           </CardContent>
         </Card>
       )}
+
+      {activeTab === 'claims' && <WinnerClaimManagement />}
       
       {/* View Contest Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>

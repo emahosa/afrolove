@@ -13,14 +13,14 @@ export interface Contest {
   description: string;
   rules: string;
   prize: string;
-  prize_amount: number;
-  prize_currency: string;
+  prize_amount?: number;
+  prize_currency?: string;
   start_date: string;
   end_date: string;
-  winner_announced_at: string;
+  winner_announced_at?: string;
   status: string;
-  instrumental_url: string;
-  terms_conditions: string;
+  instrumental_url?: string;
+  terms_conditions?: string;
   created_at: string;
   entry_fee: number;
   is_unlocked?: boolean;
@@ -534,8 +534,9 @@ export const useContest = () => {
 
       if (error) throw error;
 
-      if (data.success) {
-        toast.success(data.message);
+      const result = data as any;
+      if (result?.success) {
+        toast.success(result.message || 'Vote cast successfully');
         // Refresh user credits from auth context
         await refreshProfile();
         // Refresh contest entries to show new vote count
@@ -543,7 +544,7 @@ export const useContest = () => {
           fetchContestEntries(currentContest.id);
         }
       } else {
-        toast.error(data.message);
+        toast.error(result?.message || 'Failed to cast vote');
       }
     } catch (error: any) {
       console.error('Error casting vote:', error);

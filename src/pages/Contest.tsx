@@ -17,9 +17,10 @@ import { useContest, Contest as ContestType, ContestEntry } from "@/hooks/use-co
 import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
 import { WinnerCard } from "@/components/contest/WinnerCard";
+import { WinnerClaimDialog } from "@/components/contest/WinnerClaimDialog";
 
 // Contest component main interface
-interface Contest {
+interface LocalContest {
   id: string;
   title: string;
   description: string;
@@ -30,7 +31,7 @@ interface Contest {
   status: string;
 }
 
-interface ContestEntry {
+interface LocalContestEntry {
   id: string;
   contest_id: string;
   user_id: string;
@@ -75,7 +76,7 @@ const Contest = () => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
+  const [selectedContest, setSelectedContest] = useState<LocalContest | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
@@ -84,6 +85,9 @@ const Contest = () => {
   const [userHasFreeVote, setUserHasFreeVote] = useState(true);
   const [activeContestTab, setActiveContestTab] = useState<string | undefined>(activeContests[0]?.id);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showWinnerClaim, setShowWinnerClaim] = useState(false);
+  const [winnerClaimData, setWinnerClaimData] = useState<{ contestId: string; winnerRank: number } | null>(null);
+  const [userWins, setUserWins] = useState<Array<{ contest_id: string; rank: number }>>([]);
 
   useEffect(() => {
     if (activeContests.length > 0 && !activeContestTab) {
@@ -107,8 +111,48 @@ const Contest = () => {
   useEffect(() => {
     if (user) {
       fetchUserSongs();
+      checkUserWins();
     }
   }, [user]);
+
+  // Check if user has any wins and show claim dialog
+  const checkUserWins = async () => {
+    if (!user) return;
+
+    try {
+      const { data: wins, error } = await supabase
+        .from('contest_winners')
+        .select('contest_id, rank')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      if (wins && wins.length > 0) {
+        setUserWins(wins);
+        
+        // Check if user has submitted claim details for any win
+        const { data: existingClaims, error: claimsError } = await supabase
+          .from('winner_claim_details')
+          .select('contest_id')
+          .eq('user_id', user.id);
+
+        if (claimsError) throw claimsError;
+
+        const claimedContestIds = existingClaims?.map(claim => claim.contest_id) || [];
+        const unclaimedWin = wins.find(win => !claimedContestIds.includes(win.contest_id));
+
+        if (unclaimedWin) {
+          setWinnerClaimData({
+            contestId: unclaimedWin.contest_id,
+            winnerRank: unclaimedWin.rank
+          });
+          setShowWinnerClaim(true);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error checking user wins:', error);
+    }
+  };
 
   const fetchUserSongs = async () => {
     try {
@@ -126,7 +170,7 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (song: ContestEntry['songs']) => {
+  const handlePlay = (song: any) => {
     if (!song) return;
     if (currentTrack?.id === song.id && isPlaying) {
       togglePlayPause();
@@ -139,7 +183,7 @@ const Contest = () => {
     }
   };
 
-  const openSubmissionDialog = (contest: Contest) => {
+  const openSubmissionDialog = (contest: LocalContest) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
   };
@@ -165,7 +209,7 @@ const Contest = () => {
     setSelectedEntry(null);
   };
 
-  const handleUnlockContest = async (contest: Contest) => {
+  const handleUnlockContest = async (contest: LocalContest) => {
     if (!user) {
       toast.info('Please log in to unlock the contest.');
       return;
@@ -292,11 +336,12 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
       </div>
 
       <Tabs defaultValue="active" className="w-full flex flex-col flex-grow mt-6">
-        <TabsList className="grid w-full grid-cols-4 bg-black/30 border border-white/10 flex-shrink-0">
+        <TabsList className="grid w-full grid-cols-5 bg-black/30 border border-white/10 flex-shrink-0">
           <TabsTrigger value="active" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active</TabsTrigger>
           <TabsTrigger value="upcoming" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Upcoming</TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Past</TabsTrigger>
           <TabsTrigger value="entries" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Entries</TabsTrigger>
+          <TabsTrigger value="winners" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Winners</TabsTrigger>
         </TabsList>
 
         <div className="flex-grow overflow-y-auto mt-6">
@@ -424,11 +469,11 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                              <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white">
-                                {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
-                              </Button>
-                              <div className="flex-grow mx-4 min-w-0">
-                                <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                 {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                               </Button>
+                               <div className="flex-grow mx-4 min-w-0">
+                                 <p className="font-semibold truncate">Contest Entry</p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
@@ -446,6 +491,23 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
               </Tabs>
             )}
           </TabsContent>
+
+          <TabsContent value="winners" className="space-y-4">
+            <div className="space-y-6">
+              {pastContests.map((contest) => (
+                <PastContestCard key={contest.id} contest={contest} />
+              ))}
+              {pastContests.length === 0 && (
+                <Card className="text-center py-12 bg-white/5 border-white/10">
+                  <CardContent>
+                    <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No Winners Yet</h3>
+                    <p className="text-gray-400">Winners will be displayed here once contests are completed.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
         </div>
       </Tabs>
 
@@ -454,7 +516,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
           open={voteDialogOpen}
           onOpenChange={setVoteDialogOpen}
           onVoteSubmit={handleVoteSubmit}
-          entryTitle={selectedEntry.songs?.title || 'this entry'}
+          entryTitle="this entry"
           userHasFreeVote={userHasFreeVote}
           userCredits={user?.credits ?? 0}
           isVoting={isVoting}
@@ -470,6 +532,15 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             toast.success('Your entry has been submitted for review.');
             refreshEntries();
           }}
+        />
+      )}
+
+      {winnerClaimData && (
+        <WinnerClaimDialog
+          open={showWinnerClaim}
+          onOpenChange={setShowWinnerClaim}
+          contestId={winnerClaimData.contestId}
+          winnerRank={winnerClaimData.winnerRank}
         />
       )}
     </div>

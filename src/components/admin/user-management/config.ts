@@ -3,7 +3,7 @@ import * as z from 'zod';
 import { UserRole } from './types';
 
 // Define an array of UserRole values for Zod enum
-const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber", "contest_entrant"] as const;
+const userRoleValues = ["admin", "moderator", "user", "super_admin", "voter", "subscriber", "affiliate", "contest_entrant"] as const;
 
 export const ADMIN_PERMISSIONS = [
   { id: 'users', label: 'User Management' },
