@@ -203,8 +203,8 @@ export const ContestManagement = () => {
   };
 
   // Fetch entries with EXPLICIT separation of contest_entries and profiles
-  const fetchEntries = async (contestId: string) => {
-    console.log('🚀 DEBUG: Starting fetchEntries() for contest:', contestId);
+  const fetchEntries = async (contestId: string, topOnly: boolean = false) => {
+    console.log('🚀 DEBUG: Starting fetchEntries() for contest:', contestId, 'topOnly:', topOnly);
     
     if (!contestId) {
       console.log('⚠️ DEBUG: No contest ID provided');
@@ -231,7 +231,8 @@ export const ContestManagement = () => {
           created_at
         `)
         .eq('contest_id', contestId)
-        .order('created_at', { ascending: false });
+        .order('vote_count', { ascending: false })
+        .limit(topOnly ? 3 : 1000);
 
       console.log('✅ DEBUG: Step 1 completed - contest_entries query result:', entriesData);
 
@@ -307,7 +308,8 @@ export const ContestManagement = () => {
   const handleViewContest = (contest: Contest) => {
     setSelectedContest(contest);
     setIsViewDialogOpen(true);
-    fetchEntries(contest.id);
+    const topOnly = contest.status === 'completed';
+    fetchEntries(contest.id, topOnly);
   };
 
   // Edit contest
@@ -518,12 +520,27 @@ export const ContestManagement = () => {
     }
   };
 
-  // Choose winner - NO DATABASE CALLS, JUST UI
-  const confirmChooseWinner = () => {
-    console.log('🔄 DEBUG: confirmChooseWinner - NO DATABASE CALLS');
-    if (selectedEntry) {
+  // Choose winner
+  const confirmChooseWinner = async () => {
+    if (!selectedEntry || !selectedContest) return;
+
+    try {
+      const { error } = await supabase.rpc('select_contest_winner', {
+        p_contest_id: selectedContest.id,
+        p_user_id: selectedEntry.user_id,
+        p_rank: 1, // Assuming 1st place for now
+      });
+
+      if (error) throw error;
+
       toast.success(`${selectedEntry.user_name || 'User'} has been selected as the winner!`);
       setIsChooseWinnerOpen(false);
+      // Optionally, refresh data
+      refreshContests();
+      fetchEntries(selectedContest.id);
+    } catch (error: any) {
+      console.error('Error selecting winner:', error);
+      toast.error('Failed to select winner: ' + error.message);
     }
   };
 

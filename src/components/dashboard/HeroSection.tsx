@@ -4,7 +4,6 @@ import { useContest } from "@/hooks/use-contest";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { getSetting } from "@/utils/settingsOperations";
-import WinnerSlider from "./WinnerSlider";
 
 export default function HeroSection() {
   const { activeContests, upcomingContests } = useContest();
@@ -165,7 +164,6 @@ export default function HeroSection() {
            )}
          </motion.div>
       )}
-      <WinnerSlider />
     </div>
   );
 }

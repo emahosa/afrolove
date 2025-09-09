@@ -1,3 +1,5 @@
+// TODO: The admin-side management for these prize claims is handled in WinnerClaimManagement.tsx.
+// This component correctly submits the data, but the full end-to-end flow might require further review.
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
