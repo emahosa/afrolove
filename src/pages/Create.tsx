@@ -4,6 +4,11 @@ import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGene
 import { useGenres } from "@/hooks/use-genres";
 import SongLibrary from "@/components/music-generation/SongLibrary";
 import LyricsDisplay from "@/components/music-generation/LyricsDisplay";
+import {
+  ResizablePanel,
+  ResizablePanelGroup,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 interface Song {
   id: string;
@@ -38,54 +43,65 @@ const Create = () => {
   }, [searchParams]);
 
   return (
-    <div className="flex h-screen bg-zinc-900 text-white overflow-hidden">
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="h-screen bg-zinc-900 text-white"
+    >
       {/* Left Panel: Create Song Form */}
-      <div className="w-[20%] p-4 border-r border-gray-700/30 bg-zinc-900 overflow-y-auto">
-        <MusicGenerationWorkflow
-          preSelectedGenre={selectedGenre}
-          initialPrompt={initialPrompt}
-        />
-      </div>
+      <ResizablePanel defaultSize={35}>
+        <div className="h-full p-4 bg-zinc-900 overflow-y-auto no-scrollbar">
+          <MusicGenerationWorkflow
+            preSelectedGenre={selectedGenre}
+            initialPrompt={initialPrompt}
+          />
+        </div>
+      </ResizablePanel>
+      <ResizableHandle withHandle />
 
       {/* Middle Panel: Song Library */}
-      <div className="flex-1 p-4 border-r border-gray-700/30 bg-black overflow-y-auto">
-        <div className="pb-4">
-            <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder-zinc-500"
-              />
-            </div>
+      <ResizablePanel defaultSize={50}>
+        <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
+          <div className="pb-4">
+              <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder-zinc-500"
+                />
+              </div>
+          </div>
+          <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
         </div>
-        <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
-      </div>
+      </ResizablePanel>
+      <ResizableHandle withHandle />
 
       {/* Right Panel: Lyrics Display */}
-      <div className="w-[30%] p-4 bg-zinc-950 overflow-y-auto">
-        {selectedSong ? (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
-                <button
-                    onClick={() => setSelectedSong(null)}
-                    className="text-zinc-500 hover:text-white"
-                >
-                    &times;
-                </button>
+      <ResizablePanel defaultSize={15}>
+        <div className="h-full p-4 bg-zinc-950 overflow-y-auto no-scrollbar">
+          {selectedSong ? (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
+                  <button
+                      onClick={() => setSelectedSong(null)}
+                      className="text-zinc-500 hover:text-white"
+                  >
+                      &times;
+                  </button>
+              </div>
+              <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
             </div>
-            <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-zinc-500">Select a song to view lyrics.</p>
-          </div>
-        )}
-      </div>
-    </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-zinc-500">Select a song to view lyrics.</p>
+            </div>
+          )}
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 };
 
