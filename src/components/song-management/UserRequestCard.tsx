@@ -103,7 +103,7 @@ export const UserRequestCard = ({ request, onUpdate }: UserRequestCardProps) => 
       pending: { color: "bg-yellow-100 text-yellow-800", label: "In Queue", icon: Clock },
       lyrics_proposed: { color: "bg-blue-100 text-blue-800", label: "Review Lyrics", icon: Music },
       lyrics_selected: { color: "bg-purple-100 text-purple-800", label: "Creating Song", icon: Music },
-      audio_uploaded: { color: "bg-orange-100 text-orange-800", label: "Song Ready", icon: Download },
+      audio_uploaded: { color: "bg-purple-100 text-purple-800", label: "Song Ready", icon: Download },
       completed: { color: "bg-green-100 text-green-800", label: "Completed", icon: CheckCircle }
     };
 

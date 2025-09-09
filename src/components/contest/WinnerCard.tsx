@@ -10,12 +10,12 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
   if (!winner) return null;
 
   return (
-    <Card className="bg-gradient-to-br from-yellow-400/20 via-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/50 shadow-lg relative overflow-hidden">
+    <Card className="bg-gradient-to-br from-purple-400/20 via-purple-500/20 to-purple-500/20 border-2 border-purple-500/50 shadow-lg relative overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-yellow-300">
+        <CardTitle className="text-sm font-medium text-purple-300">
           Contest Winner
         </CardTitle>
-        <Trophy className="h-6 w-6 text-yellow-400" />
+        <Trophy className="h-6 w-6 text-purple-400" />
       </CardHeader>
       <CardContent>
         <div className="flex items-center space-x-4">
@@ -23,9 +23,9 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
             <img
               src={`https://ui-avatars.com/api/?name=${winner.profiles?.full_name}&background=random`}
               alt={winner.profiles?.full_name}
-              className="h-16 w-16 rounded-full border-2 border-yellow-400"
+              className="h-16 w-16 rounded-full border-2 border-purple-400"
             />
-            <Crown className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 transform rotate-12" />
+            <Crown className="absolute -top-2 -right-2 h-6 w-6 text-purple-400 transform rotate-12" />
           </div>
           <div>
             <p className="text-xl font-bold text-white">
@@ -41,7 +41,7 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
         </div>
       </CardContent>
       <CardFooter>
-        <div className="text-sm text-yellow-300 font-semibold">
+        <div className="text-sm text-purple-300 font-semibold">
           Total Votes: {winner.vote_count}
         </div>
       </CardFooter>

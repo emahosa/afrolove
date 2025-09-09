@@ -22,7 +22,7 @@ const getStatusBadge = (status: CustomSongRequest['status']) => {
     pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending", icon: Clock },
     lyrics_proposed: { color: "bg-blue-100 text-blue-800", label: "Lyrics Proposed", icon: Edit },
     lyrics_selected: { color: "bg-purple-100 text-purple-800", label: "Lyrics Selected", icon: Music },
-    audio_uploaded: { color: "bg-orange-100 text-orange-800", label: "Audio Uploaded", icon: Music },
+    audio_uploaded: { color: "bg-purple-100 text-purple-800", label: "Audio Uploaded", icon: Music },
     completed: { color: "bg-green-100 text-green-800", label: "Completed", icon: CheckCircle }
   };
 

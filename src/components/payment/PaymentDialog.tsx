@@ -72,7 +72,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
               {getPaymentMethodText()}
             </div>
             {!isGatewayEnabled && (
-              <div className="text-xs text-orange-400 bg-orange-500/10 border border-orange-500/20 p-2 rounded">
+              <div className="text-xs text-purple-400 bg-purple-500/10 border border-purple-500/20 p-2 rounded">
                 Note: Payment processing is currently disabled or not configured.
               </div>
             )}

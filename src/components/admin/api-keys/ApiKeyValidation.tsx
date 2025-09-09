@@ -86,7 +86,7 @@ export const ApiKeyValidation = ({ provider, apiKey, onValidationComplete }: Api
       case 'valid':
         return <Badge variant="default" className="bg-green-500">Valid</Badge>;
       case 'warning':
-        return <Badge variant="destructive" className="bg-orange-500">Valid - No Credits</Badge>;
+        return <Badge variant="destructive" className="bg-purple-500">Valid - No Credits</Badge>;
       case 'invalid':
         return <Badge variant="destructive">Invalid</Badge>;
       default:
@@ -99,7 +99,7 @@ export const ApiKeyValidation = ({ provider, apiKey, onValidationComplete }: Api
       case 'valid':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'warning':
-        return <AlertCircle className="h-4 w-4 text-orange-500" />;
+        return <AlertCircle className="h-4 w-4 text-purple-500" />;
       case 'invalid':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
