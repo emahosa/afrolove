@@ -12,6 +12,7 @@ export default function HeroSection() {
     timeLeft: number;
     title: string;
     description: string;
+    prize: string;
   } | null>(null);
   const [heroVideoUrl, setHeroVideoUrl] = useState('');
 
@@ -54,6 +55,7 @@ export default function HeroSection() {
         timeLeft,
         title: featuredContest.title,
         description: featuredContest.description,
+        prize: featuredContest.prize,
       });
     }, 1000);
 
@@ -124,12 +126,19 @@ export default function HeroSection() {
           {contestStatus?.title || "Make Music. Win Big."}
         </motion.h1>
         <motion.p
-          className="text-lg md:text-xl mb-8 max-w-2xl"
+          className="text-lg md:text-xl mb-4 max-w-2xl"
           variants={itemVariants}
         >
           {contestStatus?.description ||
             "Join the contest and showcase your talent to the world!"}
         </motion.p>
+        {contestStatus && (
+          <motion.div variants={itemVariants} className="mb-8">
+            <p className="text-2xl font-bold text-yellow-400">
+              Prize: {contestStatus.prize}
+            </p>
+          </motion.div>
+        )}
         <motion.div variants={itemVariants}>
           <Link to="/contest">
             <Button size="lg" className="bg-transparent border-2 border-white text-white font-bold text-lg px-8 py-6 rounded-xl shadow-lg">
