@@ -49,7 +49,7 @@ const Create = () => {
     >
       {/* Left Panel: Create Song Form */}
       <ResizablePanel defaultSize={35}>
-        <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
+        <div className="p-4 bg-black no-scrollbar">
           <MusicGenerationWorkflow
             preSelectedGenre={selectedGenre}
             initialPrompt={initialPrompt}
