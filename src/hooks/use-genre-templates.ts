@@ -76,7 +76,7 @@ export const useGenreTemplates = () => {
     try {
       const { error } = await supabase
         .from('genre_templates')
-        .update(templateData)
+        .update({ ...templateData, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
