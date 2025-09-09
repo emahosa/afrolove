@@ -469,11 +469,11 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry.songs)} className="text-gray-300 hover:text-white" disabled={!entry.songs?.audio_url}>
-                                 {currentTrack?.id === entry.songs?.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                 {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                </Button>
                                <div className="flex-grow mx-4 min-w-0">
-                                 <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                                 <p className="font-semibold truncate">Contest Entry</p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
