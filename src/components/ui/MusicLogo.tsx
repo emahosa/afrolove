@@ -8,7 +8,7 @@ interface MusicLogoProps {
 
 const MusicLogo: React.FC<MusicLogoProps> = ({
   size = 128,
-  color = '#9A3412', // default site primary color
+  color = '#4c1d95', // default site primary color
 }) => {
   return (
     <Music
