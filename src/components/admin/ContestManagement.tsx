@@ -907,7 +907,7 @@ export const ContestManagement = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={contestForm.start_date || undefined}
@@ -936,7 +936,7 @@ export const ContestManagement = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={contestForm.end_date || undefined}
@@ -1083,7 +1083,7 @@ export const ContestManagement = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={contestForm.start_date || undefined}
@@ -1112,7 +1112,7 @@ export const ContestManagement = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[100]" align="start">
                     <Calendar
                       mode="single"
                       selected={contestForm.end_date || undefined}
