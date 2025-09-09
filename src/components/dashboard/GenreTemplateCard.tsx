@@ -1,39 +1,80 @@
 
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Music, Loader2 } from 'lucide-react';
 import { GenreTemplate } from '@/hooks/use-genre-templates';
 import { useNavigate } from 'react-router-dom';
-import { useAudioPlayer, Track } from '@/contexts/AudioPlayerContext';
 
 interface GenreTemplateCardProps {
   template: GenreTemplate;
 }
 
 export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const navigate = useNavigate();
-  const { playTrack, currentTrack, isPlaying, isLoading } = useAudioPlayer();
 
-  const isCurrentTrack = currentTrack?.id === template.id;
-  const isThisPlaying = isCurrentTrack && isPlaying;
-  const isThisLoading = isCurrentTrack && isLoading;
+  // Cleanup audio when component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
-  const handleAudioPlay = () => {
+  const handleAudioPlay = async () => {
     if (!template.audio_url) return;
 
-    const track: Track = {
-      id: template.id,
-      title: template.template_name,
-      audio_url: template.audio_url,
-      artwork_url: template.cover_image_url,
-      artist: template.genres?.name,
-    };
-    playTrack(track);
+    try {
+      // Stop any currently playing audio first
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      if (isPlaying) {
+        setIsPlaying(false);
+        return;
+      }
+
+      setIsLoading(true);
+      
+      // Create new audio instance
+      const audio = new Audio(template.audio_url);
+      audioRef.current = audio;
+
+      audio.onloadstart = () => setIsLoading(true);
+      audio.oncanplay = () => setIsLoading(false);
+      
+      audio.onplay = () => {
+        setIsPlaying(true);
+        setIsLoading(false);
+      };
+      
+      audio.onpause = () => setIsPlaying(false);
+      audio.onended = () => setIsPlaying(false);
+      
+      audio.onerror = () => {
+        console.error('Audio playback error');
+        setIsPlaying(false);
+        setIsLoading(false);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      setIsPlaying(false);
+      setIsLoading(false);
+    }
   };
 
   const handleCreateMusic = () => {
-    navigate('/create', {
-      state: {
+    navigate('/create', { 
+      state: { 
         selectedGenre: template.genre_id,
         initialPrompt: template.user_prompt_guide || ''
       }
@@ -51,37 +92,37 @@ export const GenreTemplateCard = ({ template }: GenreTemplateCardProps) => {
             </CardDescription>
           </div>
           {template.cover_image_url && (
-            <img
-              src={template.cover_image_url}
+            <img 
+              src={template.cover_image_url} 
               alt={template.template_name}
               className="w-12 h-12 rounded-lg object-cover border-2 border-white/10"
             />
           )}
         </div>
       </CardHeader>
-
+      
       <CardContent className="space-y-4">
         <div className="flex gap-2 pt-2">
           {template.audio_url && (
-            <Button
-              variant="outline"
-              size="sm"
+            <Button 
+              variant="outline" 
+              size="sm" 
               onClick={handleAudioPlay}
-              disabled={isThisLoading}
+              disabled={isLoading}
               className="flex-1 bg-transparent border-white/30 hover:bg-white/10 text-white"
             >
-              {isThisLoading ? (
+              {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : isThisPlaying ? (
+              ) : isPlaying ? (
                 <Pause className="h-4 w-4 mr-2" />
               ) : (
                 <Play className="h-4 w-4 mr-2" />
               )}
-              {isThisLoading ? 'Loading...' : isThisPlaying ? 'Pause' : 'Preview'}
+              {isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Preview'}
             </Button>
           )}
-
-          <Button
+          
+          <Button 
             onClick={handleCreateMusic}
             size="sm"
             variant="cta"
