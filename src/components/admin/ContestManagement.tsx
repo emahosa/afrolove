@@ -891,7 +891,7 @@ export const ContestManagement = () => {
               <div>
                 <Label>Start Date *</Label>
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button
                       variant="outline"
                       className={cn(
@@ -920,7 +920,7 @@ export const ContestManagement = () => {
               <div>
                 <Label>End Date *</Label>
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button
                       variant="outline"
                       className={cn(
@@ -1067,7 +1067,7 @@ export const ContestManagement = () => {
               <div>
                 <Label>Start Date *</Label>
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button
                       variant="outline"
                       className={cn(
@@ -1096,7 +1096,7 @@ export const ContestManagement = () => {
               <div>
                 <Label>End Date *</Label>
                 <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button
                       variant="outline"
                       className={cn(
