@@ -26,7 +26,7 @@ const AppLayoutContent = () => {
         <div className="hidden md:block flex-shrink-0 w-48">
           <Sidebar className="bg-black border-r border-white/10" />
         </div>
-        <main className="flex-1 flex flex-col overflow-y-auto" style={{ paddingBottom: '120px' }}>
+        <main className="flex-1 flex flex-col overflow-y-auto">
           <Outlet />
         </main>
       </div>
