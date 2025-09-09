@@ -56,7 +56,7 @@ export const AudioPlayer = () => {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 bg-black/50 backdrop-blur-md text-white p-3 border-t border-white/10 shadow-lg z-40"
+      className="bottom-0 left-0 right-0 bg-black/50 backdrop-blur-md text-white p-3 border-t border-white/10 shadow-lg z-40"
     >
       <div className="flex items-center gap-4 max-w-screen-2xl mx-auto">
         
