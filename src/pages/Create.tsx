@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { MusicGenerationWorkflow } from "@/components/music-generation/MusicGenerationWorkflow";
 import { useGenres } from "@/hooks/use-genres";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,7 +24,7 @@ interface Song {
 
 const Create = () => {
   const isMobile = useIsMobile();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { genres } = useGenres();
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [initialPrompt, setInitialPrompt] = useState<string>("");
@@ -32,17 +32,14 @@ const Create = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
-    const genreId = searchParams.get('genre');
-    const promptParam = searchParams.get('prompt');
-
-    if (genreId) {
-      setSelectedGenre(genreId);
+    const state = location.state as { selectedGenre?: string; initialPrompt?: string };
+    if (state?.selectedGenre) {
+      setSelectedGenre(state.selectedGenre);
     }
-
-    if (promptParam) {
-      setInitialPrompt(promptParam);
+    if (state?.initialPrompt) {
+      setInitialPrompt(state.initialPrompt);
     }
-  }, [searchParams]);
+  }, [location.state]);
 
   return (
     <ResizablePanelGroup
