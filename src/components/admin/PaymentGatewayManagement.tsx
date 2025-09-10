@@ -20,16 +20,12 @@ interface GatewayConfig {
   live: ApiKeys;
 }
 
-interface PaystackGatewayConfig extends GatewayConfig {
-  ngnExchangeRate?: number;
-}
-
 interface PaymentGatewaySettings {
   enabled: boolean;
   mode: 'test' | 'live';
   activeGateway: 'stripe' | 'paystack';
   stripe: GatewayConfig;
-  paystack: PaystackGatewayConfig;
+  paystack: GatewayConfig;
 }
 
 const defaultSettings: PaymentGatewaySettings = {
@@ -43,7 +39,6 @@ const defaultSettings: PaymentGatewaySettings = {
   paystack: {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
-    ngnExchangeRate: 1500,
   },
 };
 
@@ -185,18 +180,6 @@ export const PaymentGatewayManagement = () => {
     setIsDirty(true);
   };
 
-  const handlePaystackRateChange = (value: string) => {
-    const rate = parseFloat(value);
-    setSettings(prev => ({
-      ...prev,
-      paystack: {
-        ...prev.paystack,
-        ngnExchangeRate: isNaN(rate) ? undefined : rate,
-      },
-    }));
-    setIsDirty(true);
-  };
-
   if (loading) {
     return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
   }
@@ -268,21 +251,6 @@ export const PaymentGatewayManagement = () => {
                 </div>
               </TabsContent>
               <TabsContent value="paystack" className="p-4 border rounded-lg mt-2">
-                <h3 className="text-lg font-medium mb-4">Paystack Settings</h3>
-                <div className="space-y-2 mb-6">
-                  <Label htmlFor="ngn-rate">USD to NGN Exchange Rate</Label>
-                  <Input
-                    id="ngn-rate"
-                    type="number"
-                    value={settings.paystack.ngnExchangeRate || ''}
-                    onChange={(e) => handlePaystackRateChange(e.target.value)}
-                    placeholder="e.g. 1500"
-                  />
-                   <p className="text-sm text-muted-foreground">
-                    Enter the exchange rate for 1 USD to NGN. This will be used for Paystack transactions.
-                  </p>
-                </div>
-
                 <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
