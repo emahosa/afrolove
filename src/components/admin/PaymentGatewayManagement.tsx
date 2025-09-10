@@ -26,6 +26,7 @@ interface PaymentGatewaySettings {
   activeGateway: 'stripe' | 'paystack';
   stripe: GatewayConfig;
   paystack: GatewayConfig;
+  usdToNgnRate: number;
 }
 
 const defaultSettings: PaymentGatewaySettings = {
@@ -40,6 +41,7 @@ const defaultSettings: PaymentGatewaySettings = {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
   },
+  usdToNgnRate: 0,
 };
 
 export const PaymentGatewayManagement = () => {
@@ -180,6 +182,14 @@ export const PaymentGatewayManagement = () => {
     setIsDirty(true);
   };
 
+  const handleRateInputChange = (value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      usdToNgnRate: parseFloat(value) || 0,
+    }));
+    setIsDirty(true);
+  };
+
   if (loading) {
     return <Card><CardHeader><CardTitle>Payment Gateway Settings</CardTitle><CardDescription>Loading...</CardDescription></CardHeader><CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
   }
@@ -250,18 +260,36 @@ export const PaymentGatewayManagement = () => {
                   </div>
                 </div>
               </TabsContent>
-              <TabsContent value="paystack" className="p-4 border rounded-lg mt-2">
-                <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.paystack.test.publicKey} onChange={(e) => handleInputChange('paystack', 'test', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.paystack.test.secretKey} onChange={(e) => handleInputChange('paystack', 'test', 'secretKey', e.target.value)} /></div>
+              <TabsContent value="paystack" className="p-4 border rounded-lg mt-2 space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Paystack API Keys</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-muted-foreground">Test Keys</h4>
+                      <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_test_..." value={settings.paystack.test.publicKey} onChange={(e) => handleInputChange('paystack', 'test', 'publicKey', e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_test_..." value={settings.paystack.test.secretKey} onChange={(e) => handleInputChange('paystack', 'test', 'secretKey', e.target.value)} /></div>
+                    </div>
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-muted-foreground">Live Keys</h4>
+                      <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.paystack.live.publicKey} onChange={(e) => handleInputChange('paystack', 'live', 'publicKey', e.target.value)} /></div>
+                      <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.paystack.live.secretKey} onChange={(e) => handleInputChange('paystack', 'live', 'secretKey', e.target.value)} /></div>
+                    </div>
                   </div>
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
-                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.paystack.live.publicKey} onChange={(e) => handleInputChange('paystack', 'live', 'publicKey', e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.paystack.live.secretKey} onChange={(e) => handleInputChange('paystack', 'live', 'secretKey', e.target.value)} /></div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Currency Conversion</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="usdToNgnRate">USD to NGN Rate</Label>
+                    <Input
+                      id="usdToNgnRate"
+                      type="number"
+                      value={settings.usdToNgnRate}
+                      onChange={(e) => handleRateInputChange(e.target.value)}
+                      placeholder="e.g., 1500"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The conversion rate from USD to NGN. This will be used for Paystack transactions.
+                    </p>
                   </div>
                 </div>
               </TabsContent>
