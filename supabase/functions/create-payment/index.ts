@@ -12,12 +12,15 @@ interface GatewayConfig {
   test: ApiKeys;
   live: ApiKeys;
 }
+interface PaystackGatewayConfig extends GatewayConfig {
+  ngnExchangeRate?: number;
+}
 interface PaymentGatewaySettings {
   enabled: boolean;
   mode: 'test' | 'live';
   activeGateway: 'stripe' | 'paystack';
   stripe: GatewayConfig;
-  paystack: GatewayConfig;
+  paystack: PaystackGatewayConfig;
 }
 
 const corsHeaders = {
@@ -130,13 +133,28 @@ serve(async (req) => {
         throw new Error(`Paystack secret key for ${settings.mode} mode is not configured.`);
       }
 
+      const { ngnExchangeRate } = settings.paystack;
+      if (!ngnExchangeRate || ngnExchangeRate <= 0) {
+        throw new Error('USD to NGN exchange rate is not configured or is invalid.');
+      }
+
+      // Convert amount from USD cents to NGN kobo
+      const amountInNgnKobo = Math.round(amount * ngnExchangeRate);
+
       const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({
         email: user.email,
-        amount: amount,
-        currency: 'USD',
+        amount: amountInNgnKobo,
+        currency: 'NGN',
         callback_url: `${req.headers.get("origin")}/billing?payment=success`,
-        metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email }
+        metadata: {
+          type: 'credits',
+          user_id: user.id,
+          credits: credits,
+          pack_id: packId,
+          user_email: user.email,
+          original_usd_amount: amount
+        }
       });
 
       if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned");
