@@ -41,9 +41,20 @@ const Create = () => {
     }
   }, [location.state]);
 
+  if (isMobile) {
+    return (
+      <div className="h-full p-4 bg-black overflow-y-auto no-scrollbar">
+        <MusicGenerationWorkflow
+          preSelectedGenre={selectedGenre}
+          initialPrompt={initialPrompt}
+        />
+      </div>
+    );
+  }
+
   return (
     <ResizablePanelGroup
-      direction={isMobile ? "vertical" : "horizontal"}
+      direction="horizontal"
       className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
