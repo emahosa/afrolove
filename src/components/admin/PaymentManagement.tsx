@@ -3,21 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
   DialogFooter,
   DialogDescription
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,16 +34,13 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { PaymentGatewayManagement } from './PaymentGatewayManagement';
-import { supabase } from '@/integrations/supabase/client';
 
-// Types to match database schema
 interface CreditPackage {
   id: string;
   name: string;
   credits: number;
   price: number;
-  active: boolean;
-  popular: boolean;
+  status: string;
 }
 
 interface SubscriptionPlan {
@@ -51,168 +48,236 @@ interface SubscriptionPlan {
   name: string;
   price: number;
   popular: boolean;
-  credits_per_month: number;
+  creditsPerMonth: number;
   features: string[];
-  active: boolean;
 }
 
 const creditPackageSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   credits: z.coerce.number().int().positive({ message: "Credits must be positive." }),
   price: z.coerce.number().positive({ message: "Price must be positive." }),
-  popular: z.boolean().optional(),
-  active: z.boolean().optional(),
 });
 
 const subscriptionPlanSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   price: z.coerce.number().positive({ message: "Price must be positive." }),
-  credits_per_month: z.coerce.number().int().positive({ message: "Credits per month must be positive." }),
+  creditsPerMonth: z.coerce.number().int().positive({ message: "Credits per month must be positive." }),
   popular: z.boolean().optional(),
-  active: z.boolean().optional(),
 });
 
-export const PaymentManagement = () => {
-  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+// Initial data - this should match what's in Credits.tsx
+const initialCreditPacks: CreditPackage[] = [
+  { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, status: "active" },
+  { id: "pack2", name: "Creator Pack", credits: 30, price: 9.99, status: "active" },
+  { id: "pack3", name: "Pro Pack", credits: 75, price: 19.99, status: "active" },
+  { id: "pack4", name: "Studio Pack", credits: 200, price: 49.99, status: "active" },
+];
 
+const initialSubscriptionPlans: SubscriptionPlan[] = [
+  { 
+    id: "basic",
+    name: "Basic", 
+    price: 9.99, 
+    popular: false,
+    creditsPerMonth: 20,
+    features: [
+      "20 credits monthly",
+      "Access to all basic AI models",
+      "Standard quality exports",
+      "Email support"
+    ] 
+  },
+  { 
+    id: "premium",
+    name: "Premium", 
+    price: 19.99, 
+    popular: true,
+    creditsPerMonth: 75,
+    features: [
+      "75 credits monthly",
+      "Access to all premium AI models",
+      "High quality exports",
+      "Priority email support",
+      "Unlimited song storage"
+    ] 
+  },
+  { 
+    id: "unlimited",
+    name: "Professional", 
+    price: 39.99, 
+    popular: false,
+    creditsPerMonth: 200,
+    features: [
+      "200 credits monthly",
+      "Access to all AI models including beta",
+      "Maximum quality exports",
+      "Priority support with 24hr response",
+      "Unlimited song storage",
+      "Commercial usage rights",
+      "Advanced editing tools"
+    ] 
+  }
+];
+
+export const PaymentManagement = () => {
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(initialCreditPacks);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>(initialSubscriptionPlans);
   const [isAddPackageDialogOpen, setIsAddPackageDialogOpen] = useState(false);
   const [isEditPackageDialogOpen, setIsEditPackageDialogOpen] = useState(false);
   const [isAddSubscriptionDialogOpen, setIsAddSubscriptionDialogOpen] = useState(false);
   const [isEditSubscriptionDialogOpen, setIsEditSubscriptionDialogOpen] = useState(false);
-
   const [currentPackage, setCurrentPackage] = useState<CreditPackage | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<SubscriptionPlan | null>(null);
 
   const packageForm = useForm<z.infer<typeof creditPackageSchema>>({
     resolver: zodResolver(creditPackageSchema),
-    defaultValues: { name: "", credits: 0, price: 0, popular: false, active: true },
+    defaultValues: {
+      name: "",
+      credits: 0,
+      price: 0,
+    },
   });
 
   const subscriptionForm = useForm<z.infer<typeof subscriptionPlanSchema>>({
     resolver: zodResolver(subscriptionPlanSchema),
-    defaultValues: { name: "", price: 0, credits_per_month: 0, popular: false, active: true },
+    defaultValues: {
+      name: "",
+      price: 0,
+      creditsPerMonth: 0,
+      popular: false,
+    },
   });
 
-  async function fetchPackagesAndPlans() {
-    setLoading(true);
-    try {
-      const { data: packages, error: packagesError } = await supabase.from('credit_packages').select('*').order('price', { ascending: true });
-      if (packagesError) throw packagesError;
-      setCreditPackages(packages || []);
-
-      const { data: plans, error: plansError } = await supabase.from('plans').select('*').order('price', { ascending: true });
-      if (plansError) throw plansError;
-      setSubscriptionPlans(plans || []);
-
-    } catch (error: any) {
-      toast.error("Failed to load data", { description: error.message });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchPackagesAndPlans();
-  }, []);
-
-  const renderStatusLabel = (status: boolean) => {
+  const renderStatusLabel = (status: string) => {
     return (
-      <Badge variant={status ? 'default' : 'secondary'}>
-        {status ? 'Active' : 'Inactive'}
+      <Badge variant={status === 'active' ? 'default' : 'secondary'}>
+        {status}
       </Badge>
     );
   };
 
   function handleAddPackage() {
-    packageForm.reset();
+    packageForm.reset({
+      name: "",
+      credits: 0,
+      price: 0,
+    });
     setIsAddPackageDialogOpen(true);
   }
 
-  function handleEditPackage(pkg: CreditPackage) {
-    setCurrentPackage(pkg);
-    packageForm.reset(pkg);
-    setIsEditPackageDialogOpen(true);
-  }
-
-  async function handleTogglePackageStatus(pkg: CreditPackage) {
-    const { error } = await supabase
-      .from('credit_packages')
-      .update({ active: !pkg.active })
-      .eq('id', pkg.id);
-
-    if (error) {
-      toast.error("Failed to update status", { description: error.message });
-    } else {
-      toast.success(`Package ${pkg.name} is now ${!pkg.active ? 'active' : 'inactive'}.`);
-      fetchPackagesAndPlans();
+  function handleEditPackage(packageId: string) {
+    const pkg = creditPackages.find(p => p.id === packageId);
+    if (pkg) {
+      setCurrentPackage(pkg);
+      packageForm.reset({
+        name: pkg.name,
+        credits: pkg.credits,
+        price: pkg.price,
+      });
+      setIsEditPackageDialogOpen(true);
     }
   }
 
-  async function onSubmitAddPackage(values: z.infer<typeof creditPackageSchema>) {
-    const { error } = await supabase.from('credit_packages').insert([values]);
-    if (error) {
-      toast.error("Failed to add package", { description: error.message });
-    } else {
-      toast.success("New credit package added successfully");
-      fetchPackagesAndPlans();
-      setIsAddPackageDialogOpen(false);
-    }
+  function handleTogglePackageStatus(packageId: string) {
+    setCreditPackages(creditPackages.map(pkg => {
+      if (pkg.id === packageId) {
+        const newStatus = pkg.status === 'active' ? 'inactive' : 'active';
+        toast.success(`Credit package ${pkg.name} ${newStatus === 'active' ? 'activated' : 'disabled'}`);
+        return { ...pkg, status: newStatus };
+      }
+      return pkg;
+    }));
   }
 
-  async function onSubmitEditPackage(values: z.infer<typeof creditPackageSchema>) {
-    if (!currentPackage) return;
-    const { error } = await supabase
-      .from('credit_packages')
-      .update(values)
-      .eq('id', currentPackage.id);
+  function onSubmitAddPackage(values: z.infer<typeof creditPackageSchema>) {
+    const newPackage: CreditPackage = {
+      id: `pkg-${Date.now()}`,
+      name: values.name,
+      credits: values.credits,
+      price: values.price,
+      status: 'active',
+    };
+    
+    setCreditPackages([...creditPackages, newPackage]);
+    toast.success(`New credit package "${values.name}" added successfully`);
+    setIsAddPackageDialogOpen(false);
+  }
 
-    if (error) {
-      toast.error("Failed to update package", { description: error.message });
-    } else {
-      toast.success("Credit package updated successfully");
-      fetchPackagesAndPlans();
+  function onSubmitEditPackage(values: z.infer<typeof creditPackageSchema>) {
+    if (currentPackage) {
+      setCreditPackages(creditPackages.map(pkg => 
+        pkg.id === currentPackage.id 
+          ? { 
+              ...pkg,
+              name: values.name,
+              credits: values.credits,
+              price: values.price,
+            } 
+          : pkg
+      ));
+      toast.success(`Credit package "${values.name}" updated successfully`);
       setIsEditPackageDialogOpen(false);
     }
   }
 
   function handleAddSubscription() {
-    subscriptionForm.reset();
+    subscriptionForm.reset({
+      name: "",
+      price: 0,
+      creditsPerMonth: 0,
+      popular: false,
+    });
     setIsAddSubscriptionDialogOpen(true);
   }
 
-  function handleEditSubscription(plan: SubscriptionPlan) {
-    setCurrentSubscription(plan);
-    subscriptionForm.reset(plan);
-    setIsEditSubscriptionDialogOpen(true);
-  }
-
-  async function onSubmitAddSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
-    const { error } = await supabase.from('plans').insert([
-        {...values, features: [`${values.credits_per_month} credits monthly`]}
-    ]);
-    if (error) {
-      toast.error("Failed to add plan", { description: error.message });
-    } else {
-      toast.success("New subscription plan added successfully");
-      fetchPackagesAndPlans();
-      setIsAddSubscriptionDialogOpen(false);
+  function handleEditSubscription(planId: string) {
+    const plan = subscriptionPlans.find(p => p.id === planId);
+    if (plan) {
+      setCurrentSubscription(plan);
+      subscriptionForm.reset({
+        name: plan.name,
+        price: plan.price,
+        creditsPerMonth: plan.creditsPerMonth,
+        popular: plan.popular,
+      });
+      setIsEditSubscriptionDialogOpen(true);
     }
   }
 
-  async function onSubmitEditSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
-    if (!currentSubscription) return;
-    const { error } = await supabase
-      .from('plans')
-      .update(values)
-      .eq('id', currentSubscription.id);
+  function onSubmitAddSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
+    const newPlan: SubscriptionPlan = {
+      id: `sub-${Date.now()}`,
+      name: values.name,
+      price: values.price,
+      creditsPerMonth: values.creditsPerMonth,
+      popular: values.popular || false,
+      features: [
+        `${values.creditsPerMonth} credits monthly`,
+        'Access to all basic AI models',
+        'Standard quality exports',
+        'Email support'
+      ],
+    };
+    
+    setSubscriptionPlans([...subscriptionPlans, newPlan]);
+    toast.success(`New subscription plan "${values.name}" added successfully`);
+    setIsAddSubscriptionDialogOpen(false);
+  }
 
-    if (error) {
-      toast.error("Failed to update plan", { description: error.message });
-    } else {
-      toast.success("Subscription plan updated successfully");
-      fetchPackagesAndPlans();
+  function onSubmitEditSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
+    if (currentSubscription) {
+      setSubscriptionPlans(subscriptionPlans.map(plan => 
+        plan.id === currentSubscription.id 
+          ? { 
+              ...plan,
+              name: values.name,
+              price: values.price,
+              creditsPerMonth: values.creditsPerMonth,
+              popular: values.popular || false,
+            } 
+          : plan
+      ));
+      toast.success(`Subscription plan "${values.name}" updated successfully`);
       setIsEditSubscriptionDialogOpen(false);
     }
   }
@@ -246,23 +311,23 @@ export const PaymentManagement = () => {
                   <TableCell className="font-medium">{pkg.name}</TableCell>
                   <TableCell>{pkg.credits}</TableCell>
                   <TableCell>${pkg.price.toFixed(2)}</TableCell>
-                  <TableCell>{renderStatusLabel(pkg.active)}</TableCell>
+                  <TableCell>{renderStatusLabel(pkg.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
+                      <Button 
+                        variant="ghost" 
                         size="sm"
-                        onClick={() => handleEditPackage(pkg)}
+                        onClick={() => handleEditPackage(pkg.id)}
                       >
                         Edit
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleTogglePackageStatus(pkg)}
-                        className={pkg.active ? 'text-red-600' : 'text-green-600'}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleTogglePackageStatus(pkg.id)}
+                        className={pkg.status === 'active' ? 'text-red-600' : 'text-green-600'}
                       >
-                        {pkg.active ? 'Disable' : 'Enable'}
+                        {pkg.status === 'active' ? 'Disable' : 'Enable'}
                       </Button>
                     </div>
                   </TableCell>
@@ -296,7 +361,7 @@ export const PaymentManagement = () => {
               <CardContent className="flex-1">
                 <div className="flex items-center gap-2 mb-4">
                   <Star className="h-5 w-5 fill-melody-secondary text-melody-secondary" />
-                  <span className="font-medium">{plan.credits_per_month} credits monthly</span>
+                  <span className="font-medium">{plan.creditsPerMonth} credits monthly</span>
                 </div>
                 <ul className="space-y-2">
                   {plan.features.map((feature, index) => (
@@ -311,7 +376,7 @@ export const PaymentManagement = () => {
                 <Button 
                   className="w-full" 
                   variant="outline"
-                  onClick={() => handleEditSubscription(plan)}
+                  onClick={() => handleEditSubscription(plan.id)}
                 >
                   Edit Plan
                 </Button>
@@ -432,20 +497,6 @@ export const PaymentManagement = () => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={packageForm.control}
-                name="popular"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Mark as Popular</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditPackageDialogOpen(false)}>
                   Cancel
@@ -496,8 +547,7 @@ export const PaymentManagement = () => {
               />
               <FormField
                 control={subscriptionForm.control}
-                name="credits_per_month"
-                name="credits_per_month"
+                name="creditsPerMonth"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Credits Per Month</FormLabel>
@@ -580,7 +630,7 @@ export const PaymentManagement = () => {
               />
               <FormField
                 control={subscriptionForm.control}
-                name="credits_per_month"
+                name="creditsPerMonth"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Credits Per Month</FormLabel>
