@@ -258,16 +258,17 @@ const Contest = () => {
   }
 
 const PastContestCard = ({ contest }: { contest: ContestType }) => {
-  const [winner, setWinner] = useState<ContestEntry | null>(null);
+  const [winners, setWinners] = useState<ContestEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchWinner = async () => {
+    const fetchWinners = async () => {
       setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from('contest_winners')
           .select(`
+            *,
             contest_entries (
               *,
               profiles (
@@ -277,29 +278,29 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             )
           `)
           .eq('contest_id', contest.id)
-          .eq('rank', 1)
-          .single();
+          .order('rank', { ascending: true });
 
         if (error) {
-          if (error.code !== 'PGRST116') { // Ignore 'exact one row not found'
             throw error;
-          }
         }
 
         if (data) {
-          setWinner(data.contest_entries as unknown as ContestEntry);
+          const validWinners = data
+            .map(winner => winner.contest_entries)
+            .filter(entry => entry !== null) as ContestEntry[];
+          setWinners(validWinners);
         } else {
-          setWinner(null);
+          setWinners([]);
         }
       } catch (error) {
-        console.error("Error fetching winner from contest_winners", error);
-        setWinner(null);
+        console.error("Error fetching winners from contest_winners", error);
+        setWinners([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchWinner();
+    fetchWinners();
   }, [contest]);
 
   const renderWinnerSection = () => {
@@ -311,23 +312,29 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
       );
     }
 
-    if (winner) {
-      return <WinnerCard winner={winner} />;
+    if (winners.length > 0) {
+      return (
+        <div className="space-y-4">
+          {winners.map((winner) => (
+            <WinnerCard key={winner.id} winner={winner} />
+          ))}
+        </div>
+      );
     }
 
     const now = new Date();
-    const announcementDate = new Date(contest.winner_announced_at);
-    if (now < announcementDate) {
+    const announcementDate = contest.winner_announced_at ? new Date(contest.winner_announced_at) : null;
+    if (announcementDate && now < announcementDate) {
       return (
         <div className="text-center py-6 text-gray-400">
-          <p>Winner will be announced on {announcementDate.toLocaleDateString()}.</p>
+          <p>Winners will be announced on {announcementDate.toLocaleDateString()}.</p>
         </div>
       );
     }
 
     return (
       <div className="text-center py-6 text-gray-400">
-        <p>No winner was declared for this contest.</p>
+        <p>No winners were declared for this contest.</p>
       </div>
     );
   };
