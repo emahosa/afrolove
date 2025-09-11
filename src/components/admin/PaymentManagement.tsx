@@ -41,7 +41,6 @@ interface CreditPackage {
   name: string;
   credits: number;
   price: number;
-  ngn_price: number;
   status: string;
 }
 
@@ -49,7 +48,6 @@ interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
-  ngn_price: number;
   popular: boolean;
   creditsPerMonth: number;
   features: string[];
@@ -59,16 +57,68 @@ const creditPackageSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   credits: z.coerce.number().int().positive({ message: "Credits must be positive." }),
   price: z.coerce.number().positive({ message: "Price must be positive." }),
-  ngn_price: z.coerce.number().positive({ message: "NGN Price must be positive." }),
 });
 
 const subscriptionPlanSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   price: z.coerce.number().positive({ message: "Price must be positive." }),
-  ngn_price: z.coerce.number().positive({ message: "NGN Price must be positive." }),
   creditsPerMonth: z.coerce.number().int().positive({ message: "Credits per month must be positive." }),
   popular: z.boolean().optional(),
 });
+
+// Initial data - this should match what's in Credits.tsx
+const initialCreditPacks: CreditPackage[] = [
+  { id: "pack1", name: "Starter Pack", credits: 10, price: 4.99, status: "active" },
+  { id: "pack2", name: "Creator Pack", credits: 30, price: 9.99, status: "active" },
+  { id: "pack3", name: "Pro Pack", credits: 75, price: 19.99, status: "active" },
+  { id: "pack4", name: "Studio Pack", credits: 200, price: 49.99, status: "active" },
+];
+
+const initialSubscriptionPlans: SubscriptionPlan[] = [
+  { 
+    id: "basic",
+    name: "Basic", 
+    price: 9.99, 
+    popular: false,
+    creditsPerMonth: 20,
+    features: [
+      "20 credits monthly",
+      "Access to all basic AI models",
+      "Standard quality exports",
+      "Email support"
+    ] 
+  },
+  { 
+    id: "premium",
+    name: "Premium", 
+    price: 19.99, 
+    popular: true,
+    creditsPerMonth: 75,
+    features: [
+      "75 credits monthly",
+      "Access to all premium AI models",
+      "High quality exports",
+      "Priority email support",
+      "Unlimited song storage"
+    ] 
+  },
+  { 
+    id: "unlimited",
+    name: "Professional", 
+    price: 39.99, 
+    popular: false,
+    creditsPerMonth: 200,
+    features: [
+      "200 credits monthly",
+      "Access to all AI models including beta",
+      "Maximum quality exports",
+      "Priority support with 24hr response",
+      "Unlimited song storage",
+      "Commercial usage rights",
+      "Advanced editing tools"
+    ] 
+  }
+];
 
 export const PaymentManagement = () => {
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
@@ -103,7 +153,6 @@ export const PaymentManagement = () => {
           name: pkg.name,
           credits: pkg.credits,
           price: pkg.price,
-          ngn_price: pkg.ngn_price,
           status: pkg.active ? 'active' : 'inactive'
         })));
       }
@@ -121,7 +170,6 @@ export const PaymentManagement = () => {
           id: plan.id,
           name: plan.name,
           price: plan.price,
-          ngn_price: plan.ngn_price,
           popular: plan.rank === 2, // Assume rank 2 is popular
           creditsPerMonth: plan.credits_per_month,
           features: plan.features || []
@@ -141,7 +189,6 @@ export const PaymentManagement = () => {
       name: "",
       credits: 0,
       price: 0,
-      ngn_price: 0,
     },
   });
 
@@ -150,7 +197,6 @@ export const PaymentManagement = () => {
     defaultValues: {
       name: "",
       price: 0,
-      ngn_price: 0,
       creditsPerMonth: 0,
       popular: false,
     },
@@ -169,7 +215,6 @@ export const PaymentManagement = () => {
       name: "",
       credits: 0,
       price: 0,
-      ngn_price: 0,
     });
     setIsAddPackageDialogOpen(true);
   }
@@ -182,7 +227,6 @@ export const PaymentManagement = () => {
         name: pkg.name,
         credits: pkg.credits,
         price: pkg.price,
-        ngn_price: pkg.ngn_price,
       });
       setIsEditPackageDialogOpen(true);
     }
@@ -223,7 +267,6 @@ export const PaymentManagement = () => {
           name: values.name,
           credits: values.credits,
           price: values.price,
-          ngn_price: values.ngn_price,
           active: true,
           currency: 'USD',
           popular: false
@@ -238,7 +281,6 @@ export const PaymentManagement = () => {
         name: (data as any).name,
         credits: (data as any).credits,
         price: (data as any).price,
-        ngn_price: (data as any).ngn_price,
         status: 'active',
       };
       
@@ -263,7 +305,6 @@ export const PaymentManagement = () => {
           name: values.name,
           credits: values.credits,
           price: values.price,
-          ngn_price: values.ngn_price,
         })
         .eq('id', currentPackage.id);
 
@@ -276,7 +317,6 @@ export const PaymentManagement = () => {
               name: values.name,
               credits: values.credits,
               price: values.price,
-              ngn_price: values.ngn_price,
             } 
           : pkg
       ));
@@ -293,7 +333,6 @@ export const PaymentManagement = () => {
     subscriptionForm.reset({
       name: "",
       price: 0,
-      ngn_price: 0,
       creditsPerMonth: 0,
       popular: false,
     });
@@ -307,7 +346,6 @@ export const PaymentManagement = () => {
       subscriptionForm.reset({
         name: plan.name,
         price: plan.price,
-        ngn_price: plan.ngn_price,
         creditsPerMonth: plan.creditsPerMonth,
         popular: plan.popular,
       });
@@ -322,7 +360,6 @@ export const PaymentManagement = () => {
         .insert({
           name: values.name,
           price: values.price,
-          ngn_price: values.ngn_price,
           credits_per_month: values.creditsPerMonth,
           currency: 'USD',
           interval: 'month',
@@ -344,7 +381,6 @@ export const PaymentManagement = () => {
         id: data.id,
         name: data.name,
         price: data.price,
-        ngn_price: data.ngn_price,
         creditsPerMonth: data.credits_per_month,
         popular: values.popular || false,
         features: data.features,
@@ -370,7 +406,6 @@ export const PaymentManagement = () => {
         .update({
           name: values.name,
           price: values.price,
-          ngn_price: values.ngn_price,
           credits_per_month: values.creditsPerMonth,
           rank: values.popular ? 2 : 1
         })
@@ -384,7 +419,6 @@ export const PaymentManagement = () => {
               ...plan,
               name: values.name,
               price: values.price,
-              ngn_price: values.ngn_price,
               creditsPerMonth: values.creditsPerMonth,
               popular: values.popular || false,
             } 
@@ -421,8 +455,7 @@ export const PaymentManagement = () => {
               <TableRow>
                 <TableHead>Package Name</TableHead>
                 <TableHead>Credits</TableHead>
-                <TableHead>Price (USD)</TableHead>
-                <TableHead>Price (NGN)</TableHead>
+                <TableHead>Price</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -433,7 +466,6 @@ export const PaymentManagement = () => {
                   <TableCell className="font-medium">{pkg.name}</TableCell>
                   <TableCell>{pkg.credits}</TableCell>
                   <TableCell>${pkg.price.toFixed(2)}</TableCell>
-                  <TableCell>₦{pkg.ngn_price.toFixed(2)}</TableCell>
                   <TableCell>{renderStatusLabel(pkg.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -480,7 +512,6 @@ export const PaymentManagement = () => {
                 <CardTitle>{plan.name}</CardTitle>
                 <CardDescription>Monthly subscription</CardDescription>
                 <div className="text-3xl font-bold">${plan.price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
-                <div className="text-xl font-bold">₦{plan.ngn_price}<span className="text-sm text-muted-foreground font-normal">/month</span></div>
               </CardHeader>
               <CardContent className="flex-1">
                 <div className="flex items-center gap-2 mb-4">
@@ -560,19 +591,6 @@ export const PaymentManagement = () => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={packageForm.control}
-                name="ngn_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price (NGN)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsAddPackageDialogOpen(false)}>
                   Cancel
@@ -634,19 +652,6 @@ export const PaymentManagement = () => {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={packageForm.control}
-                name="ngn_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price (NGN)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsEditPackageDialogOpen(false)}>
                   Cancel
@@ -688,19 +693,6 @@ export const PaymentManagement = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Monthly Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={subscriptionForm.control}
-                name="ngn_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Price (NGN)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
@@ -784,19 +776,6 @@ export const PaymentManagement = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Monthly Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={subscriptionForm.control}
-                name="ngn_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Price (NGN)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" {...field} />
                     </FormControl>
