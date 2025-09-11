@@ -14,7 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useContest, Contest as ContestType, ContestEntry } from "@/hooks/use-contest";
-import { useWinners, Winner } from "@/hooks/use-winners";
 import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
 import { WinnerCard } from "@/components/contest/WinnerCard";
@@ -89,7 +88,6 @@ const Contest = () => {
   const [showWinnerClaim, setShowWinnerClaim] = useState(false);
   const [winnerClaimData, setWinnerClaimData] = useState<{ contestId: string; winnerRank: number } | null>(null);
   const [userWins, setUserWins] = useState<Array<{ contest_id: string; rank: number }>>([]);
-  const { winners: allWinners, loading: winnersLoading } = useWinners();
 
   useEffect(() => {
     if (activeContests.length > 0 && !activeContestTab) {
@@ -260,21 +258,49 @@ const Contest = () => {
   }
 
 const PastContestCard = ({ contest }: { contest: ContestType }) => {
-  const [winner, setWinner] = useState<Winner | null>(null);
+  const [winner, setWinner] = useState<ContestEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { fetchWinners } = useContest();
 
   useEffect(() => {
-    const loadWinner = async () => {
+    const fetchWinner = async () => {
       setIsLoading(true);
-      const contestWinners = await fetchWinners(contest.id);
-      if (contestWinners.length > 0) {
-        setWinner(contestWinners[0]);
+      try {
+        const { data, error } = await supabase
+          .from('contest_winners')
+          .select(`
+            contest_entries (
+              *,
+              profiles (
+                full_name,
+                username
+              )
+            )
+          `)
+          .eq('contest_id', contest.id)
+          .eq('rank', 1)
+          .single();
+
+        if (error) {
+          if (error.code !== 'PGRST116') { // Ignore 'exact one row not found'
+            throw error;
+          }
+        }
+
+        if (data) {
+          setWinner(data.contest_entries as unknown as ContestEntry);
+        } else {
+          setWinner(null);
+        }
+      } catch (error) {
+        console.error("Error fetching winner from contest_winners", error);
+        setWinner(null);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
-    loadWinner();
-  }, [contest.id, fetchWinners]);
+
+    fetchWinner();
+  }, [contest]);
 
   const renderWinnerSection = () => {
     if (isLoading) {
@@ -285,15 +311,8 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
       );
     }
 
-    if (winner && winner.entry) {
-      const winnerEntry = {
-        ...winner.entry,
-        profiles: {
-          full_name: winner.profile.full_name,
-          username: winner.profile.username,
-        }
-      };
-      return <WinnerCard winner={winnerEntry} />;
+    if (winner) {
+      return <WinnerCard winner={winner} />;
     }
 
     const now = new Date();
@@ -503,31 +522,20 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
           </TabsContent>
 
           <TabsContent value="winners" className="space-y-4">
-            {winnersLoading ? (
-              <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-dark-purple"></div>
-              </div>
-            ) : allWinners.length === 0 ? (
-              <Card className="text-center py-12 bg-white/5 border-white/10">
-                <CardContent>
-                  <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Winners Yet</h3>
-                  <p className="text-gray-400">Winners will be displayed here once contests are completed.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {allWinners.map((winner) => (
-                  <WinnerCard key={winner.id} winner={{
-                    ...winner.entry,
-                    profiles: {
-                      full_name: winner.profile.full_name,
-                      username: winner.profile.username
-                    }
-                  }} />
-                ))}
-              </div>
-            )}
+            <div className="space-y-6">
+              {pastContests.map((contest) => (
+                <PastContestCard key={contest.id} contest={contest} />
+              ))}
+              {pastContests.length === 0 && (
+                <Card className="text-center py-12 bg-white/5 border-white/10">
+                  <CardContent>
+                    <Trophy className="h-12 w-12 mx-auto text-gray-500 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No Winners Yet</h3>
+                    <p className="text-gray-400">Winners will be displayed here once contests are completed.</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </div>
       </Tabs>

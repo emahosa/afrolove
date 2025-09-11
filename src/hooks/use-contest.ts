@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { checkUserCredits } from '@/utils/credits';
-import { Winner as ContestWinner } from './use-winners';
 
 console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes, unlocked_contests");
 
@@ -606,56 +605,6 @@ export const useContest = () => {
     }
   }, [currentContest]);
 
-  const fetchWinners = useCallback(async (contestId: string): Promise<ContestWinner[]> => {
-    try {
-      const { data: winnerData, error: winnerError } = await supabase
-        .from('contest_winners')
-        .select(`
-          *,
-          profiles:user_id(*)
-        `)
-        .eq('contest_id', contestId)
-        .order('rank', { ascending: true });
-
-      if (winnerError) throw winnerError;
-
-      const winnersWithDetails = await Promise.all(
-        winnerData.map(async (winner) => {
-          const { data: entryData, error: entryError } = await supabase
-            .from('contest_entries')
-            .select('*')
-            .eq('id', winner.contest_entry_id)
-            .single();
-
-          if (entryError && entryError.code !== 'PGRST116') {
-            console.error(`Error fetching entry for winner ${winner.id}:`, entryError);
-          }
-
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', winner.user_id)
-            .single();
-
-          if (profileError) {
-            console.error(`Error fetching profile for winner ${winner.id}:`, profileError);
-          }
-
-          return {
-            ...winner,
-            profile: profileData,
-            entry: entryData
-          };
-        })
-      );
-
-      return winnersWithDetails as unknown as ContestWinner[];
-    } catch (error) {
-      console.error(`Error fetching winners for contest ${contestId}:`, error);
-      return [];
-    }
-  }, []);
-
   return {
     contests,
     activeContests,
@@ -677,7 +626,6 @@ export const useContest = () => {
     unlockContest,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
-    setCurrentContest,
-    fetchWinners,
+    setCurrentContest
   };
 };

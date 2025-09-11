@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useContest } from "@/hooks/use-contest";
-import { useWinners } from "@/hooks/use-winners";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { getSetting } from "@/utils/settingsOperations";
-import { Trophy } from "lucide-react";
 
 export default function HeroSection() {
   const { activeContests, upcomingContests } = useContest();
-  const { recentWinners } = useWinners();
   const [contestStatus, setContestStatus] = useState<{
     status: string;
     timeLeft: number;
@@ -166,33 +163,6 @@ export default function HeroSection() {
              <p>Ends in: {formatTime(contestStatus.timeLeft)}</p>
            )}
          </motion.div>
-      )}
-
-      {/* Winners marquee */}
-      {recentWinners && recentWinners.length > 0 && (
-        <div className="absolute bottom-0 left-0 w-full bg-black/50 p-4 overflow-hidden">
-          <motion.div
-            className="flex space-x-16"
-            animate={{ x: ['100%', '-100%'] }}
-            transition={{
-              x: {
-                duration: 25,
-                repeat: Infinity,
-                repeatType: 'loop',
-                ease: 'linear',
-              },
-            }}
-          >
-            {recentWinners.map((winner) => (
-              <div key={winner.id} className="flex-shrink-0 flex items-center space-x-4 text-white">
-                <Trophy className="h-6 w-6 text-yellow-400" />
-                <p className="whitespace-nowrap">
-                  <span className="font-bold">{winner.profile.full_name}</span> won the "{winner.contest.title}" contest!
-                </p>
-              </div>
-            ))}
-          </motion.div>
-        </div>
       )}
     </div>
   );
