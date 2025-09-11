@@ -32,13 +32,25 @@ interface Plan {
   stripePriceId: string;
 }
 
+interface CreditPackage {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  credits: number;
+  popular: boolean;
+}
+
 const Billing: React.FC = () => {
   const { user } = useAuth();
   const { data: paymentSettings, isLoading: isLoadingPaymentSettings } = usePaymentGatewaySettings();
   const { data: publicKeys, isLoading: isLoadingPublicKeys } = usePaymentPublicKeys();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [usdToCreditRate, setUsdToCreditRate] = useState(50); // Default rate
+
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -52,41 +64,65 @@ const Billing: React.FC = () => {
   const [downgradeConfirmationOpen, setDowngradeConfirmationOpen] = useState(false);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    const fetchInitialData = async () => {
       if (!user?.id) return;
-      const { data, error } = await supabase.from('profiles').select('credits').eq('id', user.id).single();
-      if (!error && data) setUserProfile(data);
-    };
+      setLoadingData(true);
 
-    const fetchPlans = async () => {
-      setLoadingPlans(true);
-      const { data, error } = await supabase.from("plans").select("*").order('rank', { ascending: true });
-      if (error) {
-        console.error("Error fetching plans:", error);
+      // Fetch user profile, plans, packages, and settings concurrently
+      const [profileRes, plansRes, packagesRes, settingsRes] = await Promise.all([
+        supabase.from('profiles').select('credits').eq('id', user.id).single(),
+        supabase.from("plans").select("*").eq('active', true).order('rank', { ascending: true }),
+        supabase.from("credit_packages").select("*").eq('active', true).order('price', { ascending: true }),
+        supabase.from("system_settings").select("value").eq("key", "usd_to_credit_rate").single(),
+      ]);
+
+      if (profileRes.error) console.error("Error fetching profile:", profileRes.error);
+      else setUserProfile(profileRes.data);
+
+      if (plansRes.error) {
+        console.error("Error fetching plans:", plansRes.error);
         toast.error("Could not load subscription plans.");
       } else {
-        setPlans(data || []);
+        setPlans(plansRes.data || []);
       }
-      setLoadingPlans(false);
+
+      if (packagesRes.error) {
+        console.error("Error fetching credit packages:", packagesRes.error);
+        toast.error("Could not load credit packages.");
+      } else {
+        setCreditPackages(packagesRes.data || []);
+      }
+
+      if (settingsRes.error) {
+        console.error("Error fetching credit rate:", settingsRes.error);
+        // Do not toast here, use default
+      } else if (settingsRes.data) {
+        setUsdToCreditRate(parseFloat(settingsRes.data.value || '50'));
+      }
+
+      setLoadingData(false);
     };
 
-    fetchUserProfile();
-    fetchPlans();
+    fetchInitialData();
   }, [user]);
 
-  const creditPackages = [
-    { credits: 5, amount: 5, popular: false },
-    { credits: 15, amount: 10, popular: false },
-    { credits: 50, amount: 25, popular: true },
-    { credits: 100, amount: 45, popular: false },
-  ];
-
   const handlePurchase = async (pkg: any) => {
-    // ... (same as before)
+    // This function seems to be unused, but we'll keep its structure
   };
 
-  const handleCustomPurchase = async () => {
-    // ... (same as before)
+  const handleCustomPurchase = () => {
+    const amount = parseFloat(customAmount);
+    if (isNaN(amount) || amount < 1) {
+      toast.error('Please enter a valid amount of at least $1.');
+      return;
+    }
+    const credits = Math.floor(amount * usdToCreditRate);
+    setSelectedPackage({
+      credits: credits,
+      price: amount,
+      name: `${credits} Custom Credits`
+    });
+    setPaymentDialogOpen(true);
   };
 
   const handleSubscriptionChange = async (planId: string) => {
@@ -100,9 +136,10 @@ const Billing: React.FC = () => {
     const isDowngrade = currentUserPlan && plan.rank < currentUserPlan.rank;
 
     if (isDowngrade) {
+      setSelectedPlanId(plan.id);
       setDowngradeConfirmationOpen(true);
     } else {
-      // This handles new subscriptions and upgrades
+      setSelectedPlanId(plan.id);
       setDialogOpen(true);
     }
   };
@@ -153,7 +190,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: plan.price,
+          amount: plan.price * 100,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -253,7 +290,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: selectedPackage.amount,
+          amount: selectedPackage.price * 100,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -279,7 +316,7 @@ const Billing: React.FC = () => {
         try {
           const { data, error } = await supabase.functions.invoke('create-payment', {
             body: {
-              amount: Math.round(selectedPackage.amount * 100),
+              amount: Math.round(selectedPackage.price * 100),
               credits: selectedPackage.credits,
               description: `Purchase of ${selectedPackage.credits} credits`,
               packId: `credits_${selectedPackage.credits}`,
@@ -358,7 +395,7 @@ const Billing: React.FC = () => {
                 <CardDescription className="text-gray-400">Choose a plan that fits your needs.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {loadingPlans ? (
+              {loadingData ? (
                 <p className="text-center col-span-3">Loading plans...</p>
               ) : (
               plans.map((plan) => (
@@ -373,10 +410,7 @@ const Billing: React.FC = () => {
                   <CardFooter>
                     <Button
                       className="w-full bg-dark-purple hover:bg-opacity-90 font-bold"
-                      onClick={() => {
-                        setSelectedPlanId(plan.id);
-                        handleSubscriptionChange(plan.id);
-                      }}
+                      onClick={() => handleSubscriptionChange(plan.id)}
                       disabled={paymentProcessing || plan.id === currentUserPlan?.id}
                     >
                       {getButtonText(plan)}
@@ -408,15 +442,18 @@ const Billing: React.FC = () => {
             </CardContent>
           </Card>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {creditPackages.map((pkg, index) => (
-              <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
+            {loadingData ? (
+              <p className="text-center col-span-3">Loading packages...</p>
+            ) : (
+            creditPackages.map((pkg) => (
+              <Card key={pkg.id} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
                 {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
                 <CardHeader className="text-center">
                   <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
-                  <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
+                  <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.price.toFixed(2)}</span></CardDescription>
                 </CardHeader>
                 <CardContent className="text-center">
-                  <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
+                  <div className="text-sm text-gray-400 mb-4">${(pkg.price / pkg.credits).toFixed(3)} per credit</div>
                   <Button
                     onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
                     className="w-full"
@@ -436,7 +473,7 @@ const Billing: React.FC = () => {
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
-              <CardDescription className="text-gray-400">Purchase any amount of credits (1 USD = 1 Credit)</CardDescription>
+              <CardDescription className="text-gray-400">Purchase any amount of credits ({usdToCreditRate} credits per $1)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
@@ -445,7 +482,7 @@ const Billing: React.FC = () => {
                   <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
                 </div>
                 <Button
-                  onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
+                  onClick={handleCustomPurchase}
                   disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   className="bg-dark-purple hover:bg-opacity-90 font-bold"
                 >
@@ -497,8 +534,8 @@ const Billing: React.FC = () => {
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         title="Purchase Credits"
-        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.amount}`}
-        amount={selectedPackage?.amount || 0}
+        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.price?.toFixed(2)}`}
+        amount={selectedPackage?.price || 0}
         credits={selectedPackage?.credits || 0}
         onConfirm={processPayment}
         processing={processing}
