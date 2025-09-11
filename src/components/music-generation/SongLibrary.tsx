@@ -8,8 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { usePagination, DOTS } from "@/hooks/use-pagination";
 
 interface Song {
   id: string;
@@ -151,6 +152,12 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
   const indexOfLastSong = currentPage * songsPerPage;
   const indexOfFirstSong = indexOfLastSong - songsPerPage;
   const currentSongs = filteredSongs.slice(indexOfFirstSong, indexOfLastSong);
+
+  const paginationRange = usePagination({
+    currentPage,
+    totalPages,
+    siblingCount: 1,
+  });
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -322,20 +329,30 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
                 className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
               />
             </PaginationItem>
-            {[...Array(totalPages)].map((_, i) => (
-              <PaginationItem key={i}>
-                <PaginationLink
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handlePageChange(i + 1);
-                  }}
-                  isActive={currentPage === i + 1}
-                >
-                  {i + 1}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
+            {paginationRange.map((pageNumber, index) => {
+              if (pageNumber === DOTS) {
+                return (
+                  <PaginationItem key={`${pageNumber}-${index}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                );
+              }
+
+              return (
+                <PaginationItem key={pageNumber}>
+                  <PaginationLink
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePageChange(pageNumber as number);
+                    }}
+                    isActive={currentPage === pageNumber}
+                  >
+                    {pageNumber}
+                  </PaginationLink>
+                </PaginationItem>
+              );
+            })}
             <PaginationItem>
               <PaginationNext
                 href="#"
