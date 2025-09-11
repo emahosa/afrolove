@@ -18,7 +18,6 @@ interface PaymentGatewaySettings {
   activeGateway: 'stripe' | 'paystack';
   stripe: GatewayConfig;
   paystack: GatewayConfig;
-  usdToNgnRate?: number;
 }
 
 const corsHeaders = {
@@ -131,21 +130,13 @@ serve(async (req) => {
         throw new Error(`Paystack secret key for ${settings.mode} mode is not configured.`);
       }
 
-      const { usdToNgnRate } = settings;
-      if (!usdToNgnRate || usdToNgnRate <= 0) {
-        throw new Error("USD to NGN conversion rate is not configured or is invalid.");
-      }
-
-      // Convert amount from USD cents to NGN kobo
-      const amountInNgnKobo = Math.round(amount * usdToNgnRate);
-
       const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({
         email: user.email,
-        amount: amountInNgnKobo,
-        currency: 'NGN',
+        amount: amount,
+        currency: 'USD',
         callback_url: `${req.headers.get("origin")}/billing?payment=success`,
-        metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email, original_usd_amount: amount }
+        metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email }
       });
 
       if (!tx.authorization_url) throw new Error("Paystack transaction created but no authorization URL returned");
