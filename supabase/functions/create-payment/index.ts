@@ -73,9 +73,9 @@ serve(async (req) => {
       settings = settingsData.value as PaymentGatewaySettings;
     }
 
-    const { amount, credits, description, packId, price_ngn } = await req.json();
+    const { amount, credits, description, packId } = await req.json();
 
-    if ((!amount && !price_ngn) || !credits || (amount && amount <= 0) || (price_ngn && price_ngn <= 0) || credits <= 0) {
+    if (!amount || !credits || amount <= 0 || credits <= 0) {
       throw new Error("Invalid amount or credits specified");
     }
 
@@ -133,8 +133,8 @@ serve(async (req) => {
       const paystack = new PaystackClient(paystackKeys.secretKey);
       const tx = await paystack.initTransaction({
         email: user.email,
-        amount: price_ngn,
-        currency: 'NGN',
+        amount: amount,
+        currency: 'USD',
         callback_url: `${req.headers.get("origin")}/billing?payment=success`,
         metadata: { type: 'credits', user_id: user.id, credits: credits, pack_id: packId, user_email: user.email }
       });

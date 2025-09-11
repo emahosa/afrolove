@@ -22,7 +22,6 @@ interface Plan {
   id: string;
   name: string;
   price: number;
-  price_ngn: number;
   currency: string;
   interval: string;
   description: string;
@@ -39,7 +38,6 @@ interface CreditPackage {
   name: string;
   credits: number;
   price: number;
-  price_ngn: number;
   currency: string;
   popular: boolean;
   active: boolean;
@@ -60,7 +58,6 @@ const Billing: React.FC = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const { trackActivity } = useAffiliateTracking();
-  const [exchangeRate, setExchangeRate] = useState(1600);
 
   // State for subscriptions
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -94,18 +91,37 @@ const Billing: React.FC = () => {
     const fetchCreditPackages = async () => {
       setLoadingCreditPackages(true);
       try {
+        // Since credit_packages table exists but may not be in types, use direct SQL
         const { data, error } = await supabase
-          .from('credit_packages')
+          .from('credit_packages' as any)
           .select('*')
           .eq('active', true)
           .order('credits', { ascending: true });
         
         if (error) throw error;
         
-        setCreditPackages(data || []);
+        // Apply currency conversion logic: 1 credit = 0.02 USD
+        const packagesWithConversion = (data || []).map((pkg: any) => ({
+          id: pkg.id,
+          name: pkg.name,
+          credits: pkg.credits,
+          price: pkg.credits * 0.02, // Currency conversion: 0.02 USD per credit
+          currency: 'USD',
+          popular: pkg.popular || false,
+          active: pkg.active,
+          description: pkg.description
+        }));
+        setCreditPackages(packagesWithConversion);
       } catch (error) {
         console.error("Error fetching credit packages:", error);
-        toast.error("Could not load credit packages.");
+        // Fallback to hardcoded packages with currency conversion
+        const fallbackPackages = [
+          { id: '1', name: '5 Credits', credits: 5, price: 5 * 0.02, currency: 'USD', popular: false, active: true },
+          { id: '2', name: '15 Credits', credits: 15, price: 15 * 0.02, currency: 'USD', popular: false, active: true },
+          { id: '3', 'name': '50 Credits', credits: 50, price: 50 * 0.02, currency: 'USD', popular: true, active: true },
+          { id: '4', name: '100 Credits', credits: 100, price: 100 * 0.02, currency: 'USD', popular: false, active: true },
+        ];
+        setCreditPackages(fallbackPackages);
       }
       setLoadingCreditPackages(false);
     };
@@ -113,18 +129,6 @@ const Billing: React.FC = () => {
     fetchUserProfile();
     fetchPlans();
     fetchCreditPackages();
-
-    const fetchExchangeRate = async () => {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'currency')
-        .single();
-      if (!error && data) {
-        setExchangeRate(data.value.usd_to_ngn);
-      }
-    };
-    fetchExchangeRate();
     
     const plansChannel = supabase.channel('public:plans')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => {
@@ -197,7 +201,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: plan.price_ngn,
+          amount: plan.price,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -297,7 +301,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: selectedPackage.price_ngn,
+          amount: selectedPackage.amount,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -464,12 +468,13 @@ const Billing: React.FC = () => {
                     </CardTitle>
                     <CardDescription>
                       <span className="text-2xl font-bold text-dark-purple">${pkg.price.toFixed(2)}</span>
+                      <div className="text-xs text-gray-400 mt-1">({pkg.credits} × $0.02 per credit)</div>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="text-center">
                     <p className="text-sm text-gray-400 mb-4">{pkg.description || 'Perfect for your music creation needs'}</p>
                     <Button
-                      onClick={() => { setSelectedPackage({ credits: pkg.credits, amount: pkg.price, price_ngn: pkg.price_ngn }); setPaymentDialogOpen(true); }}
+                      onClick={() => { setSelectedPackage({ credits: pkg.credits, amount: pkg.price }); setPaymentDialogOpen(true); }}
                       className="w-full"
                       variant={pkg.popular ? "default" : "outline"}
                       disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
@@ -501,8 +506,7 @@ const Billing: React.FC = () => {
                     const amount = parseFloat(customAmount); 
                     if (!isNaN(amount) && amount >= 0.02) { 
                       const credits = Math.floor(amount / 0.02); // Calculate credits based on $0.02 per credit
-                      const priceNgn = amount * exchangeRate;
-                      setSelectedPackage({ credits: credits, amount: credits * 0.02, price_ngn: priceNgn });
+                      setSelectedPackage({ credits: credits, amount: credits * 0.02 }); 
                       setPaymentDialogOpen(true); 
                     } else { 
                       toast.error('Please enter a valid amount (minimum $0.02)'); 

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, Server, Database, Globe, Bell, Lock, DollarSign } from 'lucide-react';
+import { Shield, Server, Database, Globe, Bell, Lock } from 'lucide-react';
 import { loadSystemSettings, saveSystemSettings, defaultSettings, type SystemSettings } from '@/services/settingsService';
 
 export const SettingsManagement = () => {
@@ -95,7 +95,6 @@ export const SettingsManagement = () => {
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="currency">Currency</TabsTrigger>
           <TabsTrigger value="api">API Settings</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -147,33 +146,6 @@ export const SettingsManagement = () => {
                     onChange={(e) => handleInputChange('general', 'autoDeleteDays', parseInt(e.target.value))}
                   />
                   <p className="text-xs text-muted-foreground">Number of days before temporary files are auto-deleted</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Currency Settings */}
-        <TabsContent value="currency" className="mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Currency Settings</CardTitle>
-                  <CardDescription>Manage currency conversion rates</CardDescription>
-                </div>
-                <DollarSign className="text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">USD to NGN Exchange Rate</label>
-                  <Input
-                    type="number"
-                    value={settings.currency.usd_to_ngn}
-                    onChange={(e) => handleInputChange('currency', 'usd_to_ngn', parseFloat(e.target.value))}
-                  />
                 </div>
               </div>
             </CardContent>
