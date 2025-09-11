@@ -253,12 +253,6 @@ export const PaymentManagement = () => {
       ));
       
       toast.success(`Credit package ${pkg.name} ${newActiveStatus ? 'activated' : 'disabled'}`);
-      
-      // Trigger a storage event to notify other tabs/windows
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'credit_packages_updated',
-        newValue: Date.now().toString()
-      }));
     } catch (error: any) {
       console.error('Error toggling package status:', error);
       toast.error('Failed to update package status');
@@ -292,12 +286,6 @@ export const PaymentManagement = () => {
       
       setCreditPackages([...creditPackages, newPackage]);
       toast.success(`New credit package "${values.name}" added successfully`);
-      
-      // Trigger a storage event to notify other tabs/windows
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'credit_packages_updated',
-        newValue: Date.now().toString()
-      }));
       
       setIsAddPackageDialogOpen(false);
       packageForm.reset();
@@ -333,12 +321,6 @@ export const PaymentManagement = () => {
           : pkg
       ));
       toast.success(`Credit package "${values.name}" updated successfully`);
-      
-      // Trigger a storage event to notify other tabs/windows
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'credit_packages_updated',
-        newValue: Date.now().toString()
-      }));
       
       setIsEditPackageDialogOpen(false);
     } catch (error: any) {
@@ -407,12 +389,6 @@ export const PaymentManagement = () => {
       setSubscriptionPlans([...subscriptionPlans, newPlan]);
       toast.success(`New subscription plan "${values.name}" added successfully`);
       
-      // Trigger a storage event to notify other tabs/windows
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'subscription_plans_updated',
-        newValue: Date.now().toString()
-      }));
-      
       setIsAddSubscriptionDialogOpen(false);
       subscriptionForm.reset();
     } catch (error: any) {
@@ -449,12 +425,6 @@ export const PaymentManagement = () => {
           : plan
       ));
       toast.success(`Subscription plan "${values.name}" updated successfully`);
-      
-      // Trigger a storage event to notify other tabs/windows
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'subscription_plans_updated',
-        newValue: Date.now().toString()
-      }));
       
       setIsEditSubscriptionDialogOpen(false);
     } catch (error: any) {

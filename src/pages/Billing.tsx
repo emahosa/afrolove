@@ -118,7 +118,7 @@ const Billing: React.FC = () => {
         const fallbackPackages = [
           { id: '1', name: '5 Credits', credits: 5, price: 5 * 0.02, currency: 'USD', popular: false, active: true },
           { id: '2', name: '15 Credits', credits: 15, price: 15 * 0.02, currency: 'USD', popular: false, active: true },
-          { id: '3', name: '50 Credits', credits: 50, price: 50 * 0.02, currency: 'USD', popular: true, active: true },
+          { id: '3', 'name': '50 Credits', credits: 50, price: 50 * 0.02, currency: 'USD', popular: true, active: true },
           { id: '4', name: '100 Credits', credits: 100, price: 100 * 0.02, currency: 'USD', popular: false, active: true },
         ];
         setCreditPackages(fallbackPackages);
@@ -130,26 +130,21 @@ const Billing: React.FC = () => {
     fetchPlans();
     fetchCreditPackages();
     
-    // Listen for admin changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'credit_packages_updated') {
-        fetchCreditPackages();
-      } else if (e.key === 'subscription_plans_updated') {
+    const plansChannel = supabase.channel('public:plans')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => {
         fetchPlans();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Set up an interval to refresh data periodically to catch admin changes
-    const interval = setInterval(() => {
-      fetchCreditPackages();
-      fetchPlans();
-    }, 30000); // Refresh every 30 seconds
-    
+      })
+      .subscribe();
+
+    const creditPackagesChannel = supabase.channel('public:credit_packages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_packages' }, () => {
+        fetchCreditPackages();
+      })
+      .subscribe();
+
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorageChange);
+      supabase.removeChannel(plansChannel);
+      supabase.removeChannel(creditPackagesChannel);
     };
   }, [user]);
 
