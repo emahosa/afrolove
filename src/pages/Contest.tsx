@@ -265,35 +265,48 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
     const fetchWinners = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // Step 1: Fetch winners and their corresponding entries for the given contest.
+        const { data: winnerData, error: winnersError } = await supabase
           .from('contest_winners')
-          .select(`
-            *,
-            contest_entries (
-              *,
-              profiles (
-                full_name,
-                username
-              )
-            )
-          `)
+          .select('*, contest_entries(*)')
           .eq('contest_id', contest.id)
           .order('rank', { ascending: true });
 
-        if (error) {
-            throw error;
+        if (winnersError) {
+          throw winnersError;
         }
 
-        if (data) {
-          const validWinners = data
+        if (winnerData) {
+          const entries = winnerData
             .map(winner => winner.contest_entries)
             .filter(entry => entry !== null) as ContestEntry[];
-          setWinners(validWinners);
+
+          // Step 2: For each entry, fetch the associated profile information.
+          const winnersWithProfiles = await Promise.all(
+            entries.map(async (entry) => {
+              if (!entry.user_id) {
+                return { ...entry, profiles: null };
+              }
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, username')
+                .eq('id', entry.user_id)
+                .single();
+
+              if (profileError) {
+                console.error(`Error fetching profile for user ${entry.user_id}:`, profileError.message);
+                return { ...entry, profiles: null }; // Return entry without profile on error
+              }
+
+              return { ...entry, profiles: profileData };
+            })
+          );
+          setWinners(winnersWithProfiles);
         } else {
           setWinners([]);
         }
       } catch (error) {
-        console.error("Error fetching winners from contest_winners", error);
+        console.error(`Error fetching winners for contest ${contest.id}:`, error);
         setWinners([]);
       } finally {
         setIsLoading(false);
