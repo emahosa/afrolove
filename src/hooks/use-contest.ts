@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { checkUserCredits } from '@/utils/credits';
+import { Winner as ContestWinner } from './use-winners';
 
 console.log("✅ use-contest hook loaded - WILL ONLY USE: contests, contest_entries, profiles, votes, unlocked_contests");
 
@@ -605,6 +606,43 @@ export const useContest = () => {
     }
   }, [currentContest]);
 
+  const fetchWinners = useCallback(async (contestId: string): Promise<ContestWinner[]> => {
+    try {
+      const { data: winnerData, error: winnerError } = await supabase
+        .from('contest_winners')
+        .select(`
+          *,
+          profiles:user_id(*)
+        `)
+        .eq('contest_id', contestId)
+        .order('rank', { ascending: true });
+
+      if (winnerError) throw winnerError;
+
+      const winnersWithEntries = await Promise.all(
+        winnerData.map(async (winner) => {
+          const { data: entryData, error: entryError } = await supabase
+            .from('contest_entries')
+            .select('*')
+            .eq('user_id', winner.user_id)
+            .eq('contest_id', winner.contest_id)
+            .single();
+
+          if (entryError && entryError.code !== 'PGRST116') {
+            console.error(`Error fetching entry for winner ${winner.id}:`, entryError);
+          }
+
+          return { ...winner, profile: winner.profiles, entry: entryData };
+        })
+      );
+
+      return winnersWithEntries as unknown as ContestWinner[];
+    } catch (error) {
+      console.error(`Error fetching winners for contest ${contestId}:`, error);
+      return [];
+    }
+  }, []);
+
   return {
     contests,
     activeContests,
@@ -626,6 +664,7 @@ export const useContest = () => {
     unlockContest,
     refreshEntries: () => currentContest && fetchContestEntries(currentContest.id),
     refreshContests: fetchContests,
-    setCurrentContest
+    setCurrentContest,
+    fetchWinners,
   };
 };
