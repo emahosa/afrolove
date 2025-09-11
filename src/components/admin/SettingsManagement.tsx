@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Shield, Server, Database, Globe, Bell, Lock, DollarSign } from 'lucide-react';
+import { Shield, Server, Database, Globe, Bell, Lock } from 'lucide-react';
 import { loadSystemSettings, saveSystemSettings, defaultSettings, type SystemSettings } from '@/services/settingsService';
 
 export const SettingsManagement = () => {
@@ -98,7 +98,6 @@ export const SettingsManagement = () => {
           <TabsTrigger value="api">API Settings</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="admin-profile">Admin Profile</TabsTrigger>
         </TabsList>
 
@@ -292,35 +291,6 @@ export const SettingsManagement = () => {
                     onCheckedChange={(checked) => handleToggle('notifications', 'marketingEmails', checked)}
                   />
                   <label>Marketing Emails</label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Billing Settings */}
-        <TabsContent value="billing" className="mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Billing Settings</CardTitle>
-                  <CardDescription>Manage credit pricing and billing information</CardDescription>
-                </div>
-                <DollarSign className="text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cost per Credit (USD)</label>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    value={settings.billing.credit_cost}
-                    onChange={(e) => handleInputChange('billing', 'credit_cost', parseFloat(e.target.value))}
-                  />
-                  <p className="text-xs text-muted-foreground">The price for one credit when purchased via the custom amount option.</p>
                 </div>
               </div>
             </CardContent>
