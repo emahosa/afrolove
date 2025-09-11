@@ -287,7 +287,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
         }
 
         if (data) {
-          setWinner(data.contest_entries as ContestEntry);
+          setWinner(data.contest_entries as unknown as ContestEntry);
         } else {
           setWinner(null);
         }

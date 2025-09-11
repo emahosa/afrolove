@@ -29,7 +29,19 @@ interface Plan {
   credits_per_month: number;
   features: string[];
   rank: number;
-  stripePriceId: string;
+  stripe_price_id: string;
+  stripePriceId?: string; // For backward compatibility
+}
+
+interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+  currency: string;
+  popular: boolean;
+  active: boolean;
+  description?: string;
 }
 
 const Billing: React.FC = () => {
@@ -39,6 +51,8 @@ const Billing: React.FC = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
+  const [loadingCreditPackages, setLoadingCreditPackages] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<any>(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -65,21 +79,59 @@ const Billing: React.FC = () => {
         console.error("Error fetching plans:", error);
         toast.error("Could not load subscription plans.");
       } else {
-        setPlans(data || []);
+        const transformedPlans = (data || []).map(plan => ({
+          ...plan,
+          stripePriceId: plan.stripe_price_id
+        }));
+        setPlans(transformedPlans);
       }
       setLoadingPlans(false);
     };
 
+    const fetchCreditPackages = async () => {
+      setLoadingCreditPackages(true);
+      try {
+        // Since credit_packages table exists but may not be in types, use direct SQL
+        const { data, error } = await supabase
+          .from('credit_packages' as any)
+          .select('*')
+          .eq('active', true)
+          .order('credits', { ascending: true });
+        
+        if (error) throw error;
+        
+        // Apply currency conversion logic: 1 credit = 0.02 USD
+        const packagesWithConversion = (data || []).map((pkg: any) => ({
+          id: pkg.id,
+          name: pkg.name,
+          credits: pkg.credits,
+          price: pkg.credits * 0.02, // Currency conversion: 0.02 USD per credit
+          currency: 'USD',
+          popular: pkg.popular || false,
+          active: pkg.active,
+          description: pkg.description
+        }));
+        setCreditPackages(packagesWithConversion);
+      } catch (error) {
+        console.error("Error fetching credit packages:", error);
+        // Fallback to hardcoded packages with currency conversion
+        const fallbackPackages = [
+          { id: '1', name: '5 Credits', credits: 5, price: 5 * 0.02, currency: 'USD', popular: false, active: true },
+          { id: '2', name: '15 Credits', credits: 15, price: 15 * 0.02, currency: 'USD', popular: false, active: true },
+          { id: '3', name: '50 Credits', credits: 50, price: 50 * 0.02, currency: 'USD', popular: true, active: true },
+          { id: '4', name: '100 Credits', credits: 100, price: 100 * 0.02, currency: 'USD', popular: false, active: true },
+        ];
+        setCreditPackages(fallbackPackages);
+      }
+      setLoadingCreditPackages(false);
+    };
+
     fetchUserProfile();
     fetchPlans();
+    fetchCreditPackages();
   }, [user]);
 
-  const creditPackages = [
-    { credits: 5, amount: 5, popular: false },
-    { credits: 15, amount: 10, popular: false },
-    { credits: 50, amount: 25, popular: true },
-    { credits: 100, amount: 45, popular: false },
-  ];
+  // Credit packages are now fetched from database and loaded in useEffect
 
   const handlePurchase = async (pkg: any) => {
     // ... (same as before)
@@ -108,32 +160,11 @@ const Billing: React.FC = () => {
   };
 
   const confirmDowngrade = async () => {
-    if (!selectedPlanId) return;
-    const plan = plans.find(p => p.id === selectedPlanId);
-    if (!plan) return;
-
-    setPaymentProcessing(true);
-    try {
-      const { error } = await supabase.functions.invoke('manage-subscription', {
-        body: {
-          action: 'downgrade',
-          newPlanId: plan.id,
-          newStripePriceId: plan.stripePriceId,
-        }
-      });
-
-      if (error) throw new Error(error.message);
-
-      toast.success("Downgrade Scheduled", {
-        description: `Your subscription will be changed to the ${plan.name} plan at the end of your current billing cycle.`
-      });
-      // Optionally, refresh user data here to show the pending change
-    } catch (error: any) {
-      toast.error("Failed to schedule downgrade", { description: error.message });
-    } finally {
-      setPaymentProcessing(false);
-      setDowngradeConfirmationOpen(false);
-    }
+    // Static message as requested by user
+    toast.info("Not available", {
+      description: "Subscription downgrades are currently not available. Please contact support for assistance."
+    });
+    setDowngradeConfirmationOpen(false);
   };
 
   const confirmUpgradeOrSub = async () => {
@@ -407,45 +438,63 @@ const Billing: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {creditPackages.map((pkg, index) => (
-              <Card key={index} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
-                {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
-                <CardHeader className="text-center">
-                  <CardTitle className="flex items-center justify-center text-white"><Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits</CardTitle>
-                  <CardDescription><span className="text-2xl font-bold text-dark-purple">${pkg.amount}</span></CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="text-sm text-gray-400 mb-4">${(pkg.amount / pkg.credits).toFixed(2)} per credit</div>
-                  <Button
-                    onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
-                    className="w-full"
-                    variant={pkg.popular ? "default" : "outline"}
-                    disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                  >
-                    {isLoadingPaymentSettings || isLoadingPublicKeys
-                      ? 'Loading...'
-                      : !paymentReady
-                      ? 'Payments Disabled'
-                      : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {loadingCreditPackages ? (
+            <div className="text-center text-gray-400">Loading credit packages...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {creditPackages.map((pkg) => (
+                <Card key={pkg.id} className={`relative bg-black/20 border-white/10 ${pkg.popular ? 'border-dark-purple shadow-lg' : ''}`}>
+                  {pkg.popular && <Badge className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-dark-purple text-white">Most Popular</Badge>}
+                  <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center text-white">
+                      <Zap className="mr-2 h-5 w-5 text-dark-purple" />{pkg.credits} Credits
+                    </CardTitle>
+                    <CardDescription>
+                      <span className="text-2xl font-bold text-dark-purple">${pkg.price.toFixed(2)}</span>
+                      <div className="text-xs text-gray-400 mt-1">({pkg.credits} × $0.02 per credit)</div>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-sm text-gray-400 mb-4">{pkg.description || 'Perfect for your music creation needs'}</p>
+                    <Button
+                      onClick={() => { setSelectedPackage({ credits: pkg.credits, amount: pkg.price }); setPaymentDialogOpen(true); }}
+                      className="w-full"
+                      variant={pkg.popular ? "default" : "outline"}
+                      disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
+                    >
+                      {isLoadingPaymentSettings || isLoadingPublicKeys
+                        ? 'Loading...'
+                        : !paymentReady
+                        ? 'Payments Disabled'
+                        : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
           <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
-              <CardDescription className="text-gray-400">Purchase any amount of credits (1 USD = 1 Credit)</CardDescription>
+              <CardDescription className="text-gray-400">Purchase any amount of credits ($0.02 per credit)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
                   <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
-                  <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="1" step="1" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
+                  <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="0.02" step="0.02" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
                 </div>
                 <Button
-                  onClick={() => { const amount = parseFloat(customAmount); if (!isNaN(amount) && amount >= 1) { setSelectedPackage({ credits: Math.floor(amount), amount: amount }); setPaymentDialogOpen(true); } else { toast.error('Please enter a valid amount'); } }}
+                  onClick={() => { 
+                    const amount = parseFloat(customAmount); 
+                    if (!isNaN(amount) && amount >= 0.02) { 
+                      const credits = Math.floor(amount / 0.02); // Calculate credits based on $0.02 per credit
+                      setSelectedPackage({ credits: credits, amount: credits * 0.02 }); 
+                      setPaymentDialogOpen(true); 
+                    } else { 
+                      toast.error('Please enter a valid amount (minimum $0.02)'); 
+                    } 
+                  }}
                   disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
                   className="bg-dark-purple hover:bg-opacity-90 font-bold"
                 >

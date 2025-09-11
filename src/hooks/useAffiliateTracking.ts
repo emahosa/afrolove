@@ -27,7 +27,7 @@ export const useAffiliateTracking = () => {
   };
 
   const trackActivity = async (
-    activityType: 'signup' | 'subscription_page_visit' | 'subscription_completed',
+    activityType: 'signup' | 'subscription_page_visit' | 'subscription_completed' | 'credit_purchase_start' | 'credit_purchase_redirect' | 'credit_purchase_failed',
     metadata?: any
   ) => {
     if (!user) return;

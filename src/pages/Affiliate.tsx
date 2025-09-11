@@ -294,13 +294,11 @@ const AffiliateDashboardTab = () => {
       const { data: earningsData } = await supabase
         .rpc('get_total_affiliate_earnings', { user_id_param: user.id });
       
-      // Fetch link clicks
+      // Fetch link clicks using RPC function
       const { data: linksData } = await supabase
-        .from('affiliate_links')
-        .select('clicks_count')
-        .eq('affiliate_user_id', user.id);
+        .rpc('get_affiliate_links', { user_id: user.id });
       
-      const totalClicks = linksData?.reduce((sum, link) => sum + link.clicks_count, 0) || 0;
+      const totalClicks = linksData?.reduce((sum: number, link: any) => sum + (link.clicks_count || 0), 0) || 0;
       const totalReferrals = referralsData || 0;
       const totalEarnings = Number(earningsData) || 0;
       const conversionRate = totalClicks > 0 ? (totalReferrals / totalClicks) * 100 : 0;

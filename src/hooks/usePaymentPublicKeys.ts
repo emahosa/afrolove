@@ -38,7 +38,7 @@ export const usePaymentPublicKeys = () => {
         if (typeof data.value === 'string') {
           settings = JSON.parse(data.value);
         } else {
-          settings = data.value as PaymentGatewayKeys;
+          settings = data.value as unknown as PaymentGatewayKeys;
         }
 
         const mode = settings.mode || 'test';

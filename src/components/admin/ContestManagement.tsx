@@ -525,11 +525,15 @@ export const ContestManagement = () => {
     if (!selectedEntry || !selectedContest) return;
 
     try {
-      const { error } = await supabase.rpc('select_contest_winner', {
-        p_contest_id: selectedContest.id,
-        p_user_id: selectedEntry.user_id,
-        p_rank: 1, // Assuming 1st place for now
-      });
+      // Insert or update the contest winner
+      const { error } = await supabase
+        .from('contest_winners')
+        .upsert({
+          contest_id: selectedContest.id,
+          user_id: selectedEntry.user_id,
+          contest_entry_id: selectedEntry.id,
+          rank: 1
+        });
 
       if (error) throw error;
 

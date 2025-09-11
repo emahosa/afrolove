@@ -41,7 +41,7 @@ export const usePaymentGatewaySettings = () => {
             console.warn('gatewayData.value was stringified JSON, parsing now.');
             settings = JSON.parse(gatewayData.value);
           } else {
-            settings = gatewayData.value;
+            settings = gatewayData.value as { enabled?: boolean; activeGateway?: string };
           }
 
           const active = settings.activeGateway;
