@@ -31,6 +31,9 @@ export interface SystemSettings {
     joinedDate: string;
     email: string;
   };
+  billing: {
+    credit_cost: number;
+  };
 }
 
 export const defaultSettings: SystemSettings = {
@@ -62,6 +65,9 @@ export const defaultSettings: SystemSettings = {
     adminType: "super_admin",
     joinedDate: "January 15, 2025",
     email: "admin@melodyverse.com"
+  },
+  billing: {
+    credit_cost: 0.02
   }
 };
 
@@ -70,7 +76,7 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
     const { data, error } = await supabase
       .from('system_settings')
       .select('key, value')
-      .in('key', ['general', 'api', 'security', 'notifications', 'adminProfile']);
+      .in('key', ['general', 'api', 'security', 'notifications', 'adminProfile', 'billing']);
 
     if (error) {
       console.warn('Failed to load settings from database:', error);
@@ -114,7 +120,8 @@ export const saveSystemSettings = async (settings: SystemSettings): Promise<void
       { key: 'api', value: settings.api, category: 'api', description: 'API configuration settings' },
       { key: 'security', value: settings.security, category: 'security', description: 'Security and authentication settings' },
       { key: 'notifications', value: settings.notifications, category: 'notifications', description: 'Notification preferences' },
-      { key: 'adminProfile', value: settings.adminProfile, category: 'admin', description: 'Admin profile settings' }
+      { key: 'adminProfile', value: settings.adminProfile, category: 'admin', description: 'Admin profile settings' },
+      { key: 'billing', value: settings.billing, category: 'billing', description: 'Billing and payment settings' }
     ];
 
     for (const setting of settingsToSave) {
