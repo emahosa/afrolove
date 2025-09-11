@@ -22,6 +22,7 @@ interface Plan {
   id: string;
   name: string;
   price: number;
+  ngn_price: number;
   currency: string;
   interval: string;
   description: string;
@@ -38,6 +39,7 @@ interface CreditPackage {
   name: string;
   credits: number;
   price: number;
+  ngn_price: number;
   currency: string;
   popular: boolean;
   active: boolean;
@@ -54,7 +56,7 @@ const Billing: React.FC = () => {
   const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
   const [loadingCreditPackages, setLoadingCreditPackages] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const { trackActivity } = useAffiliateTracking();
@@ -100,28 +102,10 @@ const Billing: React.FC = () => {
         
         if (error) throw error;
         
-        // Apply currency conversion logic: 1 credit = 0.02 USD
-        const packagesWithConversion = (data || []).map((pkg: any) => ({
-          id: pkg.id,
-          name: pkg.name,
-          credits: pkg.credits,
-          price: pkg.credits * 0.02, // Currency conversion: 0.02 USD per credit
-          currency: 'USD',
-          popular: pkg.popular || false,
-          active: pkg.active,
-          description: pkg.description
-        }));
-        setCreditPackages(packagesWithConversion);
+        setCreditPackages(data || []);
       } catch (error) {
         console.error("Error fetching credit packages:", error);
-        // Fallback to hardcoded packages with currency conversion
-        const fallbackPackages = [
-          { id: '1', name: '5 Credits', credits: 5, price: 5 * 0.02, currency: 'USD', popular: false, active: true },
-          { id: '2', name: '15 Credits', credits: 15, price: 15 * 0.02, currency: 'USD', popular: false, active: true },
-          { id: '3', 'name': '50 Credits', credits: 50, price: 50 * 0.02, currency: 'USD', popular: true, active: true },
-          { id: '4', name: '100 Credits', credits: 100, price: 100 * 0.02, currency: 'USD', popular: false, active: true },
-        ];
-        setCreditPackages(fallbackPackages);
+        setCreditPackages([]);
       }
       setLoadingCreditPackages(false);
     };
@@ -201,7 +185,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: plan.price,
+          amount: plan.ngn_price,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -301,7 +285,7 @@ const Billing: React.FC = () => {
         await startPaystackPayment({
           publicKey: publicKeys.paystackPublicKey,
           email: user.email!,
-          amount: selectedPackage.amount,
+          amount: selectedPackage.ngn_price,
           reference: reference,
           metadata: {
             user_id: user.id,
@@ -327,7 +311,7 @@ const Billing: React.FC = () => {
         try {
           const { data, error } = await supabase.functions.invoke('create-payment', {
             body: {
-              amount: Math.round(selectedPackage.amount * 100),
+              amount: Math.round(selectedPackage.price * 100),
               credits: selectedPackage.credits,
               description: `Purchase of ${selectedPackage.credits} credits`,
               packId: `credits_${selectedPackage.credits}`,
@@ -474,7 +458,7 @@ const Billing: React.FC = () => {
                   <CardContent className="text-center">
                     <p className="text-sm text-gray-400 mb-4">{pkg.description || 'Perfect for your music creation needs'}</p>
                     <Button
-                      onClick={() => { setSelectedPackage({ credits: pkg.credits, amount: pkg.price }); setPaymentDialogOpen(true); }}
+                      onClick={() => { setSelectedPackage(pkg); setPaymentDialogOpen(true); }}
                       className="w-full"
                       variant={pkg.popular ? "default" : "outline"}
                       disabled={isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
@@ -490,42 +474,45 @@ const Billing: React.FC = () => {
               ))}
             </div>
           )}
-          <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
-              <CardDescription className="text-gray-400">Purchase any amount of credits ($0.02 per credit)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-4">
-                <div className="flex-1">
-                  <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
-                  <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="0.02" step="0.02" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
-                </div>
-                <Button
-                  onClick={() => { 
-                    const amount = parseFloat(customAmount); 
-                    if (!isNaN(amount) && amount >= 0.02) { 
-                      const credits = Math.floor(amount / 0.02); // Calculate credits based on $0.02 per credit
-                      setSelectedPackage({ credits: credits, amount: credits * 0.02 }); 
-                      setPaymentDialogOpen(true); 
-                    } else { 
-                      toast.error('Please enter a valid amount (minimum $0.02)'); 
-                    } 
-                  }}
-                  disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
-                  className="bg-dark-purple hover:bg-opacity-90 font-bold"
-                >
-                  {isLoadingPaymentSettings || isLoadingPublicKeys
-                    ? 'Loading...'
-                    : !paymentReady
-                    ? 'Payments Disabled'
-                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
+
+      <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center text-white"><DollarSign className="mr-2 h-5 w-5 text-dark-purple" />Custom Amount</CardTitle>
+          <CardDescription className="text-gray-400">Purchase any amount of credits ($0.02 per credit)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <div className="flex-1">
+              <Label htmlFor="custom-amount" className="text-gray-300">Amount (USD)</Label>
+              <Input id="custom-amount" type="number" placeholder="Enter amount" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} min="0.02" step="0.02" className="bg-black/20 border-white/20 text-white placeholder-gray-500"/>
+            </div>
+            <Button
+              onClick={() => {
+                const amount = parseFloat(customAmount);
+                if (!isNaN(amount) && amount >= 0.02) {
+                  const credits = Math.floor(amount / 0.02);
+                  const usdAmount = credits * 0.02;
+                  const ngnAmount = usdAmount * 1600; // Using 1600 as the exchange rate for custom amounts
+                  setSelectedPackage({ id: 'custom', name: 'Custom Amount', credits: credits, price: usdAmount, ngn_price: ngnAmount, currency: 'USD', popular: false, active: true });
+                  setPaymentDialogOpen(true);
+                } else {
+                  toast.error('Please enter a valid amount (minimum $0.02)');
+                }
+              }}
+              disabled={!customAmount || isLoadingPaymentSettings || isLoadingPublicKeys || !paymentReady}
+              className="bg-dark-purple hover:bg-opacity-90 font-bold"
+            >
+              {isLoadingPaymentSettings || isLoadingPublicKeys
+                ? 'Loading...'
+                : !paymentReady
+                ? 'Payments Disabled'
+                : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <PaymentDialog
         open={dialogOpen}
@@ -563,8 +550,8 @@ const Billing: React.FC = () => {
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         title="Purchase Credits"
-        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.amount}`}
-        amount={selectedPackage?.amount || 0}
+        description={`You are about to purchase ${selectedPackage?.credits} credits for $${selectedPackage?.price}`}
+        amount={selectedPackage?.price || 0}
         credits={selectedPackage?.credits || 0}
         onConfirm={processPayment}
         processing={processing}
