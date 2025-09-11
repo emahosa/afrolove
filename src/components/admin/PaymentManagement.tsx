@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Dialog, 
   DialogContent, 
@@ -120,14 +121,67 @@ const initialSubscriptionPlans: SubscriptionPlan[] = [
 ];
 
 export const PaymentManagement = () => {
-  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>(initialCreditPacks);
-  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>(initialSubscriptionPlans);
+  const [creditPackages, setCreditPackages] = useState<CreditPackage[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isAddPackageDialogOpen, setIsAddPackageDialogOpen] = useState(false);
   const [isEditPackageDialogOpen, setIsEditPackageDialogOpen] = useState(false);
   const [isAddSubscriptionDialogOpen, setIsAddSubscriptionDialogOpen] = useState(false);
   const [isEditSubscriptionDialogOpen, setIsEditSubscriptionDialogOpen] = useState(false);
   const [currentPackage, setCurrentPackage] = useState<CreditPackage | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<SubscriptionPlan | null>(null);
+
+  // Fetch data from database on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch credit packages
+      const { data: packagesData, error: packagesError } = await supabase
+        .from('credit_packages' as any)
+        .select('*')
+        .order('credits', { ascending: true });
+
+      if (packagesError && packagesError.code !== 'PGRST103') { // Table doesn't exist
+        console.error('Error fetching credit packages:', packagesError);
+      } else if (packagesData) {
+        setCreditPackages(packagesData.map((pkg: any) => ({
+          id: pkg.id,
+          name: pkg.name,
+          credits: pkg.credits,
+          price: pkg.price,
+          status: pkg.active ? 'active' : 'inactive'
+        })));
+      }
+
+      // Fetch subscription plans
+      const { data: plansData, error: plansError } = await supabase
+        .from('plans')
+        .select('*')
+        .order('rank', { ascending: true });
+
+      if (plansError) {
+        console.error('Error fetching subscription plans:', plansError);
+      } else if (plansData) {
+        setSubscriptionPlans(plansData.map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          price: plan.price,
+          popular: plan.rank === 2, // Assume rank 2 is popular
+          creditsPerMonth: plan.credits_per_month,
+          features: plan.features || []
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load payment data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const packageForm = useForm<z.infer<typeof creditPackageSchema>>({
     resolver: zodResolver(creditPackageSchema),
@@ -178,33 +232,96 @@ export const PaymentManagement = () => {
     }
   }
 
-  function handleTogglePackageStatus(packageId: string) {
-    setCreditPackages(creditPackages.map(pkg => {
-      if (pkg.id === packageId) {
-        const newStatus = pkg.status === 'active' ? 'inactive' : 'active';
-        toast.success(`Credit package ${pkg.name} ${newStatus === 'active' ? 'activated' : 'disabled'}`);
-        return { ...pkg, status: newStatus };
-      }
-      return pkg;
-    }));
+  async function handleTogglePackageStatus(packageId: string) {
+    try {
+      const pkg = creditPackages.find(p => p.id === packageId);
+      if (!pkg) return;
+
+      const newActiveStatus = pkg.status !== 'active';
+      
+      const { error } = await supabase
+        .from('credit_packages' as any)
+        .update({ active: newActiveStatus })
+        .eq('id', packageId);
+
+      if (error) throw error;
+
+      setCreditPackages(creditPackages.map(p => 
+        p.id === packageId 
+          ? { ...p, status: newActiveStatus ? 'active' : 'inactive' }
+          : p
+      ));
+      
+      toast.success(`Credit package ${pkg.name} ${newActiveStatus ? 'activated' : 'disabled'}`);
+      
+      // Trigger a storage event to notify other tabs/windows
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'credit_packages_updated',
+        newValue: Date.now().toString()
+      }));
+    } catch (error: any) {
+      console.error('Error toggling package status:', error);
+      toast.error('Failed to update package status');
+    }
   }
 
-  function onSubmitAddPackage(values: z.infer<typeof creditPackageSchema>) {
-    const newPackage: CreditPackage = {
-      id: `pkg-${Date.now()}`,
-      name: values.name,
-      credits: values.credits,
-      price: values.price,
-      status: 'active',
-    };
+  async function onSubmitAddPackage(values: z.infer<typeof creditPackageSchema>) {
+    try {
+      const { data, error } = await supabase
+        .from('credit_packages' as any)
+        .insert({
+          name: values.name,
+          credits: values.credits,
+          price: values.price,
+          active: true,
+          currency: 'USD',
+          popular: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newPackage: CreditPackage = {
+        id: (data as any).id,
+        name: (data as any).name,
+        credits: (data as any).credits,
+        price: (data as any).price,
+        status: 'active',
+      };
+      
+      setCreditPackages([...creditPackages, newPackage]);
+      toast.success(`New credit package "${values.name}" added successfully`);
+      
+      // Trigger a storage event to notify other tabs/windows
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'credit_packages_updated',
+        newValue: Date.now().toString()
+      }));
+      
+      setIsAddPackageDialogOpen(false);
+      packageForm.reset();
+    } catch (error: any) {
+      console.error('Error adding package:', error);
+      toast.error('Failed to add credit package');
+    }
+  }
+
+  async function onSubmitEditPackage(values: z.infer<typeof creditPackageSchema>) {
+    if (!currentPackage) return;
     
-    setCreditPackages([...creditPackages, newPackage]);
-    toast.success(`New credit package "${values.name}" added successfully`);
-    setIsAddPackageDialogOpen(false);
-  }
+    try {
+      const { error } = await supabase
+        .from('credit_packages' as any)
+        .update({
+          name: values.name,
+          credits: values.credits,
+          price: values.price,
+        })
+        .eq('id', currentPackage.id);
 
-  function onSubmitEditPackage(values: z.infer<typeof creditPackageSchema>) {
-    if (currentPackage) {
+      if (error) throw error;
+
       setCreditPackages(creditPackages.map(pkg => 
         pkg.id === currentPackage.id 
           ? { 
@@ -216,7 +333,17 @@ export const PaymentManagement = () => {
           : pkg
       ));
       toast.success(`Credit package "${values.name}" updated successfully`);
+      
+      // Trigger a storage event to notify other tabs/windows
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'credit_packages_updated',
+        newValue: Date.now().toString()
+      }));
+      
       setIsEditPackageDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error updating package:', error);
+      toast.error('Failed to update credit package');
     }
   }
 
@@ -244,28 +371,72 @@ export const PaymentManagement = () => {
     }
   }
 
-  function onSubmitAddSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
-    const newPlan: SubscriptionPlan = {
-      id: `sub-${Date.now()}`,
-      name: values.name,
-      price: values.price,
-      creditsPerMonth: values.creditsPerMonth,
-      popular: values.popular || false,
-      features: [
-        `${values.creditsPerMonth} credits monthly`,
-        'Access to all basic AI models',
-        'Standard quality exports',
-        'Email support'
-      ],
-    };
-    
-    setSubscriptionPlans([...subscriptionPlans, newPlan]);
-    toast.success(`New subscription plan "${values.name}" added successfully`);
-    setIsAddSubscriptionDialogOpen(false);
+  async function onSubmitAddSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
+    try {
+      const { data, error } = await supabase
+        .from('plans')
+        .insert({
+          name: values.name,
+          price: values.price,
+          credits_per_month: values.creditsPerMonth,
+          currency: 'USD',
+          interval: 'month',
+          features: [
+            `${values.creditsPerMonth} credits monthly`,
+            'Access to all basic AI models',
+            'Standard quality exports',
+            'Email support'
+          ],
+          active: true,
+          rank: values.popular ? 2 : 1
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newPlan: SubscriptionPlan = {
+        id: data.id,
+        name: data.name,
+        price: data.price,
+        creditsPerMonth: data.credits_per_month,
+        popular: values.popular || false,
+        features: data.features,
+      };
+      
+      setSubscriptionPlans([...subscriptionPlans, newPlan]);
+      toast.success(`New subscription plan "${values.name}" added successfully`);
+      
+      // Trigger a storage event to notify other tabs/windows
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'subscription_plans_updated',
+        newValue: Date.now().toString()
+      }));
+      
+      setIsAddSubscriptionDialogOpen(false);
+      subscriptionForm.reset();
+    } catch (error: any) {
+      console.error('Error adding subscription plan:', error);
+      toast.error('Failed to add subscription plan');
+    }
   }
 
-  function onSubmitEditSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
-    if (currentSubscription) {
+  async function onSubmitEditSubscription(values: z.infer<typeof subscriptionPlanSchema>) {
+    if (!currentSubscription) return;
+    
+    try {
+      const { error } = await supabase
+        .from('plans')
+        .update({
+          name: values.name,
+          price: values.price,
+          credits_per_month: values.creditsPerMonth,
+          rank: values.popular ? 2 : 1
+        })
+        .eq('id', currentSubscription.id);
+
+      if (error) throw error;
+
       setSubscriptionPlans(subscriptionPlans.map(plan => 
         plan.id === currentSubscription.id 
           ? { 
@@ -278,8 +449,22 @@ export const PaymentManagement = () => {
           : plan
       ));
       toast.success(`Subscription plan "${values.name}" updated successfully`);
+      
+      // Trigger a storage event to notify other tabs/windows
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'subscription_plans_updated',
+        newValue: Date.now().toString()
+      }));
+      
       setIsEditSubscriptionDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error updating subscription plan:', error);
+      toast.error('Failed to update subscription plan');
     }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center p-8">Loading payment data...</div>;
   }
 
   return (

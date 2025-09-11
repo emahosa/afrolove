@@ -129,6 +129,28 @@ const Billing: React.FC = () => {
     fetchUserProfile();
     fetchPlans();
     fetchCreditPackages();
+    
+    // Listen for admin changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'credit_packages_updated') {
+        fetchCreditPackages();
+      } else if (e.key === 'subscription_plans_updated') {
+        fetchPlans();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Set up an interval to refresh data periodically to catch admin changes
+    const interval = setInterval(() => {
+      fetchCreditPackages();
+      fetchPlans();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [user]);
 
   // Credit packages are now fetched from database and loaded in useEffect
