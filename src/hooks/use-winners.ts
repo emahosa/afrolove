@@ -7,6 +7,7 @@ export interface Winner {
   id: string;
   contest_id: string;
   user_id: string;
+  contest_entry_id: string;
   rank: number;
   created_at: string;
   contest: Contest;
@@ -29,8 +30,7 @@ export const useWinners = () => {
         .from('contest_winners')
         .select(`
           *,
-          contests:contest_id(*),
-          profiles:user_id(*)
+          contests:contest_id(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -42,28 +42,41 @@ export const useWinners = () => {
 
       if (winnerError) throw winnerError;
 
-      const winnersWithEntries = await Promise.all(
+      const winnersWithDetails = await Promise.all(
         winnerData.map(async (winner) => {
           const { data: entryData, error: entryError } = await supabase
             .from('contest_entries')
             .select('*')
-            .eq('user_id', winner.user_id)
-            .eq('contest_id', winner.contest_id)
+            .eq('id', winner.contest_entry_id)
             .single();
 
-          // It's possible a winner has no entry, so we don't throw an error
-          if (entryError && entryError.code !== 'PGRST116') { // 'PGRST116' is for 'exact one row not found'
+          if (entryError && entryError.code !== 'PGRST116') {
             console.error(`Error fetching entry for winner ${winner.id}:`, entryError);
           }
 
-          return { ...winner, contest: winner.contests, profile: winner.profiles, entry: entryData };
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', winner.user_id)
+            .single();
+
+          if (profileError) {
+            console.error(`Error fetching profile for winner ${winner.id}:`, profileError);
+          }
+
+          return {
+            ...winner,
+            contest: winner.contests,
+            profile: profileData,
+            entry: entryData
+          };
         })
       );
 
       if (recentOnly) {
-        setRecentWinners(winnersWithEntries as unknown as Winner[]);
+        setRecentWinners(winnersWithDetails as unknown as Winner[]);
       } else {
-        setWinners(winnersWithEntries as unknown as Winner[]);
+        setWinners(winnersWithDetails as unknown as Winner[]);
       }
 
     } catch (error) {

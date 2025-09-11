@@ -619,24 +619,37 @@ export const useContest = () => {
 
       if (winnerError) throw winnerError;
 
-      const winnersWithEntries = await Promise.all(
+      const winnersWithDetails = await Promise.all(
         winnerData.map(async (winner) => {
           const { data: entryData, error: entryError } = await supabase
             .from('contest_entries')
             .select('*')
-            .eq('user_id', winner.user_id)
-            .eq('contest_id', winner.contest_id)
+            .eq('id', winner.contest_entry_id)
             .single();
 
           if (entryError && entryError.code !== 'PGRST116') {
             console.error(`Error fetching entry for winner ${winner.id}:`, entryError);
           }
 
-          return { ...winner, profile: winner.profiles, entry: entryData };
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', winner.user_id)
+            .single();
+
+          if (profileError) {
+            console.error(`Error fetching profile for winner ${winner.id}:`, profileError);
+          }
+
+          return {
+            ...winner,
+            profile: profileData,
+            entry: entryData
+          };
         })
       );
 
-      return winnersWithEntries as unknown as ContestWinner[];
+      return winnersWithDetails as unknown as ContestWinner[];
     } catch (error) {
       console.error(`Error fetching winners for contest ${contestId}:`, error);
       return [];
