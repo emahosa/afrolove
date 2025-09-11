@@ -41,62 +41,9 @@ const Create = () => {
     }
   }, [location.state]);
 
-  if (isMobile) {
-    return (
-      <div className="h-full bg-black text-white overflow-y-auto no-scrollbar p-4 space-y-8">
-        {/* Panel 1: Create Song Form */}
-        <div>
-          <MusicGenerationWorkflow
-            preSelectedGenre={selectedGenre}
-            initialPrompt={initialPrompt}
-          />
-        </div>
-
-        {/* Panel 2: Song Library */}
-        <div>
-          <div className="pb-4">
-            <h2 className="text-xl font-semibold text-white mb-4">My Workspace</h2>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder-zinc-500"
-              />
-            </div>
-          </div>
-          <SongLibrary onSongSelect={setSelectedSong} searchTerm={searchTerm} />
-        </div>
-
-        {/* Panel 3: Lyrics Display */}
-        <div>
-          {selectedSong ? (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Lyrics - {selectedSong.title}</h3>
-                <button
-                  onClick={() => setSelectedSong(null)}
-                  className="text-zinc-500 hover:text-white"
-                >
-                  &times;
-                </button>
-              </div>
-              <LyricsDisplay lyrics={selectedSong?.lyrics || null} />
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-zinc-500">Select a song to view lyrics.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <ResizablePanelGroup
-      direction="horizontal"
+      direction={isMobile ? "vertical" : "horizontal"}
       className="flex-1 bg-black text-white"
     >
       {/* Left Panel: Create Song Form */}
