@@ -271,7 +271,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             *,
             contest_entries (
               *,
-              profiles (
+              profiles:user_id (
                 full_name,
                 username
               )
