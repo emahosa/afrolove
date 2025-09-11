@@ -105,7 +105,7 @@ export default function Index() {
               <div className="mt-10 flex justify-center">
                 <button
                   onClick={() => setShowConfirmModal(true)}
-                  className="px-8 py-4 bg-dark-purple rounded-lg font-bold text-white hover:bg-opacity-90 transition-all duration-300"
+                  className="bg-transparent border-2 border-white text-white font-bold text-base px-6 py-5 rounded-xl shadow-lg transition-all duration-300"
                 >
                   Claim Early Access
                 </button>

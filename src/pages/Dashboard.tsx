@@ -14,7 +14,7 @@ const Dashboard = () => {
       <div className="p-4 md:p-8">
         <div className="flex justify-between items-center flex-shrink-0">
           <div>
-            <h1 className="text-3xl font-semibold text-white">Browse Templates</h1>
+            <h1 className="text-2xl font-semibold text-white">Browse Templates</h1>
           </div>
         </div>
 
