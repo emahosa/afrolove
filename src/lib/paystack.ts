@@ -24,6 +24,7 @@ export const startPaystackPayment = ({
     email,
     amount: amount * 100, // Paystack wants Kobo
     ref: reference,
+    currency: 'NGN',
     metadata,
     onSuccess: (transaction: { reference: string }) => {
       onSuccess(transaction.reference);
