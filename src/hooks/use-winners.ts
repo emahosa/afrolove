@@ -7,6 +7,7 @@ export interface Winner {
   id: string;
   contest_id: string;
   user_id: string;
+  contest_entry_id: string;
   rank: number;
   created_at: string;
   contest: Contest;
@@ -47,8 +48,7 @@ export const useWinners = () => {
           const { data: entryData, error: entryError } = await supabase
             .from('contest_entries')
             .select('*')
-            .eq('user_id', winner.user_id)
-            .eq('contest_id', winner.contest_id)
+            .eq('id', winner.contest_entry_id)
             .single();
 
           // It's possible a winner has no entry, so we don't throw an error

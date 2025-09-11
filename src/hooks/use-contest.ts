@@ -624,8 +624,7 @@ export const useContest = () => {
           const { data: entryData, error: entryError } = await supabase
             .from('contest_entries')
             .select('*')
-            .eq('user_id', winner.user_id)
-            .eq('contest_id', winner.contest_id)
+            .eq('id', winner.contest_entry_id)
             .single();
 
           if (entryError && entryError.code !== 'PGRST116') {
