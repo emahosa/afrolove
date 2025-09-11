@@ -31,6 +31,9 @@ export interface SystemSettings {
     joinedDate: string;
     email: string;
   };
+  currency: {
+    usd_to_ngn: number;
+  };
 }
 
 export const defaultSettings: SystemSettings = {
@@ -62,6 +65,9 @@ export const defaultSettings: SystemSettings = {
     adminType: "super_admin",
     joinedDate: "January 15, 2025",
     email: "admin@melodyverse.com"
+  },
+  currency: {
+    usd_to_ngn: 1600,
   }
 };
 
@@ -70,7 +76,7 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
     const { data, error } = await supabase
       .from('system_settings')
       .select('key, value')
-      .in('key', ['general', 'api', 'security', 'notifications', 'adminProfile']);
+      .in('key', ['general', 'api', 'security', 'notifications', 'adminProfile', 'currency']);
 
     if (error) {
       console.warn('Failed to load settings from database:', error);
@@ -114,7 +120,8 @@ export const saveSystemSettings = async (settings: SystemSettings): Promise<void
       { key: 'api', value: settings.api, category: 'api', description: 'API configuration settings' },
       { key: 'security', value: settings.security, category: 'security', description: 'Security and authentication settings' },
       { key: 'notifications', value: settings.notifications, category: 'notifications', description: 'Notification preferences' },
-      { key: 'adminProfile', value: settings.adminProfile, category: 'admin', description: 'Admin profile settings' }
+      { key: 'adminProfile', value: settings.adminProfile, category: 'admin', description: 'Admin profile settings' },
+      { key: 'currency', value: settings.currency, category: 'currency', description: 'Currency settings' }
     ];
 
     for (const setting of settingsToSave) {
@@ -133,6 +140,13 @@ export const saveSystemSettings = async (settings: SystemSettings): Promise<void
         throw new Error(`Failed to save ${setting.key} settings`);
       }
     }
+
+    // After saving settings, trigger the price update function
+    const { error: functionError } = await supabase.functions.invoke('update-prices-from-exchange-rate');
+    if (functionError) {
+      throw new Error(`Failed to update prices: ${functionError.message}`);
+    }
+
   } catch (error) {
     console.error('Error saving system settings:', error);
     throw error;
