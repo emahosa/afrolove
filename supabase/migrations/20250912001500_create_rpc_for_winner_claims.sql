@@ -1,4 +1,4 @@
--- Create a function to get all winner claim details for a specific user, including the contest name.
+-- Corrected function to use 'title' column instead of 'name'
 CREATE OR REPLACE FUNCTION get_winner_claims_for_user(p_user_id UUID)
 RETURNS TABLE (
   id UUID,
@@ -32,7 +32,7 @@ BEGIN
     wcd.admin_notes,
     wcd.submitted_at,
     wcd.created_at,
-    c.name AS contest_name
+    c.title AS contest_name -- This was the line with the error, now corrected
   FROM
     public.winner_claim_details AS wcd
   LEFT JOIN
@@ -44,5 +44,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Grant execute permission to the authenticated role
+-- Re-grant execute permission to the authenticated role (good practice)
 GRANT EXECUTE ON FUNCTION get_winner_claims_for_user(UUID) TO authenticated;
