@@ -265,30 +265,46 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
     const fetchWinners = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // Step 1: Fetch contest winners and their corresponding entries
+        const { data: winnerData, error: winnersError } = await supabase
           .from('contest_winners')
-          .select(`
-            *,
-            contest_entries (
-              *,
-              profiles:user_id (
-                full_name,
-                username
-              )
-            )
-          `)
+          .select('*, contest_entries(*)')
           .eq('contest_id', contest.id)
           .order('rank', { ascending: true });
 
-        if (error) {
-            throw error;
+        if (winnersError) {
+          throw winnersError;
         }
 
-        if (data) {
-          const validWinners = data
+        if (winnerData) {
+          // Step 2: Extract entry details from the response
+          const entries = winnerData
             .map(winner => winner.contest_entries)
-            .filter(entry => entry !== null) as ContestEntry[];
-          setWinners(validWinners);
+            .filter(entry => entry !== null) as unknown as ContestEntry[];
+
+          // Step 3: Fetch profile information for all winners efficiently
+          const userIds = entries.map(entry => entry.user_id).filter(id => !!id);
+
+          const profilesMap = new Map();
+          if (userIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, username')
+              .in('id', userIds);
+
+            if (profilesError) {
+              console.error('Error fetching profiles in bulk:', profilesError);
+            } else {
+              profilesData.forEach(p => profilesMap.set(p.id, { full_name: p.full_name, username: p.username }));
+            }
+          }
+
+          const winnersWithProfiles = entries.map(entry => ({
+            ...entry,
+            profiles: entry.user_id ? profilesMap.get(entry.user_id) || null : null,
+          }));
+
+          setWinners(winnersWithProfiles);
         } else {
           setWinners([]);
         }
