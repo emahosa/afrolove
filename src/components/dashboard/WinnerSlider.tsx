@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Contest, ContestEntry } from '@/hooks/use-contest';
+import { WinnerCard } from '@/components/contest/WinnerCard';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const WinnerSlider = () => {
   const [winners, setWinners] = useState<ContestEntry[]>([]);
@@ -77,25 +80,35 @@ const WinnerSlider = () => {
     fetchLatestWinners();
   }, []);
 
-  if (loading || !contest || winners.length === 0) {
-    return null;
+  if (loading || !contest) {
+    return null; // Don't show anything while loading
   }
 
-  const winnerText = winners
-    .map(winner => {
-      const artistName = winner.profiles?.full_name || 'Unknown Artist';
-      const songTitle = winner.title || 'Untitled';
-      return `🏆 ${artistName} - "${songTitle}"`;
-    })
-    .join(' \u00A0 | \u00A0 ');
+  if (winners.length === 0) {
+    return null; // Don't render anything if there are no winners to show
+  }
 
   return (
-    <div className="bg-black bg-opacity-50 text-white py-4 overflow-hidden w-full">
-      <div className="whitespace-nowrap animate-scroll-text">
-        <span className="font-bold px-4">Recent Winners:</span>
-        {winnerText}
-      </div>
-    </div>
+    <Card className="my-8">
+      <CardHeader>
+        <CardTitle>Recent Winners</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Carousel>
+          <CarouselContent>
+            {winners.map(winner => (
+              <CarouselItem key={winner.id} className="md:basis-1/2 lg:basis-1/3">
+                <div className="p-1">
+                  <WinnerCard winner={winner} contest={contest} />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          <CarouselPrevious />
+          <CarouselNext />
+        </Carousel>
+      </CardContent>
+    </Card>
   );
 };
 
