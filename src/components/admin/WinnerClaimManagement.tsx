@@ -244,7 +244,7 @@ export const WinnerClaimManagement = () => {
                 >
                   Cancel
                 </Button>
-                <DropdownMenu modal={false}>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" disabled={updating}>
                       {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Status"}
