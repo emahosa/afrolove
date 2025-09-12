@@ -22,6 +22,7 @@ import Billing from "./pages/Billing";
 import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import AffiliatePage from "./pages/Affiliate";
+import WinnerStatus from "./pages/WinnerStatus";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -66,6 +67,7 @@ const App = () => {
                     <Route path="/billing" element={<Billing />} />
                     <Route path="/support" element={<Support />} />
                     <Route path="/affiliate" element={<AffiliatePage />} />
+                    <Route path="/winner-status" element={<WinnerStatus />} />
                   </Route>
                 </Route>
 

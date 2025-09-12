@@ -28,6 +28,7 @@ interface AuthContextType {
   isAdmin: () => boolean;
   isSuperAdmin: () => boolean;
   isSubscriber: () => boolean;
+  isWinner: boolean;
   isVoter: () => boolean;
   hasRole: (role: string) => boolean;
   hasAdminPermission: (permission: string) => boolean;
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -168,6 +170,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const checkIsWinner = async (userId: string) => {
+    if (!userId) return false;
+    try {
+      const { data, error, count } = await supabase
+        .from('contest_winners')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error checking winner status:', error);
+        return false;
+      }
+      return (count || 0) > 0;
+    } catch (error) {
+      console.error('Exception checking winner status:', error);
+      return false;
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
     console.log("AuthContext: Initializing auth state");
@@ -192,11 +213,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const userData = await fetchUserData(currentSession.user.id);
               if (userData && mounted) {
                 const roles = await fetchUserRoles(currentSession.user.id);
+                const winnerStatus = await checkIsWinner(currentSession.user.id);
                 setUser(userData);
                 setUserRoles(roles);
+                setIsWinner(winnerStatus);
                 console.log("AuthContext: User data and roles set", { 
                   userData: { id: userData.id, email: userData.email }, 
-                  roles 
+                  roles,
+                  isWinner: winnerStatus,
                 });
               } else {
                 console.error(`User profile not found for ID: ${currentSession.user.id}`);
@@ -246,8 +270,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userData = await fetchUserData(currentSession.user.id);
             if (userData && mounted) {
               const roles = await fetchUserRoles(currentSession.user.id);
+              const winnerStatus = await checkIsWinner(currentSession.user.id);
               setUser(userData);
               setUserRoles(roles);
+              setIsWinner(winnerStatus);
             }
           } catch (error) {
             console.error('Error fetching initial user data:', error);
@@ -450,6 +476,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isAdmin,
     isSuperAdmin,
     isSubscriber,
+    isWinner,
     isVoter,
     hasRole,
     hasAdminPermission,
