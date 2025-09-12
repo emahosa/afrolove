@@ -84,19 +84,24 @@ export const WinnerClaimManagement = () => {
   const handleUpdateStatus = async (claimId: string, newStatus: 'Processing' | 'Fulfilled') => {
     try {
       setUpdating(true);
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('winner_claim_details')
         .update({ status: newStatus, admin_notes: adminNotes })
-        .eq('id', claimId);
+        .eq('id', claimId)
+        .select();
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error("Update failed. You may not have the required permissions.");
+      }
 
       toast.success(`Claim status updated to ${newStatus}`);
       fetchClaims();
       setViewDialogOpen(false);
     } catch (error: any) {
       console.error('Error updating claim status:', error);
-      toast.error('Failed to update claim status');
+      toast.error(error.message || 'Failed to update claim status');
     } finally {
       setUpdating(false);
     }
