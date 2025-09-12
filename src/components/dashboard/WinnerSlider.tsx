@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Contest, ContestEntry } from '@/hooks/use-contest';
-import { WinnerCard } from '@/components/contest/WinnerCard';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const WinnerSlider = () => {
   const [winners, setWinners] = useState<ContestEntry[]>([]);
@@ -88,27 +85,54 @@ const WinnerSlider = () => {
     return null; // Don't render anything if there are no winners to show
   }
 
+  const tickerWrapStyle = {
+    width: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+    padding: '10px 0',
+    borderTop: '1px solid #ddd',
+    borderBottom: '1px solid #ddd',
+    marginBottom: '2rem',
+  };
+
+  const tickerStyle = {
+    display: 'inline-block',
+    whiteSpace: 'nowrap',
+    paddingRight: '100%',
+    animation: 'ticker 40s linear infinite',
+  };
+
+  const tickerItemStyle = {
+    display: 'inline-block',
+    padding: '0 2rem',
+    color: '#333',
+    fontSize: '1rem',
+  };
+
+  const strongStyle = {
+    color: '#000',
+  };
+
   return (
-    <Card className="my-8">
-      <CardHeader>
-        <CardTitle>Recent Winners</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Carousel>
-          <CarouselContent>
-            {winners.map(winner => (
-              <CarouselItem key={winner.id} className="md:basis-1/2 lg:basis-1/3">
-                <div className="p-1">
-                  <WinnerCard winner={winner} contest={contest} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      </CardContent>
-    </Card>
+    <>
+      <style>
+        {`
+          @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+          }
+        `}
+      </style>
+      <div className="ticker-wrap" style={tickerWrapStyle}>
+        <div style={tickerStyle}>
+          {winners.map(winner => (
+            <div key={winner.id} style={tickerItemStyle}>
+              <strong style={strongStyle}>{winner.profiles?.full_name || "Unknown Artist"}</strong> won {contest.title} (Prize: {contest.prize})
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 };
 
