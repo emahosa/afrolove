@@ -11,8 +11,8 @@ const Dashboard = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <HeroSection />
       <WinnerSlider />
+      <HeroSection />
       <div className="p-4 md:p-8">
         <div className="flex justify-between items-center flex-shrink-0">
           <div>
