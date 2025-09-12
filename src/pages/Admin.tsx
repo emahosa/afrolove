@@ -18,6 +18,7 @@ import { PaymentManagement } from "@/components/admin/PaymentManagement";
 import { SupportManagement } from "@/components/admin/SupportManagement";
 import { ReportsAnalytics } from "@/components/admin/ReportsAnalytics";
 import { SettingsManagement } from "@/components/admin/SettingsManagement";
+import { WinnerClaimManagement } from "@/components/admin/WinnerClaimManagement";
 import AffiliateManagementTab from "@/components/admin/affiliate/AffiliateManagementTab";
 import { getSetting } from "@/utils/settingsOperations";
 import { HeroVideoUploadForm } from "@/components/admin/HeroVideoUploadForm";
@@ -144,6 +145,7 @@ const Admin = ({ tab }: AdminProps) => {
               <TabsTrigger value="genres">Genres</TabsTrigger>
               <TabsTrigger value="suno-api">API</TabsTrigger>
               <TabsTrigger value="contest">Contest</TabsTrigger>
+              <TabsTrigger value="winner-fulfillment">Winner Fulfillment</TabsTrigger>
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="support">Support</TabsTrigger>
@@ -331,6 +333,10 @@ const Admin = ({ tab }: AdminProps) => {
                 <ContestManagement />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="winner-fulfillment" className="space-y-4">
+            <WinnerClaimManagement />
           </TabsContent>
 
           <TabsContent value="content" className="space-y-4">

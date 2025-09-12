@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -22,6 +22,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WinnerClaimDetail {
   id: string;
@@ -33,8 +39,7 @@ interface WinnerClaimDetail {
   phone_number: string;
   social_media_link: string | null;
   bank_account_details: string;
-  prize_claimed: boolean;
-  admin_reviewed: boolean;
+  status: 'Pending' | 'Processing' | 'Fulfilled';
   admin_notes: string | null;
   submitted_at: string;
   created_at: string;
@@ -76,28 +81,36 @@ export const WinnerClaimManagement = () => {
     setViewDialogOpen(true);
   };
 
-  const handleUpdateClaim = async (claimId: string, reviewed: boolean, prizeClaimed: boolean) => {
+  const handleUpdateStatus = async (claimId: string, newStatus: 'Processing' | 'Fulfilled') => {
     try {
       setUpdating(true);
       const { error } = await supabase
         .from('winner_claim_details')
-        .update({
-          admin_reviewed: reviewed,
-          prize_claimed: prizeClaimed,
-          admin_notes: adminNotes
-        })
+        .update({ status: newStatus, admin_notes: adminNotes })
         .eq('id', claimId);
 
       if (error) throw error;
 
-      toast.success('Claim updated successfully');
+      toast.success(`Claim status updated to ${newStatus}`);
       fetchClaims();
       setViewDialogOpen(false);
     } catch (error: any) {
-      console.error('Error updating claim:', error);
-      toast.error('Failed to update claim');
+      console.error('Error updating claim status:', error);
+      toast.error('Failed to update claim status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const getStatusVariant = (status: 'Pending' | 'Processing' | 'Fulfilled') => {
+    switch (status) {
+      case 'Fulfilled':
+        return 'default';
+      case 'Processing':
+        return 'secondary';
+      case 'Pending':
+      default:
+        return 'destructive';
     }
   };
 
@@ -145,16 +158,9 @@ export const WinnerClaimManagement = () => {
                       {new Date(claim.submitted_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={claim.admin_reviewed ? "default" : "secondary"}>
-                          {claim.admin_reviewed ? "Reviewed" : "Pending Review"}
-                        </Badge>
-                        {claim.admin_reviewed && (
-                          <Badge variant={claim.prize_claimed ? "default" : "destructive"}>
-                            {claim.prize_claimed ? "Prize Claimed" : "Prize Pending"}
-                          </Badge>
-                        )}
-                      </div>
+                      <Badge variant={getStatusVariant(claim.status)} className="capitalize">
+                        {claim.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Button
@@ -185,6 +191,7 @@ export const WinnerClaimManagement = () => {
             </DialogHeader>
             
             <div className="space-y-4">
+              {/* Details sections remain the same */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="font-medium">Full Name</Label>
@@ -237,25 +244,27 @@ export const WinnerClaimManagement = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleUpdateClaim(selectedClaim.id, true, false)}
-                  disabled={updating}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Mark Reviewed
-                </Button>
-                <Button
-                  onClick={() => handleUpdateClaim(selectedClaim.id, true, true)}
-                  disabled={updating}
-                >
-                  {updating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                  )}
-                  Mark Prize Claimed
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={updating}>
+                      {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Status"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Processing')}
+                      disabled={selectedClaim.status === 'Processing'}
+                    >
+                      Mark as Processing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Fulfilled')}
+                      disabled={selectedClaim.status === 'Fulfilled'}
+                    >
+                      Mark as Fulfilled
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </DialogContent>
