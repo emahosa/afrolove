@@ -332,7 +332,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
       return (
         <div className="space-y-4">
           {winners.map((winner) => (
-            <WinnerCard key={winner.id} winner={winner} />
+            <WinnerCard key={winner.id} winner={winner} contest={contest} />
           ))}
         </div>
       );

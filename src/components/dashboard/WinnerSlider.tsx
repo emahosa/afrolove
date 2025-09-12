@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ContestEntry } from '@/hooks/use-contest';
+import { Contest, ContestEntry } from '@/hooks/use-contest';
 import { WinnerCard } from '@/components/contest/WinnerCard';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const WinnerSlider = () => {
   const [winners, setWinners] = useState<ContestEntry[]>([]);
+  const [contest, setContest] = useState<Contest | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,7 +17,7 @@ const WinnerSlider = () => {
         // 1. Find the most recent past contest
         const { data: pastContests, error: contestsError } = await supabase
           .from('contests')
-          .select('id')
+          .select('*')
           .lt('end_date', new Date().toISOString())
           .order('end_date', { ascending: false })
           .limit(1);
@@ -28,13 +29,14 @@ const WinnerSlider = () => {
           return;
         }
 
-        const latestContestId = pastContests[0].id;
+        const latestContest = pastContests[0];
+        setContest(latestContest);
 
         // 2. Fetch the winners for that contest
         const { data: winnerData, error: winnersError } = await supabase
           .from('contest_winners')
           .select('*, contest_entries(*)')
-          .eq('contest_id', latestContestId)
+          .eq('contest_id', latestContest.id)
           .order('rank', { ascending: true });
 
         if (winnersError) throw winnersError;
@@ -42,19 +44,30 @@ const WinnerSlider = () => {
         if (winnerData) {
           const entries = winnerData
             .map(winner => winner.contest_entries)
-            .filter(entry => entry !== null) as ContestEntry[];
+            .filter(entry => entry !== null) as unknown as ContestEntry[];
 
-          // 3. Fetch profiles for each winner
-          const winnersWithProfiles = await Promise.all(
-            entries.map(async (entry) => {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('full_name, username')
-                .eq('id', entry.user_id)
-                .single();
-              return { ...entry, profiles: profileData };
-            })
-          );
+          // 3. Fetch profiles for all winners efficiently
+          const userIds = entries.map(entry => entry.user_id).filter(id => !!id);
+
+          const profilesMap = new Map();
+          if (userIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, username')
+              .in('id', userIds);
+
+            if (profilesError) {
+              console.error('Error fetching profiles in bulk:', profilesError);
+            } else {
+              profilesData.forEach(p => profilesMap.set(p.id, { full_name: p.full_name, username: p.username }));
+            }
+          }
+
+          const winnersWithProfiles = entries.map(entry => ({
+            ...entry,
+            profiles: entry.user_id ? profilesMap.get(entry.user_id) || null : null,
+          }));
+
           setWinners(winnersWithProfiles);
         }
       } catch (error) {
@@ -67,7 +80,7 @@ const WinnerSlider = () => {
     fetchLatestWinners();
   }, []);
 
-  if (loading) {
+  if (loading || !contest) {
     return null; // Don't show anything while loading
   }
 
@@ -86,7 +99,7 @@ const WinnerSlider = () => {
             {winners.map(winner => (
               <CarouselItem key={winner.id} className="md:basis-1/2 lg:basis-1/3">
                 <div className="p-1">
-                  <WinnerCard winner={winner} />
+                  <WinnerCard winner={winner} contest={contest} />
                 </div>
               </CarouselItem>
             ))}

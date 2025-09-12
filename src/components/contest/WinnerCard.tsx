@@ -1,13 +1,14 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trophy, Crown } from "lucide-react";
-import { ContestEntry } from "@/hooks/use-contest";
+import { Trophy, Crown, Gift, Music } from "lucide-react";
+import { Contest, ContestEntry } from "@/hooks/use-contest";
 
 interface WinnerCardProps {
   winner: ContestEntry;
+  contest: Contest;
 }
 
-export const WinnerCard = ({ winner }: WinnerCardProps) => {
-  if (!winner) return null;
+export const WinnerCard = ({ winner, contest }: WinnerCardProps) => {
+  if (!winner || !contest) return null;
 
   return (
     <Card className="bg-gradient-to-br from-yellow-400/20 via-purple-500/20 to-purple-500/20 border-2 border-yellow-500/50 shadow-lg relative overflow-hidden">
@@ -22,7 +23,7 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
           <div className="relative">
             <img
               src={`https://ui-avatars.com/api/?name=${winner.profiles?.full_name}&background=random`}
-              alt={winner.profiles?.full_name}
+              alt={winner.profiles?.full_name || 'Winner'}
               className="h-16 w-16 rounded-full border-2 border-yellow-400"
             />
             <Crown className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 transform rotate-12" />
@@ -36,8 +37,15 @@ export const WinnerCard = ({ winner }: WinnerCardProps) => {
             </p>
           </div>
         </div>
-        <div className="mt-4">
-          <p className="text-gray-200 line-clamp-2">{winner.description}</p>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center text-sm">
+            <Music className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="text-gray-300">Won: <span className="font-semibold text-white">{contest.title}</span></span>
+          </div>
+          <div className="flex items-center text-sm">
+            <Gift className="h-4 w-4 mr-2 text-gray-400" />
+            <span className="text-gray-300">Prize: <span className="font-semibold text-white">{contest.prize}</span></span>
+          </div>
         </div>
       </CardContent>
       <CardFooter>
