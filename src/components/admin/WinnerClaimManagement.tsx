@@ -56,7 +56,7 @@ export const WinnerClaimManagement = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('winner_claim_details')
+        .from('winner_claims')
         .select('*')
         .order('submitted_at', { ascending: false });
 
@@ -85,9 +85,8 @@ export const WinnerClaimManagement = () => {
     try {
       const { data, error } = await supabase.functions.invoke('update-winner-claim-status', {
         body: JSON.stringify({
-          claim_id: claimId,
+          winnerId: claimId,
           status: newStatus,
-          admin_notes: adminNotes,
         }),
       });
 
