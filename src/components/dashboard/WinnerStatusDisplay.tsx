@@ -16,9 +16,7 @@ interface WinnerClaim {
   bank_account_details: string;
   submitted_at: string;
   status: 'Pending' | 'Processing' | 'Fulfilled';
-  contest: {
-    name: string;
-  } | null;
+  contest_name: string;
 }
 
 const WinnerStatusDisplay = () => {
@@ -36,22 +34,17 @@ const WinnerStatusDisplay = () => {
 
       try {
         setLoading(true);
-        const { data, error: claimsError } = await supabase
-          .from('winner_claim_details')
-          .select(`
-            *,
-            contest:contests(name)
-          `)
-          .eq('user_id', user.id)
-          .order('submitted_at', { ascending: false });
+        const { data, error: rpcError } = await supabase.rpc('get_winner_claims_for_user', {
+          p_user_id: user.id,
+        });
 
-        if (claimsError) {
-          throw claimsError;
+        if (rpcError) {
+          throw rpcError;
         }
 
         setClaims(data || []);
       } catch (err: any) {
-        console.error('Error fetching winner claims:', err);
+        console.error('Error fetching winner claims via RPC:', err);
         setError('Failed to fetch your winner information. Please try again later.');
       } finally {
         setLoading(false);
@@ -109,7 +102,7 @@ const WinnerStatusDisplay = () => {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-xl font-bold text-primary">
-                  {claim.contest?.name || 'Contest Prize'}
+                  {claim.contest_name || 'Contest Prize'}
                 </CardTitle>
                 <CardDescription>
                   Claim submitted on {new Date(claim.submitted_at).toLocaleDateString()}
