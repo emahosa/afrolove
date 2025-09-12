@@ -32,9 +32,6 @@ export const WinnerCard = ({ winner, contest }: WinnerCardProps) => {
             <p className="text-xl font-bold text-white">
               {winner.profiles?.full_name || "Unknown Artist"}
             </p>
-            <p className="text-sm text-gray-300">
-              @{winner.profiles?.username || "username"}
-            </p>
           </div>
         </div>
         <div className="mt-4 space-y-2">
