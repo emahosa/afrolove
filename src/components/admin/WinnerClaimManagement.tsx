@@ -22,6 +22,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 interface WinnerClaimDetail {
   id: string;
   contest_id: string;
@@ -45,8 +52,6 @@ export const WinnerClaimManagement = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [updating, setUpdating] = useState(false);
-  const [updateTarget, setUpdateTarget] = useState<'Processing' | 'Fulfilled' | null>(null);
-
 
   useEffect(() => {
     fetchClaims();
@@ -56,7 +61,7 @@ export const WinnerClaimManagement = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('winner_claims')
+        .from('winner_claim_details')
         .select('*')
         .order('submitted_at', { ascending: false });
 
@@ -77,38 +82,23 @@ export const WinnerClaimManagement = () => {
   };
 
   const handleUpdateStatus = async (claimId: string, newStatus: 'Processing' | 'Fulfilled') => {
-    if (!selectedClaim) return;
-
-    setUpdating(true);
-    setUpdateTarget(newStatus);
-
     try {
-      const { data, error } = await supabase.functions.invoke('update-winner-claim-status', {
-        body: JSON.stringify({
-          winnerId: claimId,
-          status: newStatus,
-        }),
-      });
+      setUpdating(true);
+      const { error } = await supabase
+        .from('winner_claim_details')
+        .update({ status: newStatus, admin_notes: adminNotes })
+        .eq('id', claimId);
 
-      if (error) {
-        throw new Error(`Function invocation failed: ${error.message}`);
-      }
-
-      const responseBody = JSON.parse(data);
-
-      if (responseBody.error) {
-        throw new Error(responseBody.error);
-      }
+      if (error) throw error;
 
       toast.success(`Claim status updated to ${newStatus}`);
       fetchClaims();
       setViewDialogOpen(false);
     } catch (error: any) {
       console.error('Error updating claim status:', error);
-      toast.error(error.message || 'Failed to update claim status');
+      toast.error('Failed to update claim status');
     } finally {
       setUpdating(false);
-      setUpdateTarget(null);
     }
   };
 
@@ -251,31 +241,30 @@ export const WinnerClaimManagement = () => {
                 <Button
                   variant="outline"
                   onClick={() => setViewDialogOpen(false)}
-                  disabled={updating}
                 >
                   Cancel
                 </Button>
-                <Button
-                  onClick={() => handleUpdateStatus(selectedClaim.id, 'Processing')}
-                  disabled={updating || selectedClaim.status === 'Processing'}
-                  variant="secondary"
-                >
-                  {updating && updateTarget === 'Processing' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Mark as Processing"
-                  )}
-                </Button>
-                <Button
-                  onClick={() => handleUpdateStatus(selectedClaim.id, 'Fulfilled')}
-                  disabled={updating || selectedClaim.status === 'Fulfilled'}
-                >
-                  {updating && updateTarget === 'Fulfilled' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Mark as Fulfilled"
-                  )}
-                </Button>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" disabled={updating}>
+                      {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Status"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Processing')}
+                      disabled={selectedClaim.status === 'Processing'}
+                    >
+                      Mark as Processing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Fulfilled')}
+                      disabled={selectedClaim.status === 'Fulfilled'}
+                    >
+                      Mark as Fulfilled
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </DialogContent>
