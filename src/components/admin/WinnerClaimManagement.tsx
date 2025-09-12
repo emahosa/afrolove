@@ -22,12 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface WinnerClaimDetail {
   id: string;
@@ -244,27 +238,21 @@ export const WinnerClaimManagement = () => {
                 >
                   Cancel
                 </Button>
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" disabled={updating}>
-                      {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update Status"}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Processing')}
-                      disabled={selectedClaim.status === 'Processing'}
-                    >
-                      Mark as Processing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleUpdateStatus(selectedClaim.id, 'Fulfilled')}
-                      disabled={selectedClaim.status === 'Fulfilled'}
-                    >
-                      Mark as Fulfilled
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  onClick={() => handleUpdateStatus(selectedClaim.id, 'Processing')}
+                  disabled={updating || selectedClaim.status === 'Processing'}
+                  variant="outline"
+                >
+                  {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Mark as Processing
+                </Button>
+                <Button
+                  onClick={() => handleUpdateStatus(selectedClaim.id, 'Fulfilled')}
+                  disabled={updating || selectedClaim.status === 'Fulfilled'}
+                >
+                  {updating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Mark as Fulfilled
+                </Button>
               </div>
             </div>
           </DialogContent>
