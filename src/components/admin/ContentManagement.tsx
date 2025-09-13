@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -20,153 +21,115 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Pencil, Trash, Eye, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { PostgrestError } from "@supabase/supabase-js";
+import { CheckCircle, XCircle, Pencil, Trash, Eye } from "lucide-react";
 
-interface ContentItem {
-  id: string;
-  title: string;
-  type: string;
-  status: "published" | "draft";
-  author_id: string;
-  created_at: string;
-  content?: string;
-  author_email?: string;
-}
+const mockContentItems = [
+  { 
+    id: 1, 
+    title: "Welcome to MelodyVerse", 
+    type: "article", 
+    status: "published", 
+    author: "Admin", 
+    created: "2025-03-15" 
+  },
+  { 
+    id: 2, 
+    title: "How to Create Your First Song", 
+    type: "tutorial", 
+    status: "published", 
+    author: "Admin", 
+    created: "2025-03-18" 
+  },
+  { 
+    id: 3, 
+    title: "Voice Cloning Guide", 
+    type: "guide", 
+    status: "draft", 
+    author: "Admin", 
+    created: "2025-03-25" 
+  },
+  { 
+    id: 4, 
+    title: "Latest Platform Updates", 
+    type: "announcement", 
+    status: "draft", 
+    author: "Admin", 
+    created: "2025-04-10" 
+  },
+];
 
 export const ContentManagement = () => {
-  const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
-  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
-  const [newItem, setNewItem] = useState({ title: '', type: 'article', content: '' });
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [contentItems, setContentItems] = useState(mockContentItems);
 
-  const fetchContentItems = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("content")
-      .select("*, author:profiles(email)")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Failed to fetch content items.");
-      console.error(error);
-    } else {
-      const items = data.map((item: any) => ({
-        ...item,
-        author_email: item.author?.email || 'Unknown',
-      }));
-      setContentItems(items);
-    }
-    setLoading(false);
+  const handleAddContent = () => {
+    setIsAddOpen(true);
   };
 
-  useEffect(() => {
-    fetchContentItems();
-  }, []);
-
-  const handleError = (error: PostgrestError | null, message: string) => {
-    if (error) {
-      toast.error(message);
-      console.error(error);
-    }
-  };
-
-  const handleAddContent = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("You must be logged in to add content.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("content")
-      .insert({ ...newItem, author_id: user.id, status: 'draft' });
-
-    handleError(error, "Failed to add content.");
-    if (!error) {
-      toast.success("Content created as draft");
-      setIsAddOpen(false);
-      setNewItem({ title: '', type: 'article', content: '' });
-      fetchContentItems();
-    }
-  };
-
-  const handleEditContent = async () => {
-    if (!selectedItem) return;
-    
-    const { error } = await supabase
-      .from("content")
-      .update({ title: selectedItem.title, type: selectedItem.type, content: selectedItem.content })
-      .eq("id", selectedItem.id);
-
-    handleError(error, "Failed to update content.");
-    if (!error) {
-      toast.success("Content updated successfully");
-      setIsEditOpen(false);
-      fetchContentItems();
-    }
-  };
-
-  const handleDeleteContent = async () => {
-    if (!selectedItem) return;
-
-    const { error } = await supabase
-      .from("content")
-      .delete()
-      .eq("id", selectedItem.id);
-
-    handleError(error, "Failed to delete content.");
-    if (!error) {
-      toast.success("Content deleted successfully");
-      setIsDeleteOpen(false);
-      fetchContentItems();
-    }
-  };
-
-  const handleUpdateStatus = async (id: string, status: "published" | "draft") => {
-    const { error } = await supabase
-      .from("content")
-      .update({ status })
-      .eq("id", id);
-
-    handleError(error, `Failed to ${status === 'published' ? 'publish' : 'unpublish'} content.`);
-    if (!error) {
-      toast.success(`Content ${status === 'published' ? 'published' : 'unpublished'} successfully`);
-      fetchContentItems();
-    }
-  };
-
-  const openEditModal = (item: ContentItem) => {
+  const handleEditContent = (item: any) => {
     setSelectedItem(item);
     setIsEditOpen(true);
   };
 
-  const openViewModal = (item: ContentItem) => {
+  const handleViewContent = (item: any) => {
     setSelectedItem(item);
     setIsViewOpen(true);
   };
-
-  const openDeleteModal = (item: ContentItem) => {
+  
+  const handleDeleteContent = (item: any) => {
     setSelectedItem(item);
     setIsDeleteOpen(true);
   };
 
+  const handlePublish = (id: number) => {
+    setContentItems(
+      contentItems.map(item => 
+        item.id === id 
+          ? { ...item, status: "published" } 
+          : item
+      )
+    );
+    
+    toast.success("Content published successfully");
+  };
+
+  const handleUnpublish = (id: number) => {
+    setContentItems(
+      contentItems.map(item => 
+        item.id === id 
+          ? { ...item, status: "draft" } 
+          : item
+      )
+    );
+    
+    toast.success("Content unpublished");
+  };
+
+  const confirmDelete = () => {
+    if (selectedItem) {
+      setContentItems(contentItems.filter(item => item.id !== selectedItem.id));
+      setIsDeleteOpen(false);
+      toast.success("Content deleted successfully");
+    }
+  };
+  
   const filteredItems = contentItems.filter(item => {
     if (activeTab === "all") return true;
-    return item.status === activeTab;
+    if (activeTab === "published") return item.status === "published";
+    if (activeTab === "draft") return item.status === "draft";
+    return true;
   });
 
   return (
     <div>
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Content Management</h2>
-        <Button onClick={() => setIsAddOpen(true)}>Add New Content</Button>
+        <Button onClick={handleAddContent}>Add New Content</Button>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -180,7 +143,7 @@ export const ContentManagement = () => {
           <Card>
             <CardHeader>
               <div className="text-sm text-muted-foreground">
-                {loading ? <Loader2 className="animate-spin" /> : `${filteredItems.length} items`}
+                {filteredItems.length} items
               </div>
             </CardHeader>
             <CardContent>
@@ -196,41 +159,63 @@ export const ContentManagement = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center">
-                        <Loader2 className="animate-spin inline-block" />
+                  {filteredItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.title}</TableCell>
+                      <TableCell className="capitalize">{item.type}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          item.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {item.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>{item.author}</TableCell>
+                      <TableCell>{item.created}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewContent(item)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditContent(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {item.status === "draft" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePublish(item.id)}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleUnpublish(item.id)}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteContent(item)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    filteredItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.title}</TableCell>
-                        <TableCell className="capitalize">{item.type}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            item.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                          }`}>
-                            {item.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>{item.author_email}</TableCell>
-                        <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => openViewModal(item)}><Eye className="h-4 w-4" /></Button>
-                            <Button variant="outline" size="sm" onClick={() => openEditModal(item)}><Pencil className="h-4 w-4" /></Button>
-                            {item.status === "draft" ? (
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(item.id, 'published')}><CheckCircle className="h-4 w-4" /></Button>
-                            ) : (
-                              <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(item.id, 'draft')}><XCircle className="h-4 w-4" /></Button>
-                            )}
-                            <Button variant="destructive" size="sm" onClick={() => openDeleteModal(item)}><Trash className="h-4 w-4" /></Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
@@ -238,49 +223,109 @@ export const ContentManagement = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Add/Edit/View/Delete Dialogs */}
+      {/* Add Content Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add New Content</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add New Content</DialogTitle>
+            <DialogDescription>
+              Create a new content item for your platform
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Input placeholder="Title" value={newItem.title} onChange={(e) => setNewItem({ ...newItem, title: e.target.value })} />
-            <select className="w-full border rounded-md p-2" value={newItem.type} onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}>
-              <option value="article">Article</option>
-              <option value="tutorial">Tutorial</option>
-              <option value="guide">Guide</option>
-              <option value="announcement">Announcement</option>
-            </select>
-            <textarea className="w-full border rounded-md p-2 h-32" placeholder="Content..." value={newItem.content} onChange={(e) => setNewItem({ ...newItem, content: e.target.value })}></textarea>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddContent}>Save as Draft</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Content</DialogTitle></DialogHeader>
-          {selectedItem && (
-            <div className="grid gap-4 py-4">
-              <Input placeholder="Title" value={selectedItem.title} onChange={(e) => setSelectedItem({ ...selectedItem, title: e.target.value })} />
-              <select className="w-full border rounded-md p-2" value={selectedItem.type} onChange={(e) => setSelectedItem({ ...selectedItem, type: e.target.value })}>
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input placeholder="Enter content title" className="mt-1" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Type</label>
+              <select className="w-full mt-1 border rounded-md p-2">
                 <option value="article">Article</option>
                 <option value="tutorial">Tutorial</option>
                 <option value="guide">Guide</option>
                 <option value="announcement">Announcement</option>
               </select>
-              <textarea className="w-full border rounded-md p-2 h-32" placeholder="Content..." value={selectedItem.content || ''} onChange={(e) => setSelectedItem({ ...selectedItem, content: e.target.value })}></textarea>
             </div>
-          )}
+            <div>
+              <label className="text-sm font-medium">Content</label>
+              <textarea
+                className="w-full mt-1 border rounded-md p-2 h-32"
+                placeholder="Write your content here..."
+              ></textarea>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleEditContent}>Save Changes</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              setIsAddOpen(false);
+              toast.success("Content created as draft");
+            }}>
+              Save as Draft
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      
+      {/* Edit Content Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Content</DialogTitle>
+            <DialogDescription>
+              Make changes to the selected content item
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                defaultValue={selectedItem?.title}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Type</label>
+              <select
+                className="w-full mt-1 border rounded-md p-2"
+                defaultValue={selectedItem?.type}
+              >
+                <option value="article">Article</option>
+                <option value="tutorial">Tutorial</option>
+                <option value="guide">Guide</option>
+                <option value="announcement">Announcement</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Content</label>
+              <textarea
+                className="w-full mt-1 border rounded-md p-2 h-32"
+                defaultValue="This is the content of the selected item..."
+              ></textarea>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              setIsEditOpen(false);
+              toast.success("Content updated successfully");
+            }}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* View Content Dialog */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -291,25 +336,49 @@ export const ContentManagement = () => {
               }`}>
                 {selectedItem?.status}
               </span>
-              <span className="text-sm text-muted-foreground">{selectedItem?.type} • {selectedItem && new Date(selectedItem.created_at).toLocaleDateString()} • {selectedItem?.author_email}</span>
+              <span className="text-sm text-muted-foreground">
+                {selectedItem?.type} • {selectedItem?.created} • {selectedItem?.author}
+              </span>
             </div>
           </DialogHeader>
-          <div className="py-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: selectedItem?.content || '' }}></div>
+          <div className="py-4">
+            <div className="prose max-w-none">
+              <p>This is the content of the "{selectedItem?.title}" article.</p>
+              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.</p>
+              <p>Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.</p>
+            </div>
+          </div>
           <DialogFooter>
-            <Button onClick={() => setIsViewOpen(false)}>Close</Button>
+            <Button onClick={() => setIsViewOpen(false)}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
+      {/* Delete Content Dialog */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Content</DialogTitle>
-            <DialogDescription>Are you sure you want to delete "{selectedItem?.title}"? This action cannot be undone.</DialogDescription>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedItem?.title}"?
+              This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteContent}>Delete</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
