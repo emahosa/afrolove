@@ -1,4 +1,4 @@
-# Welcome to Afroverse project
+# Welcome to Afromelody project
 
 ## Project info
 

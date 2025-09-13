@@ -89,12 +89,12 @@ const Register = () => {
       <div className="w-full max-w-md bg-white/5 p-8 rounded-xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center justify-center mb-6">
             <Music className="h-8 w-8 text-dark-purple" />
-            <h1 className="text-2xl font-bold ml-2 text-white">Afroverse</h1>
+            <h1 className="text-2xl font-bold ml-2 text-white">Afromelody</h1>
         </div>
 
         <div className="text-center mb-6">
           <h2 className="text-3xl font-semibold mb-2 text-white">Create Account</h2>
-          <p className="text-gray-400">Join Afroverse and start creating music</p>
+          <p className="text-gray-400">Join Afromelody and start creating music</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -141,7 +141,7 @@ export default function HeroSection() {
         )}
         <motion.div variants={itemVariants}>
           <Link to="/contest">
-            <Button size="lg" className="bg-transparent border-2 border-white text-white font-bold text-lg px-8 py-6 rounded-xl shadow-lg transform scale-80 origin-center">
+            <Button size="lg" className="bg-transparent border-2 border-white text-white font-bold text-lg px-8 py-4 rounded-xl shadow-lg">
               {contestStatus?.status === 'live' ? 'Enter Now' : 'View Contest'}
             </Button>
           </Link>
