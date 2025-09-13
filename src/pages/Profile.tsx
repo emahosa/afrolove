@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Upload, Camera, User, Mail, CreditCard } from 'lucide-react';
+import { Loader2, Upload, Camera, User, Mail, CreditCard, LogOut } from 'lucide-react';
 
 const Profile = () => {
-  const { user, userRoles, isAdmin, isSuperAdmin, isSubscriber, isVoter } = useAuth();
+  const { user, userRoles, isAdmin, isSuperAdmin, isSubscriber, isVoter, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -304,6 +304,26 @@ const Profile = () => {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Account Actions */}
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <LogOut className="h-5 w-5 text-dark-purple" />
+                  Account Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={logout}
+                  variant="destructive"
+                  className="w-full"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
               </CardContent>
             </Card>
           </div>
