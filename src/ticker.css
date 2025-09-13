@@ -1,0 +1,29 @@
+@keyframes scroll-left {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.ticker-wrap {
+  width: 100%;
+  overflow: hidden;
+  padding: 10px 0;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-size: 1rem;
+}
+
+.ticker-move {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 100%;
+  animation: scroll-left 30s linear infinite;
+}
+
+.ticker-item {
+  display: inline-block;
+  padding: 0 2rem;
+}
