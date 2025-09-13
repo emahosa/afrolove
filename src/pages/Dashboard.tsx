@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGenreTemplates } from "@/hooks/use-genre-templates";
 import { GenreTemplateCard } from "@/components/dashboard/GenreTemplateCard";
 import HeroSection from "@/components/dashboard/HeroSection";
-import WinnerSlider from "@/components/dashboard/WinnerSlider";
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -12,7 +11,6 @@ const Dashboard = () => {
   return (
     <div className="h-full flex flex-col">
       <HeroSection />
-      <WinnerSlider />
       <div className="p-4 md:p-8">
         <div className="flex justify-between items-center flex-shrink-0">
           <div>

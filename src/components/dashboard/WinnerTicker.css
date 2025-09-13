@@ -1,0 +1,64 @@
+.winner-ticker-container {
+  background-color: #1a1a2e; /* A dark color similar to the image */
+  padding: 0.5rem 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.winner-ticker {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  height: 30px; /* Smaller height as requested */
+  display: flex;
+  align-items: center;
+}
+
+.winner-ticker::before,
+.winner-ticker::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100px; /* Adjust fade width */
+  z-index: 2;
+}
+
+.winner-ticker::before {
+  left: 0;
+  background: linear-gradient(to right, #1a1a2e 0%, transparent 100%);
+}
+
+.winner-ticker::after {
+  right: 0;
+  background: linear-gradient(to left, #1a1a2e 0%, transparent 100%);
+}
+
+
+.ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: scroll var(--duration, 20s) linear infinite;
+  width: calc(var(--content-width) * 2); /* We have duplicated content */
+}
+
+.winner-item {
+  display: inline-block;
+  padding: 0 2rem; /* Spacing between items */
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--content-width)));
+  }
+}
+
+.winner-ticker:hover .ticker-track {
+    animation-play-state: paused;
+}
