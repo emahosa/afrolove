@@ -86,20 +86,17 @@ export const loadSystemSettings = async (): Promise<SystemSettings> => {
     
     // Process each setting section individually
     data.forEach((setting) => {
-      if (setting.key in loadedSettings && setting.value) {
-        try {
-          const sectionKey = setting.key as keyof SystemSettings;
-          const parsedValue = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-
-          const mergedSectionData = {
-            ...loadedSettings[sectionKey],
-            ...parsedValue
-          };
-
-          loadedSettings[sectionKey] = mergedSectionData as any;
-        } catch(e) {
-          console.error(`Failed to parse setting ${setting.key}:`, e);
-        }
+      if (setting.key in loadedSettings && setting.value && typeof setting.value === 'object') {
+        const sectionKey = setting.key as keyof SystemSettings;
+        
+        // Create a merged object for this specific section
+        const mergedSectionData = {
+          ...loadedSettings[sectionKey],
+          ...setting.value
+        };
+        
+        // Assign the merged data back to the settings object
+        loadedSettings[sectionKey] = mergedSectionData as any;
       }
     });
 
@@ -125,7 +122,7 @@ export const saveSystemSettings = async (settings: SystemSettings): Promise<void
         .from('system_settings')
         .upsert({
           key: setting.key,
-          value: JSON.stringify(setting.value),
+          value: setting.value,
           category: setting.category,
           description: setting.description,
           updated_by: (await supabase.auth.getUser()).data.user?.id
