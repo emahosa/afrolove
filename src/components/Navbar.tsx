@@ -32,7 +32,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
           </Button>
           <Link to="/dashboard" className="flex items-center gap-2 hover-scale">
             <MusicLogo size={28} />
-            <span className="font-poppins font-bold text-xl text-white">Afroverse</span>
+            <span className="font-poppins font-bold text-xl text-white">Afromelody</span>
           </Link>
         </div>
         

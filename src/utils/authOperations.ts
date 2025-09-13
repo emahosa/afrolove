@@ -216,7 +216,7 @@ export const handleRegister = async (name: string, email: string, password: stri
     }
 
     console.log("AuthOperations: Registration successful with active session");
-    toast.success("Registration successful! Welcome to Afroverse!");
+    toast.success("Registration successful! Welcome to Afromelody!");
     return true;
   } catch (error: any) {
     console.error("AuthOperations: Registration error:", error);
