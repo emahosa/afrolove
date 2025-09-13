@@ -1,18 +1,21 @@
 
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import WinnerTicker from "@/components/dashboard/WinnerTicker";
 
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-black text-white font-sans">
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
+      {location.pathname === "/dashboard" && <WinnerTicker />}
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
