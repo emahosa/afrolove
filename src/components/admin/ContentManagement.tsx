@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -22,41 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Pencil, Trash, Eye } from "lucide-react";
-
-const mockContentItems = [
-  { 
-    id: 1, 
-    title: "Welcome to MelodyVerse", 
-    type: "article", 
-    status: "published", 
-    author: "Admin", 
-    created: "2025-03-15" 
-  },
-  { 
-    id: 2, 
-    title: "How to Create Your First Song", 
-    type: "tutorial", 
-    status: "published", 
-    author: "Admin", 
-    created: "2025-03-18" 
-  },
-  { 
-    id: 3, 
-    title: "Voice Cloning Guide", 
-    type: "guide", 
-    status: "draft", 
-    author: "Admin", 
-    created: "2025-03-25" 
-  },
-  { 
-    id: 4, 
-    title: "Latest Platform Updates", 
-    type: "announcement", 
-    status: "draft", 
-    author: "Admin", 
-    created: "2025-04-10" 
-  },
-];
+import { fetchContent, addContent, updateContent, deleteContent, ContentItem } from "@/services/contentService";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ContentManagement = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -64,57 +30,98 @@ export const ContentManagement = () => {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [contentItems, setContentItems] = useState(mockContentItems);
+  const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
+  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
+  const [newContent, setNewContent] = useState({ title: "", type: "article", content: "" });
 
-  const handleAddContent = () => {
+  useEffect(() => {
+    loadContent();
+  }, []);
+
+  const loadContent = async () => {
+    try {
+      const data = await fetchContent();
+      setContentItems(data);
+    } catch (error) {
+      toast.error("Failed to load content");
+    }
+  };
+
+  const handleAddDialog = () => {
+    setNewContent({ title: "", type: "article", content: "" });
     setIsAddOpen(true);
   };
 
-  const handleEditContent = (item: any) => {
+  const handleEditDialog = (item: ContentItem) => {
     setSelectedItem(item);
     setIsEditOpen(true);
   };
 
-  const handleViewContent = (item: any) => {
+  const handleViewDialog = (item: ContentItem) => {
     setSelectedItem(item);
     setIsViewOpen(true);
   };
   
-  const handleDeleteContent = (item: any) => {
+  const handleDeleteDialog = (item: ContentItem) => {
     setSelectedItem(item);
     setIsDeleteOpen(true);
   };
 
-  const handlePublish = (id: number) => {
-    setContentItems(
-      contentItems.map(item => 
-        item.id === id 
-          ? { ...item, status: "published" } 
-          : item
-      )
-    );
-    
-    toast.success("Content published successfully");
+  const handleAdd = async () => {
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error("User not found");
+      await addContent(newContent.title, newContent.type, newContent.content, user.id);
+      setIsAddOpen(false);
+      toast.success("Content created as draft");
+      loadContent();
+    } catch (error) {
+      toast.error("Failed to create content");
+    }
   };
 
-  const handleUnpublish = (id: number) => {
-    setContentItems(
-      contentItems.map(item => 
-        item.id === id 
-          ? { ...item, status: "draft" } 
-          : item
-      )
-    );
-    
-    toast.success("Content unpublished");
+  const handleUpdate = async () => {
+    if (!selectedItem) return;
+    try {
+      await updateContent(selectedItem.id, { title: selectedItem.title, content: selectedItem.content, type: selectedItem.type });
+      setIsEditOpen(false);
+      toast.success("Content updated successfully");
+      loadContent();
+    } catch (error) {
+      toast.error("Failed to update content");
+    }
   };
 
-  const confirmDelete = () => {
+  const handlePublish = async (id: string) => {
+    try {
+      await updateContent(id, { status: "published" });
+      toast.success("Content published successfully");
+      loadContent();
+    } catch (error) {
+      toast.error("Failed to publish content");
+    }
+  };
+
+  const handleUnpublish = async (id: string) => {
+    try {
+      await updateContent(id, { status: "draft" });
+      toast.success("Content unpublished");
+      loadContent();
+    } catch (error) {
+      toast.error("Failed to unpublish content");
+    }
+  };
+
+  const confirmDelete = async () => {
     if (selectedItem) {
-      setContentItems(contentItems.filter(item => item.id !== selectedItem.id));
-      setIsDeleteOpen(false);
-      toast.success("Content deleted successfully");
+      try {
+        await deleteContent(selectedItem.id);
+        setIsDeleteOpen(false);
+        toast.success("Content deleted successfully");
+        loadContent();
+      } catch (error) {
+        toast.error("Failed to delete content");
+      }
     }
   };
   
@@ -129,7 +136,7 @@ export const ContentManagement = () => {
     <div>
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Content Management</h2>
-        <Button onClick={handleAddContent}>Add New Content</Button>
+        <Button onClick={handleAddDialog}>Add New Content</Button>
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -170,21 +177,21 @@ export const ContentManagement = () => {
                           {item.status}
                         </span>
                       </TableCell>
-                      <TableCell>{item.author}</TableCell>
-                      <TableCell>{item.created}</TableCell>
+                      <TableCell>{item.profiles?.full_name || 'N/A'}</TableCell>
+                      <TableCell>{new Date(item.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleViewContent(item)}
+                            onClick={() => handleViewDialog(item)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleEditContent(item)}
+                            onClick={() => handleEditDialog(item)}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -208,7 +215,7 @@ export const ContentManagement = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDeleteContent(item)}
+                            onClick={() => handleDeleteDialog(item)}
                           >
                             <Trash className="h-4 w-4" />
                           </Button>
@@ -235,11 +242,20 @@ export const ContentManagement = () => {
           <div className="grid gap-4 py-4">
             <div>
               <label className="text-sm font-medium">Title</label>
-              <Input placeholder="Enter content title" className="mt-1" />
+              <Input
+                placeholder="Enter content title"
+                className="mt-1"
+                value={newContent.title}
+                onChange={(e) => setNewContent({...newContent, title: e.target.value})}
+              />
             </div>
             <div>
               <label className="text-sm font-medium">Type</label>
-              <select className="w-full mt-1 border rounded-md p-2">
+              <select
+                className="w-full mt-1 border rounded-md p-2"
+                value={newContent.type}
+                onChange={(e) => setNewContent({...newContent, type: e.target.value})}
+              >
                 <option value="article">Article</option>
                 <option value="tutorial">Tutorial</option>
                 <option value="guide">Guide</option>
@@ -251,6 +267,8 @@ export const ContentManagement = () => {
               <textarea
                 className="w-full mt-1 border rounded-md p-2 h-32"
                 placeholder="Write your content here..."
+                value={newContent.content}
+                onChange={(e) => setNewContent({...newContent, content: e.target.value})}
               ></textarea>
             </div>
           </div>
@@ -261,10 +279,7 @@ export const ContentManagement = () => {
             >
               Cancel
             </Button>
-            <Button onClick={() => {
-              setIsAddOpen(false);
-              toast.success("Content created as draft");
-            }}>
+            <Button onClick={handleAdd}>
               Save as Draft
             </Button>
           </DialogFooter>
@@ -284,7 +299,8 @@ export const ContentManagement = () => {
             <div>
               <label className="text-sm font-medium">Title</label>
               <Input
-                defaultValue={selectedItem?.title}
+                value={selectedItem?.title || ''}
+                onChange={(e) => setSelectedItem(selectedItem ? {...selectedItem, title: e.target.value} : null)}
                 className="mt-1"
               />
             </div>
@@ -292,7 +308,8 @@ export const ContentManagement = () => {
               <label className="text-sm font-medium">Type</label>
               <select
                 className="w-full mt-1 border rounded-md p-2"
-                defaultValue={selectedItem?.type}
+                value={selectedItem?.type || ''}
+                onChange={(e) => setSelectedItem(selectedItem ? {...selectedItem, type: e.target.value} : null)}
               >
                 <option value="article">Article</option>
                 <option value="tutorial">Tutorial</option>
@@ -304,7 +321,8 @@ export const ContentManagement = () => {
               <label className="text-sm font-medium">Content</label>
               <textarea
                 className="w-full mt-1 border rounded-md p-2 h-32"
-                defaultValue="This is the content of the selected item..."
+                value={selectedItem?.content || ''}
+                onChange={(e) => setSelectedItem(selectedItem ? {...selectedItem, content: e.target.value} : null)}
               ></textarea>
             </div>
           </div>
@@ -315,10 +333,7 @@ export const ContentManagement = () => {
             >
               Cancel
             </Button>
-            <Button onClick={() => {
-              setIsEditOpen(false);
-              toast.success("Content updated successfully");
-            }}>
+            <Button onClick={handleUpdate}>
               Save Changes
             </Button>
           </DialogFooter>
@@ -337,15 +352,13 @@ export const ContentManagement = () => {
                 {selectedItem?.status}
               </span>
               <span className="text-sm text-muted-foreground">
-                {selectedItem?.type} • {selectedItem?.created} • {selectedItem?.author}
+                {selectedItem?.type} • {selectedItem ? new Date(selectedItem.created_at).toLocaleDateString() : ''} • {selectedItem?.profiles?.full_name || 'N/A'}
               </span>
             </div>
           </DialogHeader>
           <div className="py-4">
             <div className="prose max-w-none">
-              <p>This is the content of the "{selectedItem?.title}" article.</p>
-              <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.</p>
-              <p>Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.</p>
+              <p>{selectedItem?.content}</p>
             </div>
           </div>
           <DialogFooter>
