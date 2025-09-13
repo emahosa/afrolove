@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Contest, ContestEntry } from '@/hooks/use-contest';
-import { WinnerCard } from '@/components/contest/WinnerCard';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { CompactWinnerCard } from '@/components/contest/CompactWinnerCard';
 
 const WinnerSlider = () => {
   const [winners, setWinners] = useState<ContestEntry[]>([]);
@@ -80,35 +78,44 @@ const WinnerSlider = () => {
     fetchLatestWinners();
   }, []);
 
-  if (loading || !contest) {
-    return null; // Don't show anything while loading
+  if (loading || !contest || winners.length === 0) {
+    return null;
   }
 
-  if (winners.length === 0) {
-    return null; // Don't render anything if there are no winners to show
-  }
+  const tickerWrapStyle: React.CSSProperties = {
+    width: '100%',
+    overflow: 'hidden',
+    padding: '1rem 0',
+    marginBottom: '2rem',
+  };
+
+  const tickerStyle: React.CSSProperties = {
+    display: 'flex',
+    whiteSpace: 'nowrap',
+    animation: 'ticker 80s linear infinite',
+  };
 
   return (
-    <Card className="my-8">
-      <CardHeader>
-        <CardTitle>Recent Winners</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Carousel>
-          <CarouselContent>
-            {winners.map(winner => (
-              <CarouselItem key={winner.id} className="md:basis-1/2 lg:basis-1/3">
-                <div className="p-1">
-                  <WinnerCard winner={winner} contest={contest} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      </CardContent>
-    </Card>
+    <>
+      <style>
+        {`
+          @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        `}
+      </style>
+      <div className="ticker-wrap" style={tickerWrapStyle}>
+        <div style={tickerStyle}>
+          {winners.map(winner => (
+            <CompactWinnerCard key={winner.id} winner={winner} contest={contest} />
+          ))}
+          {winners.map(winner => (
+            <CompactWinnerCard key={`${winner.id}-clone`} winner={winner} contest={contest} />
+          ))}
+        </div>
+      </div>
+    </>
   );
 };
 
