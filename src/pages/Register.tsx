@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +16,6 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
@@ -148,22 +146,10 @@ const Register = () => {
               className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="terms" checked={agreeToTerms} onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)} />
-            <label
-              htmlFor="terms"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-gray-400"
-            >
-              I agree to the{" "}
-              <Link to="/terms" target="_blank" className="text-dark-purple hover:underline">
-                Terms and Conditions
-              </Link>
-            </label>
-          </div>
           <Button
             type="submit"
             className="w-full bg-deep-purple font-bold"
-            disabled={loading || !agreeToTerms}
+            disabled={loading}
           >
             {loading ? "Creating account..." : "Sign Up"}
           </Button>
