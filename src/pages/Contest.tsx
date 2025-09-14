@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "../components/ui/input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Trophy, Calendar, Upload, Vote, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -409,27 +410,43 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             ) : (
               <div className="space-y-3">
                 {activeContests.map((contest) => (
-                  <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                    <div className="flex-grow mx-4 min-w-0">
-                      <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                        <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
-                        <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
+                  <Card key={contest.id} className="bg-white/5 border-white/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center">
+                        <div className="flex-grow mx-4 min-w-0">
+                          <p className="font-semibold truncate text-white">{contest.title}</p>
+                          <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                            <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
+                            <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {contest.is_unlocked ? (
+                            <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                              Submit Entry
+                            </Button>
+                          ) : (
+                            <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
+                              {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {contest.is_unlocked ? (
-                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                          Submit Entry
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
-                          {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
-                        </Button>
+                      {contest.rules && (
+                        <Accordion type="single" collapsible className="w-full mt-4">
+                          <AccordionItem value="item-1">
+                            <AccordionTrigger>View Rules</AccordionTrigger>
+                            <AccordionContent>
+                              <div className="prose prose-sm prose-invert max-w-none">
+                                <p>{contest.rules}</p>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                       )}
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
