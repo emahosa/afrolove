@@ -23,6 +23,7 @@ import Support from "./pages/Support";
 import Admin from "./pages/Admin";
 import AffiliatePage from "./pages/Affiliate";
 import WinnerStatus from "./pages/WinnerStatus";
+import Terms from "./pages/Terms";
 
 // Layouts
 import AppLayout from "./layouts/AppLayout";
@@ -51,6 +52,7 @@ const App = () => {
                 
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route element={<AuthLayout />}>
                   <Route path="/register/admin" element={<AdminRegister />} />
                 </Route>
