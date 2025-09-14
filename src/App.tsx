@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import AdminRegister from "./pages/AdminRegister";
 import AdminLoginPage from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
@@ -51,6 +52,7 @@ const App = () => {
                 
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/terms" element={<TermsAndConditions />} />
                 <Route element={<AuthLayout />}>
                   <Route path="/register/admin" element={<AdminRegister />} />
                 </Route>

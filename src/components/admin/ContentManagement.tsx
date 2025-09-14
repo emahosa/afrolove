@@ -1,7 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -21,42 +20,132 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Pencil, Trash, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Pencil, Trash, Eye, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 
 const mockContentItems = [
-  { 
-    id: 1, 
-    title: "Welcome to MelodyVerse", 
-    type: "article", 
-    status: "published", 
-    author: "Admin", 
-    created: "2025-03-15" 
+  {
+    id: 1,
+    title: "Welcome to MelodyVerse",
+    type: "article",
+    status: "published",
+    author: "Admin",
+    created: "2025-03-15"
   },
-  { 
-    id: 2, 
-    title: "How to Create Your First Song", 
-    type: "tutorial", 
-    status: "published", 
-    author: "Admin", 
-    created: "2025-03-18" 
+  {
+    id: 2,
+    title: "How to Create Your First Song",
+    type: "tutorial",
+    status: "published",
+    author: "Admin",
+    created: "2025-03-18"
   },
-  { 
-    id: 3, 
-    title: "Voice Cloning Guide", 
-    type: "guide", 
-    status: "draft", 
-    author: "Admin", 
-    created: "2025-03-25" 
+  {
+    id: 3,
+    title: "Voice Cloning Guide",
+    type: "guide",
+    status: "draft",
+    author: "Admin",
+    created: "2025-03-25"
   },
-  { 
-    id: 4, 
-    title: "Latest Platform Updates", 
-    type: "announcement", 
-    status: "draft", 
-    author: "Admin", 
-    created: "2025-04-10" 
+  {
+    id: 4,
+    title: "Latest Platform Updates",
+    type: "announcement",
+    status: "draft",
+    author: "Admin",
+    created: "2025-04-10"
   },
 ];
+
+const TermsAndConditionsEditor = () => {
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTerms = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('terms_and_conditions')
+          .select('content')
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setContent(data.content || '');
+        }
+      } catch (err: any) {
+        setError('Failed to load terms and conditions.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTerms();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('terms_and_conditions')
+        .update({ content })
+        .eq('id', 1); // Assuming there's only one row with id 1
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Terms and Conditions updated successfully.');
+    } catch (err: any) {
+      toast.error('Failed to save changes.');
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Terms and Conditions</CardTitle>
+        <CardDescription>
+          Edit the Terms and Conditions for your platform. This will be visible to users on the registration page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex items-center justify-center h-40">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : error ? (
+          <div className="text-red-500">{error}</div>
+        ) : (
+          <div className="space-y-4">
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={20}
+              placeholder="Enter your terms and conditions here..."
+            />
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 
 export const ContentManagement = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -80,7 +169,7 @@ export const ContentManagement = () => {
     setSelectedItem(item);
     setIsViewOpen(true);
   };
-  
+
   const handleDeleteContent = (item: any) => {
     setSelectedItem(item);
     setIsDeleteOpen(true);
@@ -88,25 +177,25 @@ export const ContentManagement = () => {
 
   const handlePublish = (id: number) => {
     setContentItems(
-      contentItems.map(item => 
-        item.id === id 
-          ? { ...item, status: "published" } 
+      contentItems.map(item =>
+        item.id === id
+          ? { ...item, status: "published" }
           : item
       )
     );
-    
+
     toast.success("Content published successfully");
   };
 
   const handleUnpublish = (id: number) => {
     setContentItems(
-      contentItems.map(item => 
-        item.id === id 
-          ? { ...item, status: "draft" } 
+      contentItems.map(item =>
+        item.id === id
+          ? { ...item, status: "draft" }
           : item
       )
     );
-    
+
     toast.success("Content unpublished");
   };
 
@@ -117,112 +206,120 @@ export const ContentManagement = () => {
       toast.success("Content deleted successfully");
     }
   };
-  
-  const filteredItems = contentItems.filter(item => {
-    if (activeTab === "all") return true;
-    if (activeTab === "published") return item.status === "published";
-    if (activeTab === "draft") return item.status === "draft";
-    return true;
-  });
+
+  const renderContentTable = (items: any[]) => (
+    <Card>
+      <CardHeader>
+        <div className="text-sm text-muted-foreground">
+          {items.length} items
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Author</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.title}</TableCell>
+                <TableCell className="capitalize">{item.type}</TableCell>
+                <TableCell>
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    item.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                    }`}>
+                    {item.status}
+                  </span>
+                </TableCell>
+                <TableCell>{item.author}</TableCell>
+                <TableCell>{item.created}</TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewContent(item)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditContent(item)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {item.status === "draft" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePublish(item.id)}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUnpublish(item.id)}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteContent(item)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
 
   return (
     <div>
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Content Management</h2>
-        <Button onClick={handleAddContent}>Add New Content</Button>
+        {activeTab !== 'terms' && <Button onClick={handleAddContent}>Add New Content</Button>}
       </div>
-      
+
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="all">All Content</TabsTrigger>
           <TabsTrigger value="published">Published</TabsTrigger>
           <TabsTrigger value="draft">Drafts</TabsTrigger>
+          <TabsTrigger value="terms">Terms & Conditions</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value={activeTab} className="mt-6">
-          <Card>
-            <CardHeader>
-              <div className="text-sm text-muted-foreground">
-                {filteredItems.length} items
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Author</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.title}</TableCell>
-                      <TableCell className="capitalize">{item.type}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                        }`}>
-                          {item.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>{item.author}</TableCell>
-                      <TableCell>{item.created}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewContent(item)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditContent(item)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {item.status === "draft" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePublish(item.id)}
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUnpublish(item.id)}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteContent(item)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+
+        <TabsContent value="all" className="mt-6">
+          {renderContentTable(contentItems)}
+        </TabsContent>
+        <TabsContent value="published" className="mt-6">
+          {renderContentTable(contentItems.filter(item => item.status === 'published'))}
+        </TabsContent>
+        <TabsContent value="draft" className="mt-6">
+          {renderContentTable(contentItems.filter(item => item.status === 'draft'))}
+        </TabsContent>
+        <TabsContent value="terms" className="mt-6">
+          <TermsAndConditionsEditor />
         </TabsContent>
       </Tabs>
-      
+
       {/* Add Content Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent>
@@ -270,7 +367,7 @@ export const ContentManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Content Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
@@ -324,7 +421,7 @@ export const ContentManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* View Content Dialog */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="max-w-2xl">
@@ -333,7 +430,7 @@ export const ContentManagement = () => {
             <div className="flex items-center gap-2 mt-1">
               <span className={`px-2 py-1 rounded-full text-xs ${
                 selectedItem?.status === "published" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-              }`}>
+                }`}>
                 {selectedItem?.status}
               </span>
               <span className="text-sm text-muted-foreground">
@@ -355,7 +452,7 @@ export const ContentManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Delete Content Dialog */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent>
