@@ -11,12 +11,11 @@ import { PhoneVoteDialog } from './PhoneVoteDialog';
 interface ContestEntryCardProps {
   entry: ContestEntry;
   onVote: (entryId: string, voterPhone?: string) => Promise<boolean>;
-  onPlay?: (entryId: string, videoUrl: string) => void;
+  onPlay?: (entry: ContestEntry) => void;
   isPlaying?: boolean;
-  userHasVoted?: boolean;
 }
 
-export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVoted }: ContestEntryCardProps) => {
+export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying }: ContestEntryCardProps) => {
   const { user } = useAuth();
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const [voting, setVoting] = useState(false);
@@ -40,7 +39,7 @@ export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVote
 
   const handlePlayClick = () => {
     if (onPlay && entry.video_url) {
-      onPlay(entry.id, entry.video_url);
+      onPlay(entry);
     }
   };
 
@@ -99,13 +98,12 @@ export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVote
               </div>
               
               <Button 
-                variant={userHasVoted ? "outline" : "default"}
+                variant={"default"}
                 size="sm"
-                className={userHasVoted ? "opacity-50 cursor-not-allowed" : ""}
                 onClick={handleVoteClick}
-                disabled={userHasVoted || voting}
+                disabled={voting}
               >
-                {voting ? 'Voting...' : userHasVoted ? 'Voted' : 'Vote'}
+                {voting ? 'Voting...' : 'Vote'}
               </Button>
             </div>
           </div>
