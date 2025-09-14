@@ -193,10 +193,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         finalUrl = `${supabaseUrl}/functions/v1/suno-proxy?url=${encodeURIComponent(audioUrl)}`;
         console.log(`🎵 Using Suno proxy for URL: ${finalUrl}`);
       } else if (
-        audioUrl.startsWith('blob:') || 
-        audioUrl.startsWith('data:') || 
+        audioUrl.startsWith('blob:') ||
+        audioUrl.startsWith('data:') ||
         audioUrl.includes('storage.googleapis.com') ||
-        audioUrl.includes('apiboxfiles.erweima.ai')
+        audioUrl.includes('apiboxfiles.erweima.ai') ||
+        audioUrl.includes('bswfiynuvjvoaoyfdrso.supabase.co')
       ) {
         // Direct URLs that don't need proxy
         finalUrl = audioUrl;
