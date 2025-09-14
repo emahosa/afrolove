@@ -2,13 +2,18 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { ensureStorageBuckets } from "@/utils/storageSetup";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    ensureStorageBuckets();
+  }, []);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-black text-white font-sans">
