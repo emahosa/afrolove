@@ -196,8 +196,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audioUrl.startsWith('blob:') ||
         audioUrl.startsWith('data:') ||
         audioUrl.includes('storage.googleapis.com') ||
-        audioUrl.includes('apiboxfiles.erweima.ai') ||
-        audioUrl.includes('bswfiynuvjvoaoyfdrso.supabase.co')
+        audioUrl.includes('apiboxfiles.erweima.ai')
       ) {
         // Direct URLs that don't need proxy
         finalUrl = audioUrl;
