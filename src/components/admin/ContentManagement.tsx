@@ -64,43 +64,63 @@ const TermsAndConditionsEditor = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tableExists, setTableExists] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
 
-  useEffect(() => {
-    const fetchTerms = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('terms_and_conditions')
-          .select('content')
-          .single();
+  const fetchTerms = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('terms_and_conditions')
+        .select('content')
+        .single();
 
-        if (error) {
+      if (error) {
+        if (error.message.includes('relation "public.terms_and_conditions" does not exist')) {
+          setTableExists(false);
+        } else {
           throw error;
         }
-
-        if (data) {
-          setContent(data.content || '');
-        }
-      } catch (err: any) {
-        setError('Failed to load terms and conditions.');
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
 
+      if (data) {
+        setTableExists(true);
+        setContent(data.content || '');
+      }
+    } catch (err: any) {
+      setError('Failed to load terms and conditions.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTerms();
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
+        .from('terms_and_conditions')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (error || !data) {
+        toast.error('Could not find terms and conditions record to update.');
+        throw new Error('No record found');
+      }
+
+      const { error: updateError } = await supabase
         .from('terms_and_conditions')
         .update({ content })
-        .eq('id', 1); // Assuming there's only one row with id 1
+        .eq('id', data.id);
 
-      if (error) {
-        throw error;
+      if (updateError) {
+        throw updateError;
       }
 
       toast.success('Terms and Conditions updated successfully.');
@@ -112,6 +132,59 @@ const TermsAndConditionsEditor = () => {
     }
   };
 
+  const handleCreateTable = async () => {
+    setIsCreating(true);
+    try {
+      const { error } = await supabase.rpc('create_terms_and_conditions_table_and_seed');
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Terms and Conditions table created successfully.');
+      setTableExists(true);
+      await fetchTerms(); // Refetch the terms
+    } catch (err: any) {
+      toast.error('Failed to create table: ' + err.message);
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Terms and Conditions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!tableExists) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Setup Required</CardTitle>
+          <CardDescription>
+            The Terms and Conditions table does not exist in the database.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4">Click the button below to create the table and add initial content. This action is only required once.</p>
+          <Button onClick={handleCreateTable} disabled={isCreating}>
+            {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isCreating ? 'Creating...' : 'Create Table and Seed Content'}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -121,11 +194,7 @@ const TermsAndConditionsEditor = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="text-red-500">{error}</div>
         ) : (
           <div className="space-y-4">
