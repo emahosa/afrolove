@@ -16,14 +16,14 @@ const AppLayoutContent = () => {
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-48 p-0 flex flex-col bg-black border-r border-white/10">
+        <SheetContent side="left" className="w-24 p-0 flex flex-col bg-black border-r border-white/10">
           <Sidebar />
         </SheetContent>
       </Sheet>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <div className="hidden md:block flex-shrink-0 w-48">
+        <div className="hidden md:block flex-shrink-0 w-24">
           <Sidebar className="bg-black border-r border-white/10" />
         </div>
         <main className="flex-1 flex flex-col overflow-y-auto">
