@@ -89,23 +89,26 @@ export default function Index() {
         <div>
             {/* Hero Section */}
             <section className="w-full max-w-4xl">
-              <div className="relative inline-block">
+              <div className="relative inline-block animate-breath">
                 <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
                 <h1 className="relative text-6xl font-bold text-dark-purple">
                   Afromelody
                 </h1>
               </div>
-              <p className="mt-4 text-2xl font-semibold text-gray-100">
+              <p className="mt-4 text-2xl font-semibold text-gray-100 animate-fade-in-up">
                 Create Afrobeats with AI. Earn while you play.
               </p>
-              <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light">
+              <p className="mt-2 text-lg text-purple-300 animate-fade-in-up-delay-1">
+                The Future of Music is Here.
+              </p>
+              <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light animate-fade-in-up-delay-2">
                 Afromelody lets you turn text into full Afrobeats songs in seconds — and compete in monthly contests where your creativity can win record deals, cash, and promo.
               </p>
 
-              <div className="mt-10 flex justify-center">
+              <div className="mt-10 flex justify-center animate-fade-in-up-delay-3">
                 <button
                   onClick={() => setShowConfirmModal(true)}
-                  className="bg-transparent border-2 border-white text-white font-bold text-base px-6 py-5 rounded-xl shadow-lg transition-all duration-300"
+                  className="bg-transparent border-2 border-white text-white font-bold text-base px-6 py-5 rounded-xl shadow-lg transition-all duration-300 hover-lift"
                 >
                   Claim Early Access
                 </button>
@@ -118,7 +121,7 @@ export default function Index() {
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 z-50">
           <div className="bg-gradient-to-br from-midnight to-gray-900 border border-dark-purple/50 rounded-xl p-8 max-w-md w-full text-center">
-            <h3 className="text-xl font-bold text-white">This service costs $5</h3>
+            <h3 className="text-xl font-bold text-white">This service costs $6.99</h3>
             <p className="text-gray-400 text-sm mt-2">
               Do you want to proceed?
             </p>

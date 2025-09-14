@@ -34,6 +34,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import { ensureStorageBuckets } from './utils/storageSetup';
 
+import './animations.css';
+
 const App = () => {
   useEffect(() => {
     ensureStorageBuckets();
