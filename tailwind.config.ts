@@ -55,9 +55,20 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 			},
+			fontSize: {
+				'xs': '0.75rem',
+				'sm': '0.8rem',
+				'base': '0.9rem',
+				'lg': '1rem',
+				'xl': '1.125rem',
+				'2xl': '1.25rem',
+				'3xl': '1.5rem',
+				'4xl': '1.875rem',
+				'5xl': '2.25rem',
+				'6xl': '3rem',
+			},
 			fontFamily: {
-				montserrat: ['Montserrat', 'sans-serif'],
-				inter: ['Inter', 'sans-serif'],
+				sans: ['Roboto', 'sans-serif'],
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

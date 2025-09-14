@@ -58,8 +58,8 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   });
 
   return (
-    <aside className={cn("h-full w-48 flex flex-col", className)}>
-      <div className="flex items-center h-16 px-4 border-b border-white/10 flex-shrink-0">
+    <aside className={cn("h-full w-24 flex flex-col", className)}>
+      <div className="flex items-center justify-center h-16 px-4 border-b border-white/10 flex-shrink-0">
         {/* Logo and title can be placed here */}
       </div>
       <ScrollArea className="flex-1 px-2 py-4">
@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 key={item.href}
                 variant="ghost"
                 className={cn(
-                  "w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white relative",
+                  "w-full h-auto flex-col justify-center items-center text-gray-300 hover:bg-white/10 hover:text-white relative py-2",
                   isActive && "font-semibold bg-dark-purple text-white hover:bg-dark-purple/90"
                 )}
                 onClick={() => {
@@ -85,15 +85,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 }}
                 title={needsSubscription ? `${item.label} (Subscription required)` : item.label}
               >
-                <item.icon className={cn("mr-3 h-5 w-5 flex-shrink-0", isActive && "text-white")} />
-                <span className="flex-grow text-left truncate">{item.label}</span>
+                <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-white")} />
+                <span className="text-xs mt-1">{item.label}</span>
                 {item.tag && !needsSubscription && (
                   <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center border-dark-purple text-dark-purple">
                     {item.tag}
                   </Badge>
                 )}
                 {needsSubscription && (
-                  <Lock className="ml-2 h-3 w-3 text-gray-400 flex-shrink-0 self-center" />
+                  <Lock className="absolute top-1 right-1 h-3 w-3 text-gray-400 flex-shrink-0" />
                 )}
               </Button>
             );
@@ -102,9 +102,9 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       </ScrollArea>
       {user && (
         <div className="mt-auto p-2 border-t border-white/10 flex-shrink-0">
-           <Button variant="ghost" className="w-full justify-start text-gray-300 hover:bg-white/10 hover:text-white" onClick={() => navigate('/profile')}>
-             <User className="mr-3 h-5 w-5 flex-shrink-0" />
-             <span className="truncate">{user.email?.split('@')[0] || user.id}</span>
+           <Button variant="ghost" className="w-full h-auto flex-col justify-center items-center text-gray-300 hover:bg-white/10 hover:text-white py-2" onClick={() => navigate('/profile')}>
+             <User className="h-5 w-5 flex-shrink-0" />
+             <span className="text-xs mt-1 truncate">{user.email?.split('@')[0] || user.id}</span>
            </Button>
         </div>
       )}
