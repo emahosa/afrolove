@@ -18,7 +18,6 @@ import { VoteDialog } from "@/components/contest/VoteDialog";
 import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
 import { WinnerCard } from "@/components/contest/WinnerCard";
 import { WinnerClaimDialog } from "@/components/contest/WinnerClaimDialog";
-import { ContestEntryCard } from "@/components/contest/ContestEntryCard";
 
 interface Song {
   id: string;
@@ -140,15 +139,15 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (entry: ContestEntry) => {
-    if (!entry) return;
-    if (currentTrack?.id === entry.id && isPlaying) {
+  const handlePlay = (song: any) => {
+    if (!song) return;
+    if (currentTrack?.id === song.id && isPlaying) {
       togglePlayPause();
-    } else if (entry.video_url) {
+    } else if (song.audio_url) {
       playTrack({
-        id: entry.id,
-        title: entry.description || 'Contest Entry',
-        audio_url: entry.video_url,
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url
       });
     }
   };
@@ -504,18 +503,25 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                         <p>No entries found for this contest {searchTerm && 'matching your search'}.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="space-y-3">
                         {contestEntries
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
-                            <ContestEntryCard
-                              key={entry.id}
-                              entry={entry}
-                              onVote={() => handleVoteClick(entry)}
-                              onPlay={handlePlay}
-                              isPlaying={currentTrack?.id === entry.id && isPlaying}
-                              userHasVoted={false}
-                            />
+                            <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                 {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                               </Button>
+                               <div className="flex-grow mx-4 min-w-0">
+                                 <p className="font-semibold truncate">Contest Entry</p>
+                                <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-dark-purple" /><span>{entry.vote_count}</span></div>
+                                <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
+                                  Vote
+                                </Button>
+                              </div>
+                            </div>
                           ))}
                       </div>
                     )}
