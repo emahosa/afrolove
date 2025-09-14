@@ -31,6 +31,7 @@ export interface ContestEntry {
   contest_id: string;
   user_id: string;
   video_url: string;
+  title: string;
   description: string;
   approved: boolean;
   vote_count: number;
@@ -342,6 +343,7 @@ export const useContest = () => {
             contest_id: entry.contest_id,
             user_id: entry.user_id,
             video_url: entry.video_url || '',
+            title: entry.title || 'Contest Entry',
             description: entry.description || '',
             approved: entry.approved,
             vote_count: entry.vote_count || 0,
