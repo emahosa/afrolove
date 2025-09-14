@@ -19,38 +19,6 @@ import { SubmissionDialog } from "@/components/contest/SubmissionDialog";
 import { WinnerCard } from "@/components/contest/WinnerCard";
 import { WinnerClaimDialog } from "@/components/contest/WinnerClaimDialog";
 
-// Contest component main interface
-interface LocalContest {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  end_date: string;
-  prize: string;
-  entry_fee: number;
-  status: string;
-}
-
-interface LocalContestEntry {
-  id: string;
-  contest_id: string;
-  user_id: string;
-  description: string;
-  vote_count: number;
-  song_id: string | null;
-  video_url: string | null;
-  approved: boolean;
-  created_at: string;
-  profiles: {
-    full_name: string;
-  } | null;
-  songs?: {
-    id: string;
-    title: string;
-    audio_url: string;
-  } | null;
-}
-
 interface Song {
   id: string;
   title: string;
@@ -76,7 +44,7 @@ const Contest = () => {
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
-  const [selectedContest, setSelectedContest] = useState<LocalContest | null>(null);
+  const [selectedContest, setSelectedContest] = useState<ContestType | null>(null);
   const [selectedSong, setSelectedSong] = useState<string>("");
   const [description, setDescription] = useState("");
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
@@ -88,6 +56,7 @@ const Contest = () => {
   const [showWinnerClaim, setShowWinnerClaim] = useState(false);
   const [winnerClaimData, setWinnerClaimData] = useState<{ contestId: string; winnerRank: number } | null>(null);
   const [userWins, setUserWins] = useState<Array<{ contest_id: string; rank: number }>>([]);
+  const [visibleRules, setVisibleRules] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeContests.length > 0 && !activeContestTab) {
@@ -183,7 +152,7 @@ const Contest = () => {
     }
   };
 
-  const openSubmissionDialog = (contest: LocalContest) => {
+  const openSubmissionDialog = (contest: ContestType) => {
     setSelectedContest(contest);
     setSubmissionDialogOpen(true);
   };
@@ -209,7 +178,7 @@ const Contest = () => {
     setSelectedEntry(null);
   };
 
-  const handleUnlockContest = async (contest: LocalContest) => {
+  const handleUnlockContest = async (contest: ContestType) => {
     if (!user) {
       toast.info('Please log in to unlock the contest.');
       return;
@@ -409,26 +378,44 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             ) : (
               <div className="space-y-3">
                 {activeContests.map((contest) => (
-                  <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                    <div className="flex-grow mx-4 min-w-0">
-                      <p className="font-semibold truncate text-white">{contest.title}</p>
-                      <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                        <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
-                        <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
+                  <div key={contest.id} className="p-3 rounded-lg bg-white/5 border border-transparent hover:border-white/10 transition-all">
+                    <div className="flex items-center">
+                      <div className="flex-grow mx-4 min-w-0">
+                        <p className="font-semibold truncate text-white">{contest.title}</p>
+                        <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                          <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
+                          <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
+                          {contest.rules && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-xs p-0 h-auto text-dark-purple hover:text-opacity-80"
+                              onClick={() => setVisibleRules(visibleRules === contest.id ? null : contest.id)}
+                            >
+                              {visibleRules === contest.id ? 'Hide Rules' : 'View Rules'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {contest.is_unlocked ? (
+                          <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                            Submit Entry
+                          </Button>
+                        ) : (
+                          <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
+                            {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      {contest.is_unlocked ? (
-                        <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                          Submit Entry
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
-                          {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
-                        </Button>
-                      )}
-                    </div>
+                    {visibleRules === contest.id && contest.rules && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <h4 className="font-semibold text-white mb-1">Contest Rules</h4>
+                        <p className="text-sm text-gray-300 whitespace-pre-wrap">{contest.rules}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

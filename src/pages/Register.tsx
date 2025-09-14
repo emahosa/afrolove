@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
@@ -16,6 +17,7 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
@@ -25,6 +27,11 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!agreedToTerms) {
+      toast.error("You must agree to the Terms and Conditions to register.");
+      return;
+    }
+
     if (!name.trim() || !email.trim() || !password.trim()) {
       toast.error("All fields are required");
       return;
@@ -146,10 +153,24 @@ const Register = () => {
               className="bg-black/20 border-white/20 text-white placeholder-gray-500"
             />
           </div>
+          <div className="flex items-center space-x-2 my-4">
+            <Checkbox
+              id="terms"
+              checked={agreedToTerms}
+              onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+              className="border-white/50 data-[state=checked]:bg-dark-purple"
+            />
+            <Label htmlFor="terms" className="text-sm text-gray-400">
+              I agree to the{" "}
+              <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-dark-purple hover:underline">
+                Terms and Conditions
+              </Link>
+            </Label>
+          </div>
           <Button
             type="submit"
             className="w-full bg-deep-purple font-bold"
-            disabled={loading}
+            disabled={loading || !agreedToTerms}
           >
             {loading ? "Creating account..." : "Sign Up"}
           </Button>
