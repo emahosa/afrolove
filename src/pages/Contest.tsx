@@ -357,7 +357,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
       </div>
 
       <Tabs defaultValue="active" className="w-full flex flex-col flex-grow mt-6">
-        <TabsList className="grid w-full grid-cols-5 bg-black/30 border border-white/10 flex-shrink-0">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 bg-black/30 border border-white/10 flex-shrink-0">
           <TabsTrigger value="active" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Active</TabsTrigger>
           <TabsTrigger value="upcoming" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Upcoming</TabsTrigger>
           <TabsTrigger value="past" className="data-[state=active]:bg-dark-purple data-[state=active]:text-white">Past</TabsTrigger>
