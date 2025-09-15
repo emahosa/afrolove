@@ -70,7 +70,7 @@ export default function Index() {
 
   // Render landing page for non-authenticated users
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-midnight to-black text-white font-sans">
+    <div className="relative min-h-screen w-full bg-gradient-to-b from-midnight to-black text-white font-sans">
       {/* Background Floating Icons */}
       <div className="absolute inset-0 z-0 opacity-50">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(74,0,109,0.2),rgba(255,255,255,0))]"></div>
@@ -91,14 +91,14 @@ export default function Index() {
             <section className="w-full max-w-4xl">
               <div className="relative inline-block animate-breath">
                 <div className="absolute -inset-2 bg-black/30 rounded-full blur-lg"></div>
-                <h1 className="relative text-6xl font-bold text-dark-purple">
+                <h1 className="relative text-4xl md:text-6xl font-bold text-dark-purple">
                   Afromelody
                 </h1>
               </div>
-              <p className="mt-4 text-2xl font-semibold text-gray-100 animate-fade-in-up">
+              <p className="mt-4 text-xl md:text-2xl font-semibold text-gray-100 animate-fade-in-up">
                 Create Afrobeats with AI. Earn while you play.
               </p>
-              <p className="mt-2 text-lg text-purple-300 animate-fade-in-up-delay-1">
+              <p className="mt-2 text-base md:text-lg text-purple-300 animate-fade-in-up-delay-1">
                 The Future of Music is Here.
               </p>
               <p className="mt-6 max-w-2xl mx-auto text-gray-400 font-light animate-fade-in-up-delay-2">

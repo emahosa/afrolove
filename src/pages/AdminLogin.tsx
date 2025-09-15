@@ -123,7 +123,7 @@ const AdminLoginPage: React.FC = () => {
             <Shield className="h-12 w-12 text-red-600 mr-3" />
             <Music className="h-12 w-12 text-red-600" />
           </div>
-          <CardTitle className="text-3xl font-bold text-red-800">Admin Panel Access</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-red-800">Admin Panel Access</CardTitle>
           <CardDescription className="text-red-600">
             Restricted access for administrators only
           </CardDescription>

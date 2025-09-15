@@ -230,7 +230,7 @@ const Login = () => {
         </div>
 
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Welcome Back</h2>
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-2 text-white">Welcome Back</h2>
           <p className="text-gray-400">Sign in to continue to Afromelody</p>
         </div>
 
