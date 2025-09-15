@@ -15,7 +15,7 @@ const MusicLogo: React.FC<MusicLogoProps> = ({
 
   return (
     <div
-      className={`bg-[#4c1d95] rounded-full flex items-center justify-center ring-2 ring-white ring-offset-2 ring-offset-[#4c1d95] ${className}`}
+      className={`bg-[#4c1d95] rounded-full flex items-center justify-center ${className}`}
       style={{
         width: outerSize,
         height: outerSize,
@@ -24,7 +24,6 @@ const MusicLogo: React.FC<MusicLogoProps> = ({
       <Music
         size={iconSize}
         color="white"
-        strokeWidth={1.5}
       />
     </div>
   );
