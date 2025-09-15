@@ -109,3 +109,19 @@
     transition: background-color 5000s ease-in-out 0s;
   }
 }
+
+/* Semi-transparent black prompt dialog */
+[data-sonner-toast] {
+  background: rgba(0, 0, 0, 0.8) !important; /* black with 80% opacity = 20% transparent */
+  color: #ffffff !important;                /* white text */
+  border-radius: 12px !important;            /* optional rounded corners */
+  padding: 16px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important; /* subtle shadow */
+}
+
+/* Ensure all inner text is white */
+[data-sonner-toast] p,
+[data-sonner-toast] span,
+[data-sonner-toast] div {
+  color: #ffffff !important;
+}
