@@ -12,7 +12,20 @@ const AppLayoutContent = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-black text-white font-sans">
-      <Navbar onMenuClick={() => setSidebarOpen(true)} />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:block flex-shrink-0 w-24">
+          <Sidebar className="bg-black border-r border-white/10" />
+        </div>
+
+        <div className="flex-1 flex flex-col">
+          <Navbar onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 overflow-y-auto">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+      <AudioPlayer />
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -20,17 +33,6 @@ const AppLayoutContent = () => {
           <Sidebar />
         </SheetContent>
       </Sheet>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Desktop Sidebar */}
-        <div className="hidden md:block flex-shrink-0 w-24">
-          <Sidebar className="bg-black border-r border-white/10" />
-        </div>
-        <main className="flex-1 flex flex-col overflow-y-auto">
-          <Outlet />
-        </main>
-      </div>
-      <AudioPlayer />
     </div>
   );
 };
