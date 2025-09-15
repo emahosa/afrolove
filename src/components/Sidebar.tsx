@@ -86,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 title={needsSubscription ? `${item.label} (Subscription required)` : item.label}
               >
                 <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-white")} />
-                <span className="text-xs mt-1">{item.label}</span>
+                <span className="text-xs mt-1 text-center break-words">{item.label}</span>
                 {item.tag && !needsSubscription && (
                   <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0.5 self-center border-dark-purple text-dark-purple">
                     {item.tag}

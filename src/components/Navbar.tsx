@@ -25,7 +25,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
 
   return (
     <header className="border-b border-white/10 bg-black/30 backdrop-blur-sm sticky top-0 z-30">
-      <div className="px-4 h-16 flex items-center justify-between">
+      <div className="pr-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden text-white/80 hover:bg-white/10 hover:text-white">
             <Menu className="h-5 w-5" />
