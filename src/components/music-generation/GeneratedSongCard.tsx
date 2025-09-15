@@ -123,9 +123,10 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
   };
 
   const isCurrentlyPlaying = currentTrack?.id === song.id && isPlaying;
+  const isGenerating = song.status === 'pending' || song.status === 'processing';
 
   return (
-    <Card className="group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full">
+    <Card className={`group bg-white/5 border-white/10 text-white backdrop-blur-sm flex flex-col h-full ${isGenerating ? 'animate-pulse' : ''}`}>
       <CardHeader className="p-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -135,9 +136,9 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             <div className="flex items-center gap-2 mt-1">
               <Badge 
                 variant="outline"
-                className={`text-xs ${getStatusColor(song.status)} px-1.5 py-0.5`}
+                className={`text-xs ${getStatusColor(isGenerating ? 'processing' : song.status)} px-1.5 py-0.5`}
               >
-                {song.status}
+                {isGenerating ? 'processing' : song.status}
               </Badge>
               {song.genre && (
                 <Badge variant="outline" className="border-white/20 text-gray-300 text-xs px-1.5 py-0.5">
@@ -149,16 +150,16 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="p-3 space-y-2 flex-grow flex flex-col">
+      <CardContent className="p-3 space-y-2 flex-grow flex flex-col justify-between">
         <div className="flex-grow space-y-1">
             <div className="flex items-center justify-between text-xs text-gray-400">
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>{formatDuration(song.duration)}</span>
+                    <span>{isGenerating ? '--:--' : formatDuration(song.duration)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <Zap className="h-3 w-3" />
-                    <span>{song.credits_used} credits</span>
+                    <span>{song.credits_used || 0} credits</span>
                 </div>
             </div>
 
@@ -167,7 +168,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             </div>
         </div>
 
-        {song.lyrics && (
+        {song.lyrics && !isGenerating && (
           <Collapsible>
             <CollapsibleTrigger asChild>
               <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
@@ -185,7 +186,12 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </Collapsible>
         )}
 
-        {song.status === 'completed' || song.status === 'approved' && song.audio_url ? (
+        {isGenerating ? (
+          <div className="flex items-center justify-center text-center py-4 text-sm text-yellow-400">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Generating song...
+          </div>
+        ) : song.audio_url ? (
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handlePlay}
@@ -216,7 +222,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </div>
         ) : (
             <div className="text-center py-4 text-sm text-gray-400">
-                {song.status === 'processing' ? 'Generating song...' : 'Audio not available'}
+                Audio not available
             </div>
         )}
       </CardContent>

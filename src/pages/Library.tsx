@@ -50,7 +50,6 @@ const Library = () => {
         .from('songs')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false });
       
       console.log('📊 Library: Raw songs data from database:', data);
@@ -184,26 +183,21 @@ const Library = () => {
     return <p className="text-gray-400">Please log in to view your songs.</p>
   }
 
-  const filteredSongs = songs.filter(song => {
-    // Tab filtering
-    if (activeTab === 'songs') {
-      if (!song.lyrics || song.lyrics.trim() === '[Instrumental]') return false;
-    } else if (activeTab === 'instrumentals') {
-      if (song.lyrics && song.lyrics.trim() !== '[Instrumental]') return false;
-    }
-
-    // Search query filtering
+  const filterSongs = (song: Song) => {
+    if (activeTab === 'songs' && (!song.lyrics || song.lyrics.trim() === '[Instrumental]')) return false;
+    if (activeTab === 'instrumentals' && (song.lyrics && song.lyrics.trim() !== '[Instrumental]')) return false;
     if (searchQuery.trim() === '') return true;
     const lowerCaseQuery = searchQuery.toLowerCase();
-    const titleMatch = song.title.toLowerCase().includes(lowerCaseQuery);
-    const promptMatch = song.prompt?.toLowerCase().includes(lowerCaseQuery);
-    return titleMatch || promptMatch;
-  });
+    return song.title.toLowerCase().includes(lowerCaseQuery) || song.prompt?.toLowerCase().includes(lowerCaseQuery);
+  };
 
-  const totalPages = Math.ceil(filteredSongs.length / songsPerPage);
+  const generatingSongs = songs.filter(s => (s.status === 'pending' || s.status === 'processing') && filterSongs(s));
+  const completedSongs = songs.filter(s => (s.status === 'completed' || s.status === 'approved') && filterSongs(s));
+
+  const totalPages = Math.ceil(completedSongs.length / songsPerPage);
   const indexOfLastSong = currentPage * songsPerPage;
   const indexOfFirstSong = indexOfLastSong - songsPerPage;
-  const currentSongs = filteredSongs.slice(indexOfFirstSong, indexOfLastSong);
+  const currentSongs = completedSongs.slice(indexOfFirstSong, indexOfLastSong);
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -212,7 +206,8 @@ const Library = () => {
 
   console.log('📊 Library: Song counts:', {
     total: songs.length,
-    filtered: filteredSongs.length
+    generating: generatingSongs.length,
+    completed: completedSongs.length,
   });
 
   return (
@@ -220,7 +215,7 @@ const Library = () => {
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-3xl font-semibold text-white">My Library</h1>
-          <p className="text-gray-400">All your completed songs</p>
+          <p className="text-gray-400">All your generated songs</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -237,32 +232,43 @@ const Library = () => {
         />
       </div>
 
-      <div className="mt-6">
-        {songs.length > 0 ? (
-          filteredSongs.length > 0 ? (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {currentSongs.map((song) => (
-                  <GeneratedSongCard key={song.id} song={song} />
-                ))}
-              </div>
+      <div className="mt-6 space-y-8">
+        {generatingSongs.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Generating Songs</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {generatingSongs.map((song) => (
+                <GeneratedSongCard key={song.id} song={song} />
+              ))}
             </div>
-          ) : (
-            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-              <Music className="mx-auto h-12 w-12" />
-              <h3 className="mt-4 text-lg font-medium text-white">No matching songs</h3>
-              <p className="mt-1 text-sm">Try a different search or filter.</p>
+          </div>
+        )}
+
+        {completedSongs.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-white">Completed Songs</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {currentSongs.map((song) => (
+                <GeneratedSongCard key={song.id} song={song} />
+              ))}
             </div>
-          )
-        ) : (
-          !isLoading && (
-            <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
-              <Music className="mx-auto h-12 w-12" />
-              <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
-              <p className="mt-1 text-sm">Create your first song to see it here.</p>
-            </div>
-          )
+          </div>
+        )}
+
+        {songs.length === 0 && !isLoading && (
+          <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+            <Music className="mx-auto h-12 w-12" />
+            <h3 className="mt-4 text-lg font-medium text-white">No songs yet</h3>
+            <p className="mt-1 text-sm">Create your first song to see it here.</p>
+          </div>
+        )}
+
+        {generatingSongs.length === 0 && completedSongs.length === 0 && songs.length > 0 && (
+           <div className="text-center py-16 border-2 border-dashed border-white/20 rounded-lg text-gray-400">
+             <Music className="mx-auto h-12 w-12" />
+             <h3 className="mt-4 text-lg font-medium text-white">No matching songs</h3>
+             <p className="mt-1 text-sm">Try a different search or filter.</p>
+           </div>
         )}
       </div>
 
