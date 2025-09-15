@@ -13,7 +13,7 @@ export interface Song {
   id: string;
   title: string;
   audio_url: string;
-  status: 'pending' | 'processing' | 'completed' | 'rejected' | 'approved';
+  status: 'pending' | 'completed' | 'rejected' | 'approved';
   created_at: string;
   prompt?: string;
   credits_used: number;
@@ -50,7 +50,7 @@ const Library = () => {
         .from('songs')
         .select('*')
         .eq('user_id', user.id)
-        .in('status', ['completed', 'approved', 'pending', 'processing'])
+        .in('status', ['completed', 'approved'])
         .order('created_at', { ascending: false });
       
       console.log('📊 Library: Raw songs data from database:', data);
@@ -220,7 +220,7 @@ const Library = () => {
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="text-3xl font-semibold text-white">My Library</h1>
-          <p className="text-gray-400">All your generated songs</p>
+          <p className="text-gray-400">All your completed songs</p>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
           <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />

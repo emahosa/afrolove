@@ -37,38 +37,6 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
     }
   }, [user]);
 
-  // Realtime subscription for song updates
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('songs-library-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'songs', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const newSong = payload.new as Song;
-            setSongs(currentSongs => [newSong, ...currentSongs]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedSong = payload.new as Song;
-            setSongs(currentSongs =>
-              currentSongs.map(song => (song.id === updatedSong.id ? updatedSong : song))
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setSongs(currentSongs =>
-              currentSongs.filter(song => song.id !== payload.old.id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-
   const fetchSongs = async () => {
     try {
       const { data, error } = await supabase
@@ -203,23 +171,23 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
   };
 
   const getStatusInfo = (song: Song) => {
-    if (song.status === 'completed' || song.status === 'approved') {
-      return {
+    if (song.status === 'completed' && song.audio_url) {
+      return { 
         tags: [song.genre?.name, 'Instruments'].filter(Boolean),
         canPlay: true,
         showActions: true
       };
-    } else if (song.status === 'pending' || song.status === 'processing') {
-      return {
+    } else if (song.status === 'pending' || song.status === 'approved') {
+      return { 
         tags: ['Generating...'],
         canPlay: false,
         showActions: false
       };
-    } else { // rejected, failed, etc.
-      return {
-        tags: ['Failed'],
+    } else {
+      return { 
+        tags: ['Processing...'],
         canPlay: false,
-        showActions: true // Allow deletion
+        showActions: false
       };
     }
   };
@@ -250,7 +218,7 @@ const SongLibrary = ({ onSongSelect, searchTerm = "" }: { onSongSelect: (song: S
           <div key={song.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-lg transition-colors cursor-pointer" onClick={() => statusInfo.canPlay ? onSongSelect(song) : undefined}>
             {/* Thumbnail */}
             <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getSongThumbnail(song)} flex items-center justify-center flex-shrink-0`}>
-              {song.status === 'pending' || song.status === 'processing' ? (
+              {song.status === 'pending' || song.status === 'approved' ? (
                 <Loader2 className="h-5 w-5 text-white animate-spin" />
               ) : (
                 <Music className="h-5 w-5 text-white" />
