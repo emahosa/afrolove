@@ -18,7 +18,7 @@ const AppLayoutContent = () => {
           <Sidebar className="bg-black border-r border-white/10" />
         </div>
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col">
           <Navbar onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 overflow-y-auto">
             <Outlet />
