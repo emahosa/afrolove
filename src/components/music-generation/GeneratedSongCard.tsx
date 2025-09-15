@@ -185,7 +185,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
           </Collapsible>
         )}
 
-        {song.status === 'completed' || song.status === 'approved' && song.audio_url ? (
+        {(song.status === 'completed' || song.status === 'approved') && song.audio_url ? (
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handlePlay}
@@ -215,9 +215,10 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             </Button>
           </div>
         ) : (
-            <div className="text-center py-4 text-sm text-gray-400">
-                {song.status === 'processing' ? 'Generating song...' : 'Audio not available'}
-            </div>
+          <div className="flex items-center justify-center text-center py-4 text-sm text-gray-400">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            {song.status === 'pending' ? 'Queued for generation...' : 'Generating song...'}
+          </div>
         )}
       </CardContent>
     </Card>
