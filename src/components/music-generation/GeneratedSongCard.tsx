@@ -168,50 +168,58 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             </div>
         </div>
 
+        {song.lyrics && !isGenerating && (
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
+                <FileText className="h-3 w-3 mr-1" />
+                Lyrics
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
+                <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
+                  {song.lyrics}
+                </pre>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
         {isGenerating ? (
           <div className="flex items-center justify-center text-center py-4 text-sm text-yellow-400">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             Generating song...
           </div>
         ) : song.audio_url ? (
-          <Collapsible>
-            <div className="flex gap-2 pt-2">
-              {song.lyrics && (
-                <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex-1 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs h-8">
-                    <FileText className="h-3 w-3 mr-1" />
-                    Lyrics
-                  </Button>
-                </CollapsibleTrigger>
+          <div className="flex gap-2 pt-2">
+            <Button
+              onClick={handlePlay}
+              size="sm"
+              className="flex-1 bg-dark-purple hover:bg-opacity-90 font-semibold text-xs h-8"
+            >
+              {isCurrentlyPlaying ? (
+                <Pause className="h-4 w-4 mr-1" />
+              ) : (
+                <Play className="h-4 w-4 mr-1" />
               )}
-              <Button
-                onClick={handlePlay}
-                size="sm"
-                className="flex-1 bg-dark-purple hover:bg-opacity-90 font-semibold text-xs h-8"
-              >
-                {isCurrentlyPlaying ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
-                {isCurrentlyPlaying ? 'Pause' : 'Play'}
-              </Button>
-              <Button
-                onClick={handleDownload}
-                variant="outline"
-                size="icon"
-                disabled={isDownloading}
-                className="bg-transparent border-white/20 hover:bg-white/10 h-8 w-8 hidden sm:inline-flex"
-              >
-                {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              </Button>
-            </div>
-            {song.lyrics && (
-              <CollapsibleContent className="mt-2">
-                <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
-                    {song.lyrics}
-                  </pre>
-                </div>
-              </CollapsibleContent>
-            )}
-          </Collapsible>
+              {isCurrentlyPlaying ? 'Pause' : 'Play'}
+            </Button>
+            
+            <Button
+              onClick={handleDownload}
+              variant="outline"
+              size="icon"
+              disabled={isDownloading}
+              className="bg-transparent border-white/20 hover:bg-white/10 h-8 w-8"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         ) : (
             <div className="text-center py-4 text-sm text-gray-400">
                 Audio not available
