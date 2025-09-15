@@ -2,19 +2,30 @@ import React from 'react';
 import { Music } from 'lucide-react';
 
 interface MusicLogoProps {
-  size?: number; // size in px
-  color?: string; // color of the note
+  size?: number; // size of the logo in px
+  className?: string;
 }
 
 const MusicLogo: React.FC<MusicLogoProps> = ({
   size = 128,
-  color = '#4c1d95', // default site primary color
+  className,
 }) => {
+  const outerSize = size;
+  const iconSize = size * 0.5; // Make the icon smaller than the circle
+
   return (
-    <Music
-      size={size}
-      color={color}
-    />
+    <div
+      className={`bg-[#4c1d95] rounded-full flex items-center justify-center border-0 ${className}`}
+      style={{
+        width: outerSize,
+        height: outerSize,
+      }}
+    >
+      <Music
+        size={iconSize}
+        color="white"
+      />
+    </div>
   );
 };
 
