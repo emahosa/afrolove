@@ -139,15 +139,19 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (song: any) => {
-    if (!song) return;
-    if (currentTrack?.id === song.id && isPlaying) {
+  const handlePlay = (entry: ContestEntry) => {
+    if (!entry.songs) {
+      toast.error('No audio found for this entry.');
+      return;
+    }
+    if (currentTrack?.id === entry.id && isPlaying) {
       togglePlayPause();
-    } else if (song.audio_url) {
+    } else if (entry.songs.audio_url) {
       playTrack({
-        id: song.id,
-        title: song.title,
-        audio_url: song.audio_url
+        id: entry.id,
+        title: entry.songs.title || 'Contest Entry',
+        audio_url: entry.songs.audio_url,
+        artist: entry.profiles?.full_name || 'Unknown Artist'
       });
     }
   };
@@ -512,9 +516,9 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                                  {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                </Button>
                                <div className="flex-grow mx-4 min-w-0">
-                                 <p className="font-semibold truncate">Contest Entry</p>
-                                <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
-                              </div>
+                                 <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
+                               </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-dark-purple" /><span>{entry.vote_count}</span></div>
                                 <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
