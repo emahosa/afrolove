@@ -40,6 +40,10 @@ export interface ContestEntry {
     full_name: string;
     username: string;
   } | null;
+  songs?: {
+    title: string;
+    audio_url: string;
+  } | null;
 }
 
 export const useContest = () => {
@@ -305,17 +309,21 @@ export const useContest = () => {
       console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
       setError(null);
       
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
+      console.log('🔍 Step 1: About to query supabase.from("contest_entries") with a join on "songs"');
       
-      // First get contest entries
+      // Fetch contest entries and join with songs and profiles
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('*')
+        .select(`
+          *,
+          profiles (full_name, username),
+          songs (title, audio_url)
+        `)
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
 
-      console.log('✅ Successfully queried contest_entries table');
+      console.log('✅ Successfully queried contest_entries table with joins');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
@@ -323,37 +331,15 @@ export const useContest = () => {
       }
 
       console.log('Contest entries fetched:', entriesData);
-      
-      // Then get profiles for each entry separately - PROFILES TABLE ONLY
-      const entriesWithProfiles = await Promise.all(
-        (entriesData || []).map(async (entry) => {
-          console.log('🔍 About to query supabase.from("profiles") for user:', entry.user_id);
-          
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, username')
-            .eq('id', entry.user_id)
-            .single();
 
-          console.log('✅ Successfully queried profiles table');
-
-          return {
-            id: entry.id,
-            contest_id: entry.contest_id,
-            user_id: entry.user_id,
-            video_url: entry.video_url || '',
-            description: entry.description || '',
-            approved: entry.approved,
-            vote_count: entry.vote_count || 0,
-            media_type: entry.media_type || 'video',
-            created_at: entry.created_at,
-            profiles: profileData ? {
-              full_name: profileData.full_name || '',
-              username: profileData.username || ''
-            } : null
-          };
-        })
-      );
+      // The data should already be in the correct shape, but we can ensure consistency
+      const entriesWithProfiles = (entriesData || []).map(entry => ({
+        ...entry,
+        video_url: entry.video_url || '',
+        description: entry.description || '',
+        vote_count: entry.vote_count || 0,
+        media_type: entry.media_type || 'video',
+      }));
       
       console.log('✅ Combined entries with profiles');
       setContestEntries(entriesWithProfiles);
