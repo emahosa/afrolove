@@ -30,6 +30,7 @@ export interface ContestEntry {
   id: string;
   contest_id: string;
   user_id: string;
+  song_id: string;
   video_url: string;
   description: string;
   approved: boolean;
@@ -39,6 +40,10 @@ export interface ContestEntry {
   profiles?: {
     full_name: string;
     username: string;
+  } | null;
+  songs?: {
+    title: string;
+    audio_url: string;
   } | null;
 }
 
@@ -302,51 +307,34 @@ export const useContest = () => {
     }
 
     try {
-      console.log('🔄 use-contest: fetchContestEntries() - ONLY contest_entries + profiles');
+      console.log('🔄 use-contest: fetchContestEntries() - contest_entries, profiles, and songs');
       setError(null);
       
-      console.log('🔍 Step 1: About to query supabase.from("contest_entries")');
-      
-      // First get contest entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('contest_entries')
-        .select('*')
+        .select(`
+          *,
+          songs (title, audio_url)
+        `)
         .eq('contest_id', contestId)
         .eq('approved', true)
         .order('vote_count', { ascending: false });
-
-      console.log('✅ Successfully queried contest_entries table');
 
       if (entriesError) {
         console.error('Error fetching entries:', entriesError);
         throw entriesError;
       }
-
-      console.log('Contest entries fetched:', entriesData);
       
-      // Then get profiles for each entry separately - PROFILES TABLE ONLY
       const entriesWithProfiles = await Promise.all(
         (entriesData || []).map(async (entry) => {
-          console.log('🔍 About to query supabase.from("profiles") for user:', entry.user_id);
-          
           const { data: profileData } = await supabase
             .from('profiles')
             .select('full_name, username')
             .eq('id', entry.user_id)
             .single();
 
-          console.log('✅ Successfully queried profiles table');
-
           return {
-            id: entry.id,
-            contest_id: entry.contest_id,
-            user_id: entry.user_id,
-            video_url: entry.video_url || '',
-            description: entry.description || '',
-            approved: entry.approved,
-            vote_count: entry.vote_count || 0,
-            media_type: entry.media_type || 'video',
-            created_at: entry.created_at,
+            ...entry,
             profiles: profileData ? {
               full_name: profileData.full_name || '',
               username: profileData.username || ''
@@ -354,9 +342,8 @@ export const useContest = () => {
           };
         })
       );
-      
-      console.log('✅ Combined entries with profiles');
-      setContestEntries(entriesWithProfiles);
+
+      setContestEntries(entriesWithProfiles as ContestEntry[]);
     } catch (error: any) {
       console.error('Error fetching contest entries:', error);
       const errorMessage = error.message || 'Unknown error occurred';
