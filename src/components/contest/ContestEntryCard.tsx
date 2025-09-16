@@ -7,17 +7,17 @@ import { Play, ThumbsUp, User, Pause } from 'lucide-react';
 import { ContestEntry } from '@/hooks/use-contest';
 import { useAuth } from '@/contexts/AuthContext';
 import { PhoneVoteDialog } from './PhoneVoteDialog';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 
 interface ContestEntryCardProps {
   entry: ContestEntry;
   onVote: (entryId: string, voterPhone?: string) => Promise<boolean>;
+  onPlay?: (entryId: string, videoUrl: string) => void;
+  isPlaying?: boolean;
   userHasVoted?: boolean;
 }
 
-export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCardProps) => {
+export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVoted }: ContestEntryCardProps) => {
   const { user } = useAuth();
-  const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [showPhoneDialog, setShowPhoneDialog] = useState(false);
   const [voting, setVoting] = useState(false);
 
@@ -39,18 +39,10 @@ export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCa
   };
 
   const handlePlayClick = () => {
-    if (currentTrack?.id === entry.id && isPlaying) {
-      togglePlayPause();
-    } else if (entry.songs?.audio_url) {
-      playTrack({
-        id: entry.id,
-        title: entry.description || 'Contest Entry',
-        audio_url: entry.songs.audio_url,
-      });
+    if (onPlay && entry.video_url) {
+      onPlay(entry.id, entry.video_url);
     }
   };
-
-  const isThisTrackPlaying = currentTrack?.id === entry.id && isPlaying;
 
   return (
     <>
@@ -60,22 +52,26 @@ export const ContestEntryCard = ({ entry, onVote, userHasVoted }: ContestEntryCa
             {/* Media thumbnail/preview */}
             <div className="text-center">
               <div className="w-16 h-16 bg-melody-primary/30 rounded-full flex items-center justify-center mb-2">
-                <User className="h-8 w-8 text-melody-primary" />
+                {entry.media_type === 'video' ? (
+                  <Play className="h-8 w-8 text-melody-primary" />
+                ) : (
+                  <User className="h-8 w-8 text-melody-primary" />
+                )}
               </div>
               <p className="text-sm text-muted-foreground">
-                Audio Entry
+                {entry.media_type === 'video' ? 'Video Entry' : 'Audio Entry'}
               </p>
             </div>
             
             {/* Play button */}
-            {entry.songs?.audio_url && (
+            {entry.video_url && onPlay && (
               <Button 
                 variant="secondary" 
                 size="icon" 
                 className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
                 onClick={handlePlayClick}
               >
-                {isThisTrackPlaying ? (
+                {isPlaying ? (
                   <Pause className="h-6 w-6" />
                 ) : (
                   <Play className="h-6 w-6" />

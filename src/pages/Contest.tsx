@@ -139,15 +139,15 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (entry: ContestEntry) => {
-    if (!entry || !entry.songs?.audio_url) return;
-    if (currentTrack?.id === entry.id && isPlaying) {
+  const handlePlay = (song: any) => {
+    if (!song) return;
+    if (currentTrack?.id === song.id && isPlaying) {
       togglePlayPause();
-    } else {
+    } else if (song.audio_url) {
       playTrack({
-        id: entry.id,
-        title: `Entry by ${entry.profiles?.full_name || 'Unknown'}`,
-        audio_url: entry.songs.audio_url,
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url
       });
     }
   };
@@ -508,20 +508,13 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                               <Button
-                                 variant="ghost"
-                                 size="icon"
-                                 onClick={() => handlePlay(entry)}
-                                 disabled={!entry.songs?.audio_url}
-                                 className="text-gray-300 hover:text-white disabled:opacity-50"
-                                 title={entry.songs?.audio_url ? `Play Entry by ${entry.profiles?.full_name}` : 'Audio not available'}
-                               >
+                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
                                  {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                </Button>
                                <div className="flex-grow mx-4 min-w-0">
                                  <p className="font-semibold truncate">Contest Entry</p>
-                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
-                               </div>
+                                <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
+                              </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-dark-purple" /><span>{entry.vote_count}</span></div>
                                 <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
