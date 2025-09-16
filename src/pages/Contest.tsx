@@ -139,16 +139,15 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (entry: ContestEntry) => {
-    if (!entry) return;
-    if (currentTrack?.id === entry.id && isPlaying) {
+  const handlePlay = (song: any) => {
+    if (!song) return;
+    if (currentTrack?.id === song.id && isPlaying) {
       togglePlayPause();
-    } else if (entry.video_url) {
+    } else if (song.audio_url) {
       playTrack({
-        id: entry.id,
-        title: entry.description || "Contest Entry",
-        audio_url: entry.video_url,
-        artist: entry.profiles?.full_name || 'Unknown Artist'
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url
       });
     }
   };
