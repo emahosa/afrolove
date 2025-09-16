@@ -139,19 +139,15 @@ const Contest = () => {
     }
   };
 
-  const handlePlay = (entry: ContestEntry) => {
-    if (!entry.songs?.audio_url) {
-      toast.error("Audio for this entry is not available.");
-      return;
-    }
-
-    if (currentTrack?.id === entry.id && isPlaying) {
+  const handlePlay = (song: any) => {
+    if (!song) return;
+    if (currentTrack?.id === song.id && isPlaying) {
       togglePlayPause();
-    } else {
+    } else if (song.audio_url) {
       playTrack({
-        id: entry.id,
-        title: entry.songs.title || 'Contest Entry',
-        audio_url: entry.songs.audio_url,
+        id: song.id,
+        title: song.title,
+        audio_url: song.audio_url
       });
     }
   };
@@ -516,7 +512,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                                  {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                </Button>
                                <div className="flex-grow mx-4 min-w-0">
-                                 <p className="font-semibold truncate">{entry.songs?.title || 'Contest Entry'}</p>
+                                 <p className="font-semibold truncate">Contest Entry</p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
