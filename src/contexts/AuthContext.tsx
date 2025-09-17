@@ -191,112 +191,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state
   useEffect(() => {
-    console.log("AuthContext: Initializing auth state");
-    
     let mounted = true;
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (!mounted) return;
-
-        console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
-
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          // Defer user data fetching to prevent callback issues
-          setTimeout(async () => {
-            if (!mounted) return;
-            
-            try {
-              const userData = await fetchUserData(currentSession.user.id);
-              if (userData && mounted) {
-                const roles = await fetchUserRoles(currentSession.user.id);
-                const winnerStatus = await checkIsWinner(currentSession.user.id);
-                setUser(userData);
-                setUserRoles(roles);
-                setIsWinner(winnerStatus);
-                console.log("AuthContext: User data and roles set", { 
-                  userData: { id: userData.id, email: userData.email }, 
-                  roles,
-                  isWinner: winnerStatus,
-                });
-              } else {
-                console.error(`User profile not found for ID: ${currentSession.user.id}`);
-                setUser(null);
-                setUserRoles([]);
-              }
-            } catch (error) {
-              console.error('Error fetching user data:', error);
-              setUser(null);
-              setUserRoles([]);
-            } finally {
-              if (mounted) {
-                setLoading(false);
-              }
-            }
-          }, 0);
-        } else {
-          console.log("AuthContext: No session, clearing user state");
-          setUser(null);
-          setUserRoles([]);
-          if (mounted) {
-            setLoading(false);
-          }
-        }
-      }
-    );
-
-    // Get initial session
     const getInitialSession = async () => {
-      try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('AuthContext: Error fetching initial session:', error.message);
-          if (mounted) {
-            setLoading(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) {
+        setSession(session);
+        if (session?.user) {
+          const userData = await fetchUserData(session.user.id);
+          if (userData) {
+            const roles = await fetchUserRoles(session.user.id);
+            const winnerStatus = await checkIsWinner(session.user.id);
+            setUser(userData);
+            setUserRoles(roles);
+            setIsWinner(winnerStatus);
           }
-          return;
         }
-
-        if (currentSession?.user && mounted) {
-          console.log("AuthContext: Initial session found");
-          setSession(currentSession);
-          
-          // Fetch user data
-          try {
-            const userData = await fetchUserData(currentSession.user.id);
-            if (userData && mounted) {
-              const roles = await fetchUserRoles(currentSession.user.id);
-              const winnerStatus = await checkIsWinner(currentSession.user.id);
-              setUser(userData);
-              setUserRoles(roles);
-              setIsWinner(winnerStatus);
-            }
-          } catch (error) {
-            console.error('Error fetching initial user data:', error);
-          }
-        } else {
-          console.log("AuthContext: No initial session found");
-        }
-        
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error: any) {
-        console.error('AuthContext: Error during initialization:', error.message);
-        if (mounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
-    getInitialSession();
+    // Check for password recovery URL fragment
+    if (window.location.hash.includes('type=recovery')) {
+      // This is a password recovery flow. Supabase client handles the session from the URL.
+      // We don't call getInitialSession() here to avoid a race condition.
+      // The onAuthStateChange listener below will handle the PASSWORD_RECOVERY event.
+      setLoading(false);
+    } else {
+      getInitialSession();
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
+      // Special handling for password recovery to prevent immediate login
+      if (event === 'PASSWORD_RECOVERY') {
+        // Let the ResetPassword page handle this state.
+        // We don't set the user here, just the session.
+        setSession(session);
+        return;
+      }
+
+      setSession(session);
+      if (session?.user) {
+        const userData = await fetchUserData(session.user.id);
+        if (userData) {
+          const roles = await fetchUserRoles(session.user.id);
+          const winnerStatus = await checkIsWinner(session.user.id);
+          setUser(userData);
+          setUserRoles(roles);
+          setIsWinner(winnerStatus);
+        } else {
+           setUser(null);
+           setUserRoles([]);
+        }
+      } else {
+        setUser(null);
+        setUserRoles([]);
+      }
+    });
 
     return () => {
-      console.log("AuthContext: Cleanup - unsubscribing from auth listener");
       mounted = false;
       subscription.unsubscribe();
     };
@@ -358,7 +313,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string): Promise<boolean> => {
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${import.meta.env.VITE_SITE_URL}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email,

@@ -75,7 +75,7 @@ const Register = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${import.meta.env.VITE_SITE_URL}/dashboard`
         }
       });
 
