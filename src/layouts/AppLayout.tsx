@@ -11,8 +11,8 @@ const AppLayoutContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-black text-white font-sans">
-      <div className="flex flex-1 overflow-hidden">
+    <div className="h-screen flex flex-col bg-black text-white font-sans">
+      <div className="flex flex-1">
         {/* Desktop Sidebar */}
         <div className="hidden md:block flex-shrink-0 w-24">
           <Sidebar className="bg-black border-r border-white/10" />
