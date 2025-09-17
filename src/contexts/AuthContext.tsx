@@ -200,6 +200,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, currentSession) => {
         if (!mounted) return;
 
+        // Do not handle password recovery here, let the ResetPassword page handle it
+        if (event === 'PASSWORD_RECOVERY') {
+            setLoading(false);
+            return;
+        }
+
         console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
 
         setSession(currentSession);
