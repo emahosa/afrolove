@@ -10,6 +10,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import AdminRegister from "./pages/AdminRegister";
@@ -53,6 +55,8 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/terms" element={<TermsAndConditions />} />
                 <Route element={<AuthLayout />}>
