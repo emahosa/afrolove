@@ -1,11 +1,9 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAuth } from "@/contexts/AuthContext";
+import { Label } from "@/components/ui/label";
 import { FaGoogle } from "react-icons/fa";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
@@ -13,62 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
 
 const Register = () => {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  
-  const { register } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!agreedToTerms) {
-      toast.error("You must agree to the Terms and Conditions to register.");
-      return;
-    }
-
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      toast.error("All fields are required");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      console.log("Register: Attempting to register user with:", { name, email });
-      
-      const success = await register(name, email, password);
-      
-      if (success) {
-        toast.success("Registration successful! Welcome to MelodyVerse!");
-        navigate("/dashboard");
-      } else {
-        toast.error("Registration failed. Please try again.");
-      }
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      toast.error(error.message || "An unexpected error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleLogin = async () => {
+    if (!agreedToTerms) {
+      toast.error("You must agree to the Terms and Conditions to sign up.");
+      return;
+    }
+
     setGoogleLoading(true);
     try {
       console.log("Attempting Google signup...");
@@ -104,97 +55,29 @@ const Register = () => {
           <p className="text-gray-400">Join Afromelody and start creating music</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name" className="text-gray-300 text-left block mb-1">Full Name</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
-          </div>
-          <div>
-            <Label htmlFor="email" className="text-gray-300 text-left block mb-1">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
-          </div>
-          <div>
-            <Label htmlFor="password" className="text-gray-300 text-left block mb-1">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
-          </div>
-          <div>
-            <Label htmlFor="confirmPassword" className="text-gray-300 text-left block mb-1">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="bg-black/20 border-white/20 text-white placeholder-gray-500"
-            />
-          </div>
-          <div className="flex items-center space-x-2 my-4">
-            <Checkbox
-              id="terms"
-              checked={agreedToTerms}
-              onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
-              className="border-white/50 data-[state=checked]:bg-dark-purple"
-            />
-            <Label htmlFor="terms" className="text-sm text-gray-400">
-              I agree to the{" "}
-              <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-dark-purple hover:underline">
-                Terms and Conditions
-              </Link>
-            </Label>
-          </div>
-          <Button
-            type="submit"
-            className="w-full bg-deep-purple font-bold"
-            disabled={loading || !agreedToTerms}
-          >
-            {loading ? "Creating account..." : "Sign Up"}
-          </Button>
-        </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/20"></div>
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="px-2 bg-gray-900/50 text-gray-400 rounded-full">
-              OR CONTINUE WITH
-            </span>
-          </div>
+        <div className="flex items-center space-x-2 my-4">
+          <Checkbox
+            id="terms"
+            checked={agreedToTerms}
+            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+            className="border-white/50 data-[state=checked]:bg-dark-purple"
+          />
+          <Label htmlFor="terms" className="text-sm text-gray-400">
+            I agree to the{" "}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-dark-purple hover:underline">
+              Terms and Conditions
+            </Link>
+          </Label>
         </div>
 
         <Button 
           variant="outline"
-          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
+          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white mt-6"
           onClick={handleGoogleLogin}
-          disabled={googleLoading}
+          disabled={googleLoading || !agreedToTerms}
         >
           <FaGoogle className="mr-2" />
-          {googleLoading ? "Signing up..." : "Google"}
+          {googleLoading ? "Signing up..." : "Continue with Google"}
         </Button>
 
         <p className="text-center mt-6 text-sm text-gray-400">
