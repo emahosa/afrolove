@@ -232,14 +232,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (userData && mounted) {
                 const roles = await fetchUserRoles(currentSession.user.id);
                 const winnerStatus = await checkIsWinner(currentSession.user.id);
-                setUser(userData);
-                setUserRoles(roles);
-                setIsWinner(winnerStatus);
-                console.log("AuthContext: User data and roles set", { 
-                  userData: { id: userData.id, email: userData.email }, 
-                  roles,
-                  isWinner: winnerStatus,
-                });
+
+                if (roles.includes('admin') || roles.includes('super_admin')) {
+                  console.log("AuthContext: Admin user detected during login. Signing out.");
+                  toast.error("Admins must use the dedicated admin login page.");
+                  await supabase.auth.signOut();
+                  // The onAuthStateChange listener will handle state cleanup
+                } else {
+                  setUser(userData);
+                  setUserRoles(roles);
+                  setIsWinner(winnerStatus);
+                  console.log("AuthContext: User data and roles set", {
+                    userData: { id: userData.id, email: userData.email },
+                    roles,
+                    isWinner: winnerStatus,
+                  });
+                }
               } else {
                 console.error(`User profile not found for ID: ${currentSession.user.id}`);
                 setUser(null);
@@ -289,9 +297,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (userData && mounted) {
               const roles = await fetchUserRoles(currentSession.user.id);
               const winnerStatus = await checkIsWinner(currentSession.user.id);
-              setUser(userData);
-              setUserRoles(roles);
-              setIsWinner(winnerStatus);
+              if (roles.includes('admin') || roles.includes('super_admin')) {
+                console.log("AuthContext: Admin user detected in initial session. Signing out.");
+                await supabase.auth.signOut();
+              } else {
+                setUser(userData);
+                setUserRoles(roles);
+                setIsWinner(winnerStatus);
+              }
             }
           } catch (error) {
             console.error('Error fetching initial user data:', error);
