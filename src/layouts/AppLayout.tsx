@@ -14,18 +14,24 @@ const AppLayout = () => {
   const { user, userRoles, loading, logout } = useAuth();
 
   useEffect(() => {
-    // Wait until the authentication loading is complete
-    if (loading) {
-      return;
-    }
-
-    // If loading is finished and the user has admin roles, sign them out.
-    if (user && (userRoles.includes('admin') || userRoles.includes('super_admin'))) {
+    // This effect handles the logout action without blocking render.
+    if (!loading && user && (userRoles.includes('admin') || userRoles.includes('super_admin'))) {
       toast.error("Admins must use the dedicated admin login page.");
       logout();
     }
   }, [user, userRoles, loading, logout]);
 
+  // Render a loading state to prevent UI flicker
+  if (loading) {
+    return <div className="h-screen w-full bg-black" />; // Or a spinner
+  }
+
+  // If the user is an admin, render nothing while the logout is processed by the useEffect.
+  if (user && (userRoles.includes('admin') || userRoles.includes('super_admin'))) {
+    return null;
+  }
+
+  // If the user is not an admin and loading is complete, render the dashboard.
   return (
     <AudioPlayerProvider>
       <div className="h-screen flex flex-col bg-black text-white font-sans">
