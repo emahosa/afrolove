@@ -22,6 +22,8 @@ interface AuthContextType {
   session: Session | null;
   userRoles: string[];
   loading: boolean;
+  isPasswordRecovery: boolean;
+  setPasswordRecovery: (isRecovering: boolean) => void;
   login: (email: string, password: string) => Promise<{ data: any; error: any }>;
   register: (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string) => Promise<boolean>;
   logout: () => Promise<{ error: any }>;
@@ -52,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isWinner, setIsWinner] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setPasswordRecovery] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -200,10 +203,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, currentSession) => {
         if (!mounted) return;
 
-        // Do not handle password recovery here, let the ResetPassword page handle it
         if (event === 'PASSWORD_RECOVERY') {
-            setLoading(false);
-            return;
+          console.log("AuthContext: Password recovery event detected. Setting recovery state.");
+          setPasswordRecovery(true);
+          setLoading(false);
+          return;
         }
 
         console.log(`AuthContext: Auth state change event: ${event}`, currentSession?.user?.id || 'No user');
@@ -476,6 +480,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     userRoles,
     loading,
+    isPasswordRecovery,
+    setPasswordRecovery,
     login,
     register,
     logout,

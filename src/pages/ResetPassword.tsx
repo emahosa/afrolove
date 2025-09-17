@@ -7,22 +7,32 @@ import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, session, isPasswordRecovery, setPasswordRecovery } = useAuth();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // This event is triggered when the user clicks the password recovery link.
-        // The session is now active, and we can update the password.
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    // If in recovery mode, allow the user to stay on this page.
+    if (isPasswordRecovery) {
+      return;
+    }
+
+    // If the user is logged in but not in recovery, redirect to the dashboard.
+    if (user) {
+      console.log("ResetPassword: User is logged in but not in recovery. Redirecting to dashboard.");
+      navigate('/dashboard', { replace: true });
+    }
+    // If there is no session and the user is not in recovery, redirect to login.
+    else if (!session) {
+      console.log("ResetPassword: No session and not in recovery. Redirecting to login.");
+      navigate('/login', { replace: true });
+    }
+  }, [user, session, isPasswordRecovery, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +49,7 @@ const ResetPassword = () => {
       toast.error(error.message);
     } else {
       toast.success("Password updated successfully!");
+      setPasswordRecovery(false);
       navigate("/login");
     }
   };

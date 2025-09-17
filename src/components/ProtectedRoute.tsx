@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
-  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isVoter, isSubscriber, session, userRoles, isPasswordRecovery } = useAuth();
   const location = useLocation();
   const [hasShownToast, setHasShownToast] = useState(false);
   const isAdminRoute = location.pathname.startsWith('/admin');
@@ -23,6 +23,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
         <div className="ml-3">Verifying access...</div>
       </div>
     );
+  }
+
+  // If user is in password recovery mode, let them pass through to the reset password page.
+  if (isPasswordRecovery) {
+    return children ? <>{children}</> : <Outlet />;
   }
 
   if (!user || !session) {
