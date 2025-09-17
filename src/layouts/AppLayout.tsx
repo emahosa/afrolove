@@ -2,13 +2,29 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, userRoles, loading, logout } = useAuth();
+
+  useEffect(() => {
+    // Wait until the authentication loading is complete
+    if (loading) {
+      return;
+    }
+
+    // If loading is finished and the user has admin roles, sign them out.
+    if (user && (userRoles.includes('admin') || userRoles.includes('super_admin'))) {
+      toast.error("Admins must use the dedicated admin login page.");
+      logout();
+    }
+  }, [user, userRoles, loading, logout]);
 
   return (
     <AudioPlayerProvider>
