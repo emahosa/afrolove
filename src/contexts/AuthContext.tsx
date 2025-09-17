@@ -57,6 +57,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isPasswordRecovery, setPasswordRecovery] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const recoveryHashSeen = React.useRef(window.location.hash.includes('type=recovery'));
+
+  useEffect(() => {
+    if (recoveryHashSeen.current) {
+      navigate(location.pathname, { replace: true });
+    }
+  }, [navigate, location.pathname]);
 
   const fetchUserData = async (userId: string): Promise<ExtendedUser | null> => {
     try {
@@ -203,10 +210,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, currentSession) => {
         if (!mounted) return;
 
-        if (event === 'PASSWORD_RECOVERY') {
-          console.log("AuthContext: Password recovery event detected.");
+        if (event === 'PASSWORD_RECOVERY' || (recoveryHashSeen.current && event === 'SIGNED_IN')) {
+          console.log("AuthContext: Password recovery flow detected.");
           setPasswordRecovery(true);
           setLoading(false);
+          recoveryHashSeen.current = false; // Consume the flag
           return;
         }
 
