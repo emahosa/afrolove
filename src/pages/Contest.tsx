@@ -329,7 +329,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
 
   return (
     <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap">
         <div>
           <p className="font-semibold text-white">{contest.title}</p>
           <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
@@ -382,11 +382,11 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
               <div className="space-y-3">
                 {activeContests.map((contest) => (
                   <div key={contest.id} className="p-3 rounded-lg bg-white/5 border border-transparent hover:border-white/10 transition-all">
-                    <div className="flex items-center">
+                    <div className="flex items-center flex-wrap">
                       <div className="flex-grow mx-4 min-w-0">
                         <p className="font-semibold truncate text-white">{contest.title}</p>
                         <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 flex-wrap">
                           <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
                           <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Ends: {new Date(contest.end_date).toLocaleDateString()}</span></div>
                           {contest.rules && (
@@ -437,11 +437,11 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
             ) : (
               <div className="space-y-3">
                 {upcomingContests.map((contest) => (
-                  <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                  <div key={contest.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-wrap">
                     <div className="flex-grow mx-4 min-w-0">
                       <p className="font-semibold truncate text-white">{contest.title}</p>
                       <p className="text-sm text-gray-400 line-clamp-1">{contest.description}</p>
-                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                       <div className="flex items-center gap-4 mt-1 text-xs text-gray-400 flex-wrap">
                          <div className="flex items-center gap-1"><Trophy className="h-4 w-4 text-dark-purple" /><span>Prize: {contest.prize}</span></div>
                          <div className="flex items-center gap-1"><Calendar className="h-4 w-4" /><span>Starts: <Countdown to={contest.start_date} /></span></div>
                        </div>
@@ -510,7 +510,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                         {contestEntries
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
-                            <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                            <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-wrap">
                                <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
                                  {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                </Button>

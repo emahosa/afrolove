@@ -133,7 +133,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             <CardTitle className="text-base font-semibold truncate text-white">
               {song.title}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge 
                 variant="outline"
                 className={`text-xs ${getStatusColor(isGenerating ? 'processing' : song.status)} px-1.5 py-0.5`}
@@ -152,7 +152,7 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
 
       <CardContent className="p-3 space-y-2 flex-grow flex flex-col justify-between">
         <div className="flex-grow space-y-1">
-            <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center justify-between text-xs text-gray-400 flex-wrap">
                 <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
                     <span>{isGenerating ? '--:--' : formatDuration(song.duration)}</span>
@@ -168,24 +168,6 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             </div>
         </div>
 
-        {song.lyrics && !isGenerating && (
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full mt-2 bg-transparent border-white/20 hover:bg-white/10 text-white text-xs">
-                <FileText className="h-3 w-3 mr-1" />
-                Lyrics
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
-                <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
-                  {song.lyrics}
-                </pre>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
         {isGenerating ? (
           <div className="flex items-center justify-center text-center py-4 text-sm text-yellow-400">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -199,12 +181,22 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
               className="flex-1 bg-dark-purple hover:bg-opacity-90 font-semibold text-xs h-8"
             >
               {isCurrentlyPlaying ? (
-                <Pause className="h-4 w-4 mr-1" />
+                <Pause className="h-4 w-4" />
               ) : (
-                <Play className="h-4 w-4 mr-1" />
+                <Play className="h-4 w-4" />
               )}
-              {isCurrentlyPlaying ? 'Pause' : 'Play'}
             </Button>
+
+            {song.lyrics && (
+              <Button
+                onClick={() => setShowLyrics(!showLyrics)}
+                variant="outline"
+                size="icon"
+                className="bg-transparent border-white/20 hover:bg-white/10 h-8 w-8"
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            )}
             
             <Button
               onClick={handleDownload}
@@ -224,6 +216,16 @@ const GeneratedSongCard = ({ song }: GeneratedSongCardProps) => {
             <div className="text-center py-4 text-sm text-gray-400">
                 Audio not available
             </div>
+        )}
+
+        {showLyrics && (
+          <div className="mt-2">
+            <div className="p-2 bg-black/30 rounded-md max-h-24 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-xs font-mono text-gray-300">
+                {song.lyrics}
+              </pre>
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

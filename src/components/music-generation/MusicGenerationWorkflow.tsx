@@ -184,10 +184,11 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
           {templateData ? `Genre: ${templateData.genres?.name}` : "Describe your song or provide lyrics"}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2 pt-0 flex-grow">
-        {/* Mode Tabs */}
-        <div className="flex justify-center pt-1">
-          <div className="flex bg-muted rounded-lg p-1">
+      <CardContent className="space-y-2 pt-0 flex-grow p-0">
+        <div className="p-6 space-y-2">
+          {/* Mode Tabs */}
+          <div className="flex justify-center pt-1">
+            <div className="flex bg-muted rounded-lg p-1">
             <button
               onClick={() => setCreationMode('prompt')}
               className={`px-4 py-1 rounded-md text-sm font-medium transition-colors ${
@@ -236,7 +237,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         </div>
 
         {/* Additional Options Row */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap">
           <Switch
             id="instrumental-switch"
             checked={instrumental}
@@ -303,6 +304,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
             </SelectContent>
           </Select>
         </div>
+        </div>
       </CardContent>
 
       <div className="px-6 pt-0 pb-4">
@@ -327,4 +329,4 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
       </div>
     </Card>
   );
-};
+}
