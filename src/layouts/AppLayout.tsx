@@ -2,23 +2,13 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 
 const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isAdmin, isSuperAdmin, signOut } = useAuth();
-
-  useEffect(() => {
-    if (user && (isAdmin() || isSuperAdmin())) {
-      toast.error("Admins are not allowed in the user dashboard. Please use the admin login.");
-      signOut();
-    }
-  }, [user, isAdmin, isSuperAdmin, signOut]);
 
   return (
     <AudioPlayerProvider>
