@@ -28,9 +28,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   // If user is in password recovery mode, allow them to access any page
   // This is to ensure they can reach the /reset-password page.
   if (isPasswordRecovery) {
-    if (location.pathname !== '/reset-password') {
-      return <Navigate to="/reset-password" state={{ from: location }} replace />;
-    }
     return children ? <>{children}</> : <Outlet />;
   }
 
