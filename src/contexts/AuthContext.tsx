@@ -358,7 +358,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (name: string, email: string, password: string, referralCode?: string | null, deviceId?: string): Promise<boolean> => {
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${import.meta.env.VITE_SITE_URL}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
