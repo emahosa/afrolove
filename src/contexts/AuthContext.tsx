@@ -416,7 +416,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setUserRoles([]);
-      navigate('/login');
+      // navigate('/login'); // Removed to prevent unwanted redirection
       return { error: null };
     } catch (error: any) {
       console.error('Logout error:', error);
