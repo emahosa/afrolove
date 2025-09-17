@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { FaGoogle } from "react-icons/fa";
@@ -8,9 +8,12 @@ import { Music } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AuthPageLayout from "@/layouts/AuthPageLayout";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
@@ -36,6 +39,11 @@ const Login = () => {
   }, [user, navigate, location.state, isAdmin, isSuperAdmin]);
 
   const handleGoogleLogin = async () => {
+    if (!agreedToTerms) {
+      toast.error("You must agree to the Terms and Conditions to continue.");
+      return;
+    }
+
     setGoogleLoading(true);
     try {
       console.log("Attempting Google login...");
@@ -67,15 +75,30 @@ const Login = () => {
         </div>
 
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-semibold mb-2 text-white">Welcome Back</h2>
-          <p className="text-gray-400">Sign in to continue to Afromelody</p>
+          <h2 className="text-3xl font-semibold mb-2 text-white">Sign in or Create an Account</h2>
+          <p className="text-gray-400">Continue to Afromelody with your Google account</p>
+        </div>
+
+        <div className="flex items-center space-x-2 my-4">
+          <Checkbox
+            id="terms"
+            checked={agreedToTerms}
+            onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+            className="border-white/50 data-[state=checked]:bg-dark-purple"
+          />
+          <Label htmlFor="terms" className="text-sm text-gray-400">
+            I agree to the{" "}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-dark-purple hover:underline">
+              Terms and Conditions
+            </Link>
+          </Label>
         </div>
 
         <Button 
           variant="outline"
-          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white"
+          className="w-full bg-transparent border-white/30 hover:bg-white/10 text-white mt-6"
           onClick={handleGoogleLogin}
-          disabled={googleLoading}
+          disabled={googleLoading || !agreedToTerms}
         >
           <FaGoogle className="mr-2" />
           {googleLoading ? "Signing in..." : "Continue with Google"}
