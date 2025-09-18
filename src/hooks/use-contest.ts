@@ -37,7 +37,6 @@ export interface ContestEntry {
   vote_count: number;
   media_type: string;
   created_at: string;
-  social_link?: string;
   profiles?: {
     full_name: string;
     username: string;

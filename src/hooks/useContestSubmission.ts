@@ -7,7 +7,6 @@ interface ContestSubmissionData {
   contestId: string;
   songId?: string;
   description?: string;
-  socialLink?: string;
 }
 
 export const useContestSubmission = () => {
@@ -45,7 +44,6 @@ export const useContestSubmission = () => {
         song_id: data.songId || null,
         video_url: null,
         description: data.description || null,
-        social_link: data.socialLink || null,
         status: 'pending' as const,
         approved: false,
         media_type: 'audio' as const
@@ -69,11 +67,10 @@ export const useContestSubmission = () => {
       
       return entry;
 
-    } catch (error) {
-      const e = error as Error;
-      console.error('Contest submission error:', e);
-      toast.error(e.message || 'Failed to submit entry');
-      throw e;
+    } catch (error: any) {
+      console.error('Contest submission error:', error);
+      toast.error(error.message || 'Failed to submit entry');
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
