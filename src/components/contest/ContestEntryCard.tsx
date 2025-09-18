@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, ThumbsUp, User, Pause } from 'lucide-react';
+import { Play, ThumbsUp, User, Pause, Link } from 'lucide-react';
 import { ContestEntry } from '@/hooks/use-contest';
 import { useAuth } from '@/contexts/AuthContext';
 import { PhoneVoteDialog } from './PhoneVoteDialog';
@@ -98,15 +98,27 @@ export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVote
                 <span>{entry.vote_count}</span>
               </div>
               
-              <Button 
-                variant={userHasVoted ? "outline" : "default"}
-                size="sm"
-                className={userHasVoted ? "opacity-50 cursor-not-allowed" : ""}
-                onClick={handleVoteClick}
-                disabled={userHasVoted || voting}
-              >
-                {voting ? 'Voting...' : userHasVoted ? 'Voted' : 'Vote'}
-              </Button>
+              <div className="flex items-center space-x-2">
+                {entry.social_link && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(entry.social_link, '_blank')}
+                  >
+                    <Link className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                )}
+                <Button
+                  variant={userHasVoted ? "outline" : "default"}
+                  size="sm"
+                  className={userHasVoted ? "opacity-50 cursor-not-allowed" : ""}
+                  onClick={handleVoteClick}
+                  disabled={userHasVoted || voting}
+                >
+                  {voting ? 'Voting...' : userHasVoted ? 'Voted' : 'Vote'}
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

@@ -42,6 +42,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { WinnerClaimManagement } from './WinnerClaimManagement';
@@ -75,6 +83,8 @@ interface Contest {
   voting_enabled?: boolean;
   max_entries_per_user?: number;
   entry_fee?: number;
+  submission_type?: 'user_library' | 'genre_template';
+  social_link_enabled?: boolean;
 }
 
 export const ContestManagement = () => {
@@ -116,6 +126,8 @@ export const ContestManagement = () => {
     end_date: null as Date | null,
     instrumental_url: '',
     entry_fee: 0,
+    submission_type: 'user_library' as 'user_library' | 'genre_template',
+    social_link_enabled: false,
   });
 
   // Reset form
@@ -129,6 +141,8 @@ export const ContestManagement = () => {
       end_date: null,
       instrumental_url: '',
       entry_fee: 0,
+      submission_type: 'user_library',
+      social_link_enabled: false,
     });
     setInstrumentalFile(null);
   };
@@ -324,6 +338,8 @@ export const ContestManagement = () => {
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
       entry_fee: contest.entry_fee || 0,
+      submission_type: contest.submission_type || 'user_library',
+      social_link_enabled: contest.social_link_enabled || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -370,6 +386,8 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
       const success = await createContest(contestData);
@@ -426,6 +444,8 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -1015,6 +1035,38 @@ export const ContestManagement = () => {
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
             </div>
+
+            <div>
+              <Label>Submission Type</Label>
+              <Select
+                value={contestForm.submission_type}
+                onValueChange={(value: 'user_library' | 'genre_template') =>
+                  setContestForm({ ...contestForm, submission_type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select submission type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user_library">User Library</SelectItem>
+                  <SelectItem value="genre_template">Genre Template</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose how users will submit entries.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="social-link-enabled"
+                checked={contestForm.social_link_enabled}
+                onCheckedChange={(checked) =>
+                  setContestForm({ ...contestForm, social_link_enabled: checked })
+                }
+              />
+              <Label htmlFor="social-link-enabled">Enable Social Link Field</Label>
+            </div>
           </div>
           
           <DialogFooter>
@@ -1195,6 +1247,38 @@ export const ContestManagement = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
+            </div>
+
+            <div>
+              <Label>Submission Type</Label>
+              <Select
+                value={contestForm.submission_type}
+                onValueChange={(value: 'user_library' | 'genre_template') =>
+                  setContestForm({ ...contestForm, submission_type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select submission type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user_library">User Library</SelectItem>
+                  <SelectItem value="genre_template">Genre Template</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose how users will submit entries.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="social-link-enabled-edit"
+                checked={contestForm.social_link_enabled}
+                onCheckedChange={(checked) =>
+                  setContestForm({ ...contestForm, social_link_enabled: checked })
+                }
+              />
+              <Label htmlFor="social-link-enabled-edit">Enable Social Link Field</Label>
             </div>
           </div>
           
