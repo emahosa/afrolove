@@ -168,6 +168,7 @@ export type Database = {
           last_voted_at: string | null
           media_type: string | null
           song_id: string | null
+          social_link: string | null
           status: Database["public"]["Enums"]["song_status"] | null
           updated_at: string
           user_id: string
@@ -183,6 +184,7 @@ export type Database = {
           last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
+          social_link?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id: string
@@ -198,6 +200,7 @@ export type Database = {
           last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
+          social_link?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id?: string
@@ -328,6 +331,10 @@ export type Database = {
           rules: string
           start_date: string
           status: Database["public"]["Enums"]["contest_status"] | null
+          submission_type:
+            | Database["public"]["Enums"]["contest_submission_type"]
+            | null
+          social_link_enabled: boolean | null
           terms_conditions: string
           title: string
           updated_at: string
@@ -351,6 +358,10 @@ export type Database = {
           rules: string
           start_date: string
           status?: Database["public"]["Enums"]["contest_status"] | null
+          submission_type?:
+            | Database["public"]["Enums"]["contest_submission_type"]
+            | null
+          social_link_enabled?: boolean | null
           terms_conditions: string
           title: string
           updated_at?: string
@@ -374,6 +385,10 @@ export type Database = {
           rules?: string
           start_date?: string
           status?: Database["public"]["Enums"]["contest_status"] | null
+          submission_type?:
+            | Database["public"]["Enums"]["contest_submission_type"]
+            | null
+          social_link_enabled?: boolean | null
           terms_conditions?: string
           title?: string
           updated_at?: string
@@ -1676,6 +1691,7 @@ export type Database = {
     }
     Enums: {
       contest_status: "draft" | "active" | "voting" | "completed"
+      contest_submission_type: "user_library" | "genre_template"
       custom_song_status:
         | "pending"
         | "lyrics_proposed"
