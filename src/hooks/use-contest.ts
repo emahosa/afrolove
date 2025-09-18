@@ -24,6 +24,8 @@ export interface Contest {
   created_at: string;
   entry_fee: number;
   is_unlocked?: boolean;
+  submission_type: 'library' | 'genre_template';
+  social_link_enabled: boolean;
 }
 
 export interface ContestEntry {
@@ -37,6 +39,7 @@ export interface ContestEntry {
   vote_count: number;
   media_type: string;
   created_at: string;
+  social_link?: string;
   profiles?: {
     full_name: string;
     username: string;
@@ -168,6 +171,8 @@ export const useContest = () => {
     end_date: string;
     instrumental_url: string;
     entry_fee: number;
+    submission_type: 'library' | 'genre_template';
+    social_link_enabled: boolean;
   }) => {
     if (!user) {
       toast.error('Please log in to create contests');
@@ -213,6 +218,8 @@ export const useContest = () => {
     end_date: string;
     instrumental_url: string;
     entry_fee: number;
+    submission_type: 'library' | 'genre_template';
+    social_link_enabled: boolean;
   }) => {
     if (!user) {
       toast.error('Please log in to update contests');
