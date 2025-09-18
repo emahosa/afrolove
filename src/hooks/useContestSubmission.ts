@@ -6,7 +6,9 @@ import { toast } from 'sonner';
 interface ContestSubmissionData {
   contestId: string;
   songId?: string;
+  genreTemplateId?: string;
   description?: string;
+  socialLink?: string;
 }
 
 export const useContestSubmission = () => {
@@ -42,8 +44,10 @@ export const useContestSubmission = () => {
         contest_id: data.contestId,
         user_id: user.id,
         song_id: data.songId || null,
+        genre_template_id: data.genreTemplateId || null,
         video_url: null,
         description: data.description || null,
+        social_link: data.socialLink || null,
         status: 'pending' as const,
         approved: false,
         media_type: 'audio' as const

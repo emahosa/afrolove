@@ -1,8 +1,1 @@
 project_id = "bswfiynuvjvoaoyfdrso"
-
-[auth.email]
-template.signup = "/auth/email/signup.html"
-template.invite = "/auth/email/invite.html"
-template.magic_link = "/auth/email/magic_link.html"
-template.recovery = "/auth/email/recovery.html"
-template.email_change = "/auth/email/email_change.html"

@@ -32,10 +32,18 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useContest } from '@/hooks/use-contest';
+import { useContest, Contest, ContestEntry } from '@/hooks/use-contest';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
@@ -48,35 +56,6 @@ import { WinnerClaimManagement } from './WinnerClaimManagement';
 
 console.log("✅ ContestManagement component loaded - Using useContest hook");
 
-interface ContestEntry {
-  id: string;
-  contest_id: string;
-  user_id: string;
-  video_url: string;
-  description: string;
-  approved: boolean;
-  vote_count: number;
-  media_type: string;
-  created_at: string;
-  user_name?: string;
-}
-
-interface Contest {
-  id: string;
-  title: string;
-  description: string;
-  prize: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  instrumental_url?: string;
-  rules?: string;
-  created_at: string;
-  voting_enabled?: boolean;
-  max_entries_per_user?: number;
-  entry_fee?: number;
-}
-
 export const ContestManagement = () => {
   const { 
     contests, 
@@ -88,7 +67,7 @@ export const ContestManagement = () => {
     refreshContests
   } = useContest();
 
-  const [entries, setEntries] = useState<ContestEntry[]>([]);
+  const [entries, setEntries] = useState<(ContestEntry & { user_name?: string })[]>([]);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -116,6 +95,8 @@ export const ContestManagement = () => {
     end_date: null as Date | null,
     instrumental_url: '',
     entry_fee: 0,
+    submission_type: 'library' as 'library' | 'genre_template',
+    social_link_enabled: false,
   });
 
   // Reset form
@@ -129,6 +110,8 @@ export const ContestManagement = () => {
       end_date: null,
       instrumental_url: '',
       entry_fee: 0,
+      submission_type: 'library',
+      social_link_enabled: false,
     });
     setInstrumentalFile(null);
   };
@@ -324,6 +307,8 @@ export const ContestManagement = () => {
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
       entry_fee: contest.entry_fee || 0,
+      submission_type: contest.submission_type || 'library',
+      social_link_enabled: contest.social_link_enabled || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -370,6 +355,8 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
       const success = await createContest(contestData);
@@ -426,6 +413,8 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
       const success = await updateContest(selectedContest.id, contestData);
@@ -1015,6 +1004,39 @@ export const ContestManagement = () => {
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Submission Type</Label>
+                <Select
+                  value={contestForm.submission_type}
+                  onValueChange={(value) =>
+                    setContestForm({ ...contestForm, submission_type: value as 'library' | 'genre_template' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select submission type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="library">From User Library</SelectItem>
+                    <SelectItem value="genre_template">From Genre Templates</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <Label>Enable Social Link</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={contestForm.social_link_enabled}
+                    onCheckedChange={(checked) =>
+                      setContestForm({ ...contestForm, social_link_enabled: checked })
+                    }
+                  />
+                  <Label htmlFor="social-link-switch" className="text-sm font-medium">
+                    {contestForm.social_link_enabled ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
+            </div>
           </div>
           
           <DialogFooter>
@@ -1195,6 +1217,39 @@ export const ContestManagement = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Submission Type</Label>
+                <Select
+                  value={contestForm.submission_type}
+                  onValueChange={(value) =>
+                    setContestForm({ ...contestForm, submission_type: value as 'library' | 'genre_template' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select submission type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="library">From User Library</SelectItem>
+                    <SelectItem value="genre_template">From Genre Templates</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <Label>Enable Social Link</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={contestForm.social_link_enabled}
+                    onCheckedChange={(checked) =>
+                      setContestForm({ ...contestForm, social_link_enabled: checked })
+                    }
+                  />
+                  <Label htmlFor="social-link-switch" className="text-sm font-medium">
+                    {contestForm.social_link_enabled ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
             </div>
           </div>
           
