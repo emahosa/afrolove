@@ -168,6 +168,8 @@ export type Database = {
           last_voted_at: string | null
           media_type: string | null
           song_id: string | null
+          social_link: string | null
+          genre_template_id: string | null
           status: Database["public"]["Enums"]["song_status"] | null
           updated_at: string
           user_id: string
@@ -183,6 +185,8 @@ export type Database = {
           last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
+          social_link?: string | null
+          genre_template_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id: string
@@ -198,6 +202,8 @@ export type Database = {
           last_voted_at?: string | null
           media_type?: string | null
           song_id?: string | null
+          social_link?: string | null
+          genre_template_id?: string | null
           status?: Database["public"]["Enums"]["song_status"] | null
           updated_at?: string
           user_id?: string
@@ -327,6 +333,8 @@ export type Database = {
           prize_currency: string | null
           rules: string
           start_date: string
+          submission_type: string
+          social_link_enabled: boolean
           status: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions: string
           title: string
@@ -350,6 +358,8 @@ export type Database = {
           prize_currency?: string | null
           rules: string
           start_date: string
+          submission_type: string
+          social_link_enabled: boolean
           status?: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions: string
           title: string
@@ -373,6 +383,8 @@ export type Database = {
           prize_currency?: string | null
           rules?: string
           start_date?: string
+          submission_type?: string
+          social_link_enabled?: boolean
           status?: Database["public"]["Enums"]["contest_status"] | null
           terms_conditions?: string
           title?: string
@@ -380,6 +392,42 @@ export type Database = {
           voting_enabled?: boolean | null
           winner_announced_at?: string | null
           winner_id?: string | null
+        }
+        Relationships: []
+      }
+      credit_packages: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          credits: number
+          currency: string
+          description: string | null
+          id: string
+          name: string
+          popular: boolean | null
+          price: number
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          credits: number
+          currency?: string
+          description?: string | null
+          id?: string
+          name: string
+          popular?: boolean | null
+          price: number
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          credits?: number
+          currency?: string
+          description?: string | null
+          id?: string
+          name?: string
+          popular?: boolean | null
+          price?: number
         }
         Relationships: []
       }
@@ -1268,6 +1316,27 @@ export type Database = {
         }
         Relationships: []
       }
+      terms_and_conditions: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: number
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: never
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: never
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           created_at: string
@@ -1501,15 +1570,14 @@ export type Database = {
         Row: {
           address: string
           admin_notes: string | null
-          admin_reviewed: boolean | null
           bank_account_details: string
           contest_id: string
           created_at: string
           full_name: string
           id: string
           phone_number: string
-          prize_claimed: boolean | null
           social_media_link: string | null
+          status: string
           submitted_at: string
           updated_at: string
           user_id: string
@@ -1518,15 +1586,14 @@ export type Database = {
         Insert: {
           address: string
           admin_notes?: string | null
-          admin_reviewed?: boolean | null
           bank_account_details: string
           contest_id: string
           created_at?: string
           full_name: string
           id?: string
           phone_number: string
-          prize_claimed?: boolean | null
           social_media_link?: string | null
+          status?: string
           submitted_at?: string
           updated_at?: string
           user_id: string
@@ -1535,21 +1602,28 @@ export type Database = {
         Update: {
           address?: string
           admin_notes?: string | null
-          admin_reviewed?: boolean | null
           bank_account_details?: string
           contest_id?: string
           created_at?: string
           full_name?: string
           id?: string
           phone_number?: string
-          prize_claimed?: boolean | null
           social_media_link?: string | null
+          status?: string
           submitted_at?: string
           updated_at?: string
           user_id?: string
           winner_rank?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_contest"
+            columns: ["contest_id"]
+            isOneToOne: false
+            referencedRelation: "contests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1612,6 +1686,25 @@ export type Database = {
           role: string
         }[]
       }
+      get_winner_claims_for_user: {
+        Args: { p_user_id: string }
+        Returns: {
+          address: string
+          admin_notes: string
+          bank_account_details: string
+          contest_id: string
+          contest_name: string
+          created_at: string
+          full_name: string
+          id: string
+          phone_number: string
+          social_media_link: string
+          status: string
+          submitted_at: string
+          user_id: string
+          winner_rank: number
+        }[]
+      }
       has_admin_permission: {
         Args: { _permission: string; _user_id: string }
         Returns: boolean
@@ -1664,6 +1757,17 @@ export type Database = {
       release_escrow: {
         Args: { release_to: string; request_id: string }
         Returns: boolean
+      }
+      select_contest_winner: {
+        Args:
+          | {
+              p_contest_entry_id: string
+              p_contest_id: string
+              p_rank: number
+              p_user_id: string
+            }
+          | { p_contest_id: string; p_rank: number; p_user_id: string }
+        Returns: undefined
       }
       submit_contest_entry: {
         Args: { p_contest_id: string; p_description: string; p_song_id: string }

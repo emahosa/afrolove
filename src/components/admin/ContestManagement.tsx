@@ -43,7 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { useContest } from '@/hooks/use-contest';
+import { useContest, Contest, ContestEntry } from '@/hooks/use-contest';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
@@ -56,35 +56,6 @@ import { WinnerClaimManagement } from './WinnerClaimManagement';
 
 console.log("✅ ContestManagement component loaded - Using useContest hook");
 
-interface ContestEntry {
-  id: string;
-  contest_id: string;
-  user_id: string;
-  video_url: string;
-  description: string;
-  approved: boolean;
-  vote_count: number;
-  media_type: string;
-  created_at: string;
-  user_name?: string;
-}
-
-interface Contest {
-  id: string;
-  title: string;
-  description: string;
-  prize: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  instrumental_url?: string;
-  rules?: string;
-  created_at: string;
-  voting_enabled?: boolean;
-  max_entries_per_user?: number;
-  entry_fee?: number;
-}
-
 export const ContestManagement = () => {
   const { 
     contests, 
@@ -96,7 +67,7 @@ export const ContestManagement = () => {
     refreshContests
   } = useContest();
 
-  const [entries, setEntries] = useState<ContestEntry[]>([]);
+  const [entries, setEntries] = useState<(ContestEntry & { user_name?: string })[]>([]);
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -336,8 +307,8 @@ export const ContestManagement = () => {
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
       entry_fee: contest.entry_fee || 0,
-      submission_type: (contest as any).submission_type || 'library',
-      social_link_enabled: (contest as any).social_link_enabled || false,
+      submission_type: contest.submission_type || 'library',
+      social_link_enabled: contest.social_link_enabled || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -388,7 +359,7 @@ export const ContestManagement = () => {
         social_link_enabled: contestForm.social_link_enabled,
       };
 
-      const success = await createContest(contestData as any);
+      const success = await createContest(contestData);
       if (success) {
         setIsCreateDialogOpen(false);
         resetForm();
@@ -446,7 +417,7 @@ export const ContestManagement = () => {
         social_link_enabled: contestForm.social_link_enabled,
       };
 
-      const success = await updateContest(selectedContest.id, contestData as any);
+      const success = await updateContest(selectedContest.id, contestData);
       if (success) {
         setIsEditDialogOpen(false);
         setSelectedContest(null);
