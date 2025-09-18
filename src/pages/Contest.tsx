@@ -520,6 +520,16 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                               </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2 text-sm text-white"><Vote className="h-4 w-4 text-dark-purple" /><span>{entry.vote_count}</span></div>
+                                {entry.social_link && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => window.open(entry.social_link, '_blank')}
+                                    className="bg-transparent border-white/30 hover:bg-white/10 text-white"
+                                  >
+                                    View
+                                  </Button>
+                                )}
                                 <Button variant="outline" size="sm" onClick={() => handleVoteClick(entry)} disabled={isVoting} className="bg-transparent border-white/30 hover:bg-white/10 text-white">
                                   Vote
                                 </Button>
@@ -569,7 +579,7 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
         <SubmissionDialog
           open={submissionDialogOpen}
           onOpenChange={setSubmissionDialogOpen}
-          contestId={selectedContest.id}
+          contest={selectedContest}
           onSubmissionSuccess={() => {
             toast.success('Your entry has been submitted for review.');
             refreshEntries();

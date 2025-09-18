@@ -32,6 +32,14 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -116,6 +124,8 @@ export const ContestManagement = () => {
     end_date: null as Date | null,
     instrumental_url: '',
     entry_fee: 0,
+    submission_type: 'library' as 'library' | 'genre_template',
+    social_link_enabled: false,
   });
 
   // Reset form
@@ -129,6 +139,8 @@ export const ContestManagement = () => {
       end_date: null,
       instrumental_url: '',
       entry_fee: 0,
+      submission_type: 'library',
+      social_link_enabled: false,
     });
     setInstrumentalFile(null);
   };
@@ -324,6 +336,8 @@ export const ContestManagement = () => {
       end_date: new Date(contest.end_date),
       instrumental_url: contest.instrumental_url || '',
       entry_fee: contest.entry_fee || 0,
+      submission_type: (contest as any).submission_type || 'library',
+      social_link_enabled: (contest as any).social_link_enabled || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -370,9 +384,11 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
-      const success = await createContest(contestData);
+      const success = await createContest(contestData as any);
       if (success) {
         setIsCreateDialogOpen(false);
         resetForm();
@@ -426,9 +442,11 @@ export const ContestManagement = () => {
         end_date: formatDateForSubmission(contestForm.end_date)!,
         instrumental_url: instrumentalUrl,
         entry_fee: contestForm.entry_fee || 0,
+        submission_type: contestForm.submission_type,
+        social_link_enabled: contestForm.social_link_enabled,
       };
 
-      const success = await updateContest(selectedContest.id, contestData);
+      const success = await updateContest(selectedContest.id, contestData as any);
       if (success) {
         setIsEditDialogOpen(false);
         setSelectedContest(null);
@@ -1015,6 +1033,39 @@ export const ContestManagement = () => {
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Submission Type</Label>
+                <Select
+                  value={contestForm.submission_type}
+                  onValueChange={(value) =>
+                    setContestForm({ ...contestForm, submission_type: value as 'library' | 'genre_template' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select submission type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="library">From User Library</SelectItem>
+                    <SelectItem value="genre_template">From Genre Templates</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <Label>Enable Social Link</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={contestForm.social_link_enabled}
+                    onCheckedChange={(checked) =>
+                      setContestForm({ ...contestForm, social_link_enabled: checked })
+                    }
+                  />
+                  <Label htmlFor="social-link-switch" className="text-sm font-medium">
+                    {contestForm.social_link_enabled ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
+            </div>
           </div>
           
           <DialogFooter>
@@ -1195,6 +1246,39 @@ export const ContestManagement = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 The number of credits required to enter. Set to 0 for free entry.
               </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Submission Type</Label>
+                <Select
+                  value={contestForm.submission_type}
+                  onValueChange={(value) =>
+                    setContestForm({ ...contestForm, submission_type: value as 'library' | 'genre_template' })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select submission type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="library">From User Library</SelectItem>
+                    <SelectItem value="genre_template">From Genre Templates</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <Label>Enable Social Link</Label>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={contestForm.social_link_enabled}
+                    onCheckedChange={(checked) =>
+                      setContestForm({ ...contestForm, social_link_enabled: checked })
+                    }
+                  />
+                  <Label htmlFor="social-link-switch" className="text-sm font-medium">
+                    {contestForm.social_link_enabled ? "Enabled" : "Disabled"}
+                  </Label>
+                </div>
+              </div>
             </div>
           </div>
           
