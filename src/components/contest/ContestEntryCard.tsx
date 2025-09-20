@@ -64,10 +64,10 @@ export const ContestEntryCard = ({ entry, onVote, onPlay, isPlaying, userHasVote
             </div>
             
             {/* Play button */}
-            {entry.video_url && onPlay && !entry.genre_templates && (
-              <Button
-                variant="secondary"
-                size="icon"
+            {entry.video_url && onPlay && (
+              <Button 
+                variant="secondary" 
+                size="icon" 
                 className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/70 hover:bg-melody-secondary"
                 onClick={handlePlayClick}
               >
