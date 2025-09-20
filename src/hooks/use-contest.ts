@@ -40,6 +40,7 @@ export interface ContestEntry {
   media_type: string;
   created_at: string;
   social_link?: string;
+  genre_template_id?: string;
   profiles?: {
     full_name: string;
     username: string;
@@ -47,6 +48,9 @@ export interface ContestEntry {
   songs?: {
     title: string;
     audio_url: string;
+  } | null;
+  genre_templates?: {
+    name: string;
   } | null;
 }
 
@@ -321,7 +325,8 @@ export const useContest = () => {
         .from('contest_entries')
         .select(`
           *,
-          songs (title, audio_url)
+          songs (title, audio_url),
+          genre_templates (name)
         `)
         .eq('contest_id', contestId)
         .eq('approved', true)
