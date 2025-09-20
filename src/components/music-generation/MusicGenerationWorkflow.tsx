@@ -151,6 +151,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         customMode: false,
         instrumental,
         model: apiModelName,
+        templateId: templateData?.id,
       };
     } else { // lyrics mode
       request = {
@@ -160,6 +161,7 @@ export const MusicGenerationWorkflow = ({ preSelectedGenre, initialPrompt, templ
         title: title,
         style: adminPrompt,
         model: apiModelName,
+        templateId: templateData?.id,
       };
     }
 

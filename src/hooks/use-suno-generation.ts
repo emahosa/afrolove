@@ -11,6 +11,7 @@ export interface SunoGenerationRequest {
   title?: string;
   style?: string;
   model: 'V3_5' | 'V4' | 'V4_5';
+  templateId?: string;
 }
 
 export const getModelDisplayName = (apiModel: string): string => {
