@@ -524,16 +524,18 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-wrap">
                                {c.submission_type === 'genre_template' ? (
-                                <div className="w-10 h-10 flex items-center justify-center">
-                                  <span className="text-xs text-center text-muted-foreground">({entry.songs?.title || 'Genre'} - {c.title})</span>
-                                </div>
-                              ) : (
+                                <div className="w-10 h-10" />
+                               ) : (
                                  <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
                                    {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
                                  </Button>
                                )}
                                <div className="flex-grow mx-4 min-w-0">
-                                 <p className="font-semibold truncate">{entry.songs?.title ?? 'Untitled Song'}</p>
+                                 <p className="font-semibold truncate">
+                                   {c.submission_type === 'genre_template' && entry.genre_templates
+                                     ? `${entry.genre_templates.template_name} (contest)`
+                                     : entry.songs?.title ?? 'Untitled Song'}
+                                 </p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>
                               </div>
                               <div className="flex items-center gap-4">
