@@ -523,9 +523,11 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-wrap">
-                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
-                                 {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
-                               </Button>
+                               {c.submission_type !== 'genre_template' && (
+                                 <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                   {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                                 </Button>
+                               )}
                                <div className="flex-grow mx-4 min-w-0">
                                  <p className="font-semibold truncate">
                                    {c.submission_type === 'genre_template' && entry.genre_templates
