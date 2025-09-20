@@ -40,6 +40,7 @@ const Contest = () => {
     unlockContest,
     submitting,
     setCurrentContest,
+    downloadInstrumental,
   } = useContest();
   const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
   const [songs, setSongs] = useState<Song[]>([]);
@@ -403,9 +404,20 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                       </div>
                       <div className="flex items-center gap-4">
                         {contest.is_unlocked ? (
-                          <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
-                            Submit Entry
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button size="sm" className="bg-dark-purple hover:bg-opacity-90 font-bold" onClick={() => openSubmissionDialog(contest)}>
+                              Submit Entry
+                            </Button>
+                            {contest.instrumental_url && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => downloadInstrumental(contest.instrumental_url!, contest.title)}
+                              >
+                                Download Instrumental
+                              </Button>
+                            )}
+                          </div>
                         ) : (
                           <Button size="sm" onClick={() => handleUnlockContest(contest)} disabled={submitting || (user?.credits ?? 0) < contest.entry_fee}>
                             {submitting ? 'Unlocking...' : `Unlock for ${contest.entry_fee} credits`}
@@ -511,9 +523,17 @@ const PastContestCard = ({ contest }: { contest: ContestType }) => {
                           .filter(e => e.profiles?.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
                           .map((entry) => (
                             <div key={entry.id} className="flex items-center p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors flex-wrap">
-                               <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
-                                 {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
-                               </Button>
+                               {currentContest?.submission_type === 'genre_template' ? (
+                                <div className="w-10 h-10 flex items-center justify-center">
+                                  <span className="text-xs text-center text-muted-foreground">
+                                    ({entry.songs?.genre_templates?.template_name || 'Genre'} - {currentContest.title})
+                                  </span>
+                                </div>
+                              ) : (
+                                <Button variant="ghost" size="icon" onClick={() => handlePlay(entry)} className="text-gray-300 hover:text-white">
+                                  {currentTrack?.id === entry.id && isPlaying ? <Pause className="h-5 w-5 text-dark-purple" /> : <Play className="h-5 w-5" />}
+                                </Button>
+                              )}
                                <div className="flex-grow mx-4 min-w-0">
                                  <p className="font-semibold truncate">{entry.songs?.title ?? 'Untitled Song'}</p>
                                 <p className="text-sm text-gray-400">By {entry.profiles?.full_name || 'Unknown Artist'}</p>

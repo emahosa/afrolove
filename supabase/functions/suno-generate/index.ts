@@ -47,11 +47,13 @@ Deno.serve(async (req) => {
       model = 'V3_5',
       negativeTags,
       userId,
-      isAdminTest = false
+      isAdminTest = false,
+      templateId
     } = body
 
     console.log('📥 Generation request received:', {
       userId,
+      templateId,
       prompt: prompt?.substring(0, 100) + '...',
       style,
       title,
@@ -324,7 +326,8 @@ Deno.serve(async (req) => {
       prompt,
       status: 'pending',
       credits_used: isAdminTest ? 0 : 20,
-      task_id: taskId
+      task_id: taskId,
+      template_id: templateId || null
     }
 
     console.log('💾 Creating song record with data:', songData)

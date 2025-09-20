@@ -47,6 +47,9 @@ export interface ContestEntry {
   songs?: {
     title: string;
     audio_url: string;
+    genre_templates?: {
+      template_name: string;
+    } | null;
   } | null;
 }
 
@@ -321,7 +324,13 @@ export const useContest = () => {
         .from('contest_entries')
         .select(`
           *,
-          songs (title, audio_url)
+          songs (
+            title,
+            audio_url,
+            genre_templates (
+              template_name
+            )
+          )
         `)
         .eq('contest_id', contestId)
         .eq('approved', true)
