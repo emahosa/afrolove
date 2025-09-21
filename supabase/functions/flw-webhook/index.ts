@@ -14,18 +14,9 @@ serve(async (req) => {
 
   try {
     const signature = req.headers.get("verif-hash");
-
-    // Advanced debugging for signature mismatch
-    console.log(`Received verif-hash from header: '${signature}'`);
-    console.log(`Expected FLW_SECRET_HASH from env: '${FLW_SECRET_HASH}'`);
-
-    if (signature !== FLW_SECRET_HASH) {
-      console.error('Signature mismatch. The two values above do not match.');
+    if (!signature || signature !== FLW_SECRET_HASH) {
+      console.error('Flutterwave webhook error: Invalid signature');
       return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-    }
-    if (!signature) {
-        console.error('No signature (verif-hash) was found in the request header.');
-        return new Response("Invalid signature", { status: 401, headers: corsHeaders });
     }
 
     const payload = await req.json();
