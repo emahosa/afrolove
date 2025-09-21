@@ -77,21 +77,21 @@ serve(async (req) => {
     // 5. Give value to the user
     if (type === 'credits') {
       const { error } = await supabaseAdmin.rpc('update_user_credits', {
-        user_id_param: user_id,
-        credits_change: credits,
+        p_user_id: user_id,
+        p_amount: credits,
       });
       if (error) throw new Error(`Failed to update user credits: ${error.message}`);
     } else if (type === 'subscription') {
       // Logic to update subscription status
       const { error } = await supabaseAdmin
         .from('subscriptions')
-        .update({
+        .upsert({
+          user_id: user_id,
           status: 'active',
           plan_id: plan_id,
           gateway: 'flutterwave',
           gateway_subscription_id: `flw_${result.data.id}`
-        })
-        .eq('user_id', user_id);
+        }, { onConflict: 'user_id' });
       if (error) throw new Error(`Failed to update subscription: ${error.message}`);
     }
 
