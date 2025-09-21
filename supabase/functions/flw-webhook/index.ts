@@ -24,11 +24,12 @@ serve(async (req) => {
 
     if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
       const chargeData = payload.data;
-      const { id, amount, currency, metadata } = chargeData;
-      const { user_id, type, credits, plan_id, plan_name } = metadata;
+      const { id, amount, currency } = chargeData;
+      const meta = chargeData.meta || chargeData.metadata || {};
+      const { user_id, type, credits, plan_id, plan_name } = meta;
 
       if (!user_id) {
-        console.error('Flutterwave webhook error: No user_id in event metadata', metadata);
+        console.error('Flutterwave webhook error: No user_id in event metadata', meta);
         return new Response('No user_id in metadata', { status: 400, headers: corsHeaders });
       }
 

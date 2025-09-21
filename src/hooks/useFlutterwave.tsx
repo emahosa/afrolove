@@ -41,7 +41,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
     try {
       const tx_ref = `txn_${payload.meta.type}_${user.id}_${Date.now()}`;
 
-      const modal = window.FlutterwaveCheckout?.({
+      window.FlutterwaveCheckout?.({
         public_key: payload.publicKey,
         tx_ref,
         amount: payload.amount,
@@ -54,21 +54,21 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
         meta: payload.meta,
         customizations: payload.customizations,
         callback: async (payment: any) => {
-          // Close the modal immediately
-          modal?.close();
-
-          // Verify the transaction on the backend
-          const verificationResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({
-              transaction_id: payment.transaction_id,
-              tx_ref: tx_ref,
-            }),
-          });
+          // Flutterwave closes the modal automatically
+          const verificationResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                transaction_id: payment.transaction_id,
+                tx_ref: tx_ref,
+              }),
+            }
+          );
 
           const verificationResult = await verificationResponse.json();
 
@@ -76,7 +76,8 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
             onSuccess(verificationResult.data);
           } else {
             toast.error('Payment verification failed.', {
-              description: verificationResult.error?.message || 'Please contact support.',
+              description:
+                verificationResult.error?.message || 'Please contact support.',
             });
           }
         },
