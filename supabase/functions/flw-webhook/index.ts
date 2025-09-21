@@ -1,146 +1,104 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.36.0";
 
-const FLW_SECRET_HASH = Deno.env.get("FLW_SECRET_HASH")!;
-const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+// Supabase client with service role key
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
   try {
-    const signature = req.headers.get("verif-hash");
+    const body = await req.json();
+    const { event, data } = body;
 
-    // Advanced debugging for signature mismatch
-    console.log(`Received verif-hash from header: '${signature}'`);
-    console.log(`Expected FLW_SECRET_HASH from env: '${FLW_SECRET_HASH}'`);
+    // Only handle successful charges
+    if (event === "charge.completed" && data.status === "successful") {
+      const { id: transactionId, amount, currency, customer, meta } = data;
+      const userId = meta.user_id;
+      const paymentType = meta.type;
 
-    if (signature !== FLW_SECRET_HASH) {
-      console.error('Signature mismatch. The two values above do not match.');
-      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-    }
-    if (!signature) {
-        console.error('No signature (verif-hash) was found in the request header.');
-        return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-    }
-
-    const payload = await req.json();
-    console.log('Flutterwave webhook received:', JSON.stringify(payload, null, 2));
-
-    if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
-      const chargeData = payload.data;
-      const { id, amount, currency } = chargeData;
-      const meta = chargeData.meta || chargeData.metadata || {};
-      const { user_id, type, credits, plan_id, plan_name } = meta;
-      console.log('Parsed metadata from webhook:', meta);
-
-      if (!user_id) {
-        console.error('Flutterwave webhook error: No user_id in event metadata', meta);
-        return new Response('No user_id in metadata', { status: 400, headers: corsHeaders });
-      }
-
-      const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-      const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${id}/verify`, {
-        headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` },
-      });
-      const verificationData = await verifyRes.json();
-
-      if (verificationData.status !== 'success' || verificationData.data.status !== 'successful') {
-        console.warn(`Webhook verification failed for transaction ${id}. Status: ${verificationData.data.status}`);
-        return new Response(JSON.stringify({ received: true, message: "Verification failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-
-      const { data: existingTx } = await supabaseAdmin
-        .from('payment_transactions')
-        .select('id')
-        .eq('payment_id', id)
+      // ✅ Idempotency check: skip if transaction already exists
+      const { data: existingTx, error: fetchError } = await supabase
+        .from("payment_transactions")
+        .select("id")
+        .eq("transaction_id", transactionId)
         .single();
 
+      if (fetchError && fetchError.code !== "PGRST116") { // Ignore "no rows" error
+        console.error("Error checking existing transaction:", fetchError);
+        return new Response(JSON.stringify({ status: "error", error: fetchError.message }), { status: 500 });
+      }
+
       if (existingTx) {
-        console.log(`Transaction ${id} already processed.`);
-        return new Response(JSON.stringify({ received: true, message: "Already processed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        console.log(`Transaction ${transactionId} already processed. Ignoring duplicate.`);
+        return new Response(JSON.stringify({ status: "ignored", reason: "duplicate transaction" }), { status: 200 });
       }
 
-      const { error: transactionError } = await supabaseAdmin
-        .from('payment_transactions')
+      // Insert payment transaction
+      const { error: insertError } = await supabase
+        .from("payment_transactions")
         .insert({
-          user_id: user_id,
-          amount: amount,
-          currency: currency?.toUpperCase() || 'USD',
-          payment_method: 'flutterwave',
-          status: 'completed',
-          payment_id: id,
-          credits_purchased: parseInt(credits || '0')
+          transaction_id: transactionId,
+          user_id: userId,
+          type: paymentType,
+          plan_id: meta.plan_id ?? null,
+          plan_name: meta.plan_name ?? null,
+          credits: meta.credits ?? null,
+          amount,
+          currency,
+          status: "success",
+          gateway: "flutterwave",
         });
 
-      if (transactionError) {
-        console.error('Flutterwave webhook error: Error logging transaction:', transactionError);
+      if (insertError) {
+        console.error("Error inserting payment:", insertError);
+        return new Response(JSON.stringify({ status: "error", error: insertError.message }), { status: 500 });
       }
 
-      if (type === 'credits' && credits) {
-        const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
-          p_user_id: user_id,
-          p_amount: parseInt(credits || '0')
+      console.log(`Payment ${transactionId} recorded successfully`);
+
+      // Handle credits purchase
+      if (paymentType === "credits" && meta.credits) {
+        const { error: creditsError } = await supabase.rpc("update_user_credits", {
+          p_user_id: userId,
+          p_amount: meta.credits,
         });
-        if (creditError) {
-          console.error('Flutterwave webhook error: Error updating credits:', creditError);
+
+        if (creditsError) {
+          console.error("Error updating user credits:", creditsError);
+          return new Response(JSON.stringify({ status: "error", error: creditsError.message }), { status: 500 });
         }
+
+        console.log(`User ${userId} credits updated by ${meta.credits}`);
       }
 
-      if (type === 'subscription' && plan_id && plan_name) {
-        const subscriptionStartDate = new Date(chargeData.created_at);
-        const expiresAt = new Date(subscriptionStartDate);
-        expiresAt.setMonth(expiresAt.getMonth() + 1);
+      // Handle subscription purchase or upgrade
+      if (paymentType === "subscription" && meta.plan_id) {
+        const { error: subscriptionError } = await supabase
+          .from("profiles")
+          .update({
+            subscription_plan_id: meta.plan_id,
+            subscription_plan_name: meta.plan_name,
+            subscription_status: "active",
+          })
+          .eq("id", userId);
 
-        await supabaseAdmin
-          .from('user_subscriptions')
-          .update({ subscription_status: 'inactive', updated_at: new Date().toISOString() })
-          .eq('user_id', user_id)
-          .eq('subscription_status', 'active');
-
-        const { error: subError } = await supabaseAdmin
-          .from('user_subscriptions')
-          .upsert({
-            user_id: user_id,
-            subscription_type: plan_id,
-            subscription_status: 'active',
-            started_at: subscriptionStartDate.toISOString(),
-            expires_at: expiresAt.toISOString(),
-            updated_at: new Date().toISOString(),
-            payment_provider: 'flutterwave'
-          }, { onConflict: 'user_id' });
-
-        if (subError) {
-          console.error('Flutterwave webhook error: Error upserting subscription:', subError);
+        if (subscriptionError) {
+          console.error("Error updating subscription:", subscriptionError);
+          return new Response(JSON.stringify({ status: "error", error: subscriptionError.message }), { status: 500 });
         }
 
-        if (credits) {
-          const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
-            p_user_id: user_id,
-            p_amount: parseInt(credits || '0')
-          });
-          if (creditError) {
-            console.error('Flutterwave webhook error: Error adding credits for subscription:', creditError);
-          }
-        }
+        console.log(`User ${userId} subscription updated to plan ${meta.plan_name}`);
       }
+
+      return new Response(JSON.stringify({ status: "success" }), { status: 200 });
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
-
+    // Ignore other events
+    return new Response(JSON.stringify({ status: "ignored" }), { status: 200 });
   } catch (err) {
-    console.error('💥 Flutterwave webhook uncaught error:', err);
-    return new Response(`Webhook error: ${err.message}`, {
-      status: 500,
-      headers: corsHeaders,
-    });
+    console.error("Webhook processing failed:", err);
+    return new Response(JSON.stringify({ status: "error", error: err.message }), { status: 500 });
   }
 });
