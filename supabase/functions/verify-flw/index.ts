@@ -22,7 +22,6 @@ serve(async (req) => {
       });
     }
 
-    // 1. Call flutterwave verify endpoint
     const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
       method: "GET",
       headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` },
@@ -36,19 +35,19 @@ serve(async (req) => {
       });
     }
 
-    // 2. Validate tx_ref
     if (result.data.tx_ref !== tx_ref) {
       return new Response(JSON.stringify({ error: "tx_ref mismatch" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 3. Extract metadata and user ID
-    const { user_id, credits, type, plan_id, plan_name } = result.data.meta;
+    const { user_id, type, credits, plan_id, plan_name } = result.data.meta;
+    if (!user_id) {
+      return new Response(JSON.stringify({ error: "Missing user_id in metadata" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
-    // Check if transaction has already been processed
     const { data: existingTx, error: txCheckError } = await supabaseAdmin
-      .from('transactions')
+      .from('payment_transactions')
       .select('id')
-      .eq('transaction_id', result.data.id)
+      .eq('payment_id', result.data.id)
       .single();
 
     if (txCheckError && txCheckError.code !== 'PGRST116') throw txCheckError;
@@ -58,41 +57,59 @@ serve(async (req) => {
       });
     }
 
-    // 4. Record the transaction
-    const { error: insertError } = await supabaseAdmin.from('transactions').insert({
-      user_id,
-      transaction_id: result.data.id,
-      gateway: 'flutterwave',
+    const { error: insertError } = await supabaseAdmin.from('payment_transactions').insert({
+      user_id: user_id,
       amount: result.data.amount,
-      currency: result.data.currency,
-      status: 'success',
-      metadata: result.data,
+      currency: result.data.currency?.toUpperCase() || 'USD',
+      payment_method: 'flutterwave',
+      status: 'completed',
+      payment_id: result.data.id,
+      credits_purchased: parseInt(credits || '0')
     });
 
     if (insertError) {
       console.error('Error inserting transaction:', insertError);
-      // Don't block user value for this, but log it.
     }
 
-    // 5. Give value to the user
-    if (type === 'credits') {
+    if (type === 'credits' && credits) {
       const { error } = await supabaseAdmin.rpc('update_user_credits', {
         p_user_id: user_id,
-        p_amount: credits,
+        p_amount: parseInt(credits || '0'),
       });
       if (error) throw new Error(`Failed to update user credits: ${error.message}`);
-    } else if (type === 'subscription') {
-      // Logic to update subscription status
+    } else if (type === 'subscription' && plan_id && plan_name) {
+      const subscriptionStartDate = new Date(result.data.created_at);
+      const expiresAt = new Date(subscriptionStartDate);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      await supabaseAdmin
+        .from('user_subscriptions')
+        .update({ subscription_status: 'inactive', updated_at: new Date().toISOString() })
+        .eq('user_id', user_id)
+        .eq('subscription_status', 'active');
+
       const { error } = await supabaseAdmin
-        .from('subscriptions')
+        .from('user_subscriptions')
         .upsert({
           user_id: user_id,
-          status: 'active',
-          plan_id: plan_id,
-          gateway: 'flutterwave',
-          gateway_subscription_id: `flw_${result.data.id}`
+          subscription_type: plan_id,
+          subscription_status: 'active',
+          started_at: subscriptionStartDate.toISOString(),
+          expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+          payment_provider: 'flutterwave'
         }, { onConflict: 'user_id' });
       if (error) throw new Error(`Failed to update subscription: ${error.message}`);
+
+      if (credits) {
+        const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
+          p_user_id: user_id,
+          p_amount: parseInt(credits || '0')
+        });
+        if (creditError) {
+          console.error('Flutterwave verify error: Error adding credits for subscription:', creditError);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, data: result.data }), {
@@ -100,7 +117,7 @@ serve(async (req) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('💥 Flutterwave verify uncaught error:', err);
     return new Response(JSON.stringify({ error: err.message || "Internal Server Error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
