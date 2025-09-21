@@ -20,13 +20,14 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log('Flutterwave webhook received:', payload);
+    console.log('Flutterwave webhook received:', JSON.stringify(payload, null, 2));
 
     if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
       const chargeData = payload.data;
       const { id, amount, currency } = chargeData;
       const meta = chargeData.meta || chargeData.metadata || {};
       const { user_id, type, credits, plan_id, plan_name } = meta;
+      console.log('Parsed metadata from webhook:', meta);
 
       if (!user_id) {
         console.error('Flutterwave webhook error: No user_id in event metadata', meta);
