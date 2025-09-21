@@ -33,6 +33,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
   const { user } = useAuth();
 
   const payWithFlutterwave = async (payload: FlutterwavePaymentPayload) => {
+    console.log("Initiating Flutterwave payment with payload:", payload); // Added for debugging
     if (!user) {
       toast.error('You must be logged in to make a payment.');
       return;
