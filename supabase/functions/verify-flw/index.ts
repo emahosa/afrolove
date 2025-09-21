@@ -39,8 +39,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "tx_ref mismatch" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const meta = result.data.meta || result.data.metadata || {};
-    const { user_id, type, credits, plan_id, plan_name } = meta;
+    const { user_id, type, credits, plan_id, plan_name } = result.data.meta;
     if (!user_id) {
       return new Response(JSON.stringify({ error: "Missing user_id in metadata" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -70,7 +69,6 @@ serve(async (req) => {
 
     if (insertError) {
       console.error('Error inserting transaction:', insertError);
-      throw new Error(`Failed to insert transaction: ${insertError.message}`);
     }
 
     if (type === 'credits' && credits) {
@@ -110,7 +108,6 @@ serve(async (req) => {
         });
         if (creditError) {
           console.error('Flutterwave verify error: Error adding credits for subscription:', creditError);
-          throw new Error(`Failed to update user credits for subscription: ${creditError.message}`);
         }
       }
     }

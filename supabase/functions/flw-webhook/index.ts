@@ -20,18 +20,15 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log('FLW payload:', JSON.stringify(payload, null, 2));
+    console.log('Flutterwave webhook received:', payload);
 
     if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
       const chargeData = payload.data;
-      console.log('Charge data keys:', Object.keys(chargeData));
-
-      const meta = chargeData.meta || chargeData.metadata || {};
-      const { user_id, type, credits, plan_id, plan_name } = meta;
-      const { id, amount, currency } = chargeData;
+      const { id, amount, currency, metadata } = chargeData;
+      const { user_id, type, credits, plan_id, plan_name } = metadata;
 
       if (!user_id) {
-        console.error('Flutterwave webhook error: No user_id in meta field', meta);
+        console.error('Flutterwave webhook error: No user_id in event metadata', metadata);
         return new Response('No user_id in metadata', { status: 400, headers: corsHeaders });
       }
 
@@ -72,7 +69,6 @@ serve(async (req) => {
 
       if (transactionError) {
         console.error('Flutterwave webhook error: Error logging transaction:', transactionError);
-        return new Response('DB insert failed', { status: 500, headers: corsHeaders });
       }
 
       if (type === 'credits' && credits) {
@@ -82,7 +78,6 @@ serve(async (req) => {
         });
         if (creditError) {
           console.error('Flutterwave webhook error: Error updating credits:', creditError);
-          return new Response('Credit update failed', { status: 500, headers: corsHeaders });
         }
       }
 
@@ -111,7 +106,6 @@ serve(async (req) => {
 
         if (subError) {
           console.error('Flutterwave webhook error: Error upserting subscription:', subError);
-          return new Response('Subscription update failed', { status: 500, headers: corsHeaders });
         }
 
         if (credits) {
@@ -121,7 +115,6 @@ serve(async (req) => {
           });
           if (creditError) {
             console.error('Flutterwave webhook error: Error adding credits for subscription:', creditError);
-            return new Response('Credit update for subscription failed', { status: 500, headers: corsHeaders });
           }
         }
       }
