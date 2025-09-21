@@ -64,20 +64,29 @@ serve(async (req) => {
 
       // 6. Give value to the user
       if (type === 'credits') {
-        await supabaseAdmin.rpc('update_user_credits', {
-          user_id_param: user_id,
-          credits_change: credits,
+        const { error: creditError } = await supabaseAdmin.rpc('update_user_credits', {
+          p_user_id: user_id,
+          p_amount: credits,
         });
+
+        if (creditError) {
+          console.error(`Credit update failed for user ${user_id}:`, creditError);
+        }
       } else if (type === 'subscription') {
-        await supabaseAdmin
+        // Use upsert to handle both new and existing subscriptions
+        const { error: subError } = await supabaseAdmin
           .from('subscriptions')
-          .update({
+          .upsert({
+            user_id: user_id,
             status: 'active',
             plan_id: plan_id,
             gateway: 'flutterwave',
             gateway_subscription_id: `flw_${id}`
-          })
-          .eq('user_id', user_id);
+          }, { onConflict: 'user_id' });
+
+        if (subError) {
+          console.error(`Subscription update/insert failed for user ${user_id}:`, subError);
+        }
       }
     }
 
