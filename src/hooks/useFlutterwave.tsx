@@ -39,18 +39,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
     }
 
     try {
-      // Ensure metadata always contains user info
-      const meta = {
-        ...payload.meta,
-        user_id: user.id,
-        type: payload.meta.type || 'credits', // default to 'credits' if missing
-        credits: payload.meta.credits || 0,
-        plan_id: payload.meta.plan_id || null,
-        plan_name: payload.meta.plan_name || null,
-      };
-
-      const tx_ref = `txn_${meta.type}_${user.id}_${Date.now()}`;
-      console.log("Flutterwave payment tx_ref:", tx_ref, "metadata:", meta);
+      const tx_ref = `txn_${payload.meta.type}_${user.id}_${Date.now()}`;
 
       window.FlutterwaveCheckout?.({
         public_key: payload.publicKey,
@@ -62,41 +51,34 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
           email: user.email!,
           name: user.user_metadata?.full_name || 'Valued Customer',
         },
-        meta,
+        meta: payload.meta,
         customizations: payload.customizations,
         callback: async (payment: any) => {
-          console.log("Flutterwave callback payment:", payment);
-
-          try {
-            const verificationResponse = await fetch(
-              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                },
-                body: JSON.stringify({
-                  transaction_id: payment.transaction_id,
-                  tx_ref,
-                }),
-              }
-            );
-
-            const verificationResult = await verificationResponse.json();
-
-            if (verificationResult.success) {
-              onSuccess(verificationResult.data);
-            } else {
-              console.error("Flutterwave verification failed:", verificationResult);
-              toast.error('Payment verification failed.', {
-                description:
-                  verificationResult.error?.message || 'Please contact support.',
-              });
+          // Flutterwave closes the modal automatically
+          const verificationResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                transaction_id: payment.transaction_id,
+                tx_ref: tx_ref,
+              }),
             }
-          } catch (err) {
-            console.error("Flutterwave verification fetch error:", err);
-            toast.error('Payment verification failed due to network error.');
+          );
+
+          const verificationResult = await verificationResponse.json();
+
+          if (verificationResult.success) {
+            onSuccess(verificationResult.data);
+          } else {
+            toast.error('Payment verification failed.', {
+              description:
+                verificationResult.error?.message || 'Please contact support.',
+            });
           }
         },
         onclose: () => {
@@ -104,7 +86,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
         },
       });
     } catch (error: any) {
-      console.error('Flutterwave payment initialization error:', error);
+      console.error('Flutterwave payment error:', error);
       toast.error('Failed to initialize payment.', {
         description: error.message,
       });
