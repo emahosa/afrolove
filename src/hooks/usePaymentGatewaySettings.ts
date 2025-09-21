@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
  */
 interface PaymentGatewayClientSettings {
   enabled: boolean;
-  activeGateway: 'stripe' | 'paystack';
+  activeGateway: 'stripe' | 'paystack' | 'flutterwave';
 }
 
 /**
@@ -45,7 +45,10 @@ export const usePaymentGatewaySettings = () => {
           }
 
           const active = settings.activeGateway;
-          const activeGateway: 'stripe' | 'paystack' = active === 'stripe' ? 'stripe' : 'paystack';
+          const activeGateway: 'stripe' | 'paystack' | 'flutterwave' =
+            active === 'stripe' ? 'stripe' :
+            active === 'flutterwave' ? 'flutterwave' :
+            'paystack';
 
           return { 
             enabled: settings.enabled === true,
