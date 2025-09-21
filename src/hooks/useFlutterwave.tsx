@@ -40,6 +40,14 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
 
     try {
       const tx_ref = `txn_${payload.meta.type}_${user.id}_${Date.now()}`;
+      
+      console.log('🚀 Flutterwave: Initializing payment with tx_ref:', tx_ref);
+      console.log('📋 Flutterwave: Full payload being sent:', {
+        ...payload,
+        tx_ref,
+        customer: payload.customer,
+        meta: payload.meta
+      });
 
       window.FlutterwaveCheckout?.({
         public_key: payload.publicKey,
@@ -49,44 +57,77 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
         payment_options: payload.payment_options,
         customer: {
           email: user.email!,
-          name: user.user_metadata?.full_name || 'Valued Customer',
+          name: payload.customer.name || user.user_metadata?.full_name || user.name || 'Valued Customer',
+          phone_number: user.user_metadata?.phone || '',
         },
-        meta: payload.meta,
+        meta: {
+          ...payload.meta,
+          tx_ref: tx_ref,
+          timestamp: new Date().toISOString()
+        },
         customizations: payload.customizations,
         callback: async (payment: any) => {
+          console.log('✅ Flutterwave: Payment callback received:', payment);
+          
           // Flutterwave closes the modal automatically
-          const verificationResponse = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              },
-              body: JSON.stringify({
-                transaction_id: payment.transaction_id,
-                tx_ref: tx_ref,
-              }),
+          try {
+            console.log('🔍 Flutterwave: Verifying payment with backend...');
+            
+            const verificationPayload = {
+              transaction_id: payment.transaction_id,
+              tx_ref: tx_ref,
+              type: payload.meta.type,
+              user_id: payload.meta.user_id,
+              credits: payload.meta.credits,
+              plan_id: payload.meta.plan_id,
+              plan_name: payload.meta.plan_name,
+              amount: payload.amount
+            };
+            
+            console.log('📤 Flutterwave: Verification payload:', verificationPayload);
+            
+            const verificationResponse = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-flw`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify(verificationPayload),
+              }
+            );
+
+            if (!verificationResponse.ok) {
+              throw new Error(`Verification request failed: ${verificationResponse.status}`);
             }
-          );
+            
+            const verificationResult = await verificationResponse.json();
+            console.log('📥 Flutterwave: Verification result:', verificationResult);
 
-          const verificationResult = await verificationResponse.json();
-
-          if (verificationResult.success) {
-            onSuccess(verificationResult.data);
-          } else {
+            if (verificationResult.success) {
+              console.log('✅ Flutterwave: Payment verified successfully');
+              onSuccess(verificationResult.data || payment);
+            } else {
+              console.error('❌ Flutterwave: Payment verification failed:', verificationResult);
+              toast.error('Payment verification failed.', {
+                description: verificationResult.error?.message || 'Please contact support.',
+              });
+            }
+          } catch (verificationError) {
+            console.error('💥 Flutterwave: Verification error:', verificationError);
             toast.error('Payment verification failed.', {
-              description:
-                verificationResult.error?.message || 'Please contact support.',
+              description: 'Unable to verify payment. Please contact support.',
             });
           }
         },
         onclose: () => {
+          console.log('🚪 Flutterwave: Payment modal closed');
           onClose();
         },
       });
     } catch (error: any) {
-      console.error('Flutterwave payment error:', error);
+      console.error('💥 Flutterwave payment initialization error:', error);
       toast.error('Failed to initialize payment.', {
         description: error.message,
       });

@@ -281,24 +281,36 @@ const Billing: React.FC = () => {
           setPaymentProcessing(false);
           return;
         }
-        await payWithFlutterwave({
+        
+        console.log('🔄 Starting Flutterwave subscription process for plan:', plan.name);
+        console.log('📋 User details:', { userId: user.id, email: user.email, planId: plan.id });
+        
+        const flutterwavePayload = {
           publicKey: publicKeys.flutterwavePublicKey,
           amount: plan.price,
-          currency: 'NGN', // Or get from plan
+          currency: plan.currency || 'USD',
           payment_options: "card, mobilemoney, ussd",
-          customer: { email: user.email! },
+          customer: { 
+            email: user.email!,
+            name: user.user_metadata?.full_name || user.name || 'Valued Customer'
+          },
           meta: {
             type: 'subscription',
             user_id: user.id,
             plan_id: plan.id,
             plan_name: plan.name,
             credits: plan.credits_per_month,
+            user_email: user.email,
+            amount: plan.price
           },
           customizations: {
             title: 'Afromelody AI Subscription',
             description: `Payment for ${plan.name}`,
           },
-        });
+        };
+        
+        console.log('📤 Flutterwave payload:', flutterwavePayload);
+        await payWithFlutterwave(flutterwavePayload);
       } else {
         toast.error("Payment processing is currently disabled or no gateway is configured.");
         console.warn("Payment settings state:", paymentSettings);
@@ -400,22 +412,34 @@ const Billing: React.FC = () => {
           setProcessing(false);
           return;
         }
-        await payWithFlutterwave({
+        
+        console.log('🔄 Starting Flutterwave credit purchase for package:', selectedPackage);
+        console.log('📋 User details:', { userId: user.id, email: user.email, credits: selectedPackage.credits });
+        
+        const flutterwavePayload = {
           publicKey: publicKeys.flutterwavePublicKey,
           amount: selectedPackage.amount,
           currency: 'NGN', // Or get from package
-          payment_options: "card, mobilemoney, ussd",
-          customer: { email: user.email! },
+          currency: 'USD',
+          customer: { 
+            email: user.email!,
+            name: user.user_metadata?.full_name || user.name || 'Valued Customer'
+          },
           meta: {
             type: 'credits',
             user_id: user.id,
             credits: selectedPackage.credits,
+            user_email: user.email,
+            amount: selectedPackage.amount
           },
           customizations: {
             title: 'Afromelody AI Credits',
             description: `Purchase of ${selectedPackage.credits} credits`,
           },
-        });
+        };
+        
+        console.log('📤 Flutterwave payload:', flutterwavePayload);
+        await payWithFlutterwave(flutterwavePayload);
         setPaymentDialogOpen(false);
 
       } else {
