@@ -14,6 +14,7 @@ import PaymentDialog from '@/components/payment/PaymentDialog';
 import { useAffiliateTracking } from '@/hooks/useAffiliateTracking';
 import { usePaymentGatewaySettings } from '@/hooks/usePaymentGatewaySettings';
 import { usePaymentPublicKeys } from '@/hooks/usePaymentPublicKeys';
+import { useFlutterwave } from '@/hooks/useFlutterwave';
 import { startPaystackPayment } from '@/lib/paystack';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from 'react-router-dom';
@@ -58,6 +59,17 @@ const Billing: React.FC = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const { trackActivity } = useAffiliateTracking();
+  const { payWithFlutterwave } = useFlutterwave({
+    onSuccess: (transaction) => {
+      toast.success("Payment successful!", {
+        description: `Transaction ID: ${transaction.id}. Your account will be updated shortly.`
+      });
+      // Fulfillment is handled by the webhook.
+    },
+    onClose: () => {
+      toast.info("Payment canceled or modal closed.");
+    }
+  });
 
   // State for subscriptions
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -263,6 +275,30 @@ const Billing: React.FC = () => {
           });
           return; // Don't proceed if subscription creation failed
         }
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'flutterwave') {
+        if (!publicKeys?.flutterwavePublicKey) {
+          toast.error("Flutterwave public key not found. Cannot proceed with payment.");
+          setPaymentProcessing(false);
+          return;
+        }
+        await payWithFlutterwave({
+          publicKey: publicKeys.flutterwavePublicKey,
+          amount: plan.price,
+          currency: 'NGN', // Or get from plan
+          payment_options: "card, mobilemoney, ussd",
+          customer: { email: user.email! },
+          meta: {
+            type: 'subscription',
+            user_id: user.id,
+            plan_id: plan.id,
+            plan_name: plan.name,
+            credits: plan.credits_per_month,
+          },
+          customizations: {
+            title: 'Afromelody AI Subscription',
+            description: `Payment for ${plan.name}`,
+          },
+        });
       } else {
         toast.error("Payment processing is currently disabled or no gateway is configured.");
         console.warn("Payment settings state:", paymentSettings);
@@ -358,6 +394,30 @@ const Billing: React.FC = () => {
           return; // Don't proceed if payment creation failed
         }
 
+      } else if (paymentSettings?.enabled && paymentSettings?.activeGateway === 'flutterwave') {
+        if (!publicKeys?.flutterwavePublicKey) {
+          toast.error("Flutterwave public key not found. Cannot proceed with payment.");
+          setProcessing(false);
+          return;
+        }
+        await payWithFlutterwave({
+          publicKey: publicKeys.flutterwavePublicKey,
+          amount: selectedPackage.amount,
+          currency: 'NGN', // Or get from package
+          payment_options: "card, mobilemoney, ussd",
+          customer: { email: user.email! },
+          meta: {
+            type: 'credits',
+            user_id: user.id,
+            credits: selectedPackage.credits,
+          },
+          customizations: {
+            title: 'Afromelody AI Credits',
+            description: `Purchase of ${selectedPackage.credits} credits`,
+          },
+        });
+        setPaymentDialogOpen(false);
+
       } else {
         toast.error("Payment processing is currently disabled or no gateway is configured.");
         console.warn("Payment settings state:", paymentSettings);
@@ -379,14 +439,15 @@ const Billing: React.FC = () => {
 
   const paymentReady = paymentSettings?.enabled && (
     (paymentSettings.activeGateway === 'paystack' && publicKeys?.paystackPublicKey) ||
-    (paymentSettings.activeGateway === 'stripe' && publicKeys?.stripePublicKey)
+    (paymentSettings.activeGateway === 'stripe' && publicKeys?.stripePublicKey) ||
+    (paymentSettings.activeGateway === 'flutterwave' && publicKeys?.flutterwavePublicKey)
   );
 
   const getButtonText = (plan: Plan) => {
     if (!currentUserPlan) return 'Subscribe Now';
     if (plan.id === currentUserPlan.id) return 'Current Plan';
     if (plan.rank > currentUserPlan.rank) {
-      const gateway = paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe';
+      const gateway = paymentSettings?.activeGateway ? paymentSettings.activeGateway.charAt(0).toUpperCase() + paymentSettings.activeGateway.slice(1) : 'Stripe';
       return `Upgrade with ${gateway}`;
     }
     return 'Downgrade';
@@ -483,7 +544,7 @@ const Billing: React.FC = () => {
                         ? 'Loading...'
                         : !paymentReady
                         ? 'Payments Disabled'
-                        : `Purchase with ${paymentSettings?.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                        : `Purchase with ${paymentSettings?.activeGateway ? paymentSettings.activeGateway.charAt(0).toUpperCase() + paymentSettings.activeGateway.slice(1) : ''}`}
                     </Button>
                   </CardContent>
                 </Card>
@@ -519,7 +580,7 @@ const Billing: React.FC = () => {
                     ? 'Loading...'
                     : !paymentReady
                     ? 'Payments Disabled'
-                    : `Purchase with ${paymentSettings.activeGateway === 'paystack' ? 'Paystack' : 'Stripe'}`}
+                    : `Purchase with ${paymentSettings?.activeGateway ? paymentSettings.activeGateway.charAt(0).toUpperCase() + paymentSettings.activeGateway.slice(1) : ''}`}
                 </Button>
               </div>
             </CardContent>

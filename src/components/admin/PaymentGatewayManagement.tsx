@@ -20,12 +20,22 @@ interface GatewayConfig {
   live: ApiKeys;
 }
 
+interface FlutterwaveApiKeys extends ApiKeys {
+  secretHash: string;
+}
+
+interface FlutterwaveGatewayConfig {
+  test: FlutterwaveApiKeys;
+  live: FlutterwaveApiKeys;
+}
+
 interface PaymentGatewaySettings {
   enabled: boolean;
   mode: 'test' | 'live';
-  activeGateway: 'stripe' | 'paystack';
+  activeGateway: 'stripe' | 'paystack' | 'flutterwave';
   stripe: GatewayConfig;
   paystack: GatewayConfig;
+  flutterwave: FlutterwaveGatewayConfig;
 }
 
 const defaultSettings: PaymentGatewaySettings = {
@@ -39,6 +49,10 @@ const defaultSettings: PaymentGatewaySettings = {
   paystack: {
     test: { publicKey: '', secretKey: '' },
     live: { publicKey: '', secretKey: '' },
+  },
+  flutterwave: {
+    test: { publicKey: '', secretKey: '', secretHash: '' },
+    live: { publicKey: '', secretKey: '', secretHash: '' },
   },
 };
 
@@ -87,6 +101,12 @@ export const PaymentGatewayManagement = () => {
             ...dbValue.paystack,
             test: { ...defaultSettings.paystack.test, ...dbValue.paystack?.test },
             live: { ...defaultSettings.paystack.live, ...dbValue.paystack?.live },
+          },
+          flutterwave: {
+            ...defaultSettings.flutterwave,
+            ...dbValue.flutterwave,
+            test: { ...defaultSettings.flutterwave.test, ...dbValue.flutterwave?.test },
+            live: { ...defaultSettings.flutterwave.live, ...dbValue.flutterwave?.live },
           },
         };
         setSettings(mergedSettings);
@@ -166,7 +186,7 @@ export const PaymentGatewayManagement = () => {
     }
   };
 
-  const handleInputChange = (gateway: 'stripe' | 'paystack', mode: 'test' | 'live', field: 'publicKey' | 'secretKey', value: string) => {
+  const handleInputChange = (gateway: 'stripe' | 'paystack' | 'flutterwave', mode: 'test' | 'live', field: 'publicKey' | 'secretKey' | 'secretHash', value: string) => {
     setSettings(prev => ({
       ...prev,
       [gateway]: {
@@ -210,11 +230,12 @@ export const PaymentGatewayManagement = () => {
                 <Label className="text-base font-medium">Active Gateway</Label>
                 <RadioGroup
                   value={settings.activeGateway}
-                  onValueChange={(v: 'stripe' | 'paystack') => handleQuickSave('activeGateway', v, `Active gateway set to ${v.charAt(0).toUpperCase() + v.slice(1)}.`)}
-                  className="flex space-x-4"
+                  onValueChange={(v: 'stripe' | 'paystack' | 'flutterwave') => handleQuickSave('activeGateway', v, `Active gateway set to ${v.charAt(0).toUpperCase() + v.slice(1)}.`)}
+                  className="flex flex-wrap gap-4"
                 >
                   <div className="flex items-center space-x-2"><RadioGroupItem value="stripe" id="stripe" /><Label htmlFor="stripe">Stripe</Label></div>
                   <div className="flex items-center space-x-2"><RadioGroupItem value="paystack" id="paystack" /><Label htmlFor="paystack">Paystack</Label></div>
+                  <div className="flex items-center space-x-2"><RadioGroupItem value="flutterwave" id="flutterwave" /><Label htmlFor="flutterwave">Flutterwave</Label></div>
                 </RadioGroup>
               </div>
               <div className="space-y-4 p-4 border rounded-lg">
@@ -231,9 +252,10 @@ export const PaymentGatewayManagement = () => {
             </div>
 
             <Tabs defaultValue="stripe" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="stripe">Stripe Keys</TabsTrigger>
                 <TabsTrigger value="paystack">Paystack Keys</TabsTrigger>
+                <TabsTrigger value="flutterwave">Flutterwave Keys</TabsTrigger>
               </TabsList>
               <TabsContent value="stripe" className="p-4 border rounded-lg mt-2">
                 <h3 className="text-lg font-medium mb-4">Stripe API Keys</h3>
@@ -262,6 +284,23 @@ export const PaymentGatewayManagement = () => {
                     <h4 className="font-medium text-muted-foreground">Live Keys</h4>
                     <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="pk_live_..." value={settings.paystack.live.publicKey} onChange={(e) => handleInputChange('paystack', 'live', 'publicKey', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="sk_live_..." value={settings.paystack.live.secretKey} onChange={(e) => handleInputChange('paystack', 'live', 'secretKey', e.target.value)} /></div>
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="flutterwave" className="p-4 border rounded-lg mt-2">
+                <h3 className="text-lg font-medium mb-4">Flutterwave API Keys</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Test Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="FLWPUBK_TEST-..." value={settings.flutterwave.test.publicKey} onChange={(e) => handleInputChange('flutterwave', 'test', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="FLWSECK_TEST-..." value={settings.flutterwave.test.secretKey} onChange={(e) => handleInputChange('flutterwave', 'test', 'secretKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Hash</Label><Input type="password" placeholder="Your secret hash" value={settings.flutterwave.test.secretHash} onChange={(e) => handleInputChange('flutterwave', 'test', 'secretHash', e.target.value)} /></div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="font-medium text-muted-foreground">Live Keys</h4>
+                    <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="FLWPUBK-..." value={settings.flutterwave.live.publicKey} onChange={(e) => handleInputChange('flutterwave', 'live', 'publicKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="FLWSECK-..." value={settings.flutterwave.live.secretKey} onChange={(e) => handleInputChange('flutterwave', 'live', 'secretKey', e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Secret Hash</Label><Input type="password" placeholder="Your secret hash" value={settings.flutterwave.live.secretHash} onChange={(e) => handleInputChange('flutterwave', 'live', 'secretHash', e.target.value)} /></div>
                   </div>
                 </div>
               </TabsContent>

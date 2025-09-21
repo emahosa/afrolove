@@ -10,12 +10,17 @@ interface PaymentGatewayKeys {
     live: { publicKey: string };
     test: { publicKey: string };
   };
+  flutterwave: {
+    live: { publicKey: string };
+    test: { publicKey: string };
+  };
   mode: 'live' | 'test';
 }
 
 interface PublicKeys {
   stripePublicKey?: string;
   paystackPublicKey?: string;
+  flutterwavePublicKey?: string;
 }
 
 export const usePaymentPublicKeys = () => {
@@ -46,6 +51,7 @@ export const usePaymentPublicKeys = () => {
         return {
           stripePublicKey: mode === 'live' ? settings.stripe?.live?.publicKey : settings.stripe?.test?.publicKey,
           paystackPublicKey: mode === 'live' ? settings.paystack?.live?.publicKey : settings.paystack?.test?.publicKey,
+          flutterwavePublicKey: mode === 'live' ? settings.flutterwave?.live?.publicKey : settings.flutterwave?.test?.publicKey,
         };
       }
 
