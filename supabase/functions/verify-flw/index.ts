@@ -24,7 +24,10 @@ serve(async (req) => {
 
     const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` },
+      headers: {
+        Authorization: `Bearer ${FLW_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
     });
     const result = await verifyRes.json();
 
@@ -39,8 +42,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "tx_ref mismatch" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { user_id, type, credits, plan_id, plan_name } = result.data.meta;
+    const meta = result.data.meta || result.data.metadata || {};
+    const { user_id, type, credits, plan_id, plan_name } = meta;
+
     if (!user_id) {
+      console.error("verify-flw: Missing user_id in metadata", meta);
       return new Response(JSON.stringify({ error: "Missing user_id in metadata" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
