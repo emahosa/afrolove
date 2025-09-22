@@ -18,59 +18,42 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // --- TEMPORARY DEBUGGING HACK ---
-    // The following signature verification block is temporarily commented out
-    // because Flutterwave is not sending the 'verif-hash' header.
-    // This is INSECURE and must be reverted once the issue with Flutterwave is resolved.
-
-    // // 1. Get secrets from database instead of environment variables
-    // const { data: settingsData, error: settingsError } = await supabaseAdmin
-    //   .from('system_settings')
-    //   .select('value')
-    //   .eq('key', 'payment_gateway_settings')
-    //   .single();
-
-    // if (settingsError || !settingsData?.value) {
-    //   console.error(`❌ [${service_name}] Payment settings not found:`, settingsError);
-    //   throw new Error('Payment gateway settings not configured.');
-    // }
-
-    // let settings;
-    // try {
-    //   settings = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
-    // } catch (e) {
-    //   throw new Error("Failed to parse payment gateway settings.");
-    // }
-
-    // const flutterwaveKeys = settings.mode === 'live' ? settings.flutterwave?.live : settings.flutterwave?.test;
-    // const secretHash = flutterwaveKeys?.secretHash;
-
-    // if (!secretHash) {
-    //   throw new Error(`Flutterwave secret hash for ${settings.mode} mode is not configured.`);
-    // }
-
-    // // 2. Verify webhook signature for security
-    // const signature = req.headers.get('verif-hash') || req.headers.get('x-flw-signature');
-    // console.log(`[${service_name}] Received signature: ${signature ? 'Present' : 'Missing'}`);
-    // console.log(`[${service_name}] Expected hash (from DB): ${secretHash}`);
-
-    // if (!signature || signature !== secretHash) {
-    //   console.error(`❌ [${service_name}] Invalid signature. Got: ${signature}, Expected: ${secretHash}`);
-    //   return new Response("Invalid signature", { status: 401, headers: corsHeaders });
-    // }
-    // console.log(`✅ [${service_name}] Signature verified successfully.`);
-
-    // --- END TEMPORARY HACK ---
-
-    // A dummy settings object is needed for the rest of the function to work.
-    // This will be removed when the hack is reverted.
-    const { data: settingsData } = await supabaseAdmin
+    // 1. Get secrets from database instead of environment variables
+    const { data: settingsData, error: settingsError } = await supabaseAdmin
       .from('system_settings')
       .select('value')
       .eq('key', 'payment_gateway_settings')
       .single();
-    const settings = settingsData?.value ? (typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value) : {};
 
+    if (settingsError || !settingsData?.value) {
+      console.error(`❌ [${service_name}] Payment settings not found:`, settingsError);
+      throw new Error('Payment gateway settings not configured.');
+    }
+
+    let settings;
+    try {
+      settings = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
+    } catch (e) {
+      throw new Error("Failed to parse payment gateway settings.");
+    }
+
+    const flutterwaveKeys = settings.mode === 'live' ? settings.flutterwave?.live : settings.flutterwave?.test;
+    const secretHash = flutterwaveKeys?.secretHash;
+
+    if (!secretHash) {
+      throw new Error(`Flutterwave secret hash for ${settings.mode} mode is not configured.`);
+    }
+
+    // 2. Verify webhook signature for security
+    const signature = req.headers.get('verif-hash') || req.headers.get('x-flw-signature');
+    console.log(`[${service_name}] Received signature: ${signature ? 'Present' : 'Missing'}`);
+    console.log(`[${service_name}] Expected hash (from DB): ${secretHash}`);
+
+    if (!signature || signature !== secretHash) {
+      console.error(`❌ [${service_name}] Invalid signature. Got: ${signature}, Expected: ${secretHash}`);
+      return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+    }
+    console.log(`✅ [${service_name}] Signature verified successfully.`);
 
     // 3. Parse the incoming payload from Flutterwave
     const payload = await req.json();
