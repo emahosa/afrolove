@@ -5,7 +5,7 @@ DROP FUNCTION IF EXISTS public.update_user_credits(UUID, INTEGER);
 CREATE OR REPLACE FUNCTION public.update_user_credits(p_user_id UUID, p_amount INTEGER)
 RETURNS INTEGER
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 DECLARE
   v_new_credits INTEGER;
