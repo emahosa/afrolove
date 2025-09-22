@@ -62,6 +62,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
         },
         meta: {
           ...payload.meta,
+          user_id: user.id, // Ensure the user_id is always present
           tx_ref: tx_ref,
           timestamp: new Date().toISOString()
         },
