@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { usePaymentPublicKeys } from './usePaymentPublicKeys';
 
 declare global {
   interface Window {
@@ -31,10 +32,17 @@ interface UseFlutterwaveProps {
 
 export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
   const { user } = useAuth();
+  const { data: publicKeys } = usePaymentPublicKeys();
 
   const payWithFlutterwave = async (payload: FlutterwavePaymentPayload) => {
     if (!user) {
       toast.error('You must be logged in to make a payment.');
+      return;
+    }
+
+    // Validate that we have the public key
+    if (!publicKeys?.flutterwavePublicKey) {
+      toast.error('Flutterwave is not properly configured. Please contact support.');
       return;
     }
 
@@ -50,7 +58,7 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
       });
 
       window.FlutterwaveCheckout?.({
-        public_key: payload.publicKey,
+        public_key: publicKeys.flutterwavePublicKey,
         tx_ref,
         amount: payload.amount,
         currency: payload.currency,
@@ -58,13 +66,14 @@ export function useFlutterwave({ onSuccess, onClose }: UseFlutterwaveProps) {
         customer: {
           email: user.email!,
           name: payload.customer.name || user.user_metadata?.full_name || user.name || 'Valued Customer',
-          phone_number: user.user_metadata?.phone || '',
+          phone_number: user.user_metadata?.phone || user.user_metadata?.phone_number || '',
         },
         meta: {
           ...payload.meta,
           user_id: user.id, // Ensure the user_id is always present
           tx_ref: tx_ref,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          user_email: user.email // Add user email to metadata
         },
         customizations: payload.customizations,
         callback: async (payment: any) => {

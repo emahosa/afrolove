@@ -5,6 +5,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 // Main request handler
 serve(async (req) => {
   const service_name = "flw-webhook";
+  console.log(`[${service_name}] Webhook received: ${req.method} ${req.url}`);
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -25,9 +26,12 @@ serve(async (req) => {
       .eq('key', 'payment_gateway_settings')
       .single();
 
-    if (settingsError || !settingsData?.value) {
+    if (settingsError) {
       console.error(`❌ [${service_name}] Payment settings not found:`, settingsError);
       throw new Error('Payment gateway settings not configured.');
+    }
+    if (!settingsData?.value) {
+      throw new Error('Payment settings are not configured in the system.');
     }
 
     let settings;
@@ -41,6 +45,7 @@ serve(async (req) => {
     const secretHash = flutterwaveKeys?.secretHash;
 
     if (!secretHash) {
+      console.error(`❌ [${service_name}] Flutterwave secret hash not configured for ${settings.mode} mode`);
       throw new Error(`Flutterwave secret hash for ${settings.mode} mode is not configured.`);
     }
 
@@ -55,10 +60,10 @@ serve(async (req) => {
     }
     console.log(`✅ [${service_name}] Signature verified successfully.`);
 
-
     // 3. Parse the incoming payload from Flutterwave
     const payload = await req.json();
     console.log(`[${service_name}] Received event: ${payload.event}`);
+    console.log(`[${service_name}] Full payload:`, JSON.stringify(payload, null, 2));
 
     // 4. Process only successful, completed charges
     if (payload.event === 'charge.completed' && payload.data.status === 'successful') {
@@ -85,6 +90,7 @@ serve(async (req) => {
 async function handleSuccessfulCharge(chargeData: any, settings: any, supabaseAdmin: any) {
   const service_name = "flw-webhook-handler";
   console.log(`[${service_name}] Processing successful charge: ${chargeData.id}`);
+  console.log(`[${service_name}] Charge data:`, JSON.stringify(chargeData, null, 2));
 
   // Double-check transaction with Flutterwave API as a security measure
   const isVerified = await verifyTransactionWithFlutterwave(chargeData.id, settings);
@@ -102,8 +108,8 @@ async function handleSuccessfulCharge(chargeData: any, settings: any, supabaseAd
     .maybeSingle();
 
   if (selectError) {
-      console.error(`❌ [${service_name}] Database error checking for existing transaction:`, selectError);
-      return; // Exit to prevent potential double processing on DB error
+    console.error(`❌ [${service_name}] Database error checking for existing transaction:`, selectError);
+    return; // Exit to prevent potential double processing on DB error
   }
 
   if (existingTx) {
@@ -113,6 +119,8 @@ async function handleSuccessfulCharge(chargeData: any, settings: any, supabaseAd
 
   // Log the verified transaction in the database
   const meta = chargeData.meta || chargeData.metadata || {};
+  console.log(`[${service_name}] Transaction metadata:`, meta);
+  
   const { error: transactionError } = await logTransaction(chargeData, meta, supabaseAdmin);
   if (transactionError) {
     console.error(`❌ [${service_name}] Failed to log transaction, aborting fulfillment:`, transactionError);
@@ -182,8 +190,8 @@ async function logTransaction(chargeData: any, meta: any, supabaseAdmin: any) {
 async function fulfillCreditPurchase(meta: any, supabaseAdmin: any) {
   const { user_id, credits } = meta;
   if (!user_id || !credits) {
-      console.error('❌ [flw-webhook] Cannot fulfill credit purchase: missing user_id or credits in metadata.');
-      return;
+    console.error('❌ [flw-webhook] Cannot fulfill credit purchase: missing user_id or credits in metadata.');
+    return;
   }
 
   console.log(`[flw-webhook] Fulfilling ${credits} credits for user ${user_id}`);
@@ -241,7 +249,7 @@ async function fulfillSubscriptionPurchase(meta: any, chargeData: any, supabaseA
     console.error(`❌ [flw-webhook] Error creating new subscription for user ${user_id}:`, subError);
     return; // Stop if subscription creation fails
   } else {
-     console.log(`✅ [flw-webhook] Successfully created subscription for user ${user_id}.`);
+    console.log(`✅ [flw-webhook] Successfully created subscription for user ${user_id}.`);
   }
 
   // Grant any credits that come with the subscription plan

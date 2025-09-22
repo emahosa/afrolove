@@ -2,10 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-const FLW_SECRET_KEY = Deno.env.get("FLW_SECRET_KEY")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
 serve(async (req) => {
   console.log('🔍 Flutterwave Verify: Request received');
   
@@ -14,6 +10,38 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    // Get payment gateway settings from database
+    const { data: settingsData, error: settingsError } = await supabaseAdmin
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'payment_gateway_settings')
+      .single();
+
+    if (settingsError || !settingsData?.value) {
+      console.error('❌ Flutterwave Verify: Payment settings not found:', settingsError);
+      throw new Error('Payment gateway settings not configured.');
+    }
+
+    let settings;
+    try {
+      settings = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
+    } catch (e) {
+      throw new Error("Failed to parse payment gateway settings.");
+    }
+
+    const flutterwaveKeys = settings.mode === 'live' ? settings.flutterwave?.live : settings.flutterwave?.test;
+    const secretKey = flutterwaveKeys?.secretKey;
+
+    if (!secretKey) {
+      throw new Error(`Flutterwave secret key for ${settings.mode} mode is not configured.`);
+    }
+
     const requestBody = await req.json();
     console.log('📥 Flutterwave Verify: Request body:', requestBody);
     
@@ -41,43 +69,43 @@ serve(async (req) => {
       });
     }
 
-    console.log('🔍 Flutterwave Verify: Verifying transaction with Flutterwave API...');
+    console.log('🔍 Flutterwave Verify: Verifying transaction with backend...');
     
-    const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
+    const verificationResponse = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${FLW_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
         "Content-Type": "application/json",
       },
     });
 
-    if (!verifyRes.ok) {
-      console.error('❌ Flutterwave Verify: API verification failed:', verifyRes.status, verifyRes.statusText);
+    if (!verificationResponse.ok) {
+      console.error('❌ Flutterwave Verify: API verification failed:', verificationResponse.status, verificationResponse.statusText);
       return new Response(JSON.stringify({ 
         success: false, 
-        error: `Flutterwave API error: ${verifyRes.status}` 
+        error: `Flutterwave API error: ${verificationResponse.status}` 
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    const verificationResult = await verificationResponse.json();
+    console.log('📥 Flutterwave Verify: API response:', verificationResult);
 
-    const result = await verifyRes.json();
-    console.log('📥 Flutterwave Verify: API response:', result);
-
-    if (result.status !== "success" || result.data.status !== "successful") {
-      console.error('❌ Flutterwave Verify: Transaction not successful:', result.data.status);
+    if (verificationResult.status !== "success" || verificationResult.data.status !== "successful") {
+      console.error('❌ Flutterwave Verify: Transaction not successful:', verificationResult.data.status);
       return new Response(JSON.stringify({ 
         success: false, 
         error: "Transaction not successful", 
-        data: result 
+        data: verificationResult 
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (result.data.tx_ref !== tx_ref) {
+    if (verificationResult.data.tx_ref !== tx_ref) {
       console.error('❌ Flutterwave Verify: tx_ref mismatch');
       return new Response(JSON.stringify({ 
         success: false, 
@@ -89,8 +117,6 @@ serve(async (req) => {
     }
 
     console.log('✅ Flutterwave Verify: Transaction verified successfully');
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Check if transaction already processed
     const { data: existingTx, error: txCheckError } = await supabaseAdmin
@@ -119,8 +145,8 @@ serve(async (req) => {
     // Record the transaction
     const { error: insertError } = await supabaseAdmin.from('payment_transactions').insert({
       user_id: user_id,
-      amount: result.data.amount,
-      currency: result.data.currency?.toUpperCase() || 'USD',
+      amount: verificationResult.data.amount,
+      currency: verificationResult.data.currency?.toUpperCase() || 'USD',
       payment_method: 'flutterwave',
       status: 'completed',
       payment_id: transaction_id,
@@ -154,7 +180,7 @@ serve(async (req) => {
     if (type === 'subscription' && plan_id && plan_name) {
       console.log(`📋 Flutterwave Verify: Activating subscription for user ${user_id} with plan ${plan_name}`);
       
-      const subscriptionStartDate = new Date(result.data.created_at);
+      const subscriptionStartDate = new Date(verificationResult.data.created_at);
       const expiresAt = new Date(subscriptionStartDate);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
@@ -240,7 +266,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true,
       message: `${type === 'credits' ? 'Credits' : 'Subscription'} processed successfully`,
-      data: result.data 
+      data: verificationResult.data 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

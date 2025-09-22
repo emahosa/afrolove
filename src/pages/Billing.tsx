@@ -285,6 +285,10 @@ const Billing: React.FC = () => {
         console.log('🔄 Starting Flutterwave subscription process for plan:', plan.name);
         console.log('📋 User details:', { userId: user.id, email: user.email, planId: plan.id });
         
+        // Ensure we have proper customer information
+        const customerName = user.user_metadata?.full_name || user.name || 'Valued Customer';
+        const customerPhone = user.user_metadata?.phone || user.user_metadata?.phone_number || '';
+        
         const flutterwavePayload = {
           publicKey: publicKeys.flutterwavePublicKey,
           amount: plan.price,
@@ -292,7 +296,8 @@ const Billing: React.FC = () => {
           payment_options: "card, mobilemoney, ussd",
           customer: { 
             email: user.email!,
-            name: user.user_metadata?.full_name || user.name || 'Valued Customer'
+            name: customerName,
+            phone_number: customerPhone
           },
           meta: {
             type: 'subscription',
@@ -301,11 +306,13 @@ const Billing: React.FC = () => {
             plan_name: plan.name,
             credits: plan.credits_per_month,
             user_email: user.email,
-            amount: plan.price
+            amount: plan.price,
+            description: `Subscription to ${plan.name}`
           },
           customizations: {
             title: 'Afromelody AI Subscription',
             description: `Payment for ${plan.name}`,
+            logo: 'https://lovable.dev/opengraph-image-p98pqg.png'
           },
         };
         
@@ -416,25 +423,32 @@ const Billing: React.FC = () => {
         console.log('🔄 Starting Flutterwave credit purchase for package:', selectedPackage);
         console.log('📋 User details:', { userId: user.id, email: user.email, credits: selectedPackage.credits });
         
+        // Ensure we have proper customer information
+        const customerName = user.user_metadata?.full_name || user.name || 'Valued Customer';
+        const customerPhone = user.user_metadata?.phone || user.user_metadata?.phone_number || '';
+        
         const flutterwavePayload = {
           publicKey: publicKeys.flutterwavePublicKey,
           amount: selectedPackage.amount,
-          currency: 'NGN', // Or get from package
           currency: 'USD',
+          payment_options: "card, mobilemoney, ussd, bank_transfer",
           customer: { 
             email: user.email!,
-            name: user.user_metadata?.full_name || user.name || 'Valued Customer'
+            name: customerName,
+            phone_number: customerPhone
           },
           meta: {
             type: 'credits',
             user_id: user.id,
             credits: selectedPackage.credits,
             user_email: user.email,
-            amount: selectedPackage.amount
+            amount: selectedPackage.amount,
+            description: `Purchase of ${selectedPackage.credits} credits`
           },
           customizations: {
             title: 'Afromelody AI Credits',
             description: `Purchase of ${selectedPackage.credits} credits`,
+            logo: 'https://lovable.dev/opengraph-image-p98pqg.png'
           },
         };
         
