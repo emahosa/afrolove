@@ -34,11 +34,11 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
 
     // Wait longer for webhook processing (webhooks can be slow)
     console.log("⏳ Waiting for webhook to process...");
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    await new Promise(resolve => setTimeout(resolve, 10000));
 
     // Try to verify payment with more attempts and longer waits
     let attempts = 0;
-    const maxAttempts = 30; // Increased attempts
+    const maxAttempts = 40; // Increased attempts for Flutterwave
     
     while (attempts < maxAttempts) {
       console.log(`🔄 Verification attempt ${attempts + 1}/${maxAttempts}`);
@@ -49,7 +49,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
           .from('payment_transactions')
           .select('*')
           .eq('user_id', user.user.id)
-          .eq('payment_id', sessionId)
+          .or(`payment_id.eq.${sessionId},tx_ref.eq.${sessionId}`)
           .eq('status', 'completed')
           .order('created_at', { ascending: false })
           .limit(1);
@@ -140,7 +140,7 @@ export const verifyPaymentSuccess = async (sessionId?: string): Promise<PaymentV
       attempts++;
       if (attempts < maxAttempts) {
         // Wait longer between attempts
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 6000));
       }
     }
 

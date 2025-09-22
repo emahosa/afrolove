@@ -295,12 +295,20 @@ export const PaymentGatewayManagement = () => {
                     <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="FLWPUBK_TEST-..." value={settings.flutterwave.test.publicKey} onChange={(e) => handleInputChange('flutterwave', 'test', 'publicKey', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="FLWSECK_TEST-..." value={settings.flutterwave.test.secretKey} onChange={(e) => handleInputChange('flutterwave', 'test', 'secretKey', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Secret Hash</Label><Input type="password" placeholder="Your secret hash" value={settings.flutterwave.test.secretHash} onChange={(e) => handleInputChange('flutterwave', 'test', 'secretHash', e.target.value)} /></div>
+                    <div className="text-xs text-muted-foreground">
+                      <p><strong>Note:</strong> The secret hash is used to verify webhook signatures from Flutterwave.</p>
+                      <p>You can find this in your Flutterwave dashboard under Settings → Webhooks.</p>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <h4 className="font-medium text-muted-foreground">Live Keys</h4>
                     <div className="space-y-2"><Label>Public Key</Label><Input type="text" placeholder="FLWPUBK-..." value={settings.flutterwave.live.publicKey} onChange={(e) => handleInputChange('flutterwave', 'live', 'publicKey', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Secret Key</Label><Input type="password" placeholder="FLWSECK-..." value={settings.flutterwave.live.secretKey} onChange={(e) => handleInputChange('flutterwave', 'live', 'secretKey', e.target.value)} /></div>
                     <div className="space-y-2"><Label>Secret Hash</Label><Input type="password" placeholder="Your secret hash" value={settings.flutterwave.live.secretHash} onChange={(e) => handleInputChange('flutterwave', 'live', 'secretHash', e.target.value)} /></div>
+                    <div className="text-xs text-muted-foreground">
+                      <p><strong>Important:</strong> Make sure to configure webhooks in your Flutterwave dashboard.</p>
+                      <p>Webhook URL: <code>{window.location.origin.replace('localhost:5173', 'bswfiynuvjvoaoyfdrso.supabase.co')}/functions/v1/flw-webhook</code></p>
+                    </div>
                   </div>
                 </div>
               </TabsContent>
